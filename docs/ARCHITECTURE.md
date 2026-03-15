@@ -296,9 +296,13 @@ Response: {
 - [x] Landing Page
 - [x] Demo Chat UI
 - [x] 测试框架
-- [ ] Agent 基础类
-- [ ] Task Manager
-- [ ] Chat Manager
+- [x] Agent 基础类
+- [x] Task Manager
+- [x] Chat Manager
+- [x] API 路由
+- [ ] Agent 测试用例
+- [ ] 前端集成
+- [ ] README
 
 ### Phase 2: LLM 集成 (Day 2)
 - [ ] OpenAI API 集成

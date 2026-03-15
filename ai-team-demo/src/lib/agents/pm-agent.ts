@@ -48,6 +48,9 @@ export class PMAgent extends BaseAgent {
     if (description.includes('登录') || description.includes('login')) {
       keywords.push('auth', 'form', 'validation')
     }
+    if (description.includes('表单') || description.includes('form') || description.includes('注册')) {
+      keywords.push('form', 'validation')
+    }
     if (description.includes('页面') || description.includes('page')) {
       keywords.push('ui', 'component', 'styling')
     }
