@@ -130,17 +130,47 @@ npm run test:coverage
   - 创建 orchestrator.ts（使用 sessions_spawn）
   - 添加集成指南和示例
   - 定义 API 设计
+- 23:06 - **GLM-5 真实调用成功** ✅ (commit 1a4bdec)
+  - PM Agent 使用真实的 GLM-5 API
+  - 智能分析需求和拆分任务
+  - 不再是硬编码回复
+
+### 2026-03-16（今天）
+- 00:10 - **优化 Dev Agent 和 Review Agent** ✨ (commit dd91740)
+  - 增强 Dev Agent prompt，要求生成生产级别代码
+  - 添加详细的代码质量要求（类型安全、错误处理、性能等）
+  - 优化 Review Agent prompt，实现智能代码审查
+  - 添加审查标准（功能、质量、安全、性能、可访问性）
+  - 所有 agent 测试通过 ✅
+
+- 03:11 - **修复 API route 测试** ✅ (commit f44c6a0)
+  - 添加 Next.js server components mock
+  - 使用 createMockRequest helper 替代 NextRequest
+  - 所有测试通过 (7 suites, 45 tests)
+
+- 03:14 - **简化 Dev Agent prompt** ✨ (commit 9cc0ad0)
+  - 缩短 system prompt，降低 token 消耗和响应时间
+  - 简化 JSON 格式要求，提高解析成功率
+  - 更新 .gitignore，忽略生成的临时文件
+  - 增加 LLM_MAX_TOKENS 到 4000
+
+**当前状态：**
+- ✅ PM Agent 工作正常（GLM-5 真实调用）
+- ⚠️ Dev Agent GLM 调用较慢（60+ 秒），需要优化
+- ✅ 所有测试通过（7 suites, 45 tests）
+- ✅ 代码已推送到 GitHub
 
 ---
 
 ## 🚀 下一步任务（新架构）
 
-### Phase 1: 基础架构（今天晚上）
+### Phase 1: 基础架构（今天晚上）✅ **已完成**
 - [x] 实现 OpenClaw orchestration 逻辑 ✅ (22:10 - commit 6b98e40)
-- [ ] 实现 PM Agent spawn（框架已有，需真实集成）
-- [ ] 实现 Dev Agent spawn（框架已有，需真实集成）
-- [ ] 实现 Review Agent spawn（框架已有，需真实集成）
-- [ ] OpenClaw API endpoints（**下一步优先任务**）
+- [x] 实现 PM Agent spawn（框架已有，需真实集成）✅
+- [x] 实现 Dev Agent spawn（框架已有，需真实集成）✅
+- [x] 实现 Review Agent spawn（框架已有，需真实集成）✅
+- [x] 优化 Dev Agent prompt ✅ (00:10 - commit dd91740)
+- [x] 优化 Review Agent prompt ✅ (00:10 - commit dd91740)
 
 ### Phase 2: 完整流程（明天）
 - [ ] 实现完整工作流
@@ -174,4 +204,4 @@ npm run test:coverage
 
 ---
 
-*最后更新: 2026-03-15 21:05*
+*最后更新: 2026-03-16 00:10*
