@@ -2,6 +2,7 @@
 
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
+import { getLLMProvider } from '../llm/factory'
 
 export class ReviewAgent extends BaseAgent {
   constructor() {
@@ -22,9 +23,102 @@ export class ReviewAgent extends BaseAgent {
     // 3. 性能优化建议
     // 4. 批准或要求修改
 
-    const response = await this.review(task, context)
+    const llmProvider = getLLMProvider()
+    
+    if (llmProvider) {
+      const response = await this.reviewWithLLM(task, context, llmProvider)
+      return response
+    } else {
+      const response = await this.review(task, context)
+      return response
+    }
+  }
 
-    return response
+  private async reviewWithLLM(
+    task: Task,
+    context: AgentContext,
+    llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
+  ): Promise<AgentResponse> {
+    const systemPrompt = `你是一个经验丰富的代码审查专家（Review Agent）。你的职责是：
+1. 检查代码质量
+2. 发现潜在的安全问题
+3. 提出性能优化建议
+4. 确保代码符合最佳实践
+
+请用 JSON 格式回复，包含以下字段：
+{
+  "checks": [
+    {
+      "name": "检查项名称",
+      "passed": true | false,
+      "warning": true | false,
+      "message": "问题描述或建议"
+    }
+  ],
+  "approved": true | false,
+  "message": "审查报告消息（使用 Markdown 格式）",
+  "suggestions": ["改进建议1", "改进建议2"]
+}
+
+重要：
+- 审查要严格但公正
+- 对于严重问题，设置 approved 为 false
+- 对于小问题，可以作为 warning 处理
+- 给出具体的改进建议`
+
+    const userPrompt = `任务: ${task.title}
+描述: ${task.description}
+
+请审查相关的代码实现，提供质量报告。`
+
+    try {
+      const response = await llmProvider.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ])
+
+      const parsed = this.parseLLMResponse(response)
+      
+      return {
+        agent: 'review',
+        message: parsed.message,
+        status: parsed.approved ? 'success' : 'need_input',
+        nextAgent: parsed.approved ? undefined : 'dev'
+      }
+    } catch (error) {
+      this.log(`LLM 调用失败，回退到规则系统: ${error}`)
+      return this.review(task, context)
+    }
+  }
+
+  private parseLLMResponse(response: string): {
+    checks: Array<{ name: string; passed: boolean; warning?: boolean; message?: string }>
+    approved: boolean
+    message: string
+    suggestions: string[]
+  } {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        
+        return {
+          checks: parsed.checks || [],
+          approved: parsed.approved ?? true,
+          message: parsed.message || '代码审查完成',
+          suggestions: parsed.suggestions || []
+        }
+      }
+    } catch (e) {
+      this.log(`解析 LLM 响应失败: ${e}`)
+    }
+
+    return {
+      checks: [],
+      approved: true,
+      message: response,
+      suggestions: []
+    }
   }
 
   private async review(task: Task, context: AgentContext): Promise<AgentResponse> {

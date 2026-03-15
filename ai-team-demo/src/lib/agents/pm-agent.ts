@@ -2,6 +2,7 @@
 
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
+import { getLLMProvider } from '../llm/factory'
 
 export class PMAgent extends BaseAgent {
   constructor() {
@@ -21,9 +22,113 @@ export class PMAgent extends BaseAgent {
     // 2. 拆分成可执行的子任务
     // 3. 分配给合适的 Agent
 
-    const response = await this.analyzeAndPlan(task, context)
+    const llmProvider = getLLMProvider()
+    
+    if (llmProvider) {
+      // 使用 LLM 进行智能分析
+      const response = await this.analyzeWithLLM(task, context, llmProvider)
+      return response
+    } else {
+      // 回退到规则系统
+      const response = await this.analyzeAndPlan(task, context)
+      return response
+    }
+  }
 
-    return response
+  private async analyzeWithLLM(
+    task: Task,
+    context: AgentContext,
+    llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
+  ): Promise<AgentResponse> {
+    const systemPrompt = `你是一个经验丰富的产品经理（PM Agent）。你的职责是：
+1. 分析用户需求，理解他们想要构建什么
+2. 将需求拆分成具体的、可执行的子任务
+3. 为每个子任务分配合适的 Agent（dev 或 review）
+
+请用 JSON 格式回复，包含以下字段：
+{
+  "analysis": "需求分析总结",
+  "tasks": [
+    {
+      "title": "任务标题",
+      "description": "任务描述",
+      "assignedTo": "dev" | "review",
+      "dependencies": []
+    }
+  ],
+  "message": "给团队的回复消息（使用 Markdown 格式）"
+}
+
+重要：
+- 任务应该是具体的、可执行的
+- 每个任务应该有明确的负责人
+- 如果任务之间有依赖关系，请在 dependencies 中注明
+- 回复消息应该友好、专业`
+
+    const userPrompt = `用户需求: ${task.title}
+描述: ${task.description}
+
+请分析这个需求并制定执行计划。`
+
+    try {
+      const response = await llmProvider.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ])
+
+      // 解析 LLM 响应
+      const parsed = this.parseLLMResponse(response)
+      
+      return {
+        agent: 'pm',
+        message: parsed.message,
+        tasks: parsed.tasks,
+        nextAgent: 'dev',
+        status: 'success'
+      }
+    } catch (error) {
+      this.log(`LLM 调用失败，回退到规则系统: ${error}`)
+      return this.analyzeAndPlan(task, context)
+    }
+  }
+
+  private parseLLMResponse(response: string): {
+    analysis: string
+    tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>[]
+    message: string
+  } {
+    try {
+      // 尝试提取 JSON
+      const jsonMatch = response.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        
+        // 转换为标准格式
+        const tasks = (parsed.tasks || []).map((t: any) => ({
+          title: t.title || '未命名任务',
+          description: t.description || '',
+          status: 'pending' as const,
+          assignedTo: t.assignedTo || 'dev',
+          dependencies: t.dependencies || [],
+          files: []
+        }))
+
+        return {
+          analysis: parsed.analysis || '',
+          tasks,
+          message: parsed.message || '任务规划完成'
+        }
+      }
+    } catch (e) {
+      this.log(`解析 LLM 响应失败: ${e}`)
+    }
+
+    // 如果解析失败，使用整个响应作为消息
+    return {
+      analysis: '',
+      tasks: [],
+      message: response
+    }
   }
 
   private async analyzeAndPlan(task: Task, context: AgentContext): Promise<AgentResponse> {

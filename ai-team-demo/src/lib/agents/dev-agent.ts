@@ -2,6 +2,7 @@
 
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
+import { getLLMProvider } from '../llm/factory'
 
 export class DevAgent extends BaseAgent {
   constructor() {
@@ -21,9 +22,111 @@ export class DevAgent extends BaseAgent {
     // 2. 生成/修改代码
     // 3. 提交给 Review Agent
 
-    const response = await this.implement(task, context)
+    const llmProvider = getLLMProvider()
+    
+    if (llmProvider) {
+      const response = await this.implementWithLLM(task, context, llmProvider)
+      return response
+    } else {
+      const response = await this.implement(task, context)
+      return response
+    }
+  }
 
-    return response
+  private async implementWithLLM(
+    task: Task,
+    context: AgentContext,
+    llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
+  ): Promise<AgentResponse> {
+    const systemPrompt = `你是一个经验丰富的开发者（Dev Agent）。你的职责是：
+1. 理解任务需求
+2. 编写高质量、可维护的代码
+3. 确保代码符合最佳实践
+
+请用 JSON 格式回复，包含以下字段：
+{
+  "analysis": "任务分析",
+  "files": [
+    {
+      "path": "文件路径",
+      "content": "文件内容",
+      "action": "create" | "modify"
+    }
+  ],
+  "message": "给团队的回复消息（使用 Markdown 格式）",
+  "notes": ["注意事项1", "注意事项2"]
+}
+
+重要：
+- 代码应该遵循 React 和 Next.js 最佳实践
+- 使用 TypeScript
+- 包含必要的类型定义
+- 添加适当的注释`
+
+    const userPrompt = `任务: ${task.title}
+描述: ${task.description}
+
+项目上下文：
+- 项目类型: Next.js 14 + React + TypeScript
+- 样式: Tailwind CSS
+
+请实现这个功能。`
+
+    try {
+      const response = await llmProvider.chat([
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ])
+
+      const parsed = this.parseLLMResponse(response)
+      
+      return {
+        agent: 'dev',
+        message: parsed.message,
+        files: parsed.files,
+        nextAgent: 'review',
+        status: 'success'
+      }
+    } catch (error) {
+      this.log(`LLM 调用失败，回退到规则系统: ${error}`)
+      return this.implement(task, context)
+    }
+  }
+
+  private parseLLMResponse(response: string): {
+    analysis: string
+    files: { path: string; content: string; action: 'create' | 'modify' }[]
+    message: string
+    notes: string[]
+  } {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        
+        const files = (parsed.files || []).map((f: any) => ({
+          path: f.path || 'unknown.ts',
+          content: f.content || '',
+          action: (f.action || 'create') as 'create' | 'modify'
+        }))
+
+        return {
+          analysis: parsed.analysis || '',
+          files,
+          message: parsed.message || '代码实现完成',
+          notes: parsed.notes || []
+        }
+      }
+    } catch (e) {
+      this.log(`解析 LLM 响应失败: ${e}`)
+    }
+
+    return {
+      analysis: '',
+      files: [],
+      message: response,
+      notes: []
+    }
   }
 
   private async implement(task: Task, context: AgentContext): Promise<AgentResponse> {
