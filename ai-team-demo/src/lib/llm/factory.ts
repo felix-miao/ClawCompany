@@ -2,6 +2,7 @@
 
 import { LLMProvider, LLMConfig } from './types'
 import { OpenAIProvider } from './openai'
+import { GLMProvider } from './glm'
 
 export class LLMFactory {
   static createProvider(config: LLMConfig): LLMProvider {
@@ -9,11 +10,11 @@ export class LLMFactory {
       case 'openai':
         return new OpenAIProvider(config)
       
+      case 'glm':
+        return new GLMProvider(config)
+      
       case 'anthropic':
         throw new Error('Anthropic provider not implemented yet')
-      
-      case 'glm':
-        throw new Error('GLM provider not implemented yet')
       
       default:
         throw new Error(`Unknown LLM provider: ${config.provider}`)
@@ -21,25 +22,41 @@ export class LLMFactory {
   }
 
   static createFromEnv(): LLMProvider | null {
-    const apiKey = process.env.OPENAI_API_KEY
-    
-    if (!apiKey) {
-      console.warn('No LLM API key found in environment')
-      return null
+    // 优先使用 GLM
+    const glmKey = process.env.GLM_API_KEY
+    if (glmKey) {
+      const model = process.env.GLM_MODEL || 'glm-4'
+      const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.7')
+      const maxTokens = parseInt(process.env.LLM_MAX_TOKENS || '2000', 10)
+
+      return LLMFactory.createProvider({
+        provider: 'glm',
+        apiKey: glmKey,
+        model,
+        temperature,
+        maxTokens,
+      })
     }
 
-    const provider = (process.env.LLM_PROVIDER as LLMConfig['provider']) || 'openai'
-    const model = process.env.LLM_MODEL || 'gpt-4o-mini'
-    const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.7')
-    const maxTokens = parseInt(process.env.LLM_MAX_TOKENS || '2000', 10)
+    // 备选 OpenAI
+    const openaiKey = process.env.OPENAI_API_KEY
+    if (openaiKey) {
+      const provider = (process.env.LLM_PROVIDER as LLMConfig['provider']) || 'openai'
+      const model = process.env.LLM_MODEL || 'gpt-4o-mini'
+      const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.7')
+      const maxTokens = parseInt(process.env.LLM_MAX_TOKENS || '2000', 10)
 
-    return LLMFactory.createProvider({
-      provider,
-      apiKey,
-      model,
-      temperature,
-      maxTokens,
-    })
+      return LLMFactory.createProvider({
+        provider,
+        apiKey: openaiKey,
+        model,
+        temperature,
+        maxTokens,
+      })
+    }
+
+    console.warn('No LLM API key found in environment')
+    return null
   }
 }
 
