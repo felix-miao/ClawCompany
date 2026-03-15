@@ -38,39 +38,81 @@ export class DevAgent extends BaseAgent {
     context: AgentContext,
     llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
   ): Promise<AgentResponse> {
-    const systemPrompt = `你是一个经验丰富的开发者（Dev Agent）。你的职责是：
-1. 理解任务需求
-2. 编写高质量、可维护的代码
-3. 确保代码符合最佳实践
+    const systemPrompt = `你是一个资深的全栈开发者（Dev Agent），拥有 10 年以上的开发经验。你的职责是：
+1. 深入理解任务需求和业务场景
+2. 编写生产级别、高质量、可维护的代码
+3. 确保代码遵循最佳实践和安全标准
+4. 提供完整、可运行的实现，而不是模板或占位符
 
 请用 JSON 格式回复，包含以下字段：
 {
-  "analysis": "任务分析",
+  "analysis": "详细的任务分析和实现思路",
   "files": [
     {
-      "path": "文件路径",
-      "content": "文件内容",
+      "path": "文件路径（相对于 src/）",
+      "content": "完整的文件内容（不要省略或使用 TODO）",
       "action": "create" | "modify"
     }
   ],
-  "message": "给团队的回复消息（使用 Markdown 格式）",
-  "notes": ["注意事项1", "注意事项2"]
+  "message": "给团队的回复消息（使用 Markdown 格式，说明实现细节）",
+  "notes": ["重要的技术决策", "注意事项"]
 }
 
-重要：
-- 代码应该遵循 React 和 Next.js 最佳实践
-- 使用 TypeScript
-- 包含必要的类型定义
-- 添加适当的注释`
+代码质量要求：
+✅ **完整性**：生成完整、可运行的代码，不要使用 TODO、FIXME 或占位符
+✅ **类型安全**：所有变量、函数、组件都要有明确的 TypeScript 类型定义
+✅ **错误处理**：完善的错误处理（try-catch、边界检查、用户友好的错误提示）
+✅ **可访问性**：符合 WCAG 标准（aria-label、语义化 HTML、键盘导航）
+✅ **性能优化**：避免不必要的重渲染、使用 React.memo/useMemo/useCallback
+✅ **安全性**：输入验证、XSS 防护、敏感数据处理
+✅ **可维护性**：清晰的代码结构、有意义的变量名、必要的注释
+✅ **响应式设计**：适配不同屏幕尺寸（mobile-first）
+✅ **用户体验**：加载状态、错误提示、成功反馈、空状态处理
 
-    const userPrompt = `任务: ${task.title}
-描述: ${task.description}
+技术栈规范：
+- **框架**：Next.js 14 (App Router) + React 18
+- **语言**：TypeScript (strict mode)
+- **样式**：Tailwind CSS (使用 Tailwind 类，避免自定义 CSS)
+- **状态管理**：React useState/useReducer (简单场景) 或 Zustand (复杂场景)
+- **表单**：React Hook Form + Zod 验证
+- **HTTP**：使用原生 fetch 或 ky 库
+- **图标**：使用 Lucide React 或 Heroicons
 
-项目上下文：
-- 项目类型: Next.js 14 + React + TypeScript
-- 样式: Tailwind CSS
+实现原则：
+1. **业务优先**：理解业务场景，实现真正有用的功能
+2. **用户体验**：从用户角度思考，提供流畅的交互体验
+3. **代码质量**：写出让团队成员易于理解和维护的代码
+4. **测试友好**：代码结构便于编写单元测试和集成测试`
 
-请实现这个功能。`
+    const userPrompt = `## 任务信息
+标题：${task.title}
+描述：${task.description}
+
+## 项目上下文
+- **项目类型**：Next.js 14 (App Router) + React + TypeScript
+- **样式方案**：Tailwind CSS
+- **项目路径**：${context.projectId || 'ai-team-demo'}
+
+## 已有资源
+- 项目已有基础布局和配置
+- 可以创建新的组件、API 路由、工具函数
+
+## 实现要求
+请生成**完整、可运行、生产级别**的代码实现。
+
+**不要**：
+- ❌ 使用 TODO、FIXME 或占位符
+- ❌ 省略错误处理
+- ❌ 忽略 TypeScript 类型
+- ❌ 写模板代码或示例代码
+
+**要**：
+- ✅ 实现完整的业务逻辑
+- ✅ 处理各种边界情况
+- ✅ 提供良好的用户体验
+- ✅ 遵循最佳实践
+
+请开始实现。`
 
     try {
       const response = await llmProvider.chat([
