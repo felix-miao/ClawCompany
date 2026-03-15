@@ -247,15 +247,17 @@ export default function DemoPage() {
             🔄 Restart Demo
           </motion.button>
           {currentIndex >= demoConversation.length && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="px-6 py-3 bg-primary-500 hover:bg-primary-600 rounded-xl text-white font-medium shadow-lg shadow-primary-500/30"
-            >
-              ✨ Start Your Project
-            </motion.button>
+            <Link href="/chat">
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="px-6 py-3 bg-primary-500 hover:bg-primary-600 rounded-xl text-white font-medium shadow-lg shadow-primary-500/30"
+              >
+                ✨ Start Your Project
+              </motion.button>
+            </Link>
           )}
         </div>
 

@@ -206,7 +206,17 @@ export default function ChatPage() {
                       {isUser ? (
                         <p className="whitespace-pre-wrap">{message.content}</p>
                       ) : (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h2: ({ children }) => <h2 className="text-base font-bold text-white mt-3 mb-2">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-sm font-bold text-white mt-2 mb-1">{children}</h3>,
+                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>,
+                            strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                            code: ({ children }) => <code className="bg-dark-100 px-1 py-0.5 rounded text-xs">{children}</code>,
+                          }}
+                        >
                           {message.content}
                         </ReactMarkdown>
                       )}
