@@ -114,6 +114,7 @@ export class Orchestrator {
       messages: chatManager.getHistory().map(m => ({
         agent: m.agent,
         content: m.content,
+        timestamp: m.timestamp,
       })),
       tasks: taskManager.getAllTasks(),
       files: allFiles,

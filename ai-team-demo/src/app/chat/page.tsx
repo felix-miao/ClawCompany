@@ -84,7 +84,12 @@ export default function ChatPage() {
       const response = await sendMessage(userMessage)
       
       if (response.success && response.chatHistory) {
-        setMessages(response.chatHistory)
+        // 确保 timestamp 是 Date 对象
+        const messagesWithDates = response.chatHistory.map((m: any) => ({
+          ...m,
+          timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+        }))
+        setMessages(messagesWithDates)
         if (response.tasks) {
           setTasks(response.tasks)
         }
@@ -171,7 +176,7 @@ export default function ChatPage() {
                         {config.name}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {message.timestamp.toLocaleTimeString()}
+                        {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : ''}
                       </span>
                     </div>
                     <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed">
