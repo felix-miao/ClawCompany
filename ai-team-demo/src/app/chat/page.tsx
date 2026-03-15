@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Message, Task } from '@/lib/agents/types'
 import { sendMessage, getChatHistory } from '@/lib/api/client'
 
@@ -54,8 +56,29 @@ export default function ChatPage() {
 
   const loadInitialState = async () => {
     const data = await getChatHistory()
-    if (data.chatHistory) {
+    if (data.chatHistory && data.chatHistory.length > 0) {
       setMessages(data.chatHistory)
+    } else {
+      // 添加欢迎消息（用于 demo）
+      const welcomeMessage: Message = {
+        id: 'welcome-1',
+        agent: 'pm',
+        content: `## 👋 欢迎来到 AI 团队！
+
+我是 **PM Agent**，负责理解你的需求并协调团队。
+
+你可以告诉我你想构建什么，例如：
+- "创建一个登录页面"
+- "帮我做一个计算器"
+- "实现一个待办事项列表"
+
+我会分析你的需求，**Dev Agent** 会实现功能，**Review Agent** 会审查代码质量。
+
+**现在，告诉我你想构建什么？** 🚀`,
+        type: 'text',
+        timestamp: new Date(),
+      }
+      setMessages([welcomeMessage])
     }
     if (data.tasks) {
       setTasks(data.tasks)
@@ -179,9 +202,15 @@ export default function ChatPage() {
                         {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : ''}
                       </span>
                     </div>
-                    <p className="text-gray-300 whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.content}
-                    </p>
+                    <div className="text-gray-300 text-sm leading-relaxed prose prose-invert prose-sm max-w-none">
+                      {isUser ? (
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                      ) : (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.content}
+                        </ReactMarkdown>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
