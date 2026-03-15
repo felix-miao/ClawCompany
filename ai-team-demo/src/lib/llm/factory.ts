@@ -3,6 +3,7 @@
 import { LLMProvider, LLMConfig } from './types'
 import { OpenAIProvider } from './openai'
 import { GLMProvider } from './glm'
+import { MockProvider } from './mock'
 
 export class LLMFactory {
   static createProvider(config: LLMConfig): LLMProvider {
@@ -22,6 +23,13 @@ export class LLMFactory {
   }
 
   static createFromEnv(): LLMProvider | null {
+    // 优先检查是否使用 Mock 模式（用于 Demo）
+    const useMock = process.env.USE_MOCK_LLM === 'true'
+    if (useMock) {
+      console.log('[LLM Factory] Using Mock Provider for demo')
+      return new MockProvider()
+    }
+
     // 优先使用 GLM
     const glmKey = process.env.GLM_API_KEY
     if (glmKey) {
