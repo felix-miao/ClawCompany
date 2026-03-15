@@ -1,7 +1,29 @@
 // Chat API 完整测试
 
-import { NextRequest } from 'next/server'
+// Mock Next.js server components
+jest.mock('next/server', () => ({
+  NextRequest: class MockNextRequest {
+    json: () => Promise<any>
+    constructor(url: string, options?: any) {
+      this.json = async () => options?.body ? JSON.parse(options.body) : {}
+    }
+  },
+  NextResponse: {
+    json: (data: any, options?: any) => ({
+      json: async () => data,
+      status: options?.status || 200,
+    }),
+  },
+}))
+
 import { POST, GET } from '../route'
+
+// Helper to create mock NextRequest
+function createMockRequest(body: any): any {
+  return {
+    json: async () => body,
+  } as any
+}
 
 describe('Chat API', () => {
   beforeEach(() => {
@@ -10,10 +32,7 @@ describe('Chat API', () => {
 
   describe('POST /api/chat', () => {
     it('应该返回正确的消息格式', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '测试消息' }),
-      })
+      const request = createMockRequest({ message: '测试消息' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -25,10 +44,7 @@ describe('Chat API', () => {
     })
 
     it('消息应该包含 timestamp 字段', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '测试' }),
-      })
+      const request = createMockRequest({ message: '测试' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -38,10 +54,7 @@ describe('Chat API', () => {
     })
 
     it('timestamp 应该是有效的日期字符串', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '测试' }),
-      })
+      const request = createMockRequest({ message: '测试' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -53,10 +66,7 @@ describe('Chat API', () => {
     })
 
     it('所有消息都应该有 timestamp', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '创建登录页面' }),
-      })
+      const request = createMockRequest({ message: '创建登录页面' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -70,10 +80,7 @@ describe('Chat API', () => {
     })
 
     it('消息应该包含正确的 agent 字段', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '测试' }),
-      })
+      const request = createMockRequest({ message: '测试' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -84,10 +91,7 @@ describe('Chat API', () => {
     })
 
     it('消息应该包含 content 字段', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '测试' }),
-      })
+      const request = createMockRequest({ message: '测试' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -99,10 +103,7 @@ describe('Chat API', () => {
     })
 
     it('应该返回任务列表', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '创建登录页面' }),
-      })
+      const request = createMockRequest({ message: '创建登录页面' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -112,10 +113,7 @@ describe('Chat API', () => {
     })
 
     it('任务应该包含必要的字段', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '创建登录页面' }),
-      })
+      const request = createMockRequest({ message: '创建登录页面' })
 
       const response = await POST(request)
       const data = await response.json()
@@ -129,10 +127,7 @@ describe('Chat API', () => {
     })
 
     it('空消息应该返回错误', async () => {
-      const request = new NextRequest('http://localhost/api/chat', {
-        method: 'POST',
-        body: JSON.stringify({ message: '' }),
-      })
+      const request = createMockRequest({ message: '' })
 
       const response = await POST(request)
       const data = await response.json()
