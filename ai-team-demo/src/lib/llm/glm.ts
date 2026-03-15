@@ -7,6 +7,7 @@ export class GLMProvider implements LLMProvider {
   private model: string
   private temperature: number
   private maxTokens: number
+  private baseUrl: string
 
   constructor(config: {
     apiKey: string
@@ -18,13 +19,16 @@ export class GLMProvider implements LLMProvider {
       throw new Error('GLM API key is required')
     }
     this.apiKey = config.apiKey
-    this.model = config.model || 'glm-4'
+    this.model = config.model || 'glm-5'
     this.temperature = config.temperature ?? 0.7
     this.maxTokens = config.maxTokens ?? 2000
+    
+    // 使用正确的 endpoint（api.z.ai 而不是 open.bigmodel.cn）
+    this.baseUrl = 'https://api.z.ai/api/coding/paas/v4'
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -51,7 +55,7 @@ export class GLMProvider implements LLMProvider {
   }
 
   async *stream(messages: ChatMessage[]): AsyncGenerator<string> {
-    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
