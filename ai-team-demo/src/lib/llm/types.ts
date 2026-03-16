@@ -1,4 +1,4 @@
-# LLM Provider - 大语言模型提供者接口
+// LLM Provider - 大语言模型提供者接口
 
 import { ChatMessage } from './types'
 

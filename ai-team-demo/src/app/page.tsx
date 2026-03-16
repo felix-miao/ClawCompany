@@ -96,7 +96,7 @@ export default function Home() {
             className="flex gap-4 justify-center"
           >
             <Link
-              href="/chat"
+              href="/team"
               className="px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-primary-500/30 hover:shadow-primary-500/50 hover:scale-105"
             >
               Start Chatting →

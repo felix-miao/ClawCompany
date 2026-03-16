@@ -32,10 +32,10 @@ describe('Landing Page', () => {
     expect(screen.getByText('Code Reviewer')).toBeInTheDocument()
   })
 
-  it('CTA 按钮应该链接到 /chat', () => {
+  it('CTA 按钮应该链接到 /team', () => {
     render(<Home />)
     
     const chatLink = screen.getByRole('link', { name: /Start Chatting/i })
-    expect(chatLink).toHaveAttribute('href', '/chat')
+    expect(chatLink).toHaveAttribute('href', '/team')
   })
 })
