@@ -261,21 +261,28 @@ npm run test:coverage
   - 推送所有未推送的 commits
   - 新增 /api/conversations 和 /api/git 路由
 
-**当前状态（2026-03-16 19:56）：**
+- 22:04 - **添加 Mock 模式 + Playwright E2E 测试框架** ✨ (commits 0ac2e9b, 020ce95)
+  - 修复团队协作流程
+  - 添加 Mock 模式支持
+  - 集成 Playwright E2E 测试框架
+  - 测试套件扩展到 16 个
+
+**当前状态（2026-03-16 22:04）：**
 - ✅ PM Agent 工作正常（GLM-5 真实调用）
 - ✅ Mock Provider 已添加（demo 录制就绪）
 - ✅ 4 个页面完成（Landing, Chat, Demo, Team）
 - ✅ 5 个 API 路由完成（/api/chat, /api/agent, /api/files, /api/conversations, /api/git）
 - ✅ 文件系统操作 + Git 自动管理
 - ✅ 安全系统（Rate Limiting, Input Validation）
+- ✅ Playwright E2E 测试框架集成
 - ✅ Demo 录制准备完成（检查清单 + 准备脚本）
 - ✅ 项目说明书完成（10页框架 + 详细内容）
 - ✅ 项目海报设计大纲完成
 - ✅ 项目状态检查脚本完成
 - ✅ ClawCompany skill 核心代码 + 测试完成
 - ✅ 提交材料检查清单完成
-- ✅ 核心测试通过（11/13 suites, 131 tests）
-- ✅ 代码已推送到 GitHub（47 commits）
+- ✅ 核心测试通过（11/16 suites, 143 tests）
+- ✅ 代码已推送到 GitHub（51 commits）
 
 **项目完成度：98%**
 **剩余工作：录制 Demo 视频 + 填充说明书 + 制作海报（需要手动完成）**
