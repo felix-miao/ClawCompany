@@ -1,7 +1,13 @@
 // Dev Agent 测试
 
-import { DevAgent } from '../dev-agent'
+import { DevAgent, DevAgentMode } from '../dev-agent'
 import { Task, AgentContext } from '../types'
+import { OpenClawAgentExecutor } from '../../gateway/executor'
+
+jest.mock('../../gateway/executor', () => ({
+  getAgentExecutor: jest.fn(),
+  OpenClawAgentExecutor: jest.fn()
+}))
 
 describe('DevAgent', () => {
   let devAgent: DevAgent
@@ -9,7 +15,7 @@ describe('DevAgent', () => {
   let mockContext: AgentContext
 
   beforeEach(() => {
-    devAgent = new DevAgent()
+    devAgent = new DevAgent({ mode: 'mock' })
 
     mockTask = {
       id: 'test-task-1',
@@ -85,5 +91,115 @@ describe('DevAgent', () => {
 
     expect(response.message).toContain('完成')
     expect(response.message).toContain('审查')
+  })
+
+  describe('模式管理', () => {
+    it('应该能设置和获取模式', () => {
+      expect(devAgent.getMode()).toBe('mock')
+      
+      devAgent.setMode('openclaw')
+      expect(devAgent.getMode()).toBe('openclaw')
+      
+      devAgent.setMode('llm')
+      expect(devAgent.getMode()).toBe('llm')
+    })
+  })
+
+  describe('OpenClaw 模式', () => {
+    let mockExecutor: jest.Mocked<OpenClawAgentExecutor>
+
+    beforeEach(() => {
+      mockExecutor = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        isConnected: jest.fn().mockReturnValue(false),
+        executeDevAgent: jest.fn()
+      } as any
+
+      devAgent = new DevAgent({ mode: 'openclaw', executor: mockExecutor })
+    })
+
+    it('应该使用 OpenClaw 执行器', async () => {
+      mockExecutor.executeDevAgent.mockResolvedValue({
+        success: true,
+        sessionKey: 'agent:main:acp:test',
+        runId: 'run-123',
+        content: '```typescript\nconst x = 1\n```\n实现完成'
+      })
+
+      const response = await devAgent.execute(mockTask, mockContext)
+
+      expect(mockExecutor.connect).toHaveBeenCalled()
+      expect(mockExecutor.executeDevAgent).toHaveBeenCalledWith(
+        mockTask.title,
+        mockTask.description
+      )
+      expect(response.status).toBe('success')
+      expect(response.metadata?.mode).toBe('openclaw')
+    })
+
+    it('OpenClaw 失败时应该回退到 mock 模式', async () => {
+      mockExecutor.executeDevAgent.mockResolvedValue({
+        success: false,
+        error: 'Connection failed'
+      })
+
+      const response = await devAgent.execute(mockTask, mockContext)
+
+      expect(response.status).toBe('success')
+      expect(response.files).toBeDefined()
+    })
+
+    it('应该解析 OpenClaw 响应中的代码块', async () => {
+      mockExecutor.executeDevAgent.mockResolvedValue({
+        success: true,
+        sessionKey: 'agent:main:acp:test',
+        runId: 'run-456',
+        content: `代码实现完成
+
+\`\`\`tsx
+export default function LoginForm() {
+  return <div>Login</div>
+}
+\`\`\`
+
+\`\`\`css
+.login { color: blue; }
+\`\`\`
+`
+      })
+
+      const response = await devAgent.execute(mockTask, mockContext)
+
+      expect(response.files).toHaveLength(2)
+      expect(response.files![0].path).toContain('.tsx')
+      expect(response.files![1].path).toContain('.css')
+    })
+
+    it('应该解析 OpenClaw 响应中的 JSON', async () => {
+      mockExecutor.executeDevAgent.mockResolvedValue({
+        success: true,
+        sessionKey: 'agent:main:acp:test',
+        runId: 'run-789',
+        content: `实现完成
+
+\`\`\`json
+{
+  "files": [{
+    "path": "src/components/LoginForm.tsx",
+    "content": "export default function LoginForm() { return <div>Login</div> }",
+    "action": "create"
+  }],
+  "message": "登录表单实现完成"
+}
+\`\`\`
+`
+      })
+
+      const response = await devAgent.execute(mockTask, mockContext)
+
+      expect(response.files).toHaveLength(1)
+      expect(response.files![0].path).toBe('src/components/LoginForm.tsx')
+      expect(response.message).toContain('登录表单实现完成')
+    })
   })
 })
