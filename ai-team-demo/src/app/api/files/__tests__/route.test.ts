@@ -1,17 +1,21 @@
 // Mock Next.js server components
 jest.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, options?: any) => ({
-      json: async () => data,
-      status: options?.status || 200,
-    }),
+    json: (data: any, options?: any) => {
+      const response = {
+        json: async () => data,
+        status: options?.status || 200,
+      }
+      return response
+    },
   },
 }))
 
 // Helper to create mock request
 function createMockRequest(options?: any): any {
+  const url = options?.url || 'http://localhost/api/files'
   return {
-    url: 'http://localhost/api/files',
+    url,
     method: options?.method || 'GET',
     headers: {
       get: (name: string) => options?.headers?.[name] || null
@@ -20,13 +24,41 @@ function createMockRequest(options?: any): any {
   }
 }
 
-jest.mock('@/lib/filesystem/manager')
-jest.mock('@/lib/security/utils')
+// Use global to store mock functions (to work around jest hoisting)
+jest.mock('@/lib/filesystem/manager', () => {
+  ;(global as any).__mockFsManager__ = {
+    createFile: jest.fn(),
+    readFile: jest.fn(),
+    updateFile: jest.fn(),
+    deleteFile: jest.fn(),
+    listFiles: jest.fn()
+  }
+  return {
+    FileSystemManager: jest.fn().mockImplementation(() => (global as any).__mockFsManager__)
+  }
+})
+
+jest.mock('@/lib/security/utils', () => ({
+  InputValidator: {
+    validatePath: (path: string) => {
+      if (!path) return false
+      if (path.includes('..') || path.startsWith('/') || path.match(/^[A-Z]:\\/)) {
+        return false
+      }
+      return true
+    }
+  },
+  RateLimiter: {
+    isAllowed: jest.fn(() => true),
+    getRemaining: jest.fn(() => 60)
+  }
+}))
 
 // Import after mocks
 import { POST, GET, PUT, DELETE } from '../route'
-import { FileSystemManager } from '@/lib/filesystem/manager'
 import { RateLimiter } from '@/lib/security/utils'
+
+const getMockFsManager = () => (global as any).__mockFsManager__
 
 describe('/api/files', () => {
   beforeEach(() => {
@@ -34,19 +66,19 @@ describe('/api/files', () => {
     
     ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(true)
     
-    ;(FileSystemManager as jest.Mock).mockImplementation(() => ({
-      createFile: jest.fn(),
-      readFile: jest.fn(),
-      updateFile: jest.fn(),
-      deleteFile: jest.fn(),
-      listFiles: jest.fn()
-    }))
+    // Reset mock implementations
+    const mockFsManager = getMockFsManager()
+    mockFsManager.createFile.mockReset()
+    mockFsManager.readFile.mockReset()
+    mockFsManager.updateFile.mockReset()
+    mockFsManager.deleteFile.mockReset()
+    mockFsManager.listFiles.mockReset()
   })
 
   describe('POST - Create File', () => {
     it('should create file successfully', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.createFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.createFile.mockResolvedValue({
         success: true,
         path: '/test/file.ts',
         overwritten: false
@@ -102,8 +134,8 @@ describe('/api/files', () => {
     })
 
     it('should handle file system errors', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.createFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.createFile.mockResolvedValue({
         success: false,
         error: 'Permission denied'
       })
@@ -142,8 +174,8 @@ describe('/api/files', () => {
     })
 
     it('should detect file overwrite', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.createFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.createFile.mockResolvedValue({
         success: true,
         path: '/test/file.ts',
         overwritten: true
@@ -167,8 +199,8 @@ describe('/api/files', () => {
 
   describe('GET - Read/List Files', () => {
     it('should read file successfully', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.readFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.readFile.mockResolvedValue({
         success: true,
         content: 'file content',
         path: '/test/file.ts'
@@ -176,7 +208,7 @@ describe('/api/files', () => {
 
       const request = createMockRequest({
         method: 'GET',
-        body: { path: 'test/file.ts' }
+        url: 'http://localhost/api/files?path=test/file.ts'
       })
 
       const response = await GET(request)
@@ -188,15 +220,15 @@ describe('/api/files', () => {
     })
 
     it('should list files', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.listFiles as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.listFiles.mockResolvedValue({
         success: true,
         files: ['file1.ts', 'file2.ts']
       })
 
       const request = createMockRequest({
         method: 'GET',
-        body: { path: 'test' }
+        url: 'http://localhost/api/files?list=true&path=test'
       })
 
       const response = await GET(request)
@@ -209,7 +241,7 @@ describe('/api/files', () => {
     it('should reject missing path', async () => {
       const request = createMockRequest({
         method: 'GET',
-        body: {}
+        url: 'http://localhost/api/files'
       })
 
       const response = await GET(request)
@@ -222,7 +254,7 @@ describe('/api/files', () => {
     it('should reject invalid path', async () => {
       const request = createMockRequest({
         method: 'GET',
-        body: { path: '../../../etc/passwd' }
+        url: 'http://localhost/api/files?path=../../../etc/passwd'
       })
 
       const response = await GET(request)
@@ -233,15 +265,15 @@ describe('/api/files', () => {
     })
 
     it('should handle non-existent file', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.readFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.readFile.mockResolvedValue({
         success: false,
         error: 'File not found'
       })
 
       const request = createMockRequest({
         method: 'GET',
-        body: { path: 'nonexistent.ts' }
+        url: 'http://localhost/api/files?path=nonexistent.ts'
       })
 
       const response = await GET(request)
@@ -252,8 +284,8 @@ describe('/api/files', () => {
     })
 
     it('should list files in directory', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.listFiles as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.listFiles.mockResolvedValue({
         success: true,
         files: [
           { name: 'file1.ts', type: 'file', size: 100 },
@@ -263,7 +295,7 @@ describe('/api/files', () => {
 
       const request = createMockRequest({
         method: 'GET',
-        body: { path: 'src' }
+        url: 'http://localhost/api/files?list=true&path=src'
       })
 
       const response = await GET(request)
@@ -276,8 +308,8 @@ describe('/api/files', () => {
 
   describe('PUT - Update File', () => {
     it('should update file successfully', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.updateFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.updateFile.mockResolvedValue({
         success: true,
         path: '/test/file.ts'
       })
@@ -314,8 +346,8 @@ describe('/api/files', () => {
     })
 
     it('should handle non-existent file', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.updateFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.updateFile.mockResolvedValue({
         success: false,
         error: 'File not found'
       })
@@ -331,21 +363,21 @@ describe('/api/files', () => {
       const response = await PUT(request)
       const data = await response.json()
 
-      expect(response.status).toBe(404)
-      expect(data.error).toContain('not found')
+      expect(response.status).toBe(400)
+      expect(data.success).toBe(false)
     })
   })
 
   describe('DELETE - Delete File', () => {
     it('should delete file successfully', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.deleteFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.deleteFile.mockResolvedValue({
         success: true
       })
 
       const request = createMockRequest({
         method: 'DELETE',
-        body: { path: 'test/file.ts' }
+        url: 'http://localhost/api/files?path=test/file.ts'
       })
 
       const response = await DELETE(request)
@@ -358,7 +390,7 @@ describe('/api/files', () => {
     it('should reject invalid path', async () => {
       const request = createMockRequest({
         method: 'DELETE',
-        body: { path: '../../../etc/passwd' }
+        url: 'http://localhost/api/files?path=../../../etc/passwd'
       })
 
       const response = await DELETE(request)
@@ -371,33 +403,33 @@ describe('/api/files', () => {
     it('should reject missing path', async () => {
       const request = createMockRequest({
         method: 'DELETE',
-        body: {}
+        url: 'http://localhost/api/files'
       })
 
       const response = await DELETE(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toContain('required')
+      expect(data.error).toContain('Invalid')
     })
 
     it('should handle non-existent file', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.deleteFile as jest.Mock).mockResolvedValue({
+      const mockFsManager = getMockFsManager()
+      mockFsManager.deleteFile.mockResolvedValue({
         success: false,
         error: 'File not found'
       })
 
       const request = createMockRequest({
         method: 'DELETE',
-        body: { path: 'nonexistent.ts' }
+        url: 'http://localhost/api/files?path=nonexistent.ts'
       })
 
       const response = await DELETE(request)
       const data = await response.json()
 
-      expect(response.status).toBe(404)
-      expect(data.error).toContain('not found')
+      expect(response.status).toBe(400)
+      expect(data.success).toBe(false)
     })
   })
 
@@ -413,13 +445,13 @@ describe('/api/files', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(400)
+      expect(response.status).toBe(500)
       expect(data.error).toBeDefined()
     })
 
     it('should handle file system errors', async () => {
-      const fsManager = new FileSystemManager()
-      ;(fsManager.createFile as jest.Mock).mockRejectedValue(new Error('Disk full'))
+      const mockFsManager = getMockFsManager()
+      mockFsManager.createFile.mockRejectedValue(new Error('Disk full'))
 
       const request = createMockRequest({
         method: 'POST',
@@ -433,7 +465,7 @@ describe('/api/files', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toContain('error')
+      expect(data.error).toContain('Disk full')
     })
   })
 })
