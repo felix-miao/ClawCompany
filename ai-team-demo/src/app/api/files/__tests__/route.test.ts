@@ -1,7 +1,14 @@
-import { POST, GET, PUT, DELETE } from '../route'
-import { NextRequest } from 'next/server'
-import { FileSystemManager } from '@/lib/filesystem/manager'
-import { RateLimiter } from '@/lib/security/utils'
+// Helper to create mock request
+function createMockRequest(url: string, options?: any): any {
+  return {
+    url,
+    method: options?.method || 'GET',
+    headers: {
+      get: (name: string) => options?.headers?.[name] || null
+    },
+    json: () => Promise.resolve(options?.body ? JSON.parse(options.body) : {})
+  }
+}
 
 jest.mock('@/lib/filesystem/manager')
 jest.mock('@/lib/security/utils')
