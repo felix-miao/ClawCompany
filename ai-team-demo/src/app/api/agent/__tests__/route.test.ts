@@ -8,7 +8,7 @@ jest.mock('@/lib/storage/manager')
 jest.mock('@/lib/security/utils')
 jest.mock('@/lib/filesystem/manager')
 jest.mock('@/lib/git/manager')
-jest.mock('node-fetch')
+// Note: node-fetch mock removed - Node.js 18+ has built-in fetch support
 
 describe('/api/agent', () => {
   beforeEach(() => {
