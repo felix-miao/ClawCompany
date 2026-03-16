@@ -88,63 +88,49 @@ export default function TeamChatPage() {
         return newMsgs
       })
 
-      // 尝试解析任务
-      let tasks: any[] = []
-      try {
-        const parsed = JSON.parse(pmResponse)
-        tasks = parsed.tasks || []
-      } catch {
-        // 如果不是 JSON，继续
-      }
-
-      // 2. 如果有任务，调用 Dev Agent
-      if (tasks.length > 0) {
-        const devAgent = agents.find(a => a.id === 'dev-agent')!
-        
-        for (const task of tasks) {
-          addMessage(devAgent, `正在实现任务：${task.title}...`)
-          
-          const devResponse = await callAgent(
-            devAgent,
-            `实现任务：${task.title}\n描述：${task.description}`
-          )
-          
-          // 更新 Dev Agent 消息
-          setMessages(prev => {
-            const newMsgs = [...prev]
-            const lastDevMsg = newMsgs.find(m => 
-              m.agentId === 'dev-agent' && 
-              m.content.includes(`正在实现任务：${task.title}`)
-            )
-            if (lastDevMsg) {
-              lastDevMsg.content = devResponse
-            }
-            return newMsgs
-          })
-
-          // 3. Review Agent 审查
-          const reviewAgent = agents.find(a => a.id === 'review-agent')!
-          addMessage(reviewAgent, '正在审查代码...')
-          
-          const reviewResponse = await callAgent(
-            reviewAgent,
-            `审查以下实现：\n${devResponse}`
-          )
-          
-          // 更新 Review Agent 消息
-          setMessages(prev => {
-            const newMsgs = [...prev]
-            const lastReviewMsg = newMsgs.find(m => 
-              m.agentId === 'review-agent' && 
-              m.content === '正在审查代码...'
-            )
-            if (lastReviewMsg) {
-              lastReviewMsg.content = reviewResponse
-            }
-            return newMsgs
-          })
+      // 2. 调用 Dev Agent 实现（无论 PM 返回什么格式）
+      const devAgent = agents.find(a => a.id === 'dev-agent')!
+      addMessage(devAgent, '正在实现功能...')
+      
+      const devResponse = await callAgent(
+        devAgent,
+        `用户需求：${userMessage}\n\nPM 分析：${pmResponse}\n\n请实现这个功能，生成完整的代码。`
+      )
+      
+      // 更新 Dev Agent 消息
+      setMessages(prev => {
+        const newMsgs = [...prev]
+        const lastDevMsg = newMsgs.find(m => 
+          m.agentId === 'dev-agent' && 
+          m.content === '正在实现功能...'
+        )
+        if (lastDevMsg) {
+          lastDevMsg.content = devResponse
         }
-      }
+        return newMsgs
+      })
+
+      // 3. Review Agent 审查
+      const reviewAgent = agents.find(a => a.id === 'review-agent')!
+      addMessage(reviewAgent, '正在审查代码...')
+      
+      const reviewResponse = await callAgent(
+        reviewAgent,
+        `审查以下代码实现：\n\n用户需求：${userMessage}\n\n代码：\n${devResponse}`
+      )
+      
+      // 更新 Review Agent 消息
+      setMessages(prev => {
+        const newMsgs = [...prev]
+        const lastReviewMsg = newMsgs.find(m => 
+          m.agentId === 'review-agent' && 
+          m.content === '正在审查代码...'
+        )
+        if (lastReviewMsg) {
+          lastReviewMsg.content = reviewResponse
+        }
+        return newMsgs
+      })
 
       // 添加完成消息
       addMessage(
