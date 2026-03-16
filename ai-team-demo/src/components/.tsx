@@ -10,7 +10,6 @@ export default function () {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: 实现提交逻辑
     console.log('Form submitted:', formData);
   };
 

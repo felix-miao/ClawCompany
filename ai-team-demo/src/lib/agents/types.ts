@@ -27,6 +27,7 @@ export interface AgentResponse {
   }[]
   nextAgent?: AgentRole
   status: 'success' | 'error' | 'need_input'
+  metadata?: Record<string, any>
 }
 
 export interface AgentContext {

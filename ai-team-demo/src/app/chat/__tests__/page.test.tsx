@@ -8,7 +8,9 @@ jest.mock('@/lib/api/client', () => ({
 }))
 
 jest.mock('react-markdown', () => {
-  return ({ children }: any) => <div>{children}</div>
+  const MockMarkdown = ({ children }: any) => <div>{children}</div>
+  MockMarkdown.displayName = 'MockMarkdown'
+  return MockMarkdown
 })
 
 jest.mock('remark-gfm', () => () => {})

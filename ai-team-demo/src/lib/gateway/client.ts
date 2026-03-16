@@ -97,10 +97,10 @@ export class OpenClawGatewayClient {
         }
 
         this.ws.onclose = () => {
-          for (const [id, { reject }] of this.pendingCalls) {
+          this.pendingCalls.forEach(({ reject }, id) => {
             reject(new Error('WebSocket connection closed'))
             this.pendingCalls.delete(id)
-          }
+          })
         }
       } catch (e) {
         clearTimeout(timeoutId)

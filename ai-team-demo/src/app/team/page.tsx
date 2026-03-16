@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { AgentConfig, defaultAgents } from '@/lib/agents/config'
 
 interface Message {
@@ -155,29 +156,36 @@ export default function TeamChatPage() {
       <header className="border-b border-gray-700 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">🦞 ClawCompany Team Portal</h1>
+            <h1 className="text-2xl font-bold">🦞 ClawCompany AI Team</h1>
             <p className="text-gray-400 text-sm">AI 虚拟团队协作系统 - E2E Demo</p>
           </div>
           
-          {/* Agent 状态 */}
-          <div className="flex items-center gap-4">
-            {agents.map(agent => (
-              <div 
-                key={agent.id} 
-                className={`flex items-center gap-2 ${currentAgent === agent.id ? 'animate-pulse' : ''}`}
-              >
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: agent.color }}
-                >
-                  {agent.emoji}
+          <div className="flex items-center gap-6">
+            {/* Agent 状态 */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-600">
+                  📋
                 </div>
-                <span className="text-sm">{agent.name}</span>
-                {currentAgent === agent.id && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                )}
+                <span className="text-sm">PM Agent</span>
               </div>
-            ))}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-600">
+                  💻
+                </div>
+                <span className="text-sm">Dev Agent</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-purple-600">
+                  🔍
+                </div>
+                <span className="text-sm">Review Agent</span>
+              </div>
+            </div>
+            
+            <Link href="/" className="text-blue-400 hover:text-blue-300 transition-colors">
+              返回首页
+            </Link>
           </div>
         </div>
       </header>
@@ -232,13 +240,15 @@ export default function TeamChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="描述你想要实现的功能..."
+                placeholder="输入你的需求..."
+                aria-label="输入你的需求"
                 className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"
                 disabled={isLoading}
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
+                type="button"
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 rounded-lg font-semibold transition-colors"
               >
                 发送
@@ -263,12 +273,16 @@ export default function TeamChatPage() {
                 >
                   {agent.emoji}
                 </div>
-                <span className="font-semibold">{agent.name}</span>
+                <span className="font-semibold">
+                  {agent.role === 'pm' && '产品经理'}
+                  {agent.role === 'dev' && '开发者'}
+                  {agent.role === 'review' && '审查员'}
+                </span>
               </div>
               <p className="text-sm text-gray-400 mb-2">
-                {agent.role === 'pm' && '产品经理 - 分析需求、拆分任务'}
-                {agent.role === 'dev' && '开发者 - 实现功能'}
-                {agent.role === 'review' && '审查员 - 代码审查'}
+                {agent.role === 'pm' && '分析需求、拆分任务'}
+                {agent.role === 'dev' && '实现功能'}
+                {agent.role === 'review' && '代码审查'}
               </p>
               <div className="text-xs text-gray-500 space-y-1">
                 <div>Runtime: {agent.runtime}</div>
@@ -288,7 +302,7 @@ export default function TeamChatPage() {
           <div className="mt-6 p-4 bg-blue-900/30 rounded-lg">
             <h3 className="font-semibold text-blue-400 mb-2">💡 使用说明</h3>
             <p className="text-sm text-gray-400">
-              输入你的需求，PM Agent 会分析并拆分任务，Dev Agent 会实现功能，Review Agent 会审查代码。
+              输入你的需求，产品经理会分析并拆分任务，开发者会实现功能，审查员会审查代码。
             </p>
           </div>
         </div>

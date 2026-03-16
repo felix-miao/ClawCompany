@@ -173,7 +173,7 @@ export default function ChatPage() {
         {/* Chat Area */}
         <div className="flex-1 flex flex-col">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4" role="log" aria-label="聊天消息">
             {messages.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-gray-400 mb-2">No messages yet</p>

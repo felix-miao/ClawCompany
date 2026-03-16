@@ -223,14 +223,17 @@ export class RateLimiter {
     const now = Date.now()
     const windowStart = now - this.WINDOW_MS
 
-    for (const [identifier, requests] of this.requests.entries()) {
+    const toDelete: string[] = []
+    this.requests.forEach((requests, identifier) => {
       const filtered = requests.filter(time => time > windowStart)
       if (filtered.length === 0) {
-        this.requests.delete(identifier)
+        toDelete.push(identifier)
       } else {
         this.requests.set(identifier, filtered)
       }
-    }
+    })
+    
+    toDelete.forEach(id => this.requests.delete(id))
   }
 }
 

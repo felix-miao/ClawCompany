@@ -82,7 +82,7 @@ export class Orchestrator {
           // 保存文件到文件系统
           for (const file of devResponse.files) {
             try {
-              await fileSystemManager.writeFile(file.path, file.content)
+              await fileSystemManager.createFile(file.path, file.content)
               console.log(`[Orchestrator] Saved file: ${file.path}`)
             } catch (error) {
               console.error(`[Orchestrator] Failed to save file ${file.path}:`, error)

@@ -323,3 +323,6 @@ export class FileSystemManager {
     return this.rootDir
   }
 }
+
+// 默认实例（用于 orchestrator）
+export const fileSystemManager = new FileSystemManager(process.cwd())
