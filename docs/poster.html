@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClawCompany - OpenClaw 龙虾大赛</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .poster {
+            width: 1080px;
+            height: 1920px;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #0f0f1e 100%);
+            position: relative;
+            overflow: hidden;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(255, 88, 51, 0.3);
+        }
+
+        /* 背景装饰 */
+        .poster::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 88, 51, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Logo 区域 */
+        .logo-section {
+            position: absolute;
+            top: 80px;
+            left: 80px;
+            right: 80px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 120px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FF5833 0%, #FF8C00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+        }
+
+        .tagline {
+            font-size: 42px;
+            color: #999;
+            font-weight: 300;
+            letter-spacing: 4px;
+        }
+
+        /* 主视觉区域 */
+        .hero-section {
+            position: absolute;
+            top: 400px;
+            left: 80px;
+            right: 80px;
+            text-align: center;
+        }
+
+        .hero-title {
+            font-size: 72px;
+            font-weight: 800;
+            margin-bottom: 40px;
+            line-height: 1.2;
+        }
+
+        .hero-title span {
+            background: linear-gradient(135deg, #FF5833 0%, #FFD700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 48px;
+            color: #ccc;
+            margin-bottom: 80px;
+            line-height: 1.5;
+        }
+
+        /* Agent 卡片 */
+        .agents-section {
+            position: absolute;
+            top: 800px;
+            left: 80px;
+            right: 80px;
+        }
+
+        .agent-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 88, 51, 0.3);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .agent-card:hover {
+            border-color: #FF5833;
+            transform: translateX(10px);
+        }
+
+        .agent-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .agent-emoji {
+            font-size: 60px;
+            margin-right: 30px;
+        }
+
+        .agent-name {
+            font-size: 48px;
+            font-weight: 700;
+            color: #FF5833;
+        }
+
+        .agent-role {
+            font-size: 32px;
+            color: #999;
+            margin-left: 20px;
+        }
+
+        .agent-desc {
+            font-size: 32px;
+            color: #ccc;
+            line-height: 1.6;
+        }
+
+        /* 特性列表 */
+        .features-section {
+            position: absolute;
+            top: 1500px;
+            left: 80px;
+            right: 80px;
+        }
+
+        .feature-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .feature-item {
+            background: rgba(255, 88, 51, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            font-size: 32px;
+            color: #ccc;
+        }
+
+        .feature-item strong {
+            color: #FF5833;
+        }
+
+        /* 技术栈 */
+        .tech-section {
+            position: absolute;
+            bottom: 150px;
+            left: 80px;
+            right: 80px;
+            text-align: center;
+        }
+
+        .tech-title {
+            font-size: 36px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .tech-badges {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            padding: 15px 30px;
+            font-size: 28px;
+            color: #fff;
+        }
+
+        /* 底部信息 */
+        .footer {
+            position: absolute;
+            bottom: 50px;
+            left: 80px;
+            right: 80px;
+            text-align: center;
+            font-size: 28px;
+            color: #666;
+        }
+
+        .footer a {
+            color: #FF5833;
+            text-decoration: none;
+        }
+
+        /* 装饰元素 */
+        .decoration {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border: 3px solid rgba(255, 88, 51, 0.2);
+            border-radius: 50%;
+        }
+
+        .decoration-1 {
+            top: 200px;
+            right: -100px;
+        }
+
+        .decoration-2 {
+            bottom: 300px;
+            left: -100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <!-- 装饰 -->
+        <div class="decoration decoration-1"></div>
+        <div class="decoration decoration-2"></div>
+
+        <!-- Logo -->
+        <div class="logo-section">
+            <div class="logo">ClawCompany</div>
+            <div class="tagline">OPENCLAW HACKATHON 2026</div>
+        </div>
+
+        <!-- 主标题 -->
+        <div class="hero-section">
+            <div class="hero-title">
+                一人企业家<br>
+                <span>无限可能</span>
+            </div>
+            <div class="hero-subtitle">
+                通过 AI 虚拟团队<br>
+                一个人也能像拥有一支完整团队一样工作
+            </div>
+        </div>
+
+        <!-- Agent 卡片 -->
+        <div class="agents-section">
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div class="agent-emoji">📋</div>
+                    <div class="agent-name">PM Agent</div>
+                    <div class="agent-role">产品经理</div>
+                </div>
+                <div class="agent-desc">
+                    智能分析需求，自动拆分任务，协调团队进度
+                </div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div class="agent-emoji">💻</div>
+                    <div class="agent-name">Dev Agent</div>
+                    <div class="agent-role">开发者</div>
+                </div>
+                <div class="agent-desc">
+                    自动生成代码，实现功能模块，确保代码可运行
+                </div>
+            </div>
+
+            <div class="agent-card">
+                <div class="agent-header">
+                    <div class="agent-emoji">🔍</div>
+                    <div class="agent-name">Review Agent</div>
+                    <div class="agent-role">审查员</div>
+                </div>
+                <div class="agent-desc">
+                    检查代码质量，安全审查，性能优化建议
+                </div>
+            </div>
+        </div>
+
+        <!-- 核心特性 -->
+        <div class="features-section">
+            <div class="feature-title">核心特性</div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <strong>真实协作</strong><br>
+                    不是模拟，是真的多个 AI agent
+                </div>
+                <div class="feature-item">
+                    <strong>OpenClaw 驱动</strong><br>
+                    利用 OpenClaw 强大的能力
+                </div>
+                <div class="feature-item">
+                    <strong>GLM-5 加持</strong><br>
+                    智能分析和任务拆分
+                </div>
+                <div class="feature-item">
+                    <strong>开源可用</strong><br>
+                    完全开源，欢迎 Star
+                </div>
+            </div>
+        </div>
+
+        <!-- 技术栈 -->
+        <div class="tech-section">
+            <div class="tech-title">技术栈</div>
+            <div class="tech-badges">
+                <div class="tech-badge">Next.js 14</div>
+                <div class="tech-badge">TypeScript</div>
+                <div class="tech-badge">GLM-5</div>
+                <div class="tech-badge">OpenClaw</div>
+                <div class="tech-badge">Tailwind CSS</div>
+            </div>
+        </div>
+
+        <!-- 底部 -->
+        <div class="footer">
+            <a href="https://github.com/felix-miao/ClawCompany">github.com/felix-miao/ClawCompany</a>
+        </div>
+    </div>
+</body>
+</html>
