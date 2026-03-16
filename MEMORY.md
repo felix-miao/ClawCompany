@@ -277,7 +277,14 @@ npm run test:coverage
   - 测试套件扩展到 18 个
   - **重大突破：真实 OpenClaw 集成完成！**
 
-**当前状态（2026-03-17 00:22）：**
+- 01:26 - **改进测试兼容性** 🔧 (commit 45d86fe)
+  - 添加 scrollIntoView mock
+  - 添加 IntersectionObserver mock
+  - 添加 ResizeObserver mock
+  - 测试通过率提升：177 → 180 tests passing
+  - 核心测试通过：13/18 suites
+
+**当前状态（2026-03-17 01:26）：**
 - ✅ PM Agent 工作正常（GLM-5 真实调用）
 - ✅ Mock Provider 已添加（demo 录制就绪）
 - ✅ 4 个页面完成（Landing, Chat, Demo, Team）
@@ -292,8 +299,8 @@ npm run test:coverage
 - ✅ 项目状态检查脚本完成
 - ✅ ClawCompany skill 核心代码 + 测试完成
 - ✅ 提交材料检查清单完成
-- ✅ 核心测试通过（13/18 suites, 177 tests）
-- ✅ 代码已推送到 GitHub（52 commits）
+- ✅ 核心测试通过（13/18 suites, 180 tests）
+- ✅ 代码已推送到 GitHub（53 commits）
 
 **项目完成度：99%**
 **剩余工作：录制 Demo 视频 + 填充说明书 + 制作海报（需要手动完成）**
