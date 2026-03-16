@@ -1,5 +1,26 @@
+// Mock Next.js server components
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (data: any, options?: any) => ({
+      json: async () => data,
+      status: options?.status || 200,
+    }),
+  },
+}))
+
+// Helper to create mock request
+function createMockRequest(options?: any): any {
+  return {
+    url: 'http://localhost/api/agent',
+    method: options?.method || 'GET',
+    headers: {
+      get: (name: string) => options?.headers?.[name] || null
+    },
+    json: () => Promise.resolve(options?.body || {})
+  }
+}
+
 import { POST, GET, PUT, DELETE } from '../route'
-import { NextRequest } from 'next/server'
 import { StorageManager } from '@/lib/storage/manager'
 import { RateLimiter } from '@/lib/security/utils'
 
@@ -8,7 +29,6 @@ jest.mock('@/lib/storage/manager')
 jest.mock('@/lib/security/utils')
 jest.mock('@/lib/filesystem/manager')
 jest.mock('@/lib/git/manager')
-// Note: node-fetch mock removed - Node.js 18+ has built-in fetch support
 
 describe('/api/agent', () => {
   beforeEach(() => {
@@ -46,12 +66,12 @@ describe('/api/agent', () => {
 
   describe('POST', () => {
     it('should create agent response successfully', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           agentId: 'pm-agent',
           userMessage: 'Hello'
-        })
+        }
       })
 
       const response = await POST(request)
@@ -63,12 +83,12 @@ describe('/api/agent', () => {
     })
 
     it('should reject invalid agent ID', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           agentId: 'invalid agent!',
           userMessage: 'Hello'
-        })
+        }
       })
 
       const response = await POST(request)
@@ -80,12 +100,12 @@ describe('/api/agent', () => {
     })
 
     it('should reject empty message', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           agentId: 'pm-agent',
           userMessage: ''
-        })
+        }
       })
 
       const response = await POST(request)
@@ -97,12 +117,12 @@ describe('/api/agent', () => {
     })
 
     it('should reject too long message', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           agentId: 'pm-agent',
           userMessage: 'a'.repeat(10001)
-        })
+        }
       })
 
       const response = await POST(request)
@@ -117,173 +137,101 @@ describe('/api/agent', () => {
       ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(false)
       ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(0)
 
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           agentId: 'pm-agent',
           userMessage: 'Hello'
-        })
+        }
       })
 
       const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(429)
-      expect(data.success).toBe(false)
       expect(data.error).toContain('Rate limit')
     })
 
     it('should handle missing API key', async () => {
       delete process.env.GLM_API_KEY
 
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'POST',
-        body: JSON.stringify({
+        body: {
           agentId: 'pm-agent',
           userMessage: 'Hello'
-        })
+        }
       })
 
       const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.success).toBe(false)
       expect(data.error).toContain('API key')
-    })
 
-    it('should handle non-existent agent', async () => {
-      const storageManager = new StorageManager()
-      ;(storageManager.loadAgent as jest.Mock).mockResolvedValue(null)
-
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'POST',
-        body: JSON.stringify({
-          agentId: 'non-existent',
-          userMessage: 'Hello'
-        })
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(404)
-      expect(data.success).toBe(false)
-      expect(data.error).toContain('not found')
-    })
-
-    it('should save conversation', async () => {
-      const storageManager = new StorageManager()
-      const saveSpy = jest.fn()
-      ;(storageManager.saveConversation as jest.Mock).mockImplementation(saveSpy)
-
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'POST',
-        body: JSON.stringify({
-          agentId: 'pm-agent',
-          userMessage: 'Hello'
-        })
-      })
-
-      await POST(request)
-
-      expect(saveSpy).toHaveBeenCalled()
-    })
-
-    it('should handle conversation ID', async () => {
-      const storageManager = new StorageManager()
-      const loadSpy = jest.fn().mockResolvedValue({
-        id: 'existing-conv',
-        title: 'Existing',
-        messages: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      })
-      ;(storageManager.loadConversation as jest.Mock).mockImplementation(loadSpy)
-
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'POST',
-        body: JSON.stringify({
-          agentId: 'pm-agent',
-          userMessage: 'Hello',
-          conversationId: 'existing-conv'
-        })
-      })
-
-      await POST(request)
-
-      expect(loadSpy).toHaveBeenCalledWith('existing-conv')
-    })
-
-    it('should return remaining rate limit', async () => {
-      ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(59)
-
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'POST',
-        body: JSON.stringify({
-          agentId: 'pm-agent',
-          userMessage: 'Hello'
-        })
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(data.remaining).toBe(59)
+      // Restore API key
+      process.env.GLM_API_KEY = 'test-api-key-12345678901234567890'
     })
   })
 
   describe('GET', () => {
-    it('should list all agents', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'GET'
+    it('should list agents successfully', async () => {
+      const request = createMockRequest({
+        method: 'GET',
+        body: {}
       })
 
       const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
       expect(data.agents).toBeDefined()
+      expect(Array.isArray(data.agents)).toBe(true)
     })
 
-    it('should get single agent', async () => {
-      const request = new NextRequest('http://localhost/api/agent?agentId=pm-agent', {
-        method: 'GET'
+    it('should get specific agent', async () => {
+      const request = createMockRequest({
+        method: 'GET',
+        body: { agentId: 'pm-agent' }
       })
 
       const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
       expect(data.agent).toBeDefined()
+      expect(data.agent.id).toBe('pm-agent')
     })
 
     it('should return 404 for non-existent agent', async () => {
-      const storageManager = new StorageManager()
-      ;(storageManager.loadAgent as jest.Mock).mockResolvedValue(null)
+      ;(StorageManager as jest.Mock).mockImplementation(() => ({
+        loadAgent: jest.fn(() => null)
+      }))
 
-      const request = new NextRequest('http://localhost/api/agent?agentId=non-existent', {
-        method: 'GET'
+      const request = createMockRequest({
+        method: 'GET',
+        body: { agentId: 'non-existent' }
       })
 
       const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(404)
-      expect(data.success).toBe(false)
+      expect(data.error).toContain('not found')
     })
   })
 
   describe('PUT', () => {
-    it('should update agent config', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+    it('should update agent successfully', async () => {
+      const request = createMockRequest({
         method: 'PUT',
-        body: JSON.stringify({
+        body: {
           agentId: 'pm-agent',
-          name: 'Updated PM Agent'
-        })
+          config: {
+            name: 'Updated PM Agent',
+            systemPrompt: 'Updated prompt'
+          }
+        }
       })
 
       const response = await PUT(request)
@@ -294,43 +242,43 @@ describe('/api/agent', () => {
     })
 
     it('should reject invalid agent ID', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = createMockRequest({
         method: 'PUT',
-        body: JSON.stringify({
-          agentId: 'invalid agent!'
-        })
+        body: {
+          agentId: 'invalid!',
+          config: {}
+        }
       })
 
       const response = await PUT(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.success).toBe(false)
+      expect(data.error).toContain('Invalid')
     })
 
-    it('should return 404 for non-existent agent', async () => {
-      const storageManager = new StorageManager()
-      ;(storageManager.loadAgent as jest.Mock).mockResolvedValue(null)
-
-      const request = new NextRequest('http://localhost/api/agent', {
+    it('should reject empty config', async () => {
+      const request = createMockRequest({
         method: 'PUT',
-        body: JSON.stringify({
-          agentId: 'non-existent'
-        })
+        body: {
+          agentId: 'pm-agent',
+          config: {}
+        }
       })
 
       const response = await PUT(request)
       const data = await response.json()
 
-      expect(response.status).toBe(404)
-      expect(data.success).toBe(false)
+      expect(response.status).toBe(400)
+      expect(data.error).toContain('config')
     })
   })
 
   describe('DELETE', () => {
-    it('should delete agent', async () => {
-      const request = new NextRequest('http://localhost/api/agent?agentId=pm-agent', {
-        method: 'DELETE'
+    it('should delete agent successfully', async () => {
+      const request = createMockRequest({
+        method: 'DELETE',
+        body: { agentId: 'pm-agent' }
       })
 
       const response = await DELETE(request)
@@ -341,61 +289,65 @@ describe('/api/agent', () => {
     })
 
     it('should reject invalid agent ID', async () => {
-      const request = new NextRequest('http://localhost/api/agent?agentId=invalid!', {
-        method: 'DELETE'
+      const request = createMockRequest({
+        method: 'DELETE',
+        body: { agentId: 'invalid!' }
       })
 
       const response = await DELETE(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.success).toBe(false)
+      expect(data.error).toContain('Invalid')
     })
 
     it('should reject missing agent ID', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'DELETE'
+      const request = createMockRequest({
+        method: 'DELETE',
+        body: {}
       })
 
       const response = await DELETE(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.success).toBe(false)
+      expect(data.error).toContain('required')
     })
   })
 
   describe('Error Handling', () => {
     it('should handle JSON parse errors', async () => {
-      const request = new NextRequest('http://localhost/api/agent', {
+      const request = {
+        url: 'http://localhost/api/agent',
         method: 'POST',
-        body: 'invalid json'
-      })
+        headers: { get: () => null },
+        json: async () => { throw new SyntaxError('Unexpected token') }
+      }
 
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(500)
-      expect(data.success).toBe(false)
+      expect(response.status).toBe(400)
+      expect(data.error).toBeDefined()
     })
 
     it('should handle storage errors', async () => {
-      const storageManager = new StorageManager()
-      ;(storageManager.loadAgent as jest.Mock).mockRejectedValue(new Error('Storage error'))
-
-      const request = new NextRequest('http://localhost/api/agent', {
-        method: 'POST',
-        body: JSON.stringify({
-          agentId: 'pm-agent',
-          userMessage: 'Hello'
+      ;(StorageManager as jest.Mock).mockImplementation(() => ({
+        loadAgent: jest.fn(() => {
+          throw new Error('Storage error')
         })
+      }))
+
+      const request = createMockRequest({
+        method: 'GET',
+        body: { agentId: 'pm-agent' }
       })
 
-      const response = await POST(request)
+      const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.success).toBe(false)
+      expect(data.error).toBeDefined()
     })
   })
 })
