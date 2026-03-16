@@ -1,7 +1,5 @@
 // LLM Provider - 大语言模型提供者接口
 
-import { ChatMessage } from './types'
-
 export interface LLMProvider {
   chat(messages: ChatMessage[]): Promise<string>
   stream?(messages: ChatMessage[]): AsyncGenerator<string>

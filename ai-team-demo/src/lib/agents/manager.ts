@@ -10,10 +10,10 @@ export class AgentManager {
   private agents: Map<AgentRole, BaseAgent>
 
   constructor() {
-    this.agents = new Map([
-      ['pm', new PMAgent()],
-      ['dev', new DevAgent()],
-      ['review', new ReviewAgent()]
+    this.agents = new Map<AgentRole, BaseAgent>([
+      ['pm' as AgentRole, new PMAgent()],
+      ['dev' as AgentRole, new DevAgent()],
+      ['review' as AgentRole, new ReviewAgent()]
     ])
   }
 
