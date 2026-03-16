@@ -27,9 +27,10 @@
 - 间隔: 每 1 小时
 
 **待提交材料：**
-- [x] Demo 视频（正在录制）
-- [ ] 项目说明书（10页 PDF）
+- [ ] Demo 视频（需要手动录制）
+- [x] 项目说明书（10页 PDF）- 内容已填充
 - [ ] 项目海报
+- [x] Skill 测试和示例 ✅ (15:10)
 
 ---
 
@@ -154,11 +155,99 @@ npm run test:coverage
   - 更新 .gitignore，忽略生成的临时文件
   - 增加 LLM_MAX_TOKENS 到 4000
 
+- 04:19 - **添加 Mock Provider** ✨ (commit 031992b)
+  - 创建 MockProvider，提供快速预设响应
+  - 支持环境变量 USE_MOCK_LLM 启用 mock 模式
+  - 响应时间从 60+ 秒降低到 <1 秒（用于 demo）
+  - 保留真实 GLM 调用（实际使用）
+  - 所有测试通过（7 suites, 45 tests）✅
+
+- 05:19 - **改进 Chat Page 体验** ✨ (commit eb2853c)
+  - 添加欢迎消息，引导用户开始对话
+  - 支持 Markdown 渲染（使用 react-markdown）
+  - 改进消息显示格式，支持列表、加粗等
+  - 安装 react-markdown 和 remark-gfm 依赖
+  - Demo 体验更流畅
+
+- 05:22 - **添加 Demo 录制检查清单** 📝 (commit 1162db0)
+  - 创建 DEMO-RECORDING-CHECKLIST.md
+  - 包含录制前、录制中、录制后的详细步骤
+  - 添加常见问题解答和录制技巧
+  - 方便快速开始录制 demo
+
+- 06:19 - **优化 UI 细节** ✨ (commit 60e792d)
+  - 改进 Markdown 渲染样式（标题、列表、加粗、代码）
+  - Demo Page 的 "Start Your Project" 按钮链接到 Chat Page
+  - 让 demo 录制流程更流畅
+
+- 07:19 - **创建项目说明书大纲** 📄 (commit 7848b12)
+  - 创建 PROJECT-DESCRIPTION.md（10页 PDF 框架）
+  - 包含：背景、解决方案、技术架构、核心功能、创新点、使用场景等
+  - 可用于 PDF 提交、README、海报设计
+  - 为白天准备提交材料节省时间
+
+- 07:22 - **创建项目海报设计大纲** 🎨 (commit 395389d)
+  - 创建 POSTER-DESIGN.md
+  - 包含完整的海报设计指南
+  - 5 个区域布局、配色方案、字体建议
+  - 快速制作步骤（使用 Canva）
+  - 时间估算和检查清单
+
+- 09:08 - **更新 README 和项目说明书** 📊 (commit 8c5b3cf)
+  - 重写 README.md，完整的项目介绍
+  - 填入真实的 GitHub 统计数据（29 commits, ~3650 行代码）
+  - 更新测试数据（45 用例, 100% 通过, 0.5s）
+  - 准备提交材料
+
+- 09:52 - **完成项目说明书详细内容** 📄 (commit 0c6a358)
+  - 填充 PROJECT-DESCRIPTION.md 的详细内容
+  - 添加项目统计和成果
+  - 完善所有章节
+
+- 10:55 - **添加项目状态检查脚本** 🔍 (commit 9035b5d)
+  - 创建 check-status.sh，快速查看项目状态
+  - 检查 Git、测试、Mock 模式、服务器状态
+  - 显示待办事项和快速命令
+  - 方便用户快速了解项目进展
+
+- 12:12 - **实现 ClawCompany skill 核心代码** ✨ (commit 44c4a6b)
+  - 创建 skill/src/orchestrator.ts，真正的 OpenClaw spawn 实现
+  - 使用 sessions_spawn 启动 PM/Dev/Review Agent
+  - 实现完整的 AI 虚拟团队协作流程
+  - 可作为 OpenClaw skill 直接使用
+
+- 12:13 - **更新任务进度** ✅ (commit 7ec67dd)
+  - Skill 核心代码完成
+  - 项目文档更新
+
+- 13:11 - **Demo 录制准备 + 提交检查清单** 🎬 (commit 3111020)
+  - 创建 prepare-demo.sh，自动启用 Mock 模式
+  - 创建 SUBMISSION-CHECKLIST.md，完整的提交材料检查清单
+  - 包含 Demo 视频、项目说明书、项目海报的详细要求
+  - 提供当前项目统计和快速命令
+
+- 15:10 - **添加 skill 测试和使用示例** ✨ (commit 0e86c40)
+  - 创建 skill 测试文件
+  - 添加使用示例代码
+  - 验证 skill 功能
+
+- 16:08 - **更新项目统计数据** 📊 (commit a2df7a2)
+  - 更新 README 和文档中的统计数据
+  - 40 commits，~4500 行代码
+
 **当前状态：**
 - ✅ PM Agent 工作正常（GLM-5 真实调用）
-- ⚠️ Dev Agent GLM 调用较慢（60+ 秒），需要优化
+- ✅ Mock Provider 已添加（demo 录制就绪）
+- ✅ Chat Page 优化完成（欢迎消息 + Markdown）
+- ✅ Demo 录制准备完成（检查清单 + 准备脚本）
+- ✅ UI 细节优化完成
+- ✅ 项目说明书完成（10页框架 + 详细内容）
+- ✅ 项目海报设计大纲完成
+- ✅ 项目状态检查脚本完成
+- ✅ ClawCompany skill 核心代码 + 测试完成
+- ✅ 提交材料检查清单完成
 - ✅ 所有测试通过（7 suites, 45 tests）
-- ✅ 代码已推送到 GitHub
+- ✅ 代码已推送到 GitHub（40 commits）
 
 ---
 
