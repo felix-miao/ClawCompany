@@ -235,10 +235,18 @@ npm run test:coverage
   - 更新 README 和文档中的统计数据
   - 40 commits，~4500 行代码
 
+- 17:50 - **修复 Landing Page 测试 + 新增 /team 页面** ✅ (commit ecdb3a7)
+  - 修复 page.test.tsx 中的测试用例（/chat → /team）
+  - 新增 /team 页面（团队聊天页面）
+  - 新增 /api/agent 路由
+  - 新增 agents/config.ts（Agent 配置）
+  - 所有测试通过（45/45）
+
 **当前状态：**
 - ✅ PM Agent 工作正常（GLM-5 真实调用）
 - ✅ Mock Provider 已添加（demo 录制就绪）
 - ✅ Chat Page 优化完成（欢迎消息 + Markdown）
+- ✅ Team Page 新增（团队聊天页面）
 - ✅ Demo 录制准备完成（检查清单 + 准备脚本）
 - ✅ UI 细节优化完成
 - ✅ 项目说明书完成（10页框架 + 详细内容）
@@ -247,7 +255,7 @@ npm run test:coverage
 - ✅ ClawCompany skill 核心代码 + 测试完成
 - ✅ 提交材料检查清单完成
 - ✅ 所有测试通过（7 suites, 45 tests）
-- ✅ 代码已推送到 GitHub（40 commits）
+- ✅ 代码已推送到 GitHub（41 commits）
 
 ---
 
