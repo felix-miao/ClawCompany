@@ -23,7 +23,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * }
  */
 
-const OPENCLAW_GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:3000'
+const OPENCLAW_GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:18789'
 
 export async function POST(request: NextRequest) {
   try {
