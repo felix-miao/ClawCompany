@@ -1,0 +1,77 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - heading "🦞 ClawCompany AI Team" [level=1] [ref=e6]
+          - paragraph [ref=e7]: AI 虚拟团队协作系统 - E2E Demo
+        - generic [ref=e8]:
+          - generic [ref=e9]:
+            - generic [ref=e10]:
+              - generic [ref=e11]: 📋
+              - generic [ref=e12]: PM Agent
+            - generic [ref=e13]:
+              - generic [ref=e14]: 💻
+              - generic [ref=e15]: Dev Agent
+            - generic [ref=e16]:
+              - generic [ref=e17]: 🔍
+              - generic [ref=e18]: Review Agent
+          - link "返回首页" [ref=e19] [cursor=pointer]:
+            - /url: /
+    - generic [ref=e20]:
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - generic [ref=e23]:
+            - generic [ref=e24]: 👤
+            - generic [ref=e25]:
+              - generic [ref=e26]:
+                - generic [ref=e27]: You
+                - generic [ref=e28]: 10:28:18 AM
+              - generic [ref=e30]: 做一个登录页面，包含用户名、密码输入和登录按钮
+          - generic [ref=e31]:
+            - generic [ref=e32]: 📋
+            - generic [ref=e33]:
+              - generic [ref=e34]:
+                - generic [ref=e35]: PM Agent
+                - generic [ref=e36]: 10:28:18 AM
+              - generic [ref=e38]: 正在分析需求...
+        - generic [ref=e40]:
+          - textbox "输入你的需求" [disabled] [ref=e41]:
+            - /placeholder: 输入你的需求...
+          - button "发送" [disabled] [ref=e42]
+      - generic [ref=e43]:
+        - heading "团队成员" [level=2] [ref=e44]
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - generic [ref=e47]: 📋
+            - generic [ref=e48]: 产品经理
+          - paragraph [ref=e49]: 分析需求、拆分任务
+          - generic [ref=e50]:
+            - generic [ref=e51]: "Runtime: subagent"
+            - generic [ref=e52]: "Thinking: high"
+        - generic [ref=e53]:
+          - generic [ref=e54]:
+            - generic [ref=e55]: 💻
+            - generic [ref=e56]: 开发者
+          - paragraph [ref=e57]: 实现功能
+          - generic [ref=e58]:
+            - generic [ref=e59]: "Runtime: acp"
+            - generic [ref=e60]: "Agent ID: opencode"
+            - generic [ref=e61]: "Thinking:"
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - generic [ref=e64]: 🔍
+            - generic [ref=e65]: 审查员
+          - paragraph [ref=e66]: 代码审查
+          - generic [ref=e67]:
+            - generic [ref=e68]: "Runtime: subagent"
+            - generic [ref=e69]: "Thinking: high"
+        - button "+ 添加 Agent" [ref=e70] [cursor=pointer]
+        - generic [ref=e71]:
+          - heading "💡 使用说明" [level=3] [ref=e72]
+          - paragraph [ref=e73]: 输入你的需求，产品经理会分析并拆分任务，开发者会实现功能，审查员会审查代码。
+  - alert [ref=e74]
+```
