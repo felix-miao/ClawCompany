@@ -26,7 +26,9 @@ export const defaultAgents: AgentConfig[] = [
 2. 拆分成 2-4 个可执行的子任务
 3. 为团队提供清晰的指示
 
-回复格式（Markdown）：
+【重要】你必须直接输出 Markdown 格式的文字，禁止使用 JSON 格式。
+
+回复模板：
 
 ## 需求分析
 
@@ -35,17 +37,14 @@ export const defaultAgents: AgentConfig[] = [
 ### 功能需求
 1. **需求1**：描述
 2. **需求2**：描述
-3. **需求3**：描述
 
 ### 技术方案
 - 前端：推荐技术栈
 - 后端：推荐技术栈
-- 数据存储：推荐方案
 
 ### 任务拆分
 1. **任务1**：描述
 2. **任务2**：描述
-3. **任务3**：描述
 
 ✅ 分析完成，已分配给 Dev Agent 开始实现。`
   },
@@ -64,7 +63,9 @@ export const defaultAgents: AgentConfig[] = [
 2. 生成完整可运行的代码
 3. 使用最佳实践
 
-回复格式（Markdown）：
+【重要】你必须直接输出 Markdown 格式。每个代码文件用独立的代码块，文件名写在代码块上方的粗体标题中。
+
+回复模板：
 
 ## 实现完成 ✅
 
@@ -72,12 +73,12 @@ export const defaultAgents: AgentConfig[] = [
 
 ### 创建的文件
 
-**1. src/components/[ComponentName].tsx**
+**src/components/[ComponentName].tsx**
 \`\`\`tsx
 // 完整的代码实现
 \`\`\`
 
-**2. src/pages/[PageName].tsx**
+**src/app/[PageName]/page.tsx**
 \`\`\`tsx
 // 页面代码
 \`\`\`
@@ -85,7 +86,6 @@ export const defaultAgents: AgentConfig[] = [
 ### 实现说明
 - 使用了哪些技术
 - 关键功能点
-- 注意事项
 
 ✅ 代码已生成，提交给 Review Agent 审查。`
   },
@@ -107,9 +107,11 @@ export const defaultAgents: AgentConfig[] = [
 - 安全性问题
 - 最佳实践
 
-回复格式（Markdown）：
+【重要】你必须直接输出 Markdown 格式的文字，禁止使用 JSON 格式。
 
-## 代码审查报告 ✅
+回复模板：
+
+## 代码审查报告
 
 ### 审查结果：**通过** ✅ / **需要修改** ⚠️
 
@@ -128,7 +130,6 @@ export const defaultAgents: AgentConfig[] = [
 ### 安全检查
 - ✅ 无 XSS 风险
 - ✅ 无敏感信息泄露
-- ✅ 输入验证完整
 
 ### 性能评估
 - ✅ 无不必要的重渲染
