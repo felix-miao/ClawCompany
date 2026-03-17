@@ -1,152 +1,124 @@
 /**
- * ClawCompany Orchestrator Tests
+ * Orchestrator 测试
+ * 
+ * 测试 ClawCompany orchestrator 的基本功能
  */
 
-import { ClawCompanyOrchestrator } from '../src/orchestrator'
+import { orchestrate, Task } from '../orchestrator'
 
-// Mock OpenClaw APIs
-jest.mock('openclaw', () => ({
-  sessions_spawn: jest.fn(),
-  sessions_history: jest.fn(),
-  sessions_send: jest.fn()
-}))
+// Mock sessions_spawn 和 sessions_history
+global.sessions_spawn = jest.fn()
+global.sessions_history = jest.fn()
 
-const { sessions_spawn, sessions_history } = require('openclaw')
-
-describe('ClawCompanyOrchestrator', () => {
-  let orchestrator: ClawCompanyOrchestrator
-
+describe('ClawCompany Orchestrator', () => {
   beforeEach(() => {
-    orchestrator = new ClawCompanyOrchestrator({
-      projectPath: '/test/project'
-    })
     jest.clearAllMocks()
   })
 
-  describe('constructor', () => {
-    it('should create with default config', () => {
-      const orc = new ClawCompanyOrchestrator()
-      expect(orc).toBeDefined()
-    })
+  test('应该能够分析简单需求', async () => {
+    // Mock PM Agent 响应
+    ;(global.sessions_spawn as jest.Mock).mockResolvedValue('pm-session-1')
+    ;(global.sessions_history as jest.Mock).mockResolvedValue([
+      {
+        status: 'completed',
+        content: JSON.stringify({
+          message: '## 需求分析\n\n这是一个简单的登录页面需求。',
+          tasks: [
+            {
+              id: 'task-1',
+              title: '创建登录表单',
+              description: '实现用户登录表单',
+              assignedTo: 'dev',
+              dependencies: []
+            }
+          ]
+        })
+      }
+    ])
 
-    it('should accept custom config', () => {
-      const orc = new ClawCompanyOrchestrator({
-        thinking: 'high',
-        model: 'glm-5'
-      })
-      expect(orc).toBeDefined()
-    })
+    const result = await orchestrate('创建一个登录页面')
+
+    expect(result.success).toBe(true)
+    expect(result.tasks).toHaveLength(1)
+    expect(result.messages).toHaveLength(1)
+    expect(result.messages[0].agent).toBe('pm')
   })
 
-  describe('execute', () => {
-    it('should execute a simple request', async () => {
-      // Mock PM Agent response
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'pm-session' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{
-          content: JSON.stringify({
-            analysis: 'Test analysis',
-            tasks: [{
+  test('应该能够处理 Dev Agent 失败', async () => {
+    // Mock PM Agent 响应
+    ;(global.sessions_spawn as jest.Mock)
+      .mockResolvedValueOnce('pm-session-1')
+      .mockRejectedValueOnce(new Error('Dev Agent failed'))
+    
+    ;(global.sessions_history as jest.Mock).mockResolvedValue([
+      {
+        status: 'completed',
+        content: JSON.stringify({
+          message: '需求分析完成',
+          tasks: [
+            {
               id: 'task-1',
-              title: 'Test task',
-              description: 'Test description',
+              title: '实现功能',
+              description: '描述',
               assignedTo: 'dev',
-              dependencies: [],
-              status: 'pending'
-            }]
-          })
-        }]
-      })
+              dependencies: []
+            }
+          ]
+        })
+      }
+    ])
 
-      // Mock Dev Agent response
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'dev-session' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{
+    const result = await orchestrate('测试需求')
+
+    expect(result.success).toBe(true)
+    expect(result.tasks[0].status).toBe('in_progress')
+  })
+
+  test('应该能够完成完整的工作流程', async () => {
+    // Mock 所有 Agent 响应
+    ;(global.sessions_spawn as jest.Mock)
+      .mockResolvedValueOnce('pm-session-1')
+      .mockResolvedValueOnce('dev-session-1')
+      .mockResolvedValueOnce('review-session-1')
+    
+    ;(global.sessions_history as jest.Mock)
+      .mockResolvedValueOnce([
+        {
+          status: 'completed',
           content: JSON.stringify({
-            success: true,
-            files: ['test.ts'],
-            summary: 'Task completed'
-          })
-        }]
-      })
-
-      // Mock Review Agent response
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'review-session' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{
-          content: JSON.stringify({
-            approved: true,
-            issues: [],
-            suggestions: [],
-            summary: 'Review passed'
-          })
-        }]
-      })
-
-      const result = await orchestrator.execute('创建一个测试文件')
-
-      expect(result.success).toBe(true)
-      expect(result.tasks).toHaveLength(1)
-      expect(result.summary).toContain('完成了 1 个任务')
-    })
-
-    it('should handle empty task result', async () => {
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'pm-session' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{
-          content: JSON.stringify({
-            analysis: 'No tasks needed',
-            tasks: []
-          })
-        }]
-      })
-
-      const result = await orchestrator.execute('空需求')
-
-      expect(result.success).toBe(false)
-      expect(result.tasks).toHaveLength(0)
-    })
-
-    it('should handle multiple tasks', async () => {
-      // Mock PM Agent
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'pm-session' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{
-          content: JSON.stringify({
-            analysis: 'Multi-task project',
+            message: 'PM 分析完成',
             tasks: [
-              { id: 'task-1', title: 'Task 1', description: 'Desc 1', assignedTo: 'dev', dependencies: [], status: 'pending' },
-              { id: 'task-2', title: 'Task 2', description: 'Desc 2', assignedTo: 'dev', dependencies: [], status: 'pending' }
+              {
+                id: 'task-1',
+                title: '实现登录',
+                description: '登录功能',
+                assignedTo: 'dev',
+                dependencies: []
+              }
             ]
           })
-        }]
-      })
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          status: 'completed',
+          content: 'Dev 实现完成'
+        }
+      ])
+      .mockResolvedValueOnce([
+        {
+          status: 'completed',
+          content: JSON.stringify({
+            approved: true,
+            message: '审查通过 ✅'
+          })
+        }
+      ])
 
-      // Mock Dev + Review for task 1
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'dev-1' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{ content: JSON.stringify({ success: true, files: ['a.ts'], summary: 'Done' }) }]
-      })
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'review-1' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{ content: JSON.stringify({ approved: true, issues: [], suggestions: [], summary: 'OK' }) }]
-      })
+    const result = await orchestrate('创建登录功能')
 
-      // Mock Dev + Review for task 2
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'dev-2' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{ content: JSON.stringify({ success: true, files: ['b.ts'], summary: 'Done' }) }]
-      })
-      sessions_spawn.mockResolvedValueOnce({ sessionKey: 'review-2' })
-      sessions_history.mockResolvedValueOnce({
-        messages: [{ content: JSON.stringify({ approved: true, issues: [], suggestions: [], summary: 'OK' }) }]
-      })
-
-      const result = await orchestrator.execute('创建多个文件')
-
-      expect(result.success).toBe(true)
-      expect(result.tasks).toHaveLength(2)
-      expect(result.results).toHaveLength(2)
-    })
+    expect(result.success).toBe(true)
+    expect(result.tasks[0].status).toBe('done')
+    expect(result.messages).toHaveLength(3) // PM + Dev + Review
   })
 })
