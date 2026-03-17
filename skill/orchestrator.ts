@@ -2,7 +2,14 @@
  * ClawCompany Orchestrator - OpenClaw Skill
  * 
  * 真实的 OpenClaw 集成，使用 sessions_spawn 创建 AI 团队
- * 用法: 在 OpenClaw 中运行此脚本，传入用户需求
+ * 
+ * 用法：
+ * 1. 作为 OpenClaw Skill 运行（在 main session 中）
+ * 2. 或者通过 HTTP API 调用（ai-team-demo 的 API route）
+ * 
+ * 注意：此文件中的工具调用（sessions_spawn, sessions_history 等）
+ * 需要在 OpenClaw 环境中运行。如果在 Node.js 环境中运行，
+ * 需要通过 OpenClaw Gateway HTTP API 调用。
  */
 
 export interface Task {
@@ -25,9 +32,39 @@ export interface WorkflowResult {
 }
 
 /**
- * 主入口 - 执行用户需求
+ * 配置
  */
-export async function orchestrate(userRequest: string): Promise<WorkflowResult> {
+const CONFIG = {
+  // OpenClaw Gateway URL（用于 HTTP API 调用）
+  gatewayUrl: process.env.OPENCLAW_GATEWAY_URL || 'http://localhost:3000',
+  
+  // 超时设置
+  timeouts: {
+    pm: 60000,      // PM Agent: 60s
+    dev: 120000,    // Dev Agent: 120s
+    review: 60000   // Review Agent: 60s
+  },
+  
+  // Agent IDs
+  agents: {
+    dev: process.env.DEV_AGENT_ID || 'opencode'
+  }
+}
+
+/**
+ * 主入口 - 执行用户需求
+ * 
+ * @param userRequest 用户需求描述
+ * @param tools OpenClaw 工具集（可选，如果在 OpenClaw 环境中运行）
+ * @returns 工作流结果
+ */
+export async function orchestrate(
+  userRequest: string,
+  tools?: {
+    sessions_spawn?: typeof sessions_spawn
+    sessions_history?: typeof sessions_history
+  }
+): Promise<WorkflowResult> {
   console.log(`\n🚀 ClawCompany Orchestrator 启动`)
   console.log(`📋 用户需求: ${userRequest}\n`)
 
@@ -35,7 +72,7 @@ export async function orchestrate(userRequest: string): Promise<WorkflowResult> 
   
   // Step 1: PM Agent 分析需求
   console.log(`👤 [PM Agent] 正在分析需求...`)
-  const pmResult = await spawnPMAgent(userRequest)
+  const pmResult = await spawnPMAgent(userRequest, tools)
   messages.push({
     agent: 'pm',
     content: pmResult.message,
@@ -50,7 +87,7 @@ export async function orchestrate(userRequest: string): Promise<WorkflowResult> 
     console.log(`💻 [Dev Agent] 开始任务: ${task.title}`)
     task.status = 'in_progress'
     
-    const devResult = await spawnDevAgent(task)
+    const devResult = await spawnDevAgent(task, tools)
     messages.push({
       agent: 'dev',
       content: devResult.message,
@@ -62,7 +99,7 @@ export async function orchestrate(userRequest: string): Promise<WorkflowResult> 
     console.log(`🔍 [Review Agent] 正在审查...`)
     task.status = 'review'
     
-    const reviewResult = await spawnReviewAgent(task, devResult.files)
+    const reviewResult = await spawnReviewAgent(task, devResult.files, tools)
     messages.push({
       agent: 'review',
       content: reviewResult.message,
@@ -88,7 +125,13 @@ export async function orchestrate(userRequest: string): Promise<WorkflowResult> 
 /**
  * PM Agent - 需求分析和任务拆分
  */
-async function spawnPMAgent(userRequest: string): Promise<{
+async function spawnPMAgent(
+  userRequest: string,
+  tools?: {
+    sessions_spawn?: typeof sessions_spawn
+    sessions_history?: typeof sessions_history
+  }
+): Promise<{
   message: string
   tasks: Task[]
 }> {
@@ -124,8 +167,14 @@ async function spawnPMAgent(userRequest: string): Promise<{
 - 回复消息应该友好、专业`
 
   try {
+    // 检查是否有 OpenClaw 工具
+    if (!tools?.sessions_spawn || !tools?.sessions_history) {
+      console.log('   ⚠️  OpenClaw 工具不可用，使用回退模式')
+      throw new Error('OpenClaw tools not available')
+    }
+
     // 使用真实的 sessions_spawn
-    const sessionKey = await sessions_spawn({
+    const sessionKey = await tools.sessions_spawn({
       runtime: 'subagent',
       task: taskPrompt,
       thinking: 'high',
@@ -136,7 +185,7 @@ async function spawnPMAgent(userRequest: string): Promise<{
     console.log(`   PM Agent session: ${sessionKey}`)
 
     // 等待完成
-    const result = await waitForCompletion(sessionKey, 60000)
+    const result = await waitForCompletion(sessionKey, 60000, tools.sessions_history)
     
     // 解析 JSON
     const parsed = JSON.parse(result)
@@ -167,7 +216,13 @@ async function spawnPMAgent(userRequest: string): Promise<{
 /**
  * Dev Agent - 代码实现
  */
-async function spawnDevAgent(task: Task): Promise<{
+async function spawnDevAgent(
+  task: Task,
+  tools?: {
+    sessions_spawn?: typeof sessions_spawn
+    sessions_history?: typeof sessions_history
+  }
+): Promise<{
   message: string
   files: string[]
 }> {
@@ -191,10 +246,16 @@ async function spawnDevAgent(task: Task): Promise<{
 完成后，请说明你做了什么，创建了哪些文件。`
 
   try {
+    // 检查是否有 OpenClaw 工具
+    if (!tools?.sessions_spawn || !tools?.sessions_history) {
+      console.log('   ⚠️  OpenClaw 工具不可用，使用回退模式')
+      throw new Error('OpenClaw tools not available')
+    }
+
     // 使用真实的 sessions_spawn (ACP runtime)
-    const sessionKey = await sessions_spawn({
+    const sessionKey = await tools.sessions_spawn({
       runtime: 'acp',
-      agentId: 'opencode', // 或 'codex'
+      agentId: CONFIG.agents.dev,
       task: taskPrompt,
       mode: 'run',
       runTimeoutSeconds: 120,
@@ -204,7 +265,7 @@ async function spawnDevAgent(task: Task): Promise<{
     console.log(`   Dev Agent session: ${sessionKey}`)
 
     // 等待完成
-    const result = await waitForCompletion(sessionKey, 120000)
+    const result = await waitForCompletion(sessionKey, 120000, tools.sessions_history)
     
     return {
       message: result,
@@ -222,7 +283,14 @@ async function spawnDevAgent(task: Task): Promise<{
 /**
  * Review Agent - 代码审查
  */
-async function spawnReviewAgent(task: Task, files: string[]): Promise<{
+async function spawnReviewAgent(
+  task: Task,
+  files: string[],
+  tools?: {
+    sessions_spawn?: typeof sessions_spawn
+    sessions_history?: typeof sessions_history
+  }
+): Promise<{
   approved: boolean
   message: string
 }> {
@@ -254,8 +322,14 @@ async function spawnReviewAgent(task: Task, files: string[]): Promise<{
 }`
 
   try {
+    // 检查是否有 OpenClaw 工具
+    if (!tools?.sessions_spawn || !tools?.sessions_history) {
+      console.log('   ⚠️  OpenClaw 工具不可用，使用回退模式')
+      throw new Error('OpenClaw tools not available')
+    }
+
     // 使用真实的 sessions_spawn
-    const sessionKey = await sessions_spawn({
+    const sessionKey = await tools.sessions_spawn({
       runtime: 'subagent',
       task: reviewPrompt,
       thinking: 'high',
@@ -266,7 +340,7 @@ async function spawnReviewAgent(task: Task, files: string[]): Promise<{
     console.log(`   Review Agent session: ${sessionKey}`)
 
     // 等待完成
-    const result = await waitForCompletion(sessionKey, 60000)
+    const result = await waitForCompletion(sessionKey, 60000, tools.sessions_history)
     
     // 解析 JSON
     const parsed = JSON.parse(result)
@@ -286,7 +360,11 @@ async function spawnReviewAgent(task: Task, files: string[]): Promise<{
 /**
  * 等待 session 完成
  */
-async function waitForCompletion(sessionKey: string, timeout: number): Promise<string> {
+async function waitForCompletion(
+  sessionKey: string,
+  timeout: number,
+  sessions_history: typeof sessions_history
+): Promise<string> {
   const startTime = Date.now()
   const pollInterval = 2000
 
