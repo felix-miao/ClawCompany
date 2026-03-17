@@ -1,121 +1,87 @@
-# ⚡ ClawCompany 高强度开发计划 - 2026-03-16 晚
+# ⚡ ClawCompany 高强度开发计划 - 2026-03-17
 
-## 🎯 目标：10x Token 消耗（总计 ~400k tokens）
+## 🎯 目标：OpenClaw 真实集成 + 完成比赛材料
 
-**当前消耗：** 51k tokens
-**目标消耗：** 400k+ tokens
-**剩余需求：** 350k tokens
+**当前状态：**
+- ✅ 原型完成（Next.js + GLM-5 API）
+- ✅ E2E 测试通过
+- ⏳ OpenClaw 集成待开始
 
----
-
-## 📋 执行计划（每30分钟推进）
-
-### 🚀 Phase 1: 功能扩展（19:00-20:00，~80k tokens）
-
-**19:00-19:30 - 文件系统 + 持久化（~40k tokens）**
-- [ ] 实现真实的文件系统操作
-- [ ] 实现对话历史持久化
-- [ ] 实现 Agent 配置保存
-- [ ] 添加完整测试（TDD）
-- [ ] Commit + Push
-
-**19:30-20:00 - Git 集成 + 安全（~40k tokens）**
-- [ ] 实现自动 Git commit
-- [ ] 添加 API Key 安全处理
-- [ ] 添加输入验证和清理
-- [ ] 添加 Rate limiting
-- [ ] 添加完整测试（TDD）
-- [ ] Commit + Push
+**截止日期：** 2026-03-19（还有2天）
 
 ---
 
-### 🔥 Phase 2: TDD 完整测试（20:00-21:00，~100k tokens）
+## 📋 今日任务（2026-03-17）
 
-**20:00-20:30 - API 测试（~50k tokens）**
-- [ ] /api/agent 完整测试
-- [ ] /api/chat 完整测试
-- [ ] /api/files 完整测试
-- [ ] 错误处理测试
-- [ ] 边界情况测试
+### 🚀 Phase 3: OpenClaw Gateway 真实集成（10:00-18:00）
+
+**目标：** 将原型升级为真实的 OpenClaw 集成
+
+#### ✅ 10:00 - 启动 OpenClaw 集成
+- [x] 确认混合模式方案（选项C）
+- [x] 更新计划文档
+- [ ] 开始研究 OpenClaw Gateway API
+
+#### ⏳ 10:00-12:00 - OpenClaw Gateway 研究（2小时）
+- [ ] 阅读 OpenClaw 文档（/opt/homebrew/lib/node_modules/openclaw/docs）
+- [ ] 研究 sessions_spawn 使用方法
+- [ ] 研究如何创建 sub-agent
+- [ ] 测试 OpenClaw Gateway 连接
 - [ ] Commit + Push
 
-**20:30-21:00 - 组件测试（~50k tokens）**
-- [ ] /team 页面完整测试
-- [ ] /chat 页面完整测试
-- [ ] Agent 组件测试
-- [ ] 集成测试
-- [ ] E2E 测试
-- [ ] Commit + Push
-
----
-
-### 🌟 Phase 3: OpenClaw 真实集成（21:00-22:00，~100k tokens）
-
-**21:00-21:30 - Gateway API 研究（~50k tokens）**
-- [ ] 研究 OpenClaw Gateway API
-- [ ] 实现 WebSocket 连接
-- [ ] 实现真实的 sessions_spawn
-- [ ] 添加测试
-- [ ] Commit + Push
-
-**21:30-22:00 - 集成和优化（~50k tokens）**
-- [ ] 替换直接 GLM-5 调用
-- [ ] 优化性能
+#### 12:00-14:00 - PM Agent 集成（2小时）
+- [ ] 实现 PM Agent 的 sessions_spawn
+- [ ] 测试 PM Agent 与 OpenClaw 的通信
 - [ ] 添加错误处理
-- [ ] 完整测试
+- [ ] 集成测试
+- [ ] Commit + Push
+
+#### 14:00-16:00 - Dev Agent 集成（2小时）
+- [ ] 实现 Dev Agent 的 sessions_spawn
+- [ ] 配置 OpenCode/Codex agent
+- [ ] 测试 Dev Agent 功能
+- [ ] 集成测试
+- [ ] Commit + Push
+
+#### 16:00-18:00 - Review Agent 集成（2小时）
+- [ ] 实现 Review Agent 的 sessions_spawn
+- [ ] 测试 Review Agent 功能
+- [ ] 完整协作流程测试
+- [ ] E2E 测试更新
 - [ ] Commit + Push
 
 ---
 
-### 💎 Phase 4: 代码重构 + UI/UX（22:00-23:00，~120k tokens）
+### 🎬 Phase 4: Demo 录制（18:00-20:00）
 
-**22:00-22:30 - 代码重构（~60k tokens）**
-- [ ] 重构所有 Agent 实现
-- [ ] 优化 API Routes
-- [ ] 代码风格统一
-- [ ] 类型安全加强
-- [ ] 添加测试
-- [ ] Commit + Push
+**18:00-19:00 - 准备 Demo**
+- [ ] 测试完整流程（原型或 OpenClaw）
+- [ ] 准备 Demo 脚本
+- [ ] 录屏工具测试
 
-**22:30-23:00 - UI/UX 优化（~60k tokens）**
-- [ ] 完整设计系统
-- [ ] 动画和交互
-- [ ] 响应式设计
-- [ ] 无障碍访问
-- [ ] 性能优化
-- [ ] Commit + Push
+**19:00-20:00 - 录制 Demo**
+- [ ] 录制 3 分钟 Demo
+- [ ] 后期剪辑（可选）
+- [ ] 上传到视频平台
 
 ---
 
-## 📊 当前进度（20:31）
+### 📝 Phase 5: 比赛材料（20:00-22:00）
 
-**✅ 已完成：**
-- Phase 1: 文件系统 + 持久化（部分完成）
-- Phase 1: Git 集成 + 安全（部分完成）
-- Phase 2: API 测试框架修复 ✅ (commit 7635eb6)
-- Phase 2: 组件测试添加 ✅ (commit 3631b9c)
-  - /team 页面测试（26 tests）
-  - /chat 页面测试（35 tests）
-  - 测试覆盖率大幅提升
+**20:00-21:00 - 项目说明书**
+- [ ] 完善 10 页 PDF
+- [ ] 添加架构图
+- [ ] 添加技术说明
+- [ ] 添加 OpenClaw 集成说明
 
-**📈 测试统计：**
-- Test Suites: 15 个（+2）
-- Total Tests: 210 个（+41）
-- Passing: 143 个
-- Failing: 67 个（需要完善实现）
-
-**🔄 进行中：**
-- Phase 2: 完善 API 和组件实现（20:30-21:00）
-- 需要完善组件以匹配测试预期
-
-**⏭️ 下一步：**
-- 修复组件实现中的问题
-- 完善 API routes 实现
-- 继续提高测试通过率
+**21:00-22:00 - 最终检查**
+- [ ] 检查所有材料
+- [ ] 提交前测试
+- [ ] 准备提交
 
 ---
 
-## 📊 30分钟推进检查清单
+## 🎯 每小时检查清单
 
 **每次心跳执行：**
 
@@ -126,15 +92,14 @@
    npm test
    ```
 
-2. **继续当前任务**（20分钟）
+2. **继续当前任务**（50分钟）
    - 按照上述计划执行
    - 每完成一个功能立即测试
    - Commit + Push
 
 3. **更新文档**（5分钟）
-   - 更新 memory/2026-03-16.md
-   - 更新 MEMORY.md
-   - 记录 token 消耗
+   - 更新 memory/2026-03-17.md
+   - 记录进度和问题
 
 4. **报告进度**（3分钟）
    - 告诉用户当前进度
@@ -142,46 +107,98 @@
 
 ---
 
-## 🎯 当前任务（19:00-19:30）
+## 📊 当前进度（10:09）
 
-**立即开始：文件系统 + 持久化**
+**✅ 已完成：**
+- Phase 1: 原型开发（Next.js + GLM-5）
+- Phase 2: E2E 测试（Playwright）
+- 真实 API 测试通过
+- 混合模式方案确认
 
-- [ ] 实现 `lib/filesystem/manager.ts` 真实文件操作
-- [ ] 实现 `lib/storage/manager.ts` 持久化存储
-- [ ] 添加完整测试（TDD）
-- [ ] 测试覆盖率 > 90%
-- [ ] Commit + Push
+**🔄 进行中：**
+- Phase 3: OpenClaw 集成（研究阶段）
+
+**⏭️ 下一步：**
+- 研究 OpenClaw Gateway API
+- 实现 PM Agent 集成
 
 ---
 
-## 🔥 Token 消耗目标
+## 🎯 关键决策
 
-| 时间段 | 目标消耗 | 实际消耗 | 累计 |
-|--------|---------|---------|------|
-| 19:00-19:30 | 40k | - | 91k |
-| 19:30-20:00 | 40k | - | 131k |
-| 20:00-20:30 | 50k | - | 181k |
-| 20:30-21:00 | 50k | - | 231k |
-| 21:00-21:30 | 50k | - | 281k |
-| 21:30-22:00 | 50k | - | 331k |
-| 22:00-22:30 | 60k | - | 391k |
-| 22:30-23:00 | 60k | - | 451k |
+**架构选择：选项C（混合模式）**
+- ✅ 保留当前原型（可立即录制 Demo）
+- ✅ 同时开发 OpenClaw 集成（真实能力）
+- ✅ 两者都有，灵活性高
+
+**OpenClaw 集成方案：**
+- PM Agent: runtime='subagent'
+- Dev Agent: runtime='acp', agentId='opencode'
+- Review Agent: runtime='subagent'
+
+**模式切换：**
+```bash
+USE_OPENCLAW_GATEWAY=false  # 原型（GLM-5 API）
+USE_OPENCLAW_GATEWAY=true   # OpenClaw 集成
+```
 
 ---
 
 ## ⚠️ 规则
 
-- ✅ **严格 TDD**：先写测试，再写代码
-- ✅ **每30分钟检查**：cron 执行时报告进度
 - ✅ **每完成功能立即 commit**
 - ✅ **所有测试必须通过**
-- ✅ **Token 消耗目标：400k+**
+- ✅ **保持原型可用（向后兼容）**
+- ✅ **OpenClaw 集成作为增强功能**
 
 ---
 
-**记住：高强度开发，直到达到 400k tokens！** 🚀
+## 🔥 Token 消耗目标
+
+| 时间段 | 目标消耗 | 任务 |
+|--------|---------|------|
+| 10:00-12:00 | 30k | OpenClaw 研究 |
+| 12:00-14:00 | 30k | PM Agent 集成 |
+| 14:00-16:00 | 30k | Dev Agent 集成 |
+| 16:00-18:00 | 30k | Review Agent 集成 |
+| 18:00-20:00 | 20k | Demo 录制 |
+| 20:00-22:00 | 20k | 比赛材料 |
+| **总计** | **160k** | **完整集成** |
 
 ---
 
-*计划创建: 2026-03-16 19:00*
-*下次检查: 19:30 (cron)*
+## 📦 文件结构
+
+**当前原型：**
+```
+ai-team-demo/
+├── src/app/
+│   ├── api/agent/route.ts  # 当前 API
+│   └── team/page.tsx       # 前端页面
+└── e2e/demo.spec.ts        # E2E 测试
+```
+
+**OpenClaw 集成后：**
+```
+ai-team-demo/
+├── src/app/
+│   ├── api/agent/route.ts        # 保留（向后兼容）
+│   ├── api/openclaw/route.ts     # 新增：OpenClaw API
+│   └── team/page.tsx             # 更新：支持两种模式
+├── src/lib/openclaw/
+│   ├── gateway-client.ts         # 新增：Gateway 客户端
+│   └── agent-spawner.ts          # 新增：Agent 生成器
+└── e2e/
+    ├── demo.spec.ts              # 原型测试
+    └── openclaw.spec.ts          # 新增：OpenClaw 测试
+```
+
+---
+
+**立即开始：OpenClaw Gateway 研究！** 🚀
+
+---
+
+*计划创建: 2026-03-17 10:00*
+*计划更新: 2026-03-17 10:09*
+*下次检查: 11:00 (heartbeat)*
