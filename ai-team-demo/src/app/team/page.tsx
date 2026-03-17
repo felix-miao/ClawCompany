@@ -1,8 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { AgentConfig, defaultAgents } from '@/lib/agents/config'
+
+interface CodeFile {
+  path: string
+  language: string
+  content: string
+}
 
 interface Message {
   id: string
@@ -12,9 +20,97 @@ interface Message {
   color: string
   content: string
   timestamp: Date
+  files?: CodeFile[]
 }
 
 type Mode = 'glm' | 'openclaw'
+
+function parseCodeFiles(content: string): { text: string; files: CodeFile[] } {
+  const files: CodeFile[] = []
+  const codeBlockRegex = /(?:\*\*([^*]+\.\w+)\*\*\s*|)(```(\w+)?\n)([\s\S]*?)```/g
+  let match
+  const text = content
+
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    const filePath = match[1] || ''
+    const language = match[3] || 'text'
+    const code = match[4]
+
+    if (filePath) {
+      files.push({
+        path: filePath,
+        language,
+        content: code.trim()
+      })
+    }
+  }
+
+  return { text, files }
+}
+
+function MessageContent({ message }: { message: Message }) {
+  const { files } = useMemo(() => parseCodeFiles(message.content), [message.content])
+  const [activeFile, setActiveFile] = useState(0)
+  const [showCode, setShowCode] = useState(false)
+
+  if (message.agentId === 'dev-agent' && files.length > 0) {
+    const textWithoutCode = message.content
+      .replace(/(?:\*\*([^*]+\.\w+)\*\*\s*|)(```(\w+)?\n)([\s\S]*?)```/g, (match, filePath) => {
+        return filePath ? `**${filePath}**\n` : ''
+      })
+      .replace(/### 创建的文件[\s\S]*?(?=###|$)/, '### 创建的文件\n\n')
+      .trim()
+
+    return (
+      <div className="space-y-3">
+        <div className="prose prose-invert prose-sm max-w-none">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {textWithoutCode}
+          </ReactMarkdown>
+        </div>
+        
+        <div className="mt-3">
+          <button
+            onClick={() => setShowCode(!showCode)}
+            className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1"
+          >
+            {showCode ? '▼ 隐藏代码' : '▶ 查看代码文件'}
+            <span className="bg-gray-700 px-2 py-0.5 rounded text-xs">{files.length}</span>
+          </button>
+          
+          {showCode && (
+            <div className="mt-2 border border-gray-700 rounded-lg overflow-hidden">
+              <div className="flex border-b border-gray-700 overflow-x-auto">
+                {files.map((file, index) => (
+                  <button
+                    key={file.path}
+                    onClick={() => setActiveFile(index)}
+                    className={`px-3 py-2 text-sm whitespace-nowrap ${
+                      activeFile === index
+                        ? 'bg-gray-700 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    }`}
+                  >
+                    📄 {file.path}
+                  </button>
+                ))}
+              </div>
+              <pre className="p-3 text-xs overflow-x-auto bg-gray-900 max-h-80">
+                <code>{files[activeFile]?.content}</code>
+              </pre>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="prose prose-invert prose-sm max-w-none">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+    </div>
+  )
+}
 
 export default function TeamChatPage() {
   const [agents] = useState<AgentConfig[]>(defaultAgents)
@@ -22,10 +118,9 @@ export default function TeamChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [currentAgent, setCurrentAgent] = useState<string | null>(null)
-  const [mode, setMode] = useState<Mode>('glm') // 默认 GLM-5 直接模式
+  const [mode, setMode] = useState<Mode>('glm')
   const [openclawConnected, setOpenclawConnected] = useState<boolean | null>(null)
 
-  // 调用单个 Agent
   const callAgent = async (agent: AgentConfig, message: string) => {
     setCurrentAgent(agent.id)
 
@@ -49,8 +144,8 @@ export default function TeamChatPage() {
     }
   }
 
-  // 添加消息到聊天
   const addMessage = (agent: AgentConfig, content: string) => {
+    const { files } = parseCodeFiles(content)
     setMessages(prev => [...prev, {
       id: `${agent.id}-${Date.now()}`,
       agentId: agent.id,
@@ -58,11 +153,11 @@ export default function TeamChatPage() {
       emoji: agent.emoji,
       color: agent.color,
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      files: files.length > 0 ? files : undefined
     }])
   }
 
-  // 主处理流程
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
@@ -70,17 +165,14 @@ export default function TeamChatPage() {
     setInput('')
     setIsLoading(true)
 
-    // 计时开始
     const startTime = Date.now()
 
-    // 添加用户消息
     addMessage(
       { id: 'user', name: 'You', emoji: '👤', color: '#6B7280' } as any,
       userMessage
     )
 
     try {
-      // 1. PM Agent 分析
       const pmAgent = agents.find(a => a.id === 'pm-agent')!
       addMessage(pmAgent, '正在分析需求...')
       
@@ -88,7 +180,6 @@ export default function TeamChatPage() {
       const pmResponse = await callAgent(pmAgent, userMessage)
       const pmDuration = ((Date.now() - pmStartTime) / 1000).toFixed(1)
       
-      // 更新 PM Agent 消息
       setMessages(prev => {
         const newMsgs = [...prev]
         const lastPmMsg = newMsgs.find(m => m.agentId === 'pm-agent' && m.content === '正在分析需求...')
@@ -98,7 +189,6 @@ export default function TeamChatPage() {
         return newMsgs
       })
 
-      // 2. 调用 Dev Agent 实现（无论 PM 返回什么格式）
       const devAgent = agents.find(a => a.id === 'dev-agent')!
       addMessage(devAgent, '正在实现功能...')
       
@@ -109,7 +199,6 @@ export default function TeamChatPage() {
       )
       const devDuration = ((Date.now() - devStartTime) / 1000).toFixed(1)
       
-      // 更新 Dev Agent 消息
       setMessages(prev => {
         const newMsgs = [...prev]
         const lastDevMsg = newMsgs.find(m => 
@@ -122,7 +211,6 @@ export default function TeamChatPage() {
         return newMsgs
       })
 
-      // 3. Review Agent 审查
       const reviewAgent = agents.find(a => a.id === 'review-agent')!
       addMessage(reviewAgent, '正在审查代码...')
       
@@ -133,7 +221,6 @@ export default function TeamChatPage() {
       )
       const reviewDuration = ((Date.now() - reviewStartTime) / 1000).toFixed(1)
       
-      // 更新 Review Agent 消息
       setMessages(prev => {
         const newMsgs = [...prev]
         const lastReviewMsg = newMsgs.find(m => 
@@ -146,10 +233,8 @@ export default function TeamChatPage() {
         return newMsgs
       })
 
-      // 计算总用时
       const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
 
-      // 添加完成消息
       addMessage(
         { id: 'system', name: 'System', emoji: '🎉', color: '#FF5833' } as any,
         `团队协作完成！\n\n📊 性能统计：\n• PM Agent: ${pmDuration}秒\n• Dev Agent: ${devDuration}秒\n• Review Agent: ${reviewDuration}秒\n• 总用时: ${totalDuration}秒`
@@ -168,7 +253,6 @@ export default function TeamChatPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Header */}
       <header className="border-b border-gray-700 px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
@@ -177,7 +261,6 @@ export default function TeamChatPage() {
           </div>
           
           <div className="flex items-center gap-6">
-            {/* 模式切换 */}
             <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-1">
               <button
                 onClick={() => setMode('glm')}
@@ -201,7 +284,6 @@ export default function TeamChatPage() {
               </button>
             </div>
             
-            {/* Agent 状态 */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-600">
@@ -231,9 +313,7 @@ export default function TeamChatPage() {
       </header>
 
       <div className="max-w-6xl mx-auto flex h-[calc(100vh-80px)]">
-        {/* 聊天区域 */}
         <div className="flex-1 flex flex-col">
-          {/* 消息列表 */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-12 text-gray-500">
@@ -250,7 +330,7 @@ export default function TeamChatPage() {
                 >
                   {msg.emoji}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">{msg.agentName}</span>
                     <span className="text-xs text-gray-500">
@@ -258,7 +338,16 @@ export default function TeamChatPage() {
                     </span>
                   </div>
                   <div className="bg-gray-800 rounded-lg p-3">
-                    <pre className="whitespace-pre-wrap font-mono text-sm">{msg.content}</pre>
+                    {msg.content === '正在分析需求...' || 
+                     msg.content === '正在实现功能...' || 
+                     msg.content === '正在审查代码...' ? (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <div className="animate-spin w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full" />
+                        <span>{msg.content}</span>
+                      </div>
+                    ) : (
+                      <MessageContent message={msg} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -272,7 +361,6 @@ export default function TeamChatPage() {
             )}
           </div>
 
-          {/* 输入区域 */}
           <div className="border-t border-gray-700 p-4">
             <div className="flex gap-3">
               <input
@@ -297,7 +385,6 @@ export default function TeamChatPage() {
           </div>
         </div>
 
-        {/* Agent 配置侧边栏 */}
         <div className="w-80 border-l border-gray-700 p-6 overflow-y-auto">
           <h2 className="text-lg font-bold mb-4">团队成员</h2>
           
