@@ -98,7 +98,7 @@ describe('MockProvider', () => {
 
   describe('性能', () => {
     it('应该在合理时间内响应', async () => {
-      const messages: LLMMessage[] = [
+      const messages: ChatMessage[] = [
         { role: 'user', content: '性能测试' }
       ]
 

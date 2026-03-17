@@ -48,8 +48,11 @@ ClawCompany 现在支持真实的 OpenClaw Gateway 集成，允许 Dev Agent 通
 ### 1. 环境变量配置
 
 ```bash
-# 启用 OpenClaw Gateway 模式
-USE_OPENCLAW_GATEWAY=true
+# 启用 OpenClaw Gateway 模式（用于 LLM Provider）
+USE_REAL_GATEWAY=true
+
+# 或使用 Mock 模式（用于 Demo）
+USE_MOCK_LLM=true
 
 # Gateway URL（默认：ws://127.0.0.1:18789）
 OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
