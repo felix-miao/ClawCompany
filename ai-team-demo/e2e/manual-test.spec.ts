@@ -1,6 +1,7 @@
 import { test } from '@playwright/test'
 
-test('手动验证 PM Agent 响应', async ({ page }) => {
+// 跳过此测试 - 仅用于手动验证
+test.skip('手动验证 PM Agent 响应', async ({ page }) => {
   // 打开浏览器并保持
   await page.goto('/team')
   await page.waitForLoadState('networkidle')
