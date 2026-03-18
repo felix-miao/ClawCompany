@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Team - 一人公司 AI 团队</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/theme/black.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/highlight/monokai.css">
+    <style>
+        :root {
+            --r-main-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            --r-heading-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            --r-main-font-size: 32px;
+            --r-heading1-size: 2.5em;
+            --r-heading2-size: 1.8em;
+            --r-heading3-size: 1.3em;
+            --r-main-color: #fff;
+            --r-heading-color: #fff;
+            --r-link-color: #667EEA;
+            --r-link-color-dark: #5a67d8;
+        }
+        
+        .reveal {
+            background: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
+        }
+        
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-transform: none;
+            font-weight: 700;
+        }
+        
+        .reveal .slides section {
+            text-align: left;
+        }
+        
+        .reveal .slides section.center {
+            text-align: center;
+        }
+        
+        .emoji {
+            font-size: 1.2em;
+        }
+        
+        .highlight {
+            color: #10B981;
+            font-weight: bold;
+        }
+        
+        .pain-point {
+            color: #EF4444;
+        }
+        
+        .feature-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .screenshot {
+            max-height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .architecture-box {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #10B981;
+        }
+        
+        .stat-label {
+            font-size: 0.8em;
+            opacity: 0.8;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            font-size: 0.7em;
+            margin-top: 20px;
+        }
+        
+        .comparison-table th {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+        }
+        
+        .comparison-table td {
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .check {
+            color: #10B981;
+            font-size: 1.2em;
+        }
+        
+        .cross {
+            color: #EF4444;
+            font-size: 1.2em;
+        }
+        
+        .star {
+            color: #FFD700;
+        }
+        
+        .contact-info {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 30px;
+        }
+        
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        ul li {
+            margin: 15px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+        
+        ul li:before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #667EEA;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <!-- 第1页：封面 -->
+            <section class="center">
+                <h1><span class="emoji">🤖</span> AI Team</h1>
+                <h2 style="font-size: 1.2em; margin-top: 20px;">一人公司 AI 团队</h2>
+                <p style="font-size: 1.5em; margin-top: 40px; font-weight: 300; opacity: 0.9;">
+                    让一个人也能拥有完整的 AI 团队
+                </p>
+                <p style="margin-top: 60px; font-size: 0.8em; opacity: 0.7;">
+                    ClawCompany | One Person. Infinite Power.
+                </p>
+            </section>
+
+            <!-- 第2页：问题陈述 -->
+            <section>
+                <h2><span class="emoji">😓</span> 问题：一人公司的困境</h2>
+                <div style="margin-top: 40px;">
+                    <ul>
+                        <li><span class="emoji">👨‍💻</span> <strong>独立开发者</strong>：一个人要当多个人用</li>
+                        <li><span class="emoji">🚀</span> <strong>创业者</strong>：没有团队，难以快速迭代</li>
+                        <li><span class="emoji">💼</span> <strong>自由职业者</strong>：效率低下，无法规模化</li>
+                        <li><span class="emoji">🏢</span> <strong>小团队</strong>：资源有限，难以竞争</li>
+                    </ul>
+                </div>
+                <div class="feature-box" style="margin-top: 40px;">
+                    <p style="font-size: 0.9em; margin: 0;">
+                        <span class="pain-point">❌ 需求分析</span>：没有 PM，不知道做什么<br>
+                        <span class="pain-point">❌ 开发实现</span>：没有 Dev，不知道怎么做<br>
+                        <span class="pain-point">❌ 质量审核</span>：没有 Reviewer，不知道做得多好
+                    </p>
+                </div>
+            </section>
+
+            <!-- 第3页：产品介绍 -->
+            <section>
+                <h2><span class="emoji">💡</span> 解决方案：AI Team</h2>
+                <div style="margin-top: 40px;">
+                    <ul>
+                        <li><span class="emoji">🎯</span> <strong>核心价值</strong>：让一个人也能拥有完整的 AI 团队</li>
+                        <li><span class="emoji">🤖</span> <strong>三个 AI Agent</strong>：PM Agent + Dev Agent + Review Agent</li>
+                        <li><span class="emoji">⚡</span> <strong>自动化协作</strong>：一个需求 → 完整实现</li>
+                        <li><span class="emoji">🚀</span> <strong class="highlight">10 倍效率提升</strong>：从需求到代码，只需 1 分钟</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 第4页：核心功能 -->
+            <section>
+                <h2><span class="emoji">⚙️</span> 核心功能：AI Agent 协作</h2>
+                <div style="margin-top: 40px;">
+                    <ul style="font-size: 0.9em;">
+                        <li><span class="emoji">💬</span> <strong>需求输入</strong>：简单聊天界面</li>
+                        <li><span class="emoji">🤖</span> <strong>PM Agent</strong>：分析需求，生成技术方案</li>
+                        <li><span class="emoji">💻</span> <strong>Dev Agent</strong>：编写代码，实现功能</li>
+                        <li><span class="emoji">✅</span> <strong>Review Agent</strong>：审核代码，确保质量</li>
+                    </ul>
+                </div>
+                <div class="architecture-box" style="margin-top: 40px; text-align: center;">
+                    用户需求 → PM Agent → Dev Agent → Review Agent → 完成代码
+                </div>
+            </section>
+
+            <!-- 第5页：产品 Demo - Landing Page -->
+            <section>
+                <h2><span class="emoji">🎬</span> 产品 Demo：Landing Page</h2>
+                <div style="text-align: center; margin-top: 30px;">
+                    <img src="assets/01-landing-page.png" class="screenshot" alt="Landing Page">
+                </div>
+            </section>
+
+            <!-- 第6页：产品 Demo - Team Portal -->
+            <section>
+                <h2><span class="emoji">🎬</span> 产品 Demo：Team Portal</h2>
+                <div style="text-align: center; margin-top: 30px;">
+                    <img src="assets/02-team-portal.png" class="screenshot" alt="Team Portal">
+                </div>
+            </section>
+
+            <!-- 第7页：产品 Demo - PM Agent -->
+            <section>
+                <h2><span class="emoji">🎬</span> 产品 Demo：PM Agent 响应</h2>
+                <div style="text-align: center; margin-top: 30px;">
+                    <img src="assets/03-pm-response.png" class="screenshot" alt="PM Agent Response">
+                </div>
+            </section>
+
+            <!-- 第8页：产品 Demo - Dev Agent -->
+            <section>
+                <h2><span class="emoji">🎬</span> 产品 Demo：Dev Agent 响应</h2>
+                <div style="text-align: center; margin-top: 30px;">
+                    <img src="assets/04-dev-response.png" class="screenshot" alt="Dev Agent Response">
+                </div>
+            </section>
+
+            <!-- 第9页：产品 Demo - Review Agent -->
+            <section>
+                <h2><span class="emoji">🎬</span> 产品 Demo：Review Agent 响应</h2>
+                <div style="text-align: center; margin-top: 30px;">
+                    <img src="assets/05-review-response.png" class="screenshot" alt="Review Agent Response">
+                </div>
+            </section>
+
+            <!-- 第10页：产品 Demo - 完成 -->
+            <section>
+                <h2><span class="emoji">🎬</span> 产品 Demo：协作完成</h2>
+                <div style="text-align: center; margin-top: 30px;">
+                    <img src="assets/06-complete.png" class="screenshot" alt="Complete">
+                </div>
+            </section>
+
+            <!-- 第11页：技术架构 -->
+            <section>
+                <h2><span class="emoji">🏗️</span> 技术架构</h2>
+                <div style="margin-top: 40px;">
+                    <ul style="font-size: 0.9em;">
+                        <li><span class="emoji">🎨</span> <strong>前端</strong>：Next.js 15 + React 19 + Tailwind CSS</li>
+                        <li><span class="emoji">🤖</span> <strong>AI</strong>：GLM-5 API（智谱 AI）</li>
+                        <li><span class="emoji">🔄</span> <strong>流程</strong>：Multi-Agent 协作</li>
+                        <li><span class="emoji">📊</span> <strong>测试</strong>：Playwright E2E 测试</li>
+                    </ul>
+                </div>
+                <div class="architecture-box" style="margin-top: 40px; font-size: 0.7em;">
+                    ┌─────────────┐<br>
+                    │  Next.js    │<br>
+                    │  Frontend   │<br>
+                    └──────┬──────┘<br>
+                           │<br>
+                           ▼<br>
+                    ┌─────────────┐     ┌─────────────┐<br>
+                    │  PM Agent   │────▶│  Dev Agent  │<br>
+                    └─────────────┘     └──────┬──────┘<br>
+                                               │<br>
+                                               ▼<br>
+                                        ┌─────────────┐<br>
+                                        │Review Agent │<br>
+                                        └─────────────┘<br>
+                           │<br>
+                           ▼<br>
+                    ┌─────────────┐<br>
+                    │  GLM-5 API  │<br>
+                    └─────────────┘
+                </div>
+            </section>
+
+            <!-- 第12页：AI Agent 设计 -->
+            <section>
+                <h2><span class="emoji">🤖</span> AI Agent 设计</h2>
+                <div style="margin-top: 30px;">
+                    <div class="feature-box">
+                        <p><span class="emoji">🎯</span> <strong>PM Agent</strong>：分析需求 → 技术方案</p>
+                    </div>
+                    <div class="feature-box">
+                        <p><span class="emoji">💻</span> <strong>Dev Agent</strong>：技术方案 → 可执行代码</p>
+                    </div>
+                    <div class="feature-box">
+                        <p><span class="emoji">✅</span> <strong>Review Agent</strong>：代码审核 → 质量报告</p>
+                    </div>
+                </div>
+                <p style="margin-top: 30px; font-size: 0.9em; opacity: 0.8;">
+                    <span class="emoji">🔄</span> 自动协作：三个 Agent 自动交接工作
+                </p>
+            </section>
+
+            <!-- 第13页：技术亮点 -->
+            <section>
+                <h2><span class="emoji">✨</span> 技术亮点</h2>
+                <div style="margin-top: 40px;">
+                    <ul style="font-size: 0.9em;">
+                        <li><span class="emoji">⚡</span> <strong>实时响应</strong>：&lt; 30 秒完成协作</li>
+                        <li><span class="emoji">🎯</span> <strong>高准确率</strong>：&gt; 90% 的需求能正确实现</li>
+                        <li><span class="emoji">🔄</span> <strong>自动协作</strong>：Multi-Agent 自动交接</li>
+                        <li><span class="emoji">📊</span> <strong>质量保证</strong>：自动审核 + 测试</li>
+                    </ul>
+                </div>
+                <div class="feature-box" style="margin-top: 40px;">
+                    <p style="font-size: 0.9em; margin: 0;">
+                        <span class="highlight">🌟 创新点</span>：国内首个 Multi-Agent 协作的 AI 团队产品
+                    </p>
+                </div>
+            </section>
+
+            <!-- 第14页：性能数据 -->
+            <section>
+                <h2><span class="emoji">📊</span> 性能数据</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">&lt;30s</div>
+                        <div class="stat-label">响应时间</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">&gt;90%</div>
+                        <div class="stat-label">准确率</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">10x</div>
+                        <div class="stat-label">效率提升</div>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; font-size: 0.8em;">
+                    <p><span class="emoji">⚡</span> PM Agent: ~10 秒 | Dev Agent: ~10 秒 | Review Agent: ~10 秒</p>
+                    <p style="margin-top: 15px;"><span class="emoji">💯</span> 语法正确率：100% | 功能完整率：&gt;90%</p>
+                </div>
+            </section>
+
+            <!-- 第15页：目标用户 -->
+            <section>
+                <h2><span class="emoji">👥</span> 目标用户</h2>
+                <div style="margin-top: 40px;">
+                    <ul>
+                        <li><span class="emoji">👨‍💻</span> <strong>独立开发者</strong>：快速原型开发</li>
+                        <li><span class="emoji">🚀</span> <strong>创业者</strong>：快速验证想法</li>
+                        <li><span class="emoji">💼</span> <strong>自由职业者</strong>：提高交付效率</li>
+                        <li><span class="emoji">🏢</span> <strong>小团队</strong>：降低人力成本</li>
+                    </ul>
+                </div>
+                <div class="feature-box" style="margin-top: 40px;">
+                    <p style="font-size: 0.9em; margin: 0;">
+                        <span class="emoji">🎯</span> 用户画像：25-40 岁技术从业者，追求效率与质量
+                    </p>
+                </div>
+            </section>
+
+            <!-- 第16页：商业模式 -->
+            <section>
+                <h2><span class="emoji">💰</span> 商业模式</h2>
+                <div style="margin-top: 40px;">
+                    <div class="feature-box">
+                        <p><span class="emoji">🆓</span> <strong>免费版</strong>：每天 10 次</p>
+                    </div>
+                    <div class="feature-box">
+                        <p><span class="emoji">💎</span> <strong>专业版</strong>：¥99/月，无限次</p>
+                    </div>
+                    <div class="feature-box">
+                        <p><span class="emoji">🏢</span> <strong>企业版</strong>：¥999/月，定制服务</p>
+                    </div>
+                </div>
+                <div style="margin-top: 30px; font-size: 0.8em; opacity: 0.8;">
+                    <p><span class="emoji">📈</span> 预计第一年：1000 用户，¥100 万收入</p>
+                </div>
+            </section>
+
+            <!-- 第17页：竞争优势 -->
+            <section>
+                <h2><span class="emoji">🏆</span> 竞争优势</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>产品</th>
+                            <th>Multi-Agent</th>
+                            <th>自动化</th>
+                            <th>质量审核</th>
+                            <th>易用性</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="background: rgba(16, 185, 129, 0.2);">
+                            <td><strong>AI Team</strong></td>
+                            <td><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                            <td><span class="check">✓</span></td>
+                            <td><span class="star">★★★★★</span></td>
+                        </tr>
+                        <tr>
+                            <td>GitHub Copilot</td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="star">★★★★</span></td>
+                        </tr>
+                        <tr>
+                            <td>Cursor</td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="star">★★★★</span></td>
+                        </tr>
+                        <tr>
+                            <td>ChatGPT</td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="cross">✗</span></td>
+                            <td><span class="star">★★★★★</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="feature-box" style="margin-top: 30px;">
+                    <p style="font-size: 0.9em; margin: 0;">
+                        <span class="highlight">🎯 核心优势</span>：Multi-Agent 协作 + 自动化流程 + 质量保证
+                    </p>
+                </div>
+            </section>
+
+            <!-- 第18页：未来规划 -->
+            <section>
+                <h2><span class="emoji">🚀</span> 未来规划</h2>
+                <div style="margin-top: 40px;">
+                    <div class="feature-box">
+                        <p><span class="emoji">🎯</span> <strong>短期（3 个月）</strong>：优化速度、添加更多 Agent、支持更多语言</p>
+                    </div>
+                    <div class="feature-box">
+                        <p><span class="emoji">🌐</span> <strong>中期（6 个月）</strong>：企业版上线、API 开放、社区建设</p>
+                    </div>
+                    <div class="feature-box">
+                        <p><span class="emoji">🌟</span> <strong>长期（1 年）</strong>：国际化、多平台支持、AI Agent 市场</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 第19页：团队介绍 -->
+            <section class="center">
+                <h2><span class="emoji">👨‍💻</span> ClawCompany 团队</h2>
+                <div style="margin-top: 40px;">
+                    <p style="font-size: 1.1em;"><span class="emoji">🎯</span> <strong>使命</strong>：让一个人也能拥有完整的 AI 团队</p>
+                    <p style="font-size: 1.1em; margin-top: 20px;"><span class="emoji">💡</span> <strong>愿景</strong>：全球领先的 AI 团队平台</p>
+                    <p style="font-size: 1.1em; margin-top: 20px;"><span class="emoji">🚀</span> <strong>价值观</strong>：创新、效率、质量</p>
+                </div>
+            </section>
+
+            <!-- 第20页：Q&A -->
+            <section class="center">
+                <h1><span class="emoji">❓</span> Q&A</h1>
+                <p style="font-size: 1.2em; margin-top: 40px;">欢迎提问</p>
+                <div class="contact-info">
+                    <p><span class="emoji">📧</span> Email: clawcompany@example.com</p>
+                    <p><span class="emoji">🐙</span> GitHub: github.com/clawcompany</p>
+                </div>
+                <p style="margin-top: 60px; font-size: 1.5em;">
+                    <span class="emoji">🙏</span> 感谢聆听！
+                </p>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/dist/reveal.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/highlight/highlight.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@4.5.0/plugin/notes/notes.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: 'c/t',
+            transition: 'slide',
+            transitionSpeed: 'default',
+            backgroundTransition: 'fade',
+            plugins: [RevealHighlight, RevealNotes],
+            width: 1280,
+            height: 720,
+            margin: 0.1
+        });
+    </script>
+</body>
+</html>
