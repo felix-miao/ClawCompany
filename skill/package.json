@@ -1,66 +1,50 @@
 {
   "name": "clawcompany",
   "version": "1.0.0",
-  "description": "AI 虚拟团队协作系统 - 一人企业家，无限可能",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "description": "AI 虚拟团队协作系统 - 一人企业家 + AI 团队 = 无限可能",
+  "main": "src/index.ts",
   "scripts": {
-    "build": "tsc",
     "test": "jest",
-    "test:watch": "jest --watch",
-    "lint": "eslint src/**/*.ts",
-    "prepublishOnly": "npm run build"
+    "build": "tsc"
   },
   "keywords": [
     "openclaw",
-    "ai-team",
+    "ai",
+    "team",
+    "collaboration",
     "automation",
-    "code-generation",
-    "productivity",
-    "agents",
-    "clawhub"
+    "pm",
+    "developer",
+    "reviewer",
+    "codex",
+    "glm-5"
   ],
-  "author": "Felix Miao",
+  "author": "ClawCompany Team",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/felix-miao/ClawCompany.git"
   },
+  "homepage": "https://github.com/felix-miao/ClawCompany#readme",
   "bugs": {
     "url": "https://github.com/felix-miao/ClawCompany/issues"
-  },
-  "homepage": "https://github.com/felix-miao/ClawCompany#readme",
-  "dependencies": {
-    "openclaw": "latest"
-  },
-  "devDependencies": {
-    "@types/jest": "^29.5.0",
-    "@types/node": "^20.0.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.1.0",
-    "typescript": "^5.3.0"
   },
   "engines": {
     "node": ">=18.0.0"
   },
-  "clawhub": {
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "openclaw": {
+    "skillVersion": "1.0.0",
+    "minOpenClawVersion": "2026.3.0",
     "category": "productivity",
-    "tags": ["ai-team", "automation", "coding", "agents"],
+    "tags": ["ai-team", "automation", "collaboration"],
     "icon": "🦞",
-    "displayName": "ClawCompany",
-    "description": "AI 虚拟团队协作系统，实现一人企业家模式",
-    "examples": [
-      "创建一个登录页面",
-      "创建一个计算器应用",
-      "创建一个 Todo List"
-    ],
-    "requirements": {
-      "env": ["GLM_API_KEY"],
-      "optional": ["GLM_MODEL", "PROJECT_ROOT"]
-    },
-    "compatibility": {
-      "openclaw": ">=1.0.0",
-      "node": ">=18.0.0"
-    }
+    "color": "#3B82F6"
   }
 }

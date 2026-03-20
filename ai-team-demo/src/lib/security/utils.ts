@@ -15,10 +15,11 @@ import crypto from 'crypto'
  */
 export class APIKeyManager {
   private static readonly ALGORITHM = 'aes-256-cbc'
-  // 确保密钥是32字节（256位）
+  
+  // 使用环境变量存储密钥和 salt
   private static readonly KEY = crypto.scryptSync(
-    process.env.ENCRYPTION_KEY || 'default-key',
-    'salt',
+    process.env.ENCRYPTION_KEY || 'default-encryption-key-change-in-production',
+    process.env.ENCRYPTION_SALT || 'default-salt-change-in-production',
     32
   )
 
@@ -71,7 +72,23 @@ export class APIKeyManager {
    * 从环境变量获取 API Key
    */
   static getFromEnv(): string | null {
-    return process.env.GLM_API_KEY || null
+    const encryptedKey = process.env.GLM_API_KEY
+    
+    if (!encryptedKey) {
+      return null
+    }
+    
+    // 如果是加密的，先解密
+    if (encryptedKey.includes(':')) {
+      try {
+        return this.decrypt(encryptedKey)
+      } catch (error) {
+        console.error('解密 API Key 失败:', error)
+        return null
+      }
+    }
+    
+    return encryptedKey
   }
 
   /**

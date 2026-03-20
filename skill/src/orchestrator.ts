@@ -258,9 +258,12 @@ ${JSON.stringify(devResult, null, 2)}
   }
 
   /**
-   * 获取 PM Agent 结果
+   * 从 session 中解析 JSON 响应（通用方法）
    */
-  private async getPMResult(session: any): Promise<PMResult> {
+  private async parseJSONFromSession<T>(
+    session: any,
+    defaultValue: T
+  ): Promise<T> {
     try {
       const history = await sessions_history({ sessionKey: session.sessionKey })
       const lastMessage = history.messages?.[history.messages.length - 1]
@@ -274,11 +277,21 @@ ${JSON.stringify(devResult, null, 2)}
         }
       }
     } catch (error) {
-      console.error('解析 PM 结果失败:', error)
+      console.error('解析 Session 结果失败:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        session: session?.sessionKey,
+        timestamp: new Date().toISOString()
+      })
     }
     
-    // 返回默认任务
-    return {
+    return defaultValue
+  }
+
+  /**
+   * 获取 PM Agent 结果
+   */
+  private async getPMResult(session: any): Promise<PMResult> {
+    const defaultValue: PMResult = {
       analysis: '自动生成的任务',
       tasks: [{
         id: 'task-1',
@@ -289,58 +302,34 @@ ${JSON.stringify(devResult, null, 2)}
         status: 'pending'
       }]
     }
+    
+    return await this.parseJSONFromSession(session, defaultValue)
   }
 
   /**
    * 获取 Dev Agent 结果
    */
   private async getDevResult(session: any): Promise<DevResult> {
-    try {
-      const history = await sessions_history({ sessionKey: session.sessionKey })
-      const lastMessage = history.messages?.[history.messages.length - 1]
-      
-      if (lastMessage?.content) {
-        const content = lastMessage.content
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0])
-        }
-      }
-    } catch (error) {
-      console.error('解析 Dev 结果失败:', error)
-    }
-    
-    return {
+    const defaultValue: DevResult = {
       success: true,
       files: [],
       summary: '任务完成'
     }
+    
+    return await this.parseJSONFromSession(session, defaultValue)
   }
 
   /**
    * 获取 Review Agent 结果
    */
   private async getReviewResult(session: any): Promise<ReviewResult> {
-    try {
-      const history = await sessions_history({ sessionKey: session.sessionKey })
-      const lastMessage = history.messages?.[history.messages.length - 1]
-      
-      if (lastMessage?.content) {
-        const content = lastMessage.content
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0])
-        }
-      }
-    } catch (error) {
-      console.error('解析 Review 结果失败:', error)
-    }
-    
-    return {
+    const defaultValue: ReviewResult = {
       approved: true,
       issues: [],
       suggestions: [],
       summary: '审查通过'
     }
+    
+    return await this.parseJSONFromSession(session, defaultValue)
   }
 }
