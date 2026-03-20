@@ -1,8 +1,9 @@
-# ⚡ ClawCompany - Phase 4: Skill 完善
+# ⚡ ClawCompany - Phase 5: ClawHub 发布完成
 
 **当前状态：** ✅ 比赛已完成（2026-03-20）
-**进度：** ✅ 4个新角色 Skills 已创建
-**下一步：** 测试和优化 Skills
+**进度：** ✅ ClawHub 发布完成（2026-03-20 22:58）
+**发布地址：** https://clawhub.com/skills/clawcompany
+**下一步：** 社区推广
 
 ---
 
@@ -64,5 +65,18 @@
 **Priority 3: ClawHub 发布**
 - [ ] 完善文档
 - [ ] 发布到 clawhub.com
+
+---
+��研 Gateway API（2026-03-20 19:00-19:15）
+- [x] 研究 sessions_spawn
+- [x] 验证技术可行性
+- [x] 创建研究报告（research/gateway-integration.md）
+
+**Priority 3: ClawHub 发布** ⏳ 下一步
+- [ ] 完善 package.json
+- [ ] 添加 README 和截图
+- [ ] 登录 ClawHub
+- [ ] 发布到 clawhub.com
+- [ ] 社区推广
 
 ---
