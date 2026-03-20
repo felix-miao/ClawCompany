@@ -1,122 +1,118 @@
-# ⚡ ClawCompany 高强度开发计划 - 2026-03-18
+# ⚡ ClawCompany - Phase 4: Skill 完善
 
-## 🎯 目标：完成比赛材料（Demo 视频 + PPT）
-
-**当前状态：**
-- ✅ 原型完成（Next.js + GLM-5 API）
-- ✅ E2E 测试通过（真实 GLM-5）
-- ✅ README.md 完善
-- ⏳ Demo 视频待录制
-
-**截止日期：** 2026-03-19（还有约 1.5 天）
-
-**当前时间：** 06:56 (2026-03-20) ⚠️ 截止日期已过
-**下次检查：** 08:00 (heartbeat)
-
-**上次 commit：** 2026-03-20 06:29（心跳检查 - 06:29）
-**距离上次 commit：** 27 分钟（未超过 1 小时阈值）
-**状态：** 开发服务器运行中 ✅，PPT 完成 ✅，Demo 视频待录制 ⏳
-**Playwright 测试：** ⚠️ Reviewer Claw 超时（API 响应慢，PM/Dev 成功）
-**开发服务器：** ✅ 运行中（端口 3000，HTTP 200）
-**Git：** ✅ 无未提交变更
+**当前状态：** ✅ 比赛已完成（2026-03-20）
+**下一步：** 完善 ClawCompany Skill，研究 OpenClaw 集成
 
 ---
 
-## ⚠️ Demo 录制前提条件
+## 🎯 当前任务
 
-**✅ 所有条件已满足（07:08 验证）：**
+### Priority 1: 完善 ClawCompany Skill
 
-1. ✅ Playwright E2E 测试通过（6.0秒）
-2. ✅ 所有测试用例通过
-3. ✅ 真实 API 调用验证
-4. ✅ 开发服务器运行中（端口 3000）
+**目标：** 研究 skills 的实际工作方式，完善 ClawCompany Skill
 
-**→ 可以开始录 Demo 视频**
+**任务：**
+- [ ] 调研现有 skills 的实现方式（weather, github 等）
+- [ ] 确认 skills 是否需要 scripts
+- [ ] 完善 ClawCompany 的 SKILL.md
+- [ ] 添加详细的使用说明
+- [ ] 测试 skill 是否可用
 
----
-
-## 📋 待完成任务（2026-03-18）
-
-### 🎯 优先级 1：录制 Demo 视频（2-3 分钟）
-- 开发服务器已就绪（http://localhost:3000）
-- 使用 macOS 屏幕录制（Cmd+Shift+5）或 OBS
-- 按照 DEMO_SCRIPT.md 的流程
-- 真实 GLM-5 API 模式
-- **状态：** ⏳ 待人工录制
-
-### 📊 优先级 2：制作 PPT（10-15 页）✅ 进行中
-- ✅ 已创建 reveal.js HTML PPT（20 页）
-- ✅ 包含所有核心内容：产品介绍、技术架构、商业模式等
-- ✅ 使用真实产品截图
-- 📍 位置：/Users/felixmiao/Projects/ClawCompany/ppt/index.html
-- **下一步：** 在浏览器中打开，导出为 PDF
-
-### 📝 优先级 3：最终检查
-- 检查 Demo 视频质量
-- 检查 PPT 完整性
-- 准备提交材料
+**疑问：**
+1. ❓ Skills 是否只是 prompts，还是需要 scripts？
+2. ❓ 如何在 skill 中调用 OpenClaw 的功能？
+3. ❓ 是否有标准的 skill 开发框架？
 
 ---
 
-## 📊 当前进度（17:39）
+### Priority 2: 研究 OpenClaw Gateway 集成
 
-**✅ 已完成：**
-- Phase 1: 原型开发（Next.js + GLM-5）
-- Phase 2: E2E 测试（Playwright）✅ 通过（6.1秒）
-- Phase 3: README.md 完善
-- Phase 4: PPT 制作（reveal.js，20 页）
-- Phase 5: 测试配置修复
-  - 端口配置（3004 → 3000）
-  - OpenClaw 测试跳过（需要环境变量）
-  - 清理重复的开发服务器进程
-- Phase 6: 测试截图自动更新
-- Phase 7: 持续心跳监控（每小时验证）
+**目标：** 确认真实集成的可行性
 
-**⏭️ 待完成：**
-- ⚠️ **Demo 视频录制（需要人工操作）** - 唯一剩余任务！
-- 最终提交材料打包
+**任务：**
+- [ ] 研究 Gateway API 文档
+- [ ] 确认 sessions_spawn 是否存在
+- [ ] 研究 agent 间通信方式
+- [ ] 验证技术可行性
 
-**🎯 立即行动：**
-1. ⚠️ **打开浏览器访问 http://localhost:3000 录制 Demo 视频**（唯一待完成任务）
-2. 按照 DEMO_SCRIPT.md 录制 2-3 分钟视频
-3. 导出 PPT 为 PDF（ppt/index.html）
-4. 打包提交材料
+**疑问：**
+1. ❓ sessions_spawn API 是否存在？
+2. ❓ 如何通过 Gateway 创建 sub-agent？
+3. ❓ Agent 间如何传递消息？
 
 ---
 
-## 📊 每小时检查清单
+### Priority 3: ClawHub 发布
+
+**目标：** 发布 ClawCompany Skill 到 ClawHub
+
+**任务：**
+- [ ] 完善 skill 文档
+- [ ] 添加使用示例
+- [ ] 登录 ClawHub
+- [ ] 发布到 clawhub.com
+- [ ] 社区推广
+
+---
+
+### Priority 4: 功能增强
+
+**目标：** 提升用户体验
+
+**任务：**
+
+**4.1 调度可视化**
+- [ ] 实时 Agent 状态监控
+- [ ] 工作流可视化
+- [ ] 性能仪表板
+
+**4.2 文件系统操作**
+- [ ] 真实创建文件
+- [ ] 文件编辑和预览
+- [ ] 版本控制
+
+**4.3 Git 自动提交**
+- [ ] 自动 commit
+- [ ] 自动 push
+- [ ] 分支管理
+
+**4.4 自定义 Agent 配置**
+- [ ] Agent 配置界面
+- [ ] 自定义 system prompt
+- [ ] Agent 模板库
+
+---
+
+## 📊 项目状态
+
+**比赛：** ✅ 已完成（2026-03-20 09:25）
+**代码：** ✅ 所有测试通过（230+ tests）
+**文档：** ✅ 完整
+**Skill：** ⏳ 需要完善
+
+---
+
+## 🔍 心跳检查
 
 **每次心跳执行：**
 
-1. **检查进度**（2分钟）
-   ```bash
-   cd /Users/felixmiao/Projects/ClawCompany
-   git log -1 --format="%ai %s"
-   ```
+1. **继续 Priority 1 任务**（45分钟）
+   - 调研 skills 实现
+   - 完善 ClawCompany Skill
 
-2. **检查开发服务器**（1分钟）
-   ```bash
-   curl -s http://localhost:3000 > /dev/null && echo "Server OK" || echo "Server Down"
-   ```
+2. **更新文档**（5分钟）
+   - 更新 memory/YYYY-MM-DD.md
+   - 记录进展和发现
 
-3. **如果距离上次 commit > 1 小时：**
-   - 运行 Playwright 测试验证
-   - 继续推进待完成任务
-   - Commit 进度
+3. **报告进度**（5分钟）
+   - 告诉用户当前进展
+   - 提出疑问和建议
 
 ---
 
-**下一步：录制 Demo 视频！** 🎬
-
-**PPT 已完成：** 在浏览器中打开 ppt/index.html 查看和演示
-**导出 PDF：** 在浏览器中打开后，使用打印功能导出为 PDF
-
-**⚠️ 待办：**
-- 重新运行 Playwright 测试验证修复
-- 录制 Demo 视频（需要人工操作）
+**当前任务：完善 ClawCompany Skill** 🚀
 
 ---
 
-*计划创建: 2026-03-17 10:00*
-*计划更新: 2026-03-18 17:20*
-*下次检查: 18:00 (heartbeat)*
+*最后更新: 2026-03-20 15:32*
+*状态: Skill 完善阶段*
