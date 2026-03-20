@@ -51,7 +51,7 @@ describe('OpenClawAgentExecutor', () => {
   })
 
   describe('executeAgent', () => {
-    it('应该执行 PM Agent', async () => {
+    it('应该执行 PM Claw', async () => {
       mockClient.sessions_spawn.mockResolvedValue({
         status: 'accepted',
         runId: 'run-123',
@@ -75,7 +75,7 @@ describe('OpenClawAgentExecutor', () => {
       )
     })
 
-    it('应该执行 Dev Agent 使用 ACP runtime', async () => {
+    it('应该执行 Dev Claw 使用 ACP runtime', async () => {
       mockClient.sessions_spawn.mockResolvedValue({
         status: 'accepted',
         runId: 'run-456',
@@ -96,7 +96,7 @@ describe('OpenClawAgentExecutor', () => {
       )
     })
 
-    it('应该执行 Review Agent', async () => {
+    it('应该执行 Reviewer Claw', async () => {
       mockClient.sessions_spawn.mockResolvedValue({
         status: 'accepted',
         runId: 'run-789',
@@ -145,7 +145,7 @@ describe('OpenClawAgentExecutor', () => {
   })
 
   describe('executePMAgent', () => {
-    it('应该使用正确的提示词执行 PM Agent', async () => {
+    it('应该使用正确的提示词执行 PM Claw', async () => {
       mockClient.sessions_spawn.mockResolvedValue({
         status: 'accepted',
         runId: 'run-pm',
@@ -160,14 +160,14 @@ describe('OpenClawAgentExecutor', () => {
       await executor.executePMAgent('创建用户注册功能')
 
       const spawnCall = mockClient.sessions_spawn.mock.calls[0][0]
-      expect(spawnCall.task).toContain('PM Agent')
+      expect(spawnCall.task).toContain('PM Claw')
       expect(spawnCall.task).toContain('创建用户注册功能')
       expect(spawnCall.thinking).toBe('high')
     })
   })
 
   describe('executeDevAgent', () => {
-    it('应该使用正确的提示词执行 Dev Agent', async () => {
+    it('应该使用正确的提示词执行 Dev Claw', async () => {
       mockClient.sessions_spawn.mockResolvedValue({
         status: 'accepted',
         runId: 'run-dev',
@@ -179,7 +179,7 @@ describe('OpenClawAgentExecutor', () => {
       await executor.executeDevAgent('实现登录表单', '包含邮箱和密码字段')
 
       const spawnCall = mockClient.sessions_spawn.mock.calls[0][0]
-      expect(spawnCall.task).toContain('Dev Agent')
+      expect(spawnCall.task).toContain('Dev Claw')
       expect(spawnCall.task).toContain('实现登录表单')
       expect(spawnCall.task).toContain('包含邮箱和密码字段')
       expect(spawnCall.runtime).toBe('acp')
@@ -187,7 +187,7 @@ describe('OpenClawAgentExecutor', () => {
   })
 
   describe('executeReviewAgent', () => {
-    it('应该使用正确的提示词执行 Review Agent', async () => {
+    it('应该使用正确的提示词执行 Reviewer Claw', async () => {
       mockClient.sessions_spawn.mockResolvedValue({
         status: 'accepted',
         runId: 'run-review',
@@ -199,7 +199,7 @@ describe('OpenClawAgentExecutor', () => {
       await executor.executeReviewAgent('审查登录表单', 'const x = 1')
 
       const spawnCall = mockClient.sessions_spawn.mock.calls[0][0]
-      expect(spawnCall.task).toContain('Review Agent')
+      expect(spawnCall.task).toContain('Reviewer Claw')
       expect(spawnCall.task).toContain('审查登录表单')
       expect(spawnCall.task).toContain('const x = 1')
     })

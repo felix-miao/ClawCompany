@@ -2,13 +2,13 @@
 
 ## 概述
 
-ClawCompany 现在支持真实的 OpenClaw Gateway 集成，允许 Dev Agent 通过 WebSocket 调用真实的 `sessions_spawn` API。
+ClawCompany 现在支持真实的 OpenClaw Gateway 集成，允许 Dev Claw 通过 WebSocket 调用真实的 `sessions_spawn` API。
 
 ## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Dev Agent                                 │
+│                    Dev Claw                                 │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │  模式选择：mock | llm | openclaw                     │    │
 │  └─────────────────────────────────────────────────────┘    │
@@ -166,13 +166,13 @@ class OpenClawAgentExecutor {
     options?: Partial<AgentSpawnConfig>
   ): Promise<AgentExecutionResult>
   
-  // PM Agent 专用
+  // PM Claw 专用
   async executePMAgent(task: string): Promise<AgentExecutionResult>
   
-  // Dev Agent 专用（使用 ACP runtime）
+  // Dev Claw 专用（使用 ACP runtime）
   async executeDevAgent(task: string, description?: string): Promise<AgentExecutionResult>
   
-  // Review Agent 专用
+  // Review Claw 专用
   async executeReviewAgent(task: string, code?: string): Promise<AgentExecutionResult>
 }
 ```
@@ -183,21 +183,21 @@ class OpenClawAgentExecutor {
 # 运行 Gateway 相关测试
 npm test -- --testPathPatterns=gateway
 
-# 运行 Dev Agent 测试
+# 运行 Dev Claw 测试
 npm test -- --testPathPatterns=dev-agent
 ```
 
 ## 注意事项
 
 1. **运行时选择**：
-   - PM Agent: `subagent` runtime
-   - Dev Agent: `acp` runtime (支持真实代码执行)
-   - Review Agent: `subagent` runtime
+   - PM Claw: `subagent` runtime
+   - Dev Claw: `acp` runtime (支持真实代码执行)
+   - Review Claw: `subagent` runtime
 
 2. **超时设置**：
-   - PM Agent: 300 秒
-   - Dev Agent: 600 秒
-   - Review Agent: 180 秒
+   - PM Claw: 300 秒
+   - Dev Claw: 600 秒
+   - Review Claw: 180 秒
 
 3. **回退机制**：
    - OpenClaw 调用失败时自动回退到 mock 模式

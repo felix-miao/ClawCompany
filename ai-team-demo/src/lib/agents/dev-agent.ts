@@ -1,4 +1,4 @@
-// Dev Agent - 开发 Agent
+// Dev Claw - 开发 Agent
 
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
@@ -19,7 +19,7 @@ export class DevAgent extends BaseAgent {
   constructor(options: DevAgentOptions = {}) {
     super(
       'dev-agent-1',
-      'Dev Agent',
+      'Dev Claw',
       'dev',
       '负责代码实现和功能开发'
     )
@@ -173,7 +173,7 @@ export class DevAgent extends BaseAgent {
     context: AgentContext,
     llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
   ): Promise<AgentResponse> {
-    const systemPrompt = `你是 Dev Agent，一个资深全栈开发者。生成完整、可运行的代码。
+    const systemPrompt = `你是 Dev Claw，一个资深全栈开发者。生成完整、可运行的代码。
 
 **技术栈**：Next.js 14 + React + TypeScript + Tailwind CSS
 
@@ -412,9 +412,9 @@ export async function GET(request: NextRequest) {
       message += `- 响应式设计\n`
       message += `- 表单验证\n`
       message += `- 错误处理\n\n`
-      message += `Review Agent，请帮我审查代码质量。`
+      message += `Reviewer Claw，请帮我审查代码质量。`
     } else {
-      message += `Review Agent，请帮我审查代码质量。`
+      message += `Reviewer Claw，请帮我审查代码质量。`
     }
 
     return message

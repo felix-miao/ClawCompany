@@ -1,4 +1,4 @@
-// Dev Agent 测试
+// Dev Claw 测试
 
 import { DevAgent, DevAgentMode } from '../dev-agent'
 import { Task, AgentContext } from '../types'
@@ -39,7 +39,7 @@ describe('DevAgent', () => {
 
   it('应该正确初始化', () => {
     expect(devAgent.id).toBe('dev-agent-1')
-    expect(devAgent.name).toBe('Dev Agent')
+    expect(devAgent.name).toBe('Dev Claw')
     expect(devAgent.role).toBe('dev')
   })
 

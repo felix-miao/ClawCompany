@@ -19,19 +19,19 @@ const agentConfig = {
     borderColor: "border-gray-500",
   },
   pm: {
-    name: "PM Agent",
+    name: "PM Claw",
     avatar: "📋",
     color: "bg-blue-600",
     borderColor: "border-blue-500",
   },
   dev: {
-    name: "Dev Agent",
+    name: "Dev Claw",
     avatar: "💻",
     color: "bg-green-600",
     borderColor: "border-green-500",
   },
   review: {
-    name: "Review Agent",
+    name: "Reviewer Claw",
     avatar: "🔍",
     color: "bg-purple-600",
     borderColor: "border-purple-500",
@@ -40,12 +40,12 @@ const agentConfig = {
 
 const demoConversation: Omit<Message, "id" | "timestamp">[] = [
   { agent: "user", content: "I need to build a landing page for my new SaaS product. Can you help?" },
-  { agent: "pm", content: "Absolutely! I've analyzed the requirements. Let me break this down into tasks:\n\n1. Hero section with value proposition\n2. Feature highlights\n3. Pricing section\n4. CTA components\n\nDev Agent, can you start with the hero section?" },
+  { agent: "pm", content: "Absolutely! I've analyzed the requirements. Let me break this down into tasks:\n\n1. Hero section with value proposition\n2. Feature highlights\n3. Pricing section\n4. CTA components\n\nDev Claw, can you start with the hero section?" },
   { agent: "dev", content: "Got it! I'm creating a responsive hero section with:\n\n• Animated gradient background\n• Responsive typography (mobile-first)\n• CTA button with hover effects\n• Accessible markup\n\nStarting implementation now..." },
   { agent: "review", content: "I'll be monitoring the code quality. A few things to keep in mind:\n\n• Ensure proper semantic HTML\n• Add ARIA labels where needed\n• Optimize images for performance\n• Test keyboard navigation\n\nReady to review when you push the code!" },
   { agent: "dev", content: "First commit ready! The hero section is complete with:\n\n✓ Gradient animation using CSS\n✓ Responsive design (375px to 1440px)\n✓ 95+ Lighthouse score\n✓ Full keyboard accessibility\n\nPR created: #1" },
   { agent: "review", content: "Code review complete! Great work overall. Minor suggestions:\n\n• Consider adding prefers-reduced-motion support\n• The gradient could use a slight opacity adjustment\n\nOtherwise, looks good! Approved ✓" },
-  { agent: "pm", content: "Excellent teamwork! The hero section is now live. Next up:\n\n• Feature highlights section\n• Testimonials\n• Pricing table\n\nDev Agent, ready for the next feature?" },
+  { agent: "pm", content: "Excellent teamwork! The hero section is now live. Next up:\n\n• Feature highlights section\n• Testimonials\n• Pricing table\n\nDev Claw, ready for the next feature?" },
 ];
 
 function TypingIndicator({ agent }: { agent: keyof typeof agentConfig }) {
@@ -263,9 +263,9 @@ export default function DemoPage() {
 
         <div className="mt-8 grid grid-cols-3 gap-4">
           {[
-            { emoji: "📋", label: "PM Agent", status: "Analyzing", color: "bg-blue-500" },
-            { emoji: "💻", label: "Dev Agent", status: "Building", color: "bg-green-500" },
-            { emoji: "🔍", label: "Review Agent", status: "Monitoring", color: "bg-purple-500" },
+            { emoji: "📋", label: "PM Claw", status: "Analyzing", color: "bg-blue-500" },
+            { emoji: "💻", label: "Dev Claw", status: "Building", color: "bg-green-500" },
+            { emoji: "🔍", label: "Reviewer Claw", status: "Monitoring", color: "bg-purple-500" },
           ].map((agent) => (
             <motion.div
               key={agent.label}

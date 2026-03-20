@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     // 9. 保存对话
     await storageManager.saveConversation(conversation)
 
-    // 10. 如果是 Dev Agent，尝试解析并创建文件
+    // 10. 如果是 Dev Claw，尝试解析并创建文件
     if (agentId === 'dev-agent' && agentMessage.includes('```')) {
       const files = parseCodeBlocks(agentMessage)
       
@@ -245,13 +245,13 @@ function generateMockResponse(agentId: string, userMessage: string): string {
 3. 添加样式和交互
 4. 测试和优化
 
-✅ 分析完成，已分配给 Dev Agent 开始实现。`
+✅ 分析完成，已分配给 Dev Claw 开始实现。`
   }
 
   if (agentId === 'dev-agent') {
     return `## 实现完成 ✅
 
-已根据 PM Agent 的分析完成实现：
+已根据 PM Claw 的分析完成实现：
 
 ### 创建的文件
 
@@ -306,7 +306,7 @@ export default function LoginPage() {
 }
 \`\`\`
 
-✅ 代码已生成，提交给 Review Agent 审查。`
+✅ 代码已生成，提交给 Reviewer Claw 审查。`
   }
 
   if (agentId === 'review-agent') {

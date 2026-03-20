@@ -19,9 +19,9 @@ describe('Landing Page', () => {
   it('应该显示三个 Agent 卡片', () => {
     render(<Home />)
     
-    expect(screen.getByText('PM Agent')).toBeInTheDocument()
-    expect(screen.getByText('Dev Agent')).toBeInTheDocument()
-    expect(screen.getByText('Review Agent')).toBeInTheDocument()
+    expect(screen.getByText('PM Claw')).toBeInTheDocument()
+    expect(screen.getByText('Dev Claw')).toBeInTheDocument()
+    expect(screen.getByText('Reviewer Claw')).toBeInTheDocument()
   })
 
   it('应该显示 Agent 角色描述', () => {

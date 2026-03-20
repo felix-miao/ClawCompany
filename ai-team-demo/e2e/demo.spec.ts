@@ -23,9 +23,9 @@ test.describe('🎬 Demo 录制测试 - 真实 GLM-5 API', () => {
     console.log('📸 截图保存: 01-landing-page.png')
 
     // 检查 3 个 Agent 卡片
-    await expect(page.locator('text=PM Agent')).toBeVisible()
-    await expect(page.locator('text=Dev Agent')).toBeVisible()
-    await expect(page.locator('text=Review Agent')).toBeVisible()
+    await expect(page.locator('text=PM Claw')).toBeVisible()
+    await expect(page.locator('text=Dev Claw')).toBeVisible()
+    await expect(page.locator('text=Reviewer Claw')).toBeVisible()
     console.log('✅ 3 个 Agent 卡片显示正常')
 
     // 检查 CTA 按钮
@@ -66,36 +66,36 @@ test.describe('🎬 Demo 录制测试 - 真实 GLM-5 API', () => {
     await sendButton.click()
     console.log('✅ 已点击发送按钮\n')
 
-    // ==================== 等待 PM Agent 响应 ====================
-    console.log('⏳ 等待 PM Agent 响应（真实 API，可能需要 10-30 秒）...')
+    // ==================== 等待 PM Claw 响应 ====================
+    console.log('⏳ 等待 PM Claw 响应（真实 API，可能需要 10-30 秒）...')
 
     // 等待用户消息出现
     await expect(page.locator(`text=${testMessage}`)).toBeVisible({ timeout: 10000 })
     console.log('✅ 用户消息显示成功')
 
-    // 等待 PM Agent 消息出现（真实 API 需要更长时间）
-    await expect(page.locator('text=PM Agent').first()).toBeVisible({ timeout: 60000 })
-    console.log('✅ PM Agent 已响应')
+    // 等待 PM Claw 消息出现（真实 API 需要更长时间）
+    await expect(page.locator('text=PM Claw').first()).toBeVisible({ timeout: 60000 })
+    console.log('✅ PM Claw 已响应')
 
     // 截图
     await page.screenshot({ path: 'test-results/03-pm-response.png', fullPage: true })
     console.log('📸 截图保存: 03-pm-response.png\n')
 
-    // ==================== 等待 Dev Agent 响应 ====================
-    console.log('⏳ 等待 Dev Agent 响应...')
+    // ==================== 等待 Dev Claw 响应 ====================
+    console.log('⏳ 等待 Dev Claw 响应...')
 
-    await expect(page.locator('text=Dev Agent').first()).toBeVisible({ timeout: 60000 })
-    console.log('✅ Dev Agent 已响应')
+    await expect(page.locator('text=Dev Claw').first()).toBeVisible({ timeout: 60000 })
+    console.log('✅ Dev Claw 已响应')
 
     // 截图
     await page.screenshot({ path: 'test-results/04-dev-response.png', fullPage: true })
     console.log('📸 截图保存: 04-dev-response.png\n')
 
-    // ==================== 等待 Review Agent 响应 ====================
-    console.log('⏳ 等待 Review Agent 响应...')
+    // ==================== 等待 Review Claw 响应 ====================
+    console.log('⏳ 等待 Review Claw 响应...')
 
-    await expect(page.locator('text=Review Agent').first()).toBeVisible({ timeout: 60000 })
-    console.log('✅ Review Agent 已响应')
+    await expect(page.locator('text=Review Claw').first()).toBeVisible({ timeout: 60000 })
+    console.log('✅ Review Claw 已响应')
 
     // 截图
     await page.screenshot({ path: 'test-results/05-review-response.png', fullPage: true })
@@ -116,9 +116,9 @@ test.describe('🎬 Demo 录制测试 - 真实 GLM-5 API', () => {
     console.log('📊 测试结果：')
     console.log('  ✅ Landing Page 正常显示')
     console.log('  ✅ Team Portal 正常显示')
-    console.log('  ✅ PM Agent 正常响应（真实 GLM-5）')
-    console.log('  ✅ Dev Agent 正常响应（真实 GLM-5）')
-    console.log('  ✅ Review Agent 正常响应（真实 GLM-5）')
+    console.log('  ✅ PM Claw 正常响应（真实 GLM-5）')
+    console.log('  ✅ Dev Claw 正常响应（真实 GLM-5）')
+    console.log('  ✅ Review Claw 正常响应（真实 GLM-5）')
     console.log('  ✅ 完整协作流程成功')
     console.log('\n🎬 真实 API 测试通过，Demo 可以开始录制了！')
   })

@@ -14,24 +14,24 @@ describe('AgentManager', () => {
     expect(agents).toHaveLength(3)
   })
 
-  it('应该能获取 PM Agent', () => {
+  it('应该能获取 PM Claw', () => {
     const pmAgent = manager.getAgent('pm')
     expect(pmAgent).toBeDefined()
-    expect(pmAgent?.name).toBe('PM Agent')
+    expect(pmAgent?.name).toBe('PM Claw')
     expect(pmAgent?.role).toBe('pm')
   })
 
-  it('应该能获取 Dev Agent', () => {
+  it('应该能获取 Dev Claw', () => {
     const devAgent = manager.getAgent('dev')
     expect(devAgent).toBeDefined()
-    expect(devAgent?.name).toBe('Dev Agent')
+    expect(devAgent?.name).toBe('Dev Claw')
     expect(devAgent?.role).toBe('dev')
   })
 
-  it('应该能获取 Review Agent', () => {
+  it('应该能获取 Reviewer Claw', () => {
     const reviewAgent = manager.getAgent('review')
     expect(reviewAgent).toBeDefined()
-    expect(reviewAgent?.name).toBe('Review Agent')
+    expect(reviewAgent?.name).toBe('Reviewer Claw')
     expect(reviewAgent?.role).toBe('review')
   })
 

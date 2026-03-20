@@ -237,7 +237,7 @@ export default function TeamChatPage() {
 
       addMessage(
         { id: 'system', name: 'System', emoji: '🎉', color: '#FF5833' } as any,
-        `团队协作完成！\n\n📊 性能统计：\n• PM Agent: ${pmDuration}秒\n• Dev Agent: ${devDuration}秒\n• Review Agent: ${reviewDuration}秒\n• 总用时: ${totalDuration}秒`
+        `团队协作完成！\n\n📊 性能统计：\n• PM Claw: ${pmDuration}秒\n• Dev Claw: ${devDuration}秒\n• Reviewer Claw: ${reviewDuration}秒\n• 总用时: ${totalDuration}秒`
       )
 
     } catch (error) {
@@ -289,19 +289,19 @@ export default function TeamChatPage() {
                 <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-600">
                   📋
                 </div>
-                <span className="text-sm">PM Agent</span>
+                <span className="text-sm">PM Claw</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center bg-green-600">
                   💻
                 </div>
-                <span className="text-sm">Dev Agent</span>
+                <span className="text-sm">Dev Claw</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center bg-purple-600">
                   🔍
                 </div>
-                <span className="text-sm">Review Agent</span>
+                <span className="text-sm">Reviewer Claw</span>
               </div>
             </div>
             

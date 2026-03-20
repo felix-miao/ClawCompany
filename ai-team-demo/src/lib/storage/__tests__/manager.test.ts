@@ -67,13 +67,13 @@ describe('StorageManager', () => {
 
       conv = storageManager.addMessageToConversation(conv, {
         agentId: 'pm-agent',
-        agentName: 'PM Agent',
+        agentName: 'PM Claw',
         content: 'Hello'
       })
 
       expect(conv.messages).toHaveLength(1)
       expect(conv.messages[0].content).toBe('Hello')
-      expect(conv.messages[0].agentName).toBe('PM Agent')
+      expect(conv.messages[0].agentName).toBe('PM Claw')
     })
   })
 

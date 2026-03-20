@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClawCompany - OpenClaw 龙虾大赛</title>
+    <title>ClawCompany - 一人公司，无限可能</title>
     <style>
         * {
             margin: 0;
@@ -13,350 +13,457 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+            background: #0a0a0a;
             color: #fff;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 40px;
+            padding: 20px;
         }
 
         .poster {
-            width: 1080px;
-            height: 1920px;
+            width: 1920px;
+            height: 1080px;
             background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #0f0f1e 100%);
             position: relative;
             overflow: hidden;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(255, 88, 51, 0.3);
+            box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);
         }
 
-        /* 背景装饰 */
+        /* 动态背景网格 */
         .poster::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255, 88, 51, 0.1) 0%, transparent 70%);
-            animation: rotate 20s linear infinite;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridMove 30s linear infinite;
         }
 
-        @keyframes rotate {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(60px, 60px); }
         }
 
-        /* Logo 区域 */
-        .logo-section {
+        /* 光晕效果 */
+        .glow {
             position: absolute;
-            top: 80px;
-            left: 80px;
-            right: 80px;
-            text-align: center;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.4;
+            animation: float 10s ease-in-out infinite;
         }
 
-        .logo {
-            font-size: 120px;
+        .glow-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+            top: -100px;
+            left: -100px;
+        }
+
+        .glow-2 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+            bottom: -150px;
+            right: -100px;
+            animation-delay: -5s;
+        }
+
+        .glow-3 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, #10b981 0%, transparent 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -3s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.1); }
+        }
+
+        /* 主内容区 */
+        .main {
+            position: relative;
+            z-index: 10;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            height: 100%;
+            padding: 60px 80px;
+            gap: 60px;
+        }
+
+        /* 左侧 - Logo 和标题 */
+        .left-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .logo-emoji {
+            font-size: 100px;
+            margin-bottom: 20px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .brand {
+            font-size: 96px;
             font-weight: 900;
-            background: linear-gradient(135deg, #FF5833 0%, #FF8C00 100%);
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: -2px;
+            letter-spacing: -3px;
             margin-bottom: 20px;
+            line-height: 1;
         }
 
         .tagline {
-            font-size: 42px;
-            color: #999;
+            font-size: 36px;
+            color: #94a3b8;
             font-weight: 300;
-            letter-spacing: 4px;
-        }
-
-        /* 主视觉区域 */
-        .hero-section {
-            position: absolute;
-            top: 400px;
-            left: 80px;
-            right: 80px;
-            text-align: center;
-        }
-
-        .hero-title {
-            font-size: 72px;
-            font-weight: 800;
+            letter-spacing: 8px;
             margin-bottom: 40px;
-            line-height: 1.2;
         }
 
-        .hero-title span {
-            background: linear-gradient(135deg, #FF5833 0%, #FFD700 100%);
+        .hero-text {
+            font-size: 28px;
+            color: #e2e8f0;
+            line-height: 1.8;
+            margin-bottom: 50px;
+        }
+
+        .hero-text strong {
+            color: #8b5cf6;
+        }
+
+        /* 统计数据 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .stat:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 48px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        .hero-subtitle {
-            font-size: 48px;
-            color: #ccc;
-            margin-bottom: 80px;
-            line-height: 1.5;
+        .stat-label {
+            font-size: 16px;
+            color: #64748b;
+            margin-top: 5px;
         }
 
-        /* Agent 卡片 */
-        .agents-section {
-            position: absolute;
-            top: 800px;
-            left: 80px;
-            right: 80px;
+        /* 右侧 - Agent 团队 */
+        .right-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 25px;
+        }
+
+        .section-title {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #e2e8f0;
         }
 
         .agent-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 88, 51, 0.3);
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 20px;
-            padding: 40px;
-            margin-bottom: 30px;
+            padding: 30px 35px;
+            display: flex;
+            align-items: center;
+            gap: 30px;
             backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .agent-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transition: transform 0.3s;
         }
 
         .agent-card:hover {
-            border-color: #FF5833;
-            transform: translateX(10px);
+            border-color: var(--accent);
+            transform: translateX(15px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
 
-        .agent-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 20px;
+        .agent-card:hover::before {
+            transform: scaleX(1);
         }
+
+        .agent-card.pm { --accent: #3b82f6; }
+        .agent-card.dev { --accent: #10b981; }
+        .agent-card.review { --accent: #8b5cf6; }
 
         .agent-emoji {
             font-size: 60px;
-            margin-right: 30px;
+            flex-shrink: 0;
+        }
+
+        .agent-info {
+            flex: 1;
         }
 
         .agent-name {
-            font-size: 48px;
+            font-size: 32px;
             font-weight: 700;
-            color: #FF5833;
+            margin-bottom: 5px;
         }
 
+        .agent-card.pm .agent-name { color: #3b82f6; }
+        .agent-card.dev .agent-name { color: #10b981; }
+        .agent-card.review .agent-name { color: #8b5cf6; }
+
         .agent-role {
-            font-size: 32px;
-            color: #999;
-            margin-left: 20px;
+            font-size: 18px;
+            color: #64748b;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
         }
 
         .agent-desc {
-            font-size: 32px;
-            color: #ccc;
-            line-height: 1.6;
+            font-size: 18px;
+            color: #94a3b8;
+            line-height: 1.5;
         }
 
-        /* 特性列表 */
-        .features-section {
+        /* 底部技术栈 */
+        .footer {
             position: absolute;
-            top: 1500px;
+            bottom: 30px;
             left: 80px;
             right: 80px;
-        }
-
-        .feature-title {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 40px;
-            text-align: center;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-        }
-
-        .feature-item {
-            background: rgba(255, 88, 51, 0.1);
-            border-radius: 15px;
-            padding: 30px;
-            font-size: 32px;
-            color: #ccc;
-        }
-
-        .feature-item strong {
-            color: #FF5833;
-        }
-
-        /* 技术栈 */
-        .tech-section {
-            position: absolute;
-            bottom: 150px;
-            left: 80px;
-            right: 80px;
-            text-align: center;
-        }
-
-        .tech-title {
-            font-size: 36px;
-            color: #666;
-            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .tech-badges {
             display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .tech-badge {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 50px;
-            padding: 15px 30px;
-            font-size: 28px;
-            color: #fff;
+            padding: 10px 24px;
+            font-size: 16px;
+            color: #94a3b8;
+            transition: all 0.3s;
         }
 
-        /* 底部信息 */
-        .footer {
-            position: absolute;
-            bottom: 50px;
-            left: 80px;
-            right: 80px;
-            text-align: center;
-            font-size: 28px;
-            color: #666;
+        .tech-badge:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
         }
 
-        .footer a {
-            color: #FF5833;
+        .cta {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            font-size: 20px;
+            font-weight: 600;
+            padding: 16px 40px;
+            border-radius: 50px;
             text-decoration: none;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
         }
 
-        /* 装饰元素 */
-        .decoration {
+        .cta:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(139, 92, 246, 0.5);
+        }
+
+        /* 粒子效果 */
+        .particles {
             position: absolute;
-            width: 300px;
-            height: 300px;
-            border: 3px solid rgba(255, 88, 51, 0.2);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: white;
             border-radius: 50%;
+            opacity: 0;
+            animation: particleFloat 15s infinite;
         }
 
-        .decoration-1 {
-            top: 200px;
-            right: -100px;
-        }
-
-        .decoration-2 {
-            bottom: 300px;
-            left: -100px;
+        @keyframes particleFloat {
+            0% {
+                opacity: 0;
+                transform: translateY(100%) scale(0);
+            }
+            10% {
+                opacity: 0.5;
+            }
+            90% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100%) scale(1);
+            }
         }
     </style>
 </head>
 <body>
     <div class="poster">
-        <!-- 装饰 -->
-        <div class="decoration decoration-1"></div>
-        <div class="decoration decoration-2"></div>
+        <!-- 光晕 -->
+        <div class="glow glow-1"></div>
+        <div class="glow glow-2"></div>
+        <div class="glow glow-3"></div>
+        
+        <!-- 粒子 -->
+        <div class="particles" id="particles"></div>
 
-        <!-- Logo -->
-        <div class="logo-section">
-            <div class="logo">ClawCompany</div>
-            <div class="tagline">OPENCLAW HACKATHON 2026</div>
-        </div>
+        <!-- 主内容 -->
+        <div class="main">
+            <!-- 左侧 -->
+            <div class="left-section">
+                <div class="logo-emoji">🦞</div>
+                <h1 class="brand">ClawCompany</h1>
+                <p class="tagline">一人公司 · 无限可能</p>
+                
+                <p class="hero-text">
+                    AI 虚拟团队协作系统<br>
+                    让 <strong>一个人</strong> 也能拥有完整的开发团队<br>
+                    PM + Dev + Review，<strong>自动协作</strong>
+                </p>
 
-        <!-- 主标题 -->
-        <div class="hero-section">
-            <div class="hero-title">
-                一人企业家<br>
-                <span>无限可能</span>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-number">10×</div>
+                        <div class="stat-label">效率提升</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">500×</div>
+                        <div class="stat-label">成本降低</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">30s</div>
+                        <div class="stat-label">从需求到代码</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-number">90%+</div>
+                        <div class="stat-label">代码质量</div>
+                    </div>
+                </div>
             </div>
-            <div class="hero-subtitle">
-                通过 AI 虚拟团队<br>
-                一个人也能像拥有一支完整团队一样工作
-            </div>
-        </div>
 
-        <!-- Agent 卡片 -->
-        <div class="agents-section">
-            <div class="agent-card">
-                <div class="agent-header">
+            <!-- 右侧 -->
+            <div class="right-section">
+                <h2 class="section-title">🤖 你的 AI 团队</h2>
+                
+                <div class="agent-card pm">
                     <div class="agent-emoji">📋</div>
-                    <div class="agent-name">PM Agent</div>
-                    <div class="agent-role">产品经理</div>
+                    <div class="agent-info">
+                        <div class="agent-name">PM Claw</div>
+                        <div class="agent-role">产品经理</div>
+                        <div class="agent-desc">智能分析需求，自动拆分任务，协调团队进度</div>
+                    </div>
                 </div>
-                <div class="agent-desc">
-                    智能分析需求，自动拆分任务，协调团队进度
-                </div>
-            </div>
 
-            <div class="agent-card">
-                <div class="agent-header">
+                <div class="agent-card dev">
                     <div class="agent-emoji">💻</div>
-                    <div class="agent-name">Dev Agent</div>
-                    <div class="agent-role">开发者</div>
+                    <div class="agent-info">
+                        <div class="agent-name">Dev Claw</div>
+                        <div class="agent-role">全栈开发者</div>
+                        <div class="agent-desc">自动生成代码，实现完整功能，30秒交付</div>
+                    </div>
                 </div>
-                <div class="agent-desc">
-                    自动生成代码，实现功能模块，确保代码可运行
-                </div>
-            </div>
 
-            <div class="agent-card">
-                <div class="agent-header">
+                <div class="agent-card review">
                     <div class="agent-emoji">🔍</div>
-                    <div class="agent-name">Review Agent</div>
-                    <div class="agent-role">审查员</div>
+                    <div class="agent-info">
+                        <div class="agent-name">Review Claw</div>
+                        <div class="agent-role">代码审查员</div>
+                        <div class="agent-desc">检查代码质量，安全审查，性能优化建议</div>
+                    </div>
                 </div>
-                <div class="agent-desc">
-                    检查代码质量，安全审查，性能优化建议
-                </div>
-            </div>
-        </div>
-
-        <!-- 核心特性 -->
-        <div class="features-section">
-            <div class="feature-title">核心特性</div>
-            <div class="feature-grid">
-                <div class="feature-item">
-                    <strong>真实协作</strong><br>
-                    不是模拟，是真的多个 AI agent
-                </div>
-                <div class="feature-item">
-                    <strong>OpenClaw 驱动</strong><br>
-                    利用 OpenClaw 强大的能力
-                </div>
-                <div class="feature-item">
-                    <strong>GLM-5 加持</strong><br>
-                    智能分析和任务拆分
-                </div>
-                <div class="feature-item">
-                    <strong>开源可用</strong><br>
-                    完全开源，欢迎 Star
-                </div>
-            </div>
-        </div>
-
-        <!-- 技术栈 -->
-        <div class="tech-section">
-            <div class="tech-title">技术栈</div>
-            <div class="tech-badges">
-                <div class="tech-badge">Next.js 14</div>
-                <div class="tech-badge">TypeScript</div>
-                <div class="tech-badge">GLM-5</div>
-                <div class="tech-badge">OpenClaw</div>
-                <div class="tech-badge">Tailwind CSS</div>
             </div>
         </div>
 
         <!-- 底部 -->
         <div class="footer">
-            <a href="https://github.com/felix-miao/ClawCompany">github.com/felix-miao/ClawCompany</a>
+            <div class="tech-badges">
+                <span class="tech-badge">OpenClaw</span>
+                <span class="tech-badge">Skill</span>
+                <span class="tech-badge">Multi-Agent</span>
+                <span class="tech-badge">GLM-5</span>
+            </div>
+            <a href="#" class="cta">立即体验 AI 团队 ✨</a>
         </div>
     </div>
+
+    <script>
+        // 生成粒子
+        const container = document.getElementById('particles');
+        for (let i = 0; i < 40; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 15 + 's';
+            particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            container.appendChild(particle);
+        }
+    </script>
 </body>
 </html>

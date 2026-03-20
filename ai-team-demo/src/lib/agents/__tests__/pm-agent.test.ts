@@ -1,4 +1,4 @@
-// PM Agent 测试
+// PM Claw 测试
 
 import { PMAgent } from '../pm-agent'
 import { Task, AgentContext } from '../types'
@@ -33,7 +33,7 @@ describe('PMAgent', () => {
 
   it('应该正确初始化', () => {
     expect(pmAgent.id).toBe('pm-agent-1')
-    expect(pmAgent.name).toBe('PM Agent')
+    expect(pmAgent.name).toBe('PM Claw')
     expect(pmAgent.role).toBe('pm')
   })
 
@@ -78,7 +78,7 @@ describe('PMAgent', () => {
     expect(taskTitles.some(t => t.includes('测试') || t.includes('test'))).toBe(true)
   })
 
-  it('生成的子任务应该分配给 Dev Agent', async () => {
+  it('生成的子任务应该分配给 Dev Claw', async () => {
     const response = await pmAgent.execute(mockTask, mockContext)
 
     response.tasks!.forEach(task => {

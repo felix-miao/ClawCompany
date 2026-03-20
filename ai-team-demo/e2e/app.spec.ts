@@ -24,16 +24,16 @@ test.describe.skip('ClawCompany E2E Tests', () => {
     // 等待页面加载
     await page.waitForLoadState('networkidle')
     
-    // 检查 PM Agent 卡片
-    const pmCard = page.locator('text=PM Agent')
+    // 检查 PM Claw 卡片
+    const pmCard = page.locator('text=PM Claw')
     await expect(pmCard).toBeVisible()
     
-    // 检查 Dev Agent 卡片
-    const devCard = page.locator('text=Dev Agent')
+    // 检查 Dev Claw 卡片
+    const devCard = page.locator('text=Dev Claw')
     await expect(devCard).toBeVisible()
     
-    // 检查 Review Agent 卡片
-    const reviewCard = page.locator('text=Review Agent')
+    // 检查 Review Claw 卡片
+    const reviewCard = page.locator('text=Review Claw')
     await expect(reviewCard).toBeVisible()
   })
 
@@ -76,9 +76,9 @@ test.describe.skip('ClawCompany E2E Tests', () => {
     
     // 检查右侧边栏的 Agent 列表
     await expect(page.locator('text=团队成员')).toBeVisible()
-    await expect(page.locator('text=PM Agent')).toBeVisible()
-    await expect(page.locator('text=Dev Agent')).toBeVisible()
-    await expect(page.locator('text=Review Agent')).toBeVisible()
+    await expect(page.locator('text=PM Claw')).toBeVisible()
+    await expect(page.locator('text=Dev Claw')).toBeVisible()
+    await expect(page.locator('text=Review Claw')).toBeVisible()
   })
 
   test('输入需求并测试完整协作流程', async ({ page }) => {
@@ -98,14 +98,14 @@ test.describe.skip('ClawCompany E2E Tests', () => {
     // 等待用户消息出现
     await expect(page.locator('text=帮我创建一个登录页面')).toBeVisible()
     
-    // 等待 PM Agent 响应（最多等待 5 秒）
-    await expect(page.locator('text=PM Agent')).toBeVisible({ timeout: 5000 })
+    // 等待 PM Claw 响应（最多等待 5 秒）
+    await expect(page.locator('text=PM Claw')).toBeVisible({ timeout: 5000 })
     
-    // 等待 Dev Agent 响应
-    await expect(page.locator('text=Dev Agent')).toBeVisible({ timeout: 5000 })
+    // 等待 Dev Claw 响应
+    await expect(page.locator('text=Dev Claw')).toBeVisible({ timeout: 5000 })
     
-    // 等待 Review Agent 响应
-    await expect(page.locator('text=Review Agent')).toBeVisible({ timeout: 5000 })
+    // 等待 Review Claw 响应
+    await expect(page.locator('text=Review Claw')).toBeVisible({ timeout: 5000 })
     
     // 等待完成消息
     await expect(page.locator('text=团队协作完成')).toBeVisible({ timeout: 5000 })
@@ -123,7 +123,7 @@ test.describe.skip('ClawCompany E2E Tests', () => {
     
     // 应该显示 Loading 状态（但可能很快消失）
     // 我们只检查 Agent 消息是否出现
-    await expect(page.locator('text=PM Agent')).toBeVisible({ timeout: 3000 })
+    await expect(page.locator('text=PM Claw')).toBeVisible({ timeout: 3000 })
   })
 
   test('空输入不应该触发发送', async ({ page }) => {

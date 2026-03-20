@@ -1,4 +1,4 @@
-// Review Agent - 代码审查 Agent
+// Reviewer Claw - 代码审查 Agent
 
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
@@ -8,7 +8,7 @@ export class ReviewAgent extends BaseAgent {
   constructor() {
     super(
       'review-agent-1',
-      'Review Agent',
+      'Reviewer Claw',
       'review',
       '负责代码审查和质量保证'
     )
@@ -17,7 +17,7 @@ export class ReviewAgent extends BaseAgent {
   async execute(task: Task, context: AgentContext): Promise<AgentResponse> {
     this.log(`审查代码: ${task.title}`)
 
-    // Review Agent 的核心逻辑：
+    // Reviewer Claw 的核心逻辑：
     // 1. 检查代码质量
     // 2. 安全性审查
     // 3. 性能优化建议
@@ -39,7 +39,7 @@ export class ReviewAgent extends BaseAgent {
     context: AgentContext,
     llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
   ): Promise<AgentResponse> {
-    const systemPrompt = `你是一个资深的技术负责人（Tech Lead）和代码审查专家（Review Agent），拥有 15 年以上的开发经验。你的职责是：
+    const systemPrompt = `你是一个资深的技术负责人（Tech Lead）和代码审查专家（Reviewer Claw），拥有 15 年以上的开发经验。你的职责是：
 1. 进行全面、深入的代码审查
 2. 发现潜在的 bug、安全漏洞和性能问题
 3. 确保代码符合团队标准和最佳实践
@@ -230,11 +230,11 @@ export class ReviewAgent extends BaseAgent {
     if (issues.length === 0) {
       message += `\n## ✅ 审查通过\n\n`
       message += `代码质量良好，可以合并。`
-      message += `\n\nPM Agent，任务已完成，可以标记为 Done。`
+      message += `\n\nPM Claw，任务已完成，可以标记为 Done。`
       return { message, approved: true }
     } else {
       message += `\n## ❌ 需要修改\n\n`
-      message += `请 Dev Agent 处理以下问题：\n`
+      message += `请 Dev Claw 处理以下问题：\n`
       issues.forEach((issue, i) => {
         message += `${i + 1}. ${issue.message}\n`
       })

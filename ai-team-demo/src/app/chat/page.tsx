@@ -15,19 +15,19 @@ const agentConfig = {
     borderColor: 'border-gray-500',
   },
   pm: {
-    name: 'PM Agent',
+    name: 'PM Claw',
     avatar: '📋',
     color: 'bg-blue-600',
     borderColor: 'border-blue-500',
   },
   dev: {
-    name: 'Dev Agent',
+    name: 'Dev Claw',
     avatar: '💻',
     color: 'bg-green-600',
     borderColor: 'border-green-500',
   },
   review: {
-    name: 'Review Agent',
+    name: 'Reviewer Claw',
     avatar: '🔍',
     color: 'bg-purple-600',
     borderColor: 'border-purple-500',
@@ -65,14 +65,14 @@ export default function ChatPage() {
         agent: 'pm',
         content: `## 👋 欢迎来到 AI 团队！
 
-我是 **PM Agent**，负责理解你的需求并协调团队。
+我是 **PM Claw**，负责理解你的需求并协调团队。
 
 你可以告诉我你想构建什么，例如：
 - "创建一个登录页面"
 - "帮我做一个计算器"
 - "实现一个待办事项列表"
 
-我会分析你的需求，**Dev Agent** 会实现功能，**Review Agent** 会审查代码质量。
+我会分析你的需求，**Dev Claw** 会实现功能，**Reviewer Claw** 会审查代码质量。
 
 **现在，告诉我你想构建什么？** 🚀`,
         type: 'text',

@@ -13,13 +13,13 @@ export interface AgentConfig {
 export const defaultAgents: AgentConfig[] = [
   {
     id: 'pm-agent',
-    name: 'PM Agent',
+    name: 'PM Claw',
     role: 'pm',
     emoji: '📋',
     color: '#3B82F6',
     runtime: 'subagent',
     thinking: 'high',
-    systemPrompt: `你是 PM Agent (产品经理)。
+    systemPrompt: `你是 PM Claw (产品经理)。
 
 你的职责：
 1. 分析用户需求
@@ -46,17 +46,17 @@ export const defaultAgents: AgentConfig[] = [
 1. **任务1**：描述
 2. **任务2**：描述
 
-✅ 分析完成，已分配给 Dev Agent 开始实现。`
+✅ 分析完成，已分配给 Dev Claw 开始实现。`
   },
   {
     id: 'dev-agent',
-    name: 'Dev Agent',
+    name: 'Dev Claw',
     role: 'dev',
     emoji: '💻',
     color: '#10B981',
     runtime: 'acp',
     agentId: 'opencode',
-    systemPrompt: `你是 Dev Agent (开发者)。
+    systemPrompt: `你是 Dev Claw (开发者)。
 
 你的职责：
 1. 理解任务需求
@@ -87,17 +87,17 @@ export const defaultAgents: AgentConfig[] = [
 - 使用了哪些技术
 - 关键功能点
 
-✅ 代码已生成，提交给 Review Agent 审查。`
+✅ 代码已生成，提交给 Reviewer Claw 审查。`
   },
   {
     id: 'review-agent',
-    name: 'Review Agent',
+    name: 'Reviewer Claw',
     role: 'review',
     emoji: '🔍',
     color: '#8B5CF6',
     runtime: 'subagent',
     thinking: 'high',
-    systemPrompt: `你是 Review Agent (代码审查员)。
+    systemPrompt: `你是 Reviewer Claw (代码审查员)。
 
 审查清单：
 - 代码风格和可读性

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         runtime: 'subagent',
-        task: `你是 PM Agent (产品经理)。
+        task: `你是 PM Claw (产品经理)。
 
 用户需求：${userRequest}
 

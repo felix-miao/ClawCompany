@@ -40,18 +40,18 @@ describe('🎬 OpenClaw 真实集成 - TDD 测试用例', () => {
 
     console.log('✅ 需求已发送\n')
 
-    // ==================== 期望输出 1：PM Agent 分析 ====================
-    console.log('⏳ 期望输出 1：PM Agent 应该分析需求并拆分任务')
+    // ==================== 期望输出 1：PM Claw 分析 ====================
+    console.log('⏳ 期望输出 1：PM Claw 应该分析需求并拆分任务')
 
-    // 等待 PM Agent 响应（最多 60 秒）
-    // 使用更具体的选择器：找到包含 "PM Agent" 文本的元素后的消息内容
+    // 等待 PM Claw 响应（最多 60 秒）
+    // 使用更具体的选择器：找到包含 "PM Claw" 文本的元素后的消息内容
     const pmMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=PM Agent')
+      has: page.locator('text=PM Claw')
     }).locator('.bg-gray-800')
 
     await expect(pmMessageLocator.first()).toBeVisible({ timeout: 60000 })
 
-    // PM Agent 应该输出包含以下内容之一：
+    // PM Claw 应该输出包含以下内容之一：
     // - "待办事项" 或 "Todo"
     // - "添加" 或 "新增"
     // - "删除"
@@ -59,44 +59,44 @@ describe('🎬 OpenClaw 真实集成 - TDD 测试用例', () => {
     const pmContent = await pmMessageLocator.first().textContent()
     expect(pmContent).toMatch(/(待办事项|Todo|添加|新增|删除|标记完成|分析|需求|任务)/i)
 
-    console.log('✅ PM Agent 分析完成\n')
+    console.log('✅ PM Claw 分析完成\n')
 
-    // ==================== 期望输出 2：Dev Agent 生成代码 ====================
-    console.log('⏳ 期望输出 2：Dev Agent 应该生成完整的代码')
+    // ==================== 期望输出 2：Dev Claw 生成代码 ====================
+    console.log('⏳ 期望输出 2：Dev Claw 应该生成完整的代码')
 
-    // 等待 Dev Agent 响应
+    // 等待 Dev Claw 响应
     const devMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=Dev Agent')
+      has: page.locator('text=Dev Claw')
     }).locator('.bg-gray-800')
 
     await expect(devMessageLocator.first()).toBeVisible({ timeout: 120000 })
 
-    // Dev Agent 应该输出包含：
+    // Dev Claw 应该输出包含：
     // - 代码块（```tsx 或 ```typescript）
     // - 组件名称（TodoList, TodoItem 等）
     // - 核心功能实现
     const devContent = await devMessageLocator.first().textContent()
     expect(devContent).toMatch(/(```tsx|```typescript|TodoList|TodoItem|已完成|实现|功能)/i)
 
-    console.log('✅ Dev Agent 代码生成完成\n')
+    console.log('✅ Dev Claw 代码生成完成\n')
 
-    // ==================== 期望输出 3：Review Agent 审查 ====================
-    console.log('⏳ 期望输出 3：Review Agent 应该审查代码')
+    // ==================== 期望输出 3：Review Claw 审查 ====================
+    console.log('⏳ 期望输出 3：Review Claw 应该审查代码')
 
-    // 等待 Review Agent 响应
+    // 等待 Review Claw 响应
     const reviewMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=Review Agent')
+      has: page.locator('text=Review Claw')
     }).locator('.bg-gray-800')
 
     await expect(reviewMessageLocator.first()).toBeVisible({ timeout: 60000 })
 
-    // Review Agent 应该输出包含：
+    // Review Claw 应该输出包含：
     // - 审查结果（通过/需要修改）
     // - 优点或问题
     const reviewContent = await reviewMessageLocator.first().textContent()
     expect(reviewContent).toMatch(/(审查|通过|优点|问题|检查|建议)/i)
 
-    console.log('✅ Review Agent 审查完成\n')
+    console.log('✅ Review Claw 审查完成\n')
 
     // ==================== 期望输出 4：完成消息 ====================
     console.log('⏳ 期望输出 4：应该显示协作完成消息')
@@ -111,7 +111,7 @@ describe('🎬 OpenClaw 真实集成 - TDD 测试用例', () => {
     // ==================== 验证：检查是否有实际文件生成 ====================
     console.log('⏳ 验证：检查是否生成了实际文件（可选）')
 
-    // 如果 Dev Agent 真的创建了文件，应该能在这里验证
+    // 如果 Dev Claw 真的创建了文件，应该能在这里验证
     // 注意：这需要实际的文件系统操作
 
     console.log('🎉 OpenClaw 集成测试完成！\n')
@@ -139,30 +139,30 @@ describe('🎬 OpenClaw 真实集成 - TDD 测试用例', () => {
 
     console.log('✅ 需求已发送\n')
 
-    // 期望输出 1：PM Agent
+    // 期望输出 1：PM Claw
     const pmMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=PM Agent')
+      has: page.locator('text=PM Claw')
     }).locator('.bg-gray-800')
     await expect(pmMessageLocator.first()).toBeVisible({ timeout: 60000 })
     const pmContent = await pmMessageLocator.first().textContent()
     expect(pmContent).toMatch(/(登录|Login|认证|Auth|分析|需求|任务)/i)
-    console.log('✅ PM Agent 分析完成\n')
+    console.log('✅ PM Claw 分析完成\n')
 
-    // 期望输出 2：Dev Agent
+    // 期望输出 2：Dev Claw
     const devMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=Dev Agent')
+      has: page.locator('text=Dev Claw')
     }).locator('.bg-gray-800')
     await expect(devMessageLocator.first()).toBeVisible({ timeout: 120000 })
     const devContent = await devMessageLocator.first().textContent()
     expect(devContent).toMatch(/(```tsx|LoginForm|Login|密码|Password|已完成|实现|功能)/i)
-    console.log('✅ Dev Agent 代码生成完成\n')
+    console.log('✅ Dev Claw 代码生成完成\n')
 
-    // 期望输出 3：Review Agent
+    // 期望输出 3：Review Claw
     const reviewMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=Review Agent')
+      has: page.locator('text=Review Claw')
     }).locator('.bg-gray-800')
     await expect(reviewMessageLocator.first()).toBeVisible({ timeout: 60000 })
-    console.log('✅ Review Agent 审查完成\n')
+    console.log('✅ Review Claw 审查完成\n')
 
     // 截图
     await page.screenshot({ path: 'test-results/openclaw-login-complete.png', fullPage: true })
@@ -195,17 +195,17 @@ describe('🎬 OpenClaw 真实集成 - TDD 测试用例', () => {
 
     // 期望：3 个 Agent 都响应
     const pmMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=PM Agent')
+      has: page.locator('text=PM Claw')
     }).locator('.bg-gray-800')
     await expect(pmMessageLocator.first()).toBeVisible({ timeout: 60000 })
 
     const devMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=Dev Agent')
+      has: page.locator('text=Dev Claw')
     }).locator('.bg-gray-800')
     await expect(devMessageLocator.first()).toBeVisible({ timeout: 120000 })
 
     const reviewMessageLocator = page.locator('div.flex.items-start.gap-3').filter({
-      has: page.locator('text=Review Agent')
+      has: page.locator('text=Review Claw')
     }).locator('.bg-gray-800')
     await expect(reviewMessageLocator.first()).toBeVisible({ timeout: 60000 })
 

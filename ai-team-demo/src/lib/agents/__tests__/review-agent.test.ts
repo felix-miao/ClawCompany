@@ -1,4 +1,4 @@
-// Review Agent 测试
+// Reviewer Claw 测试
 
 import { ReviewAgent } from '../review-agent'
 import { Task, AgentContext } from '../types'
@@ -35,7 +35,7 @@ describe('ReviewAgent', () => {
 
   it('应该正确初始化', () => {
     expect(reviewAgent.id).toBe('review-agent-1')
-    expect(reviewAgent.name).toBe('Review Agent')
+    expect(reviewAgent.name).toBe('Reviewer Claw')
     expect(reviewAgent.role).toBe('review')
   })
 
@@ -74,11 +74,11 @@ describe('ReviewAgent', () => {
     }
   })
 
-  it('通过审查后应该通知 PM Agent', async () => {
+  it('通过审查后应该通知 PM Claw', async () => {
     const response = await reviewAgent.execute(mockTask, mockContext)
 
     if (response.status === 'success') {
-      expect(response.message).toContain('PM Agent')
+      expect(response.message).toContain('PM Claw')
       expect(response.message).toContain('Done')
     }
   })

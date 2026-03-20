@@ -114,7 +114,7 @@ export class OpenClawAgentExecutor {
   }
 
   async executePMAgent(task: string): Promise<AgentExecutionResult> {
-    const prompt = `You are a PM Agent. Analyze the following requirement and break it down into tasks.
+    const prompt = `You are a PM Claw. Analyze the following requirement and break it down into tasks.
 
 Requirement: ${task}
 
@@ -141,7 +141,7 @@ Format your response as JSON:
   }
 
   async executeDevAgent(task: string, description?: string): Promise<AgentExecutionResult> {
-    const prompt = `You are a Dev Agent. Implement the following task.
+    const prompt = `You are a Dev Claw. Implement the following task.
 
 Task: ${task}
 ${description ? `Description: ${description}` : ''}
@@ -160,7 +160,7 @@ Provide the complete implementation.`
   }
 
   async executeReviewAgent(task: string, code?: string): Promise<AgentExecutionResult> {
-    const prompt = `You are a Review Agent. Review the following implementation.
+    const prompt = `You are a Reviewer Claw. Review the following implementation.
 
 Task: ${task}
 ${code ? `Code to review:\n\`\`\`\n${code}\n\`\`\`` : ''}

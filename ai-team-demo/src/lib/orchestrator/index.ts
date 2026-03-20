@@ -44,7 +44,7 @@ export class Orchestrator {
       []
     )
 
-    // 3. PM Agent 分析需求
+    // 3. PM Claw 分析需求
     const pmResponse = await this.executeAgent('pm', initialTask)
     chatManager.broadcast('pm', pmResponse.message)
 
@@ -72,7 +72,7 @@ export class Orchestrator {
       // 更新任务状态为 in_progress
       taskManager.updateTaskStatus(taskId, 'in_progress')
 
-      // Dev Agent 执行
+      // Dev Claw 执行
       if (task.assignedTo === 'dev') {
         const devResponse = await this.executeAgent('dev', task)
         chatManager.broadcast('dev', devResponse.message)
@@ -94,7 +94,7 @@ export class Orchestrator {
         // 更新任务状态为 review
         taskManager.updateTaskStatus(taskId, 'review')
 
-        // Review Agent 审查
+        // Reviewer Claw 审查
         const reviewResponse = await this.executeAgent('review', task)
         chatManager.broadcast('review', reviewResponse.message)
 

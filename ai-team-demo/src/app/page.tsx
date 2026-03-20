@@ -5,21 +5,21 @@ import Link from "next/link";
 
 const agents = [
   {
-    name: "PM Agent",
+    name: "PM Claw",
     role: "Product Manager",
     emoji: "📋",
     color: "from-blue-500 to-blue-600",
     description: "Strategizes & coordinates",
   },
   {
-    name: "Dev Agent",
+    name: "Dev Claw",
     role: "Developer",
     emoji: "💻",
     color: "from-green-500 to-green-600",
     description: "Builds & implements",
   },
   {
-    name: "Review Agent",
+    name: "Reviewer Claw",
     role: "Code Reviewer",
     emoji: "🔍",
     color: "from-purple-500 to-purple-600",

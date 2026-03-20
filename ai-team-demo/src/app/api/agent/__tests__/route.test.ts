@@ -45,8 +45,8 @@ jest.mock('@/lib/storage/manager', () => {
     })),
     loadAgent: jest.fn(() => ({
       id: 'pm-agent',
-      name: 'PM Agent',
-      systemPrompt: 'You are PM Agent',
+      name: 'PM Claw',
+      systemPrompt: 'You are PM Claw',
       runtime: 'subagent'
     })),
     saveAgent: jest.fn(),
@@ -146,8 +146,8 @@ describe('/api/agent', () => {
     }))
     storage.loadAgent.mockResolvedValue({
       id: 'pm-agent',
-      name: 'PM Agent',
-      systemPrompt: 'You are PM Agent',
+      name: 'PM Claw',
+      systemPrompt: 'You are PM Claw',
       runtime: 'subagent'
     })
     storage.listAgents.mockResolvedValue([])
@@ -268,8 +268,8 @@ describe('/api/agent', () => {
     it('should list agents successfully', async () => {
       const storage = getMockStorageManager()
       storage.listAgents.mockResolvedValue([
-        { id: 'pm-agent', name: 'PM Agent' },
-        { id: 'dev-agent', name: 'Dev Agent' }
+        { id: 'pm-agent', name: 'PM Claw' },
+        { id: 'dev-agent', name: 'Dev Claw' }
       ])
 
       const request = createMockRequest({
@@ -289,8 +289,8 @@ describe('/api/agent', () => {
       const storage = getMockStorageManager()
       storage.loadAgent.mockResolvedValue({
         id: 'pm-agent',
-        name: 'PM Agent',
-        systemPrompt: 'You are PM Agent',
+        name: 'PM Claw',
+        systemPrompt: 'You are PM Claw',
         runtime: 'subagent'
       })
 
@@ -329,8 +329,8 @@ describe('/api/agent', () => {
       const storage = getMockStorageManager()
       storage.loadAgent.mockResolvedValue({
         id: 'pm-agent',
-        name: 'PM Agent',
-        systemPrompt: 'You are PM Agent'
+        name: 'PM Claw',
+        systemPrompt: 'You are PM Claw'
       })
       storage.saveAgent.mockResolvedValue(undefined)
 
@@ -338,7 +338,7 @@ describe('/api/agent', () => {
         method: 'PUT',
         body: {
           agentId: 'pm-agent',
-          name: 'Updated PM Agent',
+          name: 'Updated PM Claw',
           systemPrompt: 'Updated prompt'
         }
       })

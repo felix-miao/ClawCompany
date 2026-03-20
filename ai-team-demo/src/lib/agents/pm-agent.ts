@@ -1,4 +1,4 @@
-// PM Agent - 产品经理 Agent
+// PM Claw - 产品经理 Agent
 
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
@@ -8,7 +8,7 @@ export class PMAgent extends BaseAgent {
   constructor() {
     super(
       'pm-agent-1',
-      'PM Agent',
+      'PM Claw',
       'pm',
       '负责需求分析、任务拆分和团队协调'
     )
@@ -17,7 +17,7 @@ export class PMAgent extends BaseAgent {
   async execute(task: Task, context: AgentContext): Promise<AgentResponse> {
     this.log(`分析任务: ${task.title}`)
 
-    // PM Agent 的核心逻辑：
+    // PM Claw 的核心逻辑：
     // 1. 理解用户需求
     // 2. 拆分成可执行的子任务
     // 3. 分配给合适的 Agent
@@ -40,7 +40,7 @@ export class PMAgent extends BaseAgent {
     context: AgentContext,
     llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
   ): Promise<AgentResponse> {
-    const systemPrompt = `你是一个经验丰富的产品经理（PM Agent）。你的职责是：
+    const systemPrompt = `你是一个经验丰富的产品经理（PM Claw）。你的职责是：
 1. 分析用户需求，理解他们想要构建什么
 2. 将需求拆分成具体的、可执行的子任务
 3. 为每个子任务分配合适的 Agent（dev 或 review）
@@ -132,7 +132,7 @@ export class PMAgent extends BaseAgent {
   }
 
   private async analyzeAndPlan(task: Task, context: AgentContext): Promise<AgentResponse> {
-    // 模拟 PM Agent 的分析和规划逻辑
+    // 模拟 PM Claw 的分析和规划逻辑
     const keywords = this.extractKeywords(task.description)
     
     // 根据关键词生成子任务
@@ -243,7 +243,7 @@ export class PMAgent extends BaseAgent {
     
     subTasks.forEach((t, i) => {
       message += `${i + 1}. **${t.title}**\n`
-      message += `   - 负责人: ${t.assignedTo === 'dev' ? 'Dev Agent' : 'Review Agent'}\n`
+      message += `   - 负责人: ${t.assignedTo === 'dev' ? 'Dev Claw' : 'Reviewer Claw'}\n`
       message += `   - 状态: 待开始\n`
       if (t.dependencies.length > 0) {
         message += `   - 依赖: ${t.dependencies.join(', ')}\n`
@@ -251,7 +251,7 @@ export class PMAgent extends BaseAgent {
       message += '\n'
     })
 
-    message += `Dev Agent，请开始实现第一个任务：**${subTasks[0]?.title || '待定'}**`
+    message += `Dev Claw，请开始实现第一个任务：**${subTasks[0]?.title || '待定'}**`
 
     return message
   }
