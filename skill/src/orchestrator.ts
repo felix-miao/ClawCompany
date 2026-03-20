@@ -2,9 +2,10 @@
  * ClawCompany Orchestrator
  * 
  * 核心协调器 - 通过 OpenClaw sessions_spawn 组建 AI 虚拟团队
+ * 
+ * 注意：sessions_spawn, sessions_history, sessions_send 是 OpenClaw 的内置工具，
+ * 在 OpenClaw 环境中全局可用，无需导入。
  */
-
-import { sessions_spawn, sessions_history, sessions_send } from 'openclaw'
 
 export interface Task {
   id: string
