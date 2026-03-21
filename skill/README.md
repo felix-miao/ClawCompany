@@ -34,6 +34,9 @@ ClawCompany 是一个基于 OpenClaw 的 AI 虚拟团队协作系统，让你像
 - 🎨 **8个专业角色** - 完整的团队配置
 - 🔧 **OpenClaw 原生集成** - 无需额外代码
 - 📊 **95%+ 测试覆盖** - 稳定可靠
+- 🔌 **插件系统** - 可扩展的架构
+- 🔄 **工作流引擎** - 灵活的任务编排
+- 💾 **状态管理** - 完整的状态追踪
 
 ---
 
@@ -204,11 +207,48 @@ ClawCompany: 🚀 启动代码重构流程...
 
 ---
 
+## 🔧 核心功能
+
+### Workflow Engine - 工作流引擎
+
+灵活的任务编排系统，支持：
+- 任务依赖和顺序执行
+- 条件分支和并行执行
+- 错误处理和重试机制
+- 完整的生命周期钩子
+
+[查看文档 →](./docs/WORKFLOW_ENGINE.md)
+
+### State Management - 状态管理
+
+完整的状态追踪系统，支持：
+- 状态快照和历史记录
+- 状态变更追踪
+- 持久化存储
+- 状态回滚
+
+[查看文档 →](./docs/STATE_MANAGEMENT.md)
+
+### Plugin System - 插件系统
+
+可扩展的插件架构，支持：
+- 自定义任务处理逻辑
+- 生命周期钩子
+- 插件依赖管理
+- 事件系统
+
+[查看文档 →](./docs/PLUGIN_SYSTEM.md)
+
+---
+
 ## 📚 文档
 
 - [完整文档](./docs/)
+- [Workflow Engine 文档](./docs/WORKFLOW_ENGINE.md)
+- [State Management 文档](./docs/STATE_MANAGEMENT.md)
+- [Plugin System 文档](./docs/PLUGIN_SYSTEM.md)
 - [API 参考](./docs/api.md)
-- [示例集合](./skill/examples/)
+- [集成示例](./examples/integration-example.ts)
 - [最佳实践](./docs/best-practices.md)
 
 ---
