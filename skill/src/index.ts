@@ -35,6 +35,18 @@ export type {
   TaskExecutor
 } from './workflow/engine'
 
+// Plugin System
+export { PluginManager } from './plugins'
+export type { 
+  Plugin, 
+  PluginMetadata, 
+  PluginConfig,
+  PluginContext,
+  PluginAPI,
+  PluginHooks,
+  PluginManagerOptions
+} from './plugins'
+
 /**
  * 创建项目 - 便捷函数
  * 
