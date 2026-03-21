@@ -79,7 +79,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### [Unreleased]
 
-#### To Add
+### Added - Priority 2 Features
+
+#### Workflow Engine (2026-03-21)
+- **WorkflowEngine**: Advanced task execution with dependency graphs
+- **Parallel Execution**: Execute independent tasks concurrently (configurable max concurrency)
+- **Conditional Branching**: Skip or execute tasks based on runtime conditions
+- **Retry Mechanism**: Automatic retry with configurable attempts and delay
+- **Context Management**: Share variables and results across tasks
+- **WorkflowBuilder**: Fluent API for building complex workflows
+- **12 Unit Tests**: 100% test coverage for workflow engine
+
+#### Features
+- Task dependency resolution and topological execution
+- Parallel task execution with concurrency limits
+- Conditional task execution based on context
+- Automatic retry on failure with exponential backoff
+- Execution result tracking and error handling
+- Real-time progress logging
+
+#### Examples
+- Simple sequential workflow
+- Parallel workflow with dependencies
+- Conditional branching workflow
+- Retry mechanism demonstration
+
+### To Add
 - [ ] Real code generation with Codex
 - [ ] Multi-project management
 - [ ] Web UI for configuration
@@ -88,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] Intelligent seat selection
 - [ ] Itinerary management
 
-#### To Improve
+### To Improve
 - [ ] Error handling
 - [ ] Logging system
 - [ ] Performance optimization
