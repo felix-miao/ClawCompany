@@ -412,6 +412,9 @@ describe('/api/agent', () => {
 
   describe('Error Handling', () => {
     it('should handle JSON parse errors', async () => {
+      // Suppress console.error for this test
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
+
       const request = {
         url: 'http://localhost/api/agent',
         method: 'POST',
@@ -424,6 +427,9 @@ describe('/api/agent', () => {
 
       expect(response.status).toBe(500)
       expect(data.error).toBeDefined()
+
+      // Restore console.error
+      consoleErrorSpy.mockRestore()
     })
 
     it('should handle agent not found error', async () => {
