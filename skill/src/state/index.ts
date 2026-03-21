@@ -6,10 +6,13 @@
  * - 状态快照
  * - 状态回滚
  * - 状态历史
+ * - 任务状态机（三省六部架构）
  */
 
 import * as fs from 'fs'
 import * as path from 'path'
+
+// ============ 通用状态管理器 ============
 
 /**
  * 状态快照
@@ -458,5 +461,17 @@ export class StateManager<T = any> {
   }
 }
 
-// 导出类型和类
+// ============ 导出任务状态机 ============
+
+export { TaskStateMachine } from './task-state-machine'
+export type {
+  Task,
+  FlowLogEntry,
+  TransitionResult,
+  Permission,
+  TaskStateMachineOptions
+} from './task-state-machine'
+export { TaskState, AgentRole, STATE_TRANSITIONS, PERMISSION_MATRIX } from './task-state-machine'
+
+// 默认导出
 export default StateManager
