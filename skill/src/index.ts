@@ -6,6 +6,7 @@
 
 import { ClawCompanyOrchestrator } from './orchestrator'
 
+// Orchestrator
 export { ClawCompanyOrchestrator }
 export type { 
   Task, 
@@ -15,6 +16,24 @@ export type {
   ExecutionResult,
   OrchestratorConfig 
 } from './orchestrator'
+
+// State Management
+export { StateManager } from './state'
+export type { 
+  StateSnapshot, 
+  StateChange, 
+  StateManagerOptions 
+} from './state'
+
+// Workflow Engine
+export { WorkflowEngine, WorkflowBuilder } from './workflow/engine'
+export type { 
+  Workflow, 
+  WorkflowNode, 
+  WorkflowContext, 
+  WorkflowResult,
+  TaskExecutor
+} from './workflow/engine'
 
 /**
  * 创建项目 - 便捷函数
