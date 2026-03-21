@@ -19,3 +19,10 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   unobserve: jest.fn(),
   disconnect: jest.fn(),
 }))
+
+// Mock react-markdown for tests
+jest.mock('react-markdown', () => {
+  return ({ children }: { children: React.ReactNode }) => children
+})
+
+jest.mock('remark-gfm', () => () => {})

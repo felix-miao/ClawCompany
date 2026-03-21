@@ -13,6 +13,9 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/node_modules/'],
+  transformIgnorePatterns: [
+    'node_modules/(?!(react-markdown|remark-gfm|unified|bail|is-plain-obj|trough|vfile|unist-util-stringify-position|unist-util-visit|unist-util-visit-parents|mdast-util-to-string|micromark)/)',
+  ],
 }
 
 export default createJestConfig(config)
