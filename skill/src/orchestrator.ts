@@ -11,6 +11,26 @@
 declare const sessions_spawn: typeof import('openclaw').sessions_spawn
 declare const sessions_history: typeof import('openclaw').sessions_history
 
+/**
+ * 检查 OpenClaw API 是否可用
+ */
+function checkOpenClawAPI(): { available: boolean; missing: string[] } {
+  const missing: string[] = []
+  
+  if (typeof (global as any).sessions_spawn !== 'function') {
+    missing.push('sessions_spawn')
+  }
+  
+  if (typeof (global as any).sessions_history !== 'function') {
+    missing.push('sessions_history')
+  }
+  
+  return {
+    available: missing.length === 0,
+    missing
+  }
+}
+
 export interface Task {
   id: string
   title: string
@@ -71,6 +91,20 @@ export class ClawCompanyOrchestrator {
    * 执行用户需求
    */
   async execute(userRequest: string, projectPath?: string): Promise<ExecutionResult> {
+    // 检查 OpenClaw API 是否可用
+    const apiCheck = checkOpenClawAPI()
+    if (!apiCheck.available) {
+      const errorMsg = `OpenClaw API 不可用: 缺少 ${apiCheck.missing.join(', ')}. ` +
+        `请确保在 OpenClaw 环境中运行此代码。`
+      console.error(`❌ ${errorMsg}`)
+      return {
+        success: false,
+        tasks: [],
+        results: [],
+        summary: errorMsg
+      }
+    }
+    
     const cwd = projectPath || this.config.projectPath || process.cwd()
     
     console.log('🦞 ClawCompany 开始处理...')
@@ -80,7 +114,7 @@ export class ClawCompanyOrchestrator {
     // 1. Spawn PM Agent
     console.log('\n📋 PM Agent 分析需求...')
     const pmSession = await this.spawnPMAgent(userRequest)
-    const pmResult = await this.getPMResult(pmSession)
+    const pmResult = await this.getPMResult(pmSession, userRequest)
     
     if (!pmResult.tasks || pmResult.tasks.length === 0) {
       return {
@@ -138,7 +172,8 @@ export class ClawCompanyOrchestrator {
    * Spawn PM Agent
    */
   private async spawnPMAgent(userRequest: string) {
-    const task = `你是 PM Agent (产品经理)。
+    try {
+      const task = `你是 PM Agent (产品经理)。
 
 用户需求：${userRequest}
 
@@ -165,13 +200,23 @@ export class ClawCompanyOrchestrator {
 
 注意：只返回 JSON，不要有其他内容。`
 
-    return await sessions_spawn({
-      runtime: 'subagent',
-      task,
-      thinking: this.config.thinking,
-      mode: 'run',
-      model: this.config.model
-    })
+      const result = await sessions_spawn({
+        runtime: 'subagent',
+        task,
+        thinking: this.config.thinking,
+        mode: 'run',
+        model: this.config.model
+      })
+      
+      return result
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      console.error('❌ PM Agent 启动失败:', {
+        error: errorMsg,
+        timestamp: new Date().toISOString()
+      })
+      throw new Error(`PM Agent 启动失败: ${errorMsg}`)
+    }
   }
 
   /**
@@ -295,10 +340,68 @@ ${JSON.stringify(devResult, null, 2)}
   /**
    * 获取 PM Agent 结果
    */
-  private async getPMResult(session: any): Promise<PMResult> {
+  private async getPMResult(session: any, userRequest?: string): Promise<PMResult> {
+    // 动态生成默认任务，基于用户需求关键词
+    const generateDefaultTasks = (request: string): Task[] => {
+      const keywords = request.toLowerCase()
+      
+      // 根据关键词生成不同的任务
+      if (keywords.includes('登录') || keywords.includes('login')) {
+        return [
+          {
+            id: 'task-1',
+            title: '创建登录表单组件',
+            description: '实现包含用户名和密码输入的登录表单',
+            assignedTo: 'dev',
+            dependencies: [],
+            status: 'pending'
+          },
+          {
+            id: 'task-2',
+            title: '添加表单验证',
+            description: '实现客户端表单验证逻辑',
+            assignedTo: 'dev',
+            dependencies: ['task-1'],
+            status: 'pending'
+          }
+        ]
+      } else if (keywords.includes('列表') || keywords.includes('list')) {
+        return [
+          {
+            id: 'task-1',
+            title: '创建列表组件',
+            description: '实现可展示数据列表的组件',
+            assignedTo: 'dev',
+            dependencies: [],
+            status: 'pending'
+          },
+          {
+            id: 'task-2',
+            title: '添加列表操作',
+            description: '实现添加、删除、编辑等操作',
+            assignedTo: 'dev',
+            dependencies: ['task-1'],
+            status: 'pending'
+          }
+        ]
+      } else {
+        // 通用默认任务
+        return [
+          {
+            id: 'task-1',
+            title: '实现核心功能',
+            description: `根据需求实现: ${request}`,
+            assignedTo: 'dev',
+            dependencies: [],
+            status: 'pending'
+          }
+        ]
+      }
+    }
+    
     const defaultValue: PMResult = {
-      analysis: '自动生成的任务',
-      tasks: [{
+      analysis: userRequest ? `自动分析: ${userRequest}` : '自动生成的任务',
+      tasks: userRequest ? generateDefaultTasks(userRequest) : [{
         id: 'task-1',
         title: '实现用户需求',
         description: '根据用户需求实现功能',
