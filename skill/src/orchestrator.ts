@@ -315,6 +315,15 @@ ${JSON.stringify(devResult, null, 2)}
     defaultValue: T
   ): Promise<T> {
     try {
+      // 检查 session 是否存在
+      if (!session || !session.sessionKey) {
+        console.warn('Session 无效，返回默认值', {
+          session,
+          timestamp: new Date().toISOString()
+        })
+        return defaultValue
+      }
+      
       const history = await sessions_history({ sessionKey: session.sessionKey })
       const lastMessage = history.messages?.[history.messages.length - 1]
       
