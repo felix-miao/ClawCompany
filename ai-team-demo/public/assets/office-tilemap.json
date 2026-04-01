@@ -1,0 +1,30 @@
+{
+  "width": 20,
+  "height": 15,
+  "tileSize": 32,
+  "rooms": [
+    {
+      "id": "main",
+      "name": "Main Office",
+      "x": 2,
+      "y": 3,
+      "width": 16,
+      "height": 10
+    }
+  ],
+  "workstations": [
+    { "id": "ws1", "x": 4, "y": 8, "label": "Dev1" },
+    { "id": "ws2", "x": 8, "y": 8, "label": "Dev2" },
+    { "id": "ws3", "x": 12, "y": 8, "label": "PM" },
+    { "id": "ws4", "x": 16, "y": 8, "label": "Review" }
+  ],
+  "platforms": [
+    { "x": 0, "y": 14, "width": 20, "height": 1, "type": "floor" },
+    { "x": 0, "y": 0, "width": 1, "height": 14, "type": "wall_left" },
+    { "x": 19, "y": 0, "width": 1, "height": 14, "type": "wall_right" },
+    { "x": 2, "y": 9, "width": 4, "height": 0.5, "type": "desk" },
+    { "x": 6, "y": 9, "width": 4, "height": 0.5, "type": "desk" },
+    { "x": 10, "y": 9, "width": 4, "height": 0.5, "type": "desk" },
+    { "x": 14, "y": 9, "width": 4, "height": 0.5, "type": "desk" }
+  ]
+}
