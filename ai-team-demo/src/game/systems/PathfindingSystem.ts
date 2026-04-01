@@ -275,6 +275,10 @@ export class PathfindingSystem {
     return this.path;
   }
 
+  getCurrentPathIndex(): number {
+    return this.currentPathIndex;
+  }
+
   drawDebug(visible: boolean): void {
     if (!this.debugGraphics) {
       this.debugGraphics = this.scene.add.graphics();
