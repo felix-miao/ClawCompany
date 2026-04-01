@@ -153,6 +153,92 @@ describe('GLMProvider', () => {
     }, 5000)
   })
 
+  describe('超时处理', () => {
+    it('chat 应该为 fetch 传递 AbortSignal', async () => {
+      const mockResponse = {
+        choices: [{ message: { content: '响应' } }],
+      }
+
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      })
+
+      await glmProvider.chat([{ role: 'user', content: '测试' }])
+
+      const callArgs = (global.fetch as jest.Mock).mock.calls[0]
+      expect(callArgs[1].signal).toBeDefined()
+      expect(callArgs[1].signal).toBeInstanceOf(AbortSignal)
+    })
+
+    it('chat 应该在网络超时时抛出超时错误', async () => {
+      ;(global.fetch as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            const error = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+            setTimeout(() => reject(error), 10)
+          }),
+      )
+
+      const messages: ChatMessage[] = [{ role: 'user', content: '测试' }]
+      await expect(glmProvider.chat(messages)).rejects.toThrow()
+    }, 5000)
+
+    it('stream 应该为 fetch 传递 AbortSignal', async () => {
+      const mockReader = {
+        read: jest
+          .fn()
+          .mockResolvedValueOnce({
+            done: false,
+            value: new TextEncoder().encode('data: {"choices":[{"delta":{"content":"hi"}}]}\n\n'),
+          })
+          .mockResolvedValueOnce({ done: true, value: undefined }),
+      }
+
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        body: { getReader: () => mockReader },
+      })
+
+      const chunks: string[] = []
+      for await (const chunk of glmProvider.stream([{ role: 'user', content: '测试' }])) {
+        chunks.push(chunk)
+      }
+
+      const callArgs = (global.fetch as jest.Mock).mock.calls[0]
+      expect(callArgs[1].signal).toBeDefined()
+      expect(callArgs[1].signal).toBeInstanceOf(AbortSignal)
+    })
+
+    it('stream 应该在网络超时时抛出超时错误', async () => {
+      ;(global.fetch as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            const error = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+            setTimeout(() => reject(error), 10)
+          }),
+      )
+
+      const messages: ChatMessage[] = [{ role: 'user', content: '测试' }]
+      const gen = glmProvider.stream(messages)
+      await expect(gen.next()).rejects.toThrow()
+    }, 5000)
+
+    it('超时错误消息应包含 timeout', async () => {
+      ;(global.fetch as jest.Mock).mockImplementationOnce(() => {
+        throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+      })
+
+      const messages: ChatMessage[] = [{ role: 'user', content: '测试' }]
+      try {
+        await glmProvider.chat(messages)
+        fail('Should have thrown')
+      } catch (error: any) {
+        expect(error.message.toLowerCase()).toContain('timeout')
+      }
+    })
+  })
+
   describe('错误处理', () => {
     it('应该处理速率限制', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({

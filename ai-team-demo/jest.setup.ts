@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom'
 import { act as reactAct } from 'react'
+import { TextEncoder, TextDecoder } from 'util'
+
+Object.assign(global, { TextEncoder, TextDecoder })
 
 // Note: Next.js provides Request/Response polyfills automatically
 // No need to manually polyfill in Node.js 18+

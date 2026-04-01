@@ -1,6 +1,6 @@
-// GLM Provider - 智谱 AI GLM 提供者
-
 import { LLMProvider, ChatMessage } from './types'
+
+const DEFAULT_TIMEOUT_MS = 30_000
 
 export class GLMProvider implements LLMProvider {
   private apiKey: string
@@ -8,12 +8,14 @@ export class GLMProvider implements LLMProvider {
   private temperature: number
   private maxTokens: number
   private baseUrl: string
+  private timeoutMs: number
 
   constructor(config: {
     apiKey: string
     model?: string
     temperature?: number
     maxTokens?: number
+    timeout?: number
   }) {
     if (!config.apiKey) {
       throw new Error('GLM API key is required')
@@ -22,9 +24,14 @@ export class GLMProvider implements LLMProvider {
     this.model = config.model || 'glm-5'
     this.temperature = config.temperature ?? 0.7
     this.maxTokens = config.maxTokens ?? 2000
-    
-    // 使用正确的 endpoint（api.z.ai 而不是 open.bigmodel.cn）
+    this.timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS
     this.baseUrl = 'https://api.z.ai/api/coding/paas/v4'
+  }
+
+  private createAbortSignal(): AbortSignal {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), this.timeoutMs)
+    return controller.signal
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
@@ -43,6 +50,7 @@ export class GLMProvider implements LLMProvider {
         temperature: this.temperature,
         max_tokens: this.maxTokens,
       }),
+      signal: this.createAbortSignal(),
     })
 
     if (!response.ok) {
@@ -71,6 +79,7 @@ export class GLMProvider implements LLMProvider {
         max_tokens: this.maxTokens,
         stream: true,
       }),
+      signal: this.createAbortSignal(),
     })
 
     if (!response.ok) {
@@ -106,7 +115,6 @@ export class GLMProvider implements LLMProvider {
               yield content
             }
           } catch {
-            // Skip invalid JSON
           }
         }
       }

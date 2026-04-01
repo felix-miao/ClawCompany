@@ -9,12 +9,15 @@ import { NavigationMesh } from '../data/NavigationMesh';
 import { PathfindingSystem } from '../systems/PathfindingSystem';
 import { NavigationSystem } from '../systems/NavigationSystem';
 
+type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
+
 interface Workstation {
   id: string;
   x: number;
   y: number;
   label: string;
   status: 'idle' | 'busy';
+  taskType: TaskType;
 }
 
 interface Platform {
@@ -72,10 +75,10 @@ export class OfficeScene extends Phaser.Scene {
         height: 15,
         tileSize: 32,
         workstations: [
-          { id: 'ws1', x: 4, y: 8, label: 'Dev1', status: 'idle' },
-          { id: 'ws2', x: 8, y: 8, label: 'Dev2', status: 'idle' },
-          { id: 'ws3', x: 12, y: 8, label: 'PM', status: 'idle' },
-          { id: 'ws4', x: 16, y: 8, label: 'Review', status: 'idle' },
+          { id: 'ws1', x: 4, y: 8, label: 'Dev1', status: 'idle', taskType: 'coding' },
+          { id: 'ws2', x: 8, y: 8, label: 'Dev2', status: 'idle', taskType: 'testing' },
+          { id: 'ws3', x: 12, y: 8, label: 'PM', status: 'idle', taskType: 'meeting' },
+          { id: 'ws4', x: 16, y: 8, label: 'Review', status: 'idle', taskType: 'review' },
         ],
         platforms: [
           { x: 0, y: 14, width: 20, height: 1, type: 'floor' },
@@ -216,6 +219,15 @@ export class OfficeScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-SPACE', () => {
       this.toggleActiveAgentWork();
     });
+
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      const agent = this.agents[0];
+      if (agent) {
+        const worldX = pointer.worldX;
+        const worldY = pointer.worldY;
+        agent.moveTo(worldX, worldY);
+      }
+    });
   }
 
   private toggleActiveAgentWork(): void {
@@ -336,5 +348,24 @@ export class OfficeScene extends Phaser.Scene {
     if (!roomPos) return;
 
     agent.moveTo(roomPos.x, roomPos.y);
+  }
+
+  assignTask(agentId: number, taskType: TaskType): void {
+    const agent = this.agents[agentId];
+    if (!agent) return;
+
+    const workstation = this.findWorkstationByTaskType(taskType);
+    if (!workstation) return;
+
+    const worldX = workstation.x * TILE_SIZE + TILE_SIZE / 2;
+    const worldY = (workstation.y - 1) * TILE_SIZE;
+
+    agent.moveTo(worldX, worldY, () => {
+      agent.setWorking(true);
+    });
+  }
+
+  private findWorkstationByTaskType(taskType: TaskType): Workstation | undefined {
+    return this.tilemapData?.workstations.find(ws => ws.taskType === taskType);
   }
 }

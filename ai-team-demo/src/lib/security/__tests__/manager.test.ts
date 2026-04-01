@@ -7,6 +7,42 @@ describe('SecurityManager', () => {
     process.env.ENCRYPTION_KEY = 'test-encryption-key'
   })
 
+  describe('Encryption Key Security', () => {
+    it('should throw when ENCRYPTION_KEY is not set', () => {
+      delete process.env.ENCRYPTION_KEY
+      jest.resetModules()
+
+      expect(() => {
+        require('../utils').SecurityManager.encrypt('test')
+      }).toThrow(/ENCRYPTION_KEY/)
+    })
+
+    it('should not use any hardcoded default key', () => {
+      delete process.env.ENCRYPTION_KEY
+      jest.resetModules()
+
+      const source = require('fs').readFileSync(
+        require('path').join(__dirname, '..', 'utils.ts'),
+        'utf8'
+      )
+
+      expect(source).not.toContain('default-encryption-key')
+      expect(source).not.toContain('default-salt')
+    })
+
+    it('should work correctly when ENCRYPTION_KEY is properly set', () => {
+      process.env.ENCRYPTION_KEY = 'a-proper-random-key-for-testing-32b'
+      jest.resetModules()
+
+      const { SecurityManager: SM } = require('../utils')
+      const original = 'my-api-key-123456789012345678901234'
+      const encrypted = SM.encrypt(original)
+      const decrypted = SM.decrypt(encrypted)
+
+      expect(decrypted).toBe(original)
+    })
+  })
+
   describe('API Key Encryption', () => {
     it('should encrypt and decrypt API key', () => {
       const original = 'my-secret-api-key-12345678901234567890'

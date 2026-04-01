@@ -113,4 +113,74 @@ describe('GitManager', () => {
       expect(log).toHaveLength(3)
     })
   })
+
+  describe('Shell Injection Protection', () => {
+    it('should reject branch names with shell metacharacters', async () => {
+      const maliciousBranches = [
+        'main; rm -rf /',
+        'main && cat /etc/passwd',
+        'main$(whoami)',
+        'main`whoami`',
+        'main | cat /etc/passwd',
+        'main\nevil',
+      ]
+
+      for (const branch of maliciousBranches) {
+        await expect(gitManager.createBranch(branch)).rejects.toThrow()
+      }
+    })
+
+    it('should reject commit messages with shell metacharacters', async () => {
+      await fs.writeFile(path.join(testDir, 'test.txt'), 'content')
+
+      const maliciousMessages = [
+        'test"; rm -rf / #',
+        'test && cat /etc/passwd',
+        'test$(whoami)',
+        'test`whoami`',
+        'test | cat /etc/passwd',
+        "test'\nevil",
+      ]
+
+      for (const msg of maliciousMessages) {
+        const result = await gitManager.commit(msg)
+        expect(result.success).toBe(false)
+        expect(result.error).toBeDefined()
+      }
+    })
+
+    it('should reject checkout with malicious branch names', async () => {
+      const maliciousBranches = [
+        'main; echo pwned',
+        'main && echo pwned',
+        'main$(echo pwned)',
+      ]
+
+      for (const branch of maliciousBranches) {
+        await expect(gitManager.checkout(branch)).rejects.toThrow()
+      }
+    })
+
+    it('should reject add with malicious file paths', async () => {
+      await expect(
+        gitManager.add(['file.txt; rm -rf /'])
+      ).rejects.toThrow()
+    })
+
+    it('should reject log with invalid limit', async () => {
+      await expect(gitManager.log(-1)).rejects.toThrow()
+      await expect(gitManager.log(1.5 as any)).rejects.toThrow()
+    })
+
+    it('should safely handle valid branch names', async () => {
+      await expect(gitManager.createBranch('feature/my-task')).resolves.toBeUndefined()
+    })
+
+    it('should safely handle valid commit messages', async () => {
+      await fs.writeFile(path.join(testDir, 'test2.txt'), 'content2')
+
+      const result = await gitManager.commit('feat: add new feature')
+      expect(result.success).toBe(true)
+    })
+  })
 })
