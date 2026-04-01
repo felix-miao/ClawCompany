@@ -7,6 +7,7 @@ import { AnimationController } from '../systems/AnimationController';
 import { CharacterSprites, createCharacterSprites } from '../sprites/CharacterSprites';
 import { NavigationMesh } from '../data/NavigationMesh';
 import { PathfindingSystem } from '../systems/PathfindingSystem';
+import { NavigationSystem } from '../systems/NavigationSystem';
 
 interface Workstation {
   id: string;
@@ -37,6 +38,7 @@ export class OfficeScene extends Phaser.Scene {
   private platforms: Phaser.Physics.Arcade.StaticGroup;
   private debugOverlay!: DebugOverlay;
   private movementSystem!: MovementSystem;
+  private navigationSystem!: NavigationSystem;
   private tilemapData: TilemapData | null = null;
   private workstationMap: Map<string, Workstation> = new Map();
   private navMesh!: NavigationMesh;
@@ -44,6 +46,13 @@ export class OfficeScene extends Phaser.Scene {
   private activeTask: { agentId: number; targetX: number; targetY: number; returning: boolean } | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private particles!: any;
+
+  private roomPositions: Record<string, { x: number; y: number }> = {
+    'pm-office': { x: 350, y: 280 },
+    'dev-studio': { x: 150, y: 400 },
+    'test-lab': { x: 550, y: 400 },
+    'review-center': { x: 650, y: 280 },
+  };
 
   constructor() {
     super({ key: 'OfficeScene' });
@@ -122,6 +131,7 @@ export class OfficeScene extends Phaser.Scene {
     });
 
     this.pathfindingSystem = new PathfindingSystem(this, this.navMesh);
+    this.navigationSystem = new NavigationSystem(this, this.navMesh);
 
     this.tilemapData.platforms.forEach((platform) => {
       if (platform.height <= 0.5) {
@@ -309,5 +319,22 @@ export class OfficeScene extends Phaser.Scene {
 
   toggleDebug(): void {
     this.physics.world.drawDebug = !this.physics.world.drawDebug;
+  }
+
+  moveToPosition(agentId: number, targetX: number, targetY: number): void {
+    const agent = this.agents[agentId];
+    if (!agent) return;
+
+    agent.moveTo(targetX, targetY);
+  }
+
+  moveAgentToRoom(agentId: number, room: 'pm-office' | 'dev-studio' | 'test-lab' | 'review-center'): void {
+    const agent = this.agents[agentId];
+    if (!agent) return;
+
+    const roomPos = this.roomPositions[room];
+    if (!roomPos) return;
+
+    agent.moveTo(roomPos.x, roomPos.y);
   }
 }
