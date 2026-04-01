@@ -5,6 +5,8 @@ import { DebugOverlay } from '../utils/DebugOverlay';
 import { MovementSystem } from '../systems/MovementSystem';
 import { AnimationController } from '../systems/AnimationController';
 import { CharacterSprites, createCharacterSprites } from '../sprites/CharacterSprites';
+import { NavigationMesh } from '../data/NavigationMesh';
+import { PathfindingSystem } from '../systems/PathfindingSystem';
 
 interface Workstation {
   id: string;
@@ -37,6 +39,9 @@ export class OfficeScene extends Phaser.Scene {
   private movementSystem!: MovementSystem;
   private tilemapData: TilemapData | null = null;
   private workstationMap: Map<string, Workstation> = new Map();
+  private navMesh!: NavigationMesh;
+  private pathfindingSystem!: PathfindingSystem;
+  private activeTask: { agentId: number; targetX: number; targetY: number; returning: boolean } | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private particles!: any;
 
@@ -94,6 +99,7 @@ export class OfficeScene extends Phaser.Scene {
       emitting: false,
     });
     this.createPlatforms();
+    this.createNavigationMesh();
     this.createAgents();
     this.setupCollisions();
     this.setupDebug();
@@ -103,6 +109,97 @@ export class OfficeScene extends Phaser.Scene {
       this.movementSystem.setActiveAgent(this.agents[0]);
     }
     this.setupKeyboard();
+    this.setupTaskSystem();
+  }
+
+  private createNavigationMesh(): void {
+    if (!this.tilemapData) return;
+
+    this.navMesh = NavigationMesh.fromTilemap({
+      width: this.tilemapData.width,
+      height: this.tilemapData.height,
+      platforms: this.tilemapData.platforms,
+    });
+
+    this.pathfindingSystem = new PathfindingSystem(this, this.navMesh);
+
+    this.tilemapData.platforms.forEach((platform) => {
+      if (platform.height <= 0.5) {
+        this.navMesh.addPlatformNode(
+          platform.x * TILE_SIZE + (platform.width * TILE_SIZE) / 2,
+          platform.y * TILE_SIZE,
+          platform.width * TILE_SIZE
+        );
+      }
+    });
+  }
+
+  private setupTaskSystem(): void {
+    this.time.addEvent({
+      delay: 5000,
+      callback: () => {
+        this.triggerRandomTask();
+      },
+      loop: true,
+    });
+  }
+
+  private triggerRandomTask(): void {
+    if (this.activeTask || this.agents.length === 0) return;
+
+    const randomAgentIndex = Math.floor(Math.random() * this.agents.length);
+    const agent = this.agents[randomAgentIndex];
+    const targetPositions = [
+      { x: 100, y: 400 },
+      { x: 300, y: 400 },
+      { x: 500, y: 400 },
+      { x: 700, y: 400 },
+      { x: 200, y: 250 },
+      { x: 600, y: 250 },
+    ];
+
+    const target = targetPositions[Math.floor(Math.random() * targetPositions.length)];
+    
+    agent.moveTo(target.x, target.y);
+    
+    this.activeTask = {
+      agentId: randomAgentIndex,
+      targetX: target.x,
+      targetY: target.y,
+      returning: false,
+    };
+  }
+
+  private checkTaskCompletion(): void {
+    if (!this.activeTask) return;
+
+    const agent = this.agents[this.activeTask.agentId];
+    if (!agent) return;
+
+    if (!this.activeTask.returning) {
+      const targetPos = agent.getTargetPosition();
+      if (targetPos) {
+        const dx = Math.abs(agent.x - targetPos.x);
+        const dy = Math.abs(agent.y - targetPos.y);
+        
+        if (dx < 20 && dy < 20) {
+          this.time.delayedCall(2000, () => {
+            this.activeTask!.returning = true;
+            agent.returnToOriginal();
+          });
+        }
+      }
+    } else {
+      const original = agent.getTargetPosition();
+      if (original) {
+        const dx = Math.abs(agent.x - original.x);
+        const dy = Math.abs(agent.y - original.y);
+        
+        if (dx < 20 && dy < 20) {
+          this.activeTask = null;
+        }
+      }
+    }
   }
 
   private setupKeyboard(): void {
@@ -168,6 +265,8 @@ export class OfficeScene extends Phaser.Scene {
       const controller = new AnimationController(agent, color);
       agent.setAnimationController(controller);
 
+      agent.setPathfindingSystem(this.pathfindingSystem);
+
       this.agents.push(agent);
       this.workstationMap.set(ws.id, ws);
     });
@@ -205,6 +304,7 @@ export class OfficeScene extends Phaser.Scene {
     this.agents.forEach((agent) => agent.update());
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
+    this.checkTaskCompletion();
   }
 
   toggleDebug(): void {
