@@ -92,7 +92,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -109,7 +109,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -126,7 +126,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -148,7 +148,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -166,7 +166,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(429)
@@ -189,7 +189,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -442,7 +442,7 @@ describe('/api/files', () => {
         json: async () => { throw new SyntaxError('Unexpected token') }
       }
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(500)
@@ -461,7 +461,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(500)

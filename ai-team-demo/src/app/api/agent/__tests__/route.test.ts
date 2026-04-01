@@ -140,7 +140,7 @@ describe('/api/agent', () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }))
-    storage.addMessageToConversation.mockImplementation((conv, msg) => ({
+    storage.addMessageToConversation.mockImplementation((conv: any, msg: any) => ({
       ...conv,
       messages: [...conv.messages, msg]
     }))
@@ -163,7 +163,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -180,7 +180,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -197,7 +197,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -214,7 +214,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -234,7 +234,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(429)
@@ -252,7 +252,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       // Should still work in mock mode
@@ -422,7 +422,7 @@ describe('/api/agent', () => {
         json: async () => { throw new SyntaxError('Unexpected token') }
       }
 
-      const response = await POST(request)
+      const response = await POST(request as any)
       const data = await response.json()
 
       expect(response.status).toBe(500)

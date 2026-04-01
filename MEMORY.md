@@ -3,6 +3,28 @@
 创建时间: 2026-03-14
 最后更新: 2026-03-30
 
+## 重要约定
+
+### 项目克隆位置（2026-04-01）
+**规则：** 以后所有项目克隆都放在 `~/Projects/` 目录下
+
+**示例：**
+```bash
+# 正确
+git clone https://github.com/user/project.git ~/Projects/project
+
+# 错误
+git clone https://github.com/user/project.git /some/other/path
+```
+
+**已克隆的项目：**
+- `/Users/felixmiao/Projects/agency-swarm/` - 多Agent编排框架
+- `/Users/felixmiao/Projects/swarms/` - 企业级多Agent框架
+- `/Users/felixmiao/Projects/squad/` - AI开发团队（clone 夊败)
+- `/Users/felixmiao/Projects/claw-code/` - Claw Code (instructkr)
+
+---
+
 ## 最近优化 (2026-03-30)
 
 ### 已完成

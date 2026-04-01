@@ -110,7 +110,7 @@ describe('GatewayProvider', () => {
       }
 
       const errorProvider = new GatewayProvider({ 
-        client: errorMockClient,
+        client: errorMockClient as any,
         maxRetries: 3,
         retryDelay: 10
       })
