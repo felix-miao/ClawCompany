@@ -15,13 +15,23 @@ import crypto from 'crypto'
  */
 export class APIKeyManager {
   private static readonly ALGORITHM = 'aes-256-cbc'
-  
-  // 使用环境变量存储密钥和 salt
-  private static readonly KEY = crypto.scryptSync(
-    process.env.ENCRYPTION_KEY || 'default-encryption-key-change-in-production',
-    process.env.ENCRYPTION_SALT || 'default-salt-change-in-production',
-    32
-  )
+  private static _cachedKey: Buffer | null = null
+
+  private static getKey(): Buffer {
+    if (this._cachedKey) return this._cachedKey
+
+    const encryptionKey = process.env.ENCRYPTION_KEY
+    if (!encryptionKey) {
+      throw new Error(
+        'ENCRYPTION_KEY environment variable is required. ' +
+        'Set it before starting the application.'
+      )
+    }
+
+    const salt = process.env.ENCRYPTION_SALT || 'ai-team-demo-salt'
+    this._cachedKey = crypto.scryptSync(encryptionKey, salt, 32)
+    return this._cachedKey
+  }
 
   /**
    * 加密 API Key
@@ -30,7 +40,7 @@ export class APIKeyManager {
     const iv = crypto.randomBytes(16)
     const cipher = crypto.createCipheriv(
       this.ALGORITHM,
-      Buffer.from(this.KEY),
+      this.getKey(),
       iv
     )
     
@@ -50,7 +60,7 @@ export class APIKeyManager {
     
     const decipher = crypto.createDecipheriv(
       this.ALGORITHM,
-      Buffer.from(this.KEY),
+      this.getKey(),
       iv
     )
     

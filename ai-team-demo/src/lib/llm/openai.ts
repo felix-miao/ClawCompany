@@ -1,12 +1,13 @@
-// OpenAI Provider
-
 import { LLMProvider, ChatMessage, LLMConfig } from './types'
+
+const DEFAULT_TIMEOUT_MS = 30_000
 
 export class OpenAIProvider implements LLMProvider {
   private apiKey: string
   private model: string
   private temperature: number
   private maxTokens: number
+  private timeoutMs: number
 
   constructor(config: LLMConfig) {
     if (!config.apiKey) {
@@ -16,6 +17,13 @@ export class OpenAIProvider implements LLMProvider {
     this.model = config.model || 'gpt-4o-mini'
     this.temperature = config.temperature ?? 0.7
     this.maxTokens = config.maxTokens ?? 2000
+    this.timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS
+  }
+
+  private createAbortSignal(): AbortSignal {
+    const controller = new AbortController()
+    setTimeout(() => controller.abort(), this.timeoutMs)
+    return controller.signal
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
@@ -34,6 +42,7 @@ export class OpenAIProvider implements LLMProvider {
         temperature: this.temperature,
         max_tokens: this.maxTokens,
       }),
+      signal: this.createAbortSignal(),
     })
 
     if (!response.ok) {
@@ -62,6 +71,7 @@ export class OpenAIProvider implements LLMProvider {
         max_tokens: this.maxTokens,
         stream: true,
       }),
+      signal: this.createAbortSignal(),
     })
 
     if (!response.ok) {
@@ -89,7 +99,7 @@ export class OpenAIProvider implements LLMProvider {
         if (line.startsWith('data: ')) {
           const data = line.slice(6)
           if (data === '[DONE]') continue
-          
+
           try {
             const parsed = JSON.parse(data)
             const content = parsed.choices[0]?.delta?.content
@@ -97,7 +107,6 @@ export class OpenAIProvider implements LLMProvider {
               yield content
             }
           } catch {
-            // Skip invalid JSON
           }
         }
       }

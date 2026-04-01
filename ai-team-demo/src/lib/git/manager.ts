@@ -1,22 +1,11 @@
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
-/**
- * Git 管理器
- * 
- * 负责自动管理 Git 操作，包括：
- * - 自动 commit 生成的代码
- * - 推送到远程仓库
- * - 分支管理
- * - 状态检查
- * 
- * 安全策略：
- * 1. 只在项目目录内操作
- * 2. 检查 Git 仓库状态
- * 3. 避免敏感信息泄露
- */
+const BRANCH_NAME_RE = /^[a-zA-Z0-9._\-/]+$/
+const GIT_PATH_RE = /^[^\0;\|&$`"'!\n\r]+$/
+const COMMIT_MSG_RE = /^[^\0`$|&;!\n\r]+$/
 
 export interface GitStatus {
   isRepo: boolean
@@ -41,35 +30,59 @@ export class GitManager {
     this.projectDir = projectDir
   }
 
-  /**
-   * 检查 Git 状态
-   */
+  private validateBranchName(name: string): void {
+    if (!name || !BRANCH_NAME_RE.test(name)) {
+      throw new Error(`Invalid branch name: "${name}". Only alphanumeric, dash, underscore, dot, and slash allowed.`)
+    }
+  }
+
+  private validateFilePath(filePath: string): void {
+    if (!filePath || !GIT_PATH_RE.test(filePath)) {
+      throw new Error(`Invalid file path: "${filePath}". Contains disallowed characters.`)
+    }
+  }
+
+  private validateCommitMessage(message: string): void {
+    if (!message || !COMMIT_MSG_RE.test(message)) {
+      throw new Error(`Invalid commit message: contains disallowed characters.`)
+    }
+  }
+
+  private validatePositiveInt(value: number, name: string): void {
+    if (!Number.isInteger(value) || value < 1) {
+      throw new Error(`Invalid ${name}: must be a positive integer, got ${value}`)
+    }
+  }
+
   async status(): Promise<GitStatus> {
     try {
-      // 检查是否是 Git 仓库
-      await this.exec('git rev-parse --git-dir')
+      await this.exec('git', ['rev-parse', '--git-dir'])
 
-      // 获取当前分支
-      const { stdout: branch } = await this.exec('git rev-parse --abbrev-ref HEAD')
+      const { stdout: branch } = await this.exec('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
 
-      // 获取变更文件
-      const { stdout: status } = await this.exec('git status --porcelain')
-      const files = status.split('\n').filter(f => f.trim()).map(f => f.substring(3))
+      const { stdout: statusOutput } = await this.exec('git', ['status', '--porcelain'])
+      const files = statusOutput.split('\n').filter(f => f.trim()).map(f => f.substring(3))
 
-      // 获取 ahead/behind
-      const { stdout: upstream } = await this.exec('git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo ""')
       let ahead = 0
       let behind = 0
 
-      if (upstream.trim()) {
-        try {
-          const { stdout: counts } = await this.exec(`git rev-list --left-right --count ${upstream.trim()}...HEAD`)
-          const [behindCount, aheadCount] = counts.trim().split('\t').map(Number)
-          ahead = aheadCount || 0
-          behind = behindCount || 0
-        } catch {
-          // 忽略错误
+      try {
+        const { stdout: upstream } = await this.exec('git', ['rev-parse', '--abbrev-ref', '@{upstream}'])
+        const upstreamTrimmed = upstream.trim()
+        if (upstreamTrimmed) {
+          try {
+            const { stdout: counts } = await this.exec('git', [
+              'rev-list', '--left-right', '--count', `${upstreamTrimmed}...HEAD`
+            ])
+            const [behindCount, aheadCount] = counts.trim().split('\t').map(Number)
+            ahead = aheadCount || 0
+            behind = behindCount || 0
+          } catch {
+            // ignore
+          }
         }
+      } catch {
+        // no upstream
       }
 
       return {
@@ -92,27 +105,21 @@ export class GitManager {
     }
   }
 
-  /**
-   * 添加文件到暂存区
-   */
   async add(files?: string[]): Promise<void> {
     if (files && files.length > 0) {
-      // 添加指定文件
       for (const file of files) {
-        await this.exec(`git add "${file}"`)
+        this.validateFilePath(file)
+        await this.exec('git', ['add', file])
       }
     } else {
-      // 添加所有文件
-      await this.exec('git add -A')
+      await this.exec('git', ['add', '-A'])
     }
   }
 
-  /**
-   * 提交更改
-   */
   async commit(message: string): Promise<CommitResult> {
     try {
-      // 检查是否有更改
+      this.validateCommitMessage(message)
+
       const status = await this.status()
       if (!status.hasChanges) {
         return {
@@ -121,14 +128,11 @@ export class GitManager {
         }
       }
 
-      // 添加所有更改
       await this.add()
 
-      // 提交
-      const { stdout } = await this.exec(`git commit -m "${message}"`)
+      const { stdout } = await this.exec('git', ['commit', '-m', message])
 
-      // 获取 commit hash
-      const { stdout: hash } = await this.exec('git rev-parse HEAD')
+      const { stdout: hash } = await this.exec('git', ['rev-parse', 'HEAD'])
 
       return {
         success: true,
@@ -143,13 +147,10 @@ export class GitManager {
     }
   }
 
-  /**
-   * 推送到远程
-   */
   async push(): Promise<CommitResult> {
     try {
       const status = await this.status()
-      
+
       if (status.ahead === 0) {
         return {
           success: false,
@@ -157,7 +158,7 @@ export class GitManager {
         }
       }
 
-      await this.exec('git push')
+      await this.exec('git', ['push'])
 
       return {
         success: true,
@@ -171,12 +172,9 @@ export class GitManager {
     }
   }
 
-  /**
-   * 提交并推送
-   */
   async commitAndPush(message: string): Promise<CommitResult> {
     const commitResult = await this.commit(message)
-    
+
     if (!commitResult.success) {
       return commitResult
     }
@@ -184,33 +182,28 @@ export class GitManager {
     return await this.push()
   }
 
-  /**
-   * 创建新分支
-   */
   async createBranch(branchName: string): Promise<void> {
-    await this.exec(`git checkout -b ${branchName}`)
+    this.validateBranchName(branchName)
+    await this.exec('git', ['checkout', '-b', branchName])
   }
 
-  /**
-   * 切换分支
-   */
   async checkout(branchName: string): Promise<void> {
-    await this.exec(`git checkout ${branchName}`)
+    this.validateBranchName(branchName)
+    await this.exec('git', ['checkout', branchName])
   }
 
-  /**
-   * 获取提交历史
-   */
   async log(limit: number = 10): Promise<Array<{
     hash: string
     message: string
     author: string
     date: string
   }>> {
+    this.validatePositiveInt(limit, 'limit')
+
     try {
-      const { stdout } = await this.exec(
-        `git log --pretty=format:"%H|%s|%an|%ai" -n ${limit}`
-      )
+      const { stdout } = await this.exec('git', [
+        'log', '--pretty=format:%H|%s|%an|%ai', '-n', String(limit)
+      ])
 
       return stdout.split('\n').map(line => {
         const [hash, message, author, date] = line.split('|')
@@ -226,16 +219,10 @@ export class GitManager {
     }
   }
 
-  /**
-   * 执行 Git 命令
-   */
-  private async exec(command: string): Promise<{ stdout: string; stderr: string }> {
-    return execAsync(command, { cwd: this.projectDir })
+  private async exec(command: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
+    return execFileAsync(command, args, { cwd: this.projectDir })
   }
 
-  /**
-   * 获取项目目录
-   */
   getProjectDir(): string {
     return this.projectDir
   }
