@@ -74,6 +74,9 @@ export class OfficeScene extends Phaser.Scene {
     this.setupCollisions();
     this.setupDebug();
     this.movementSystem = new MovementSystem(this);
+    if (this.agents.length > 0) {
+      this.movementSystem.setActiveAgent(this.agents[0]);
+    }
   }
 
   private createPlatforms(): void {
