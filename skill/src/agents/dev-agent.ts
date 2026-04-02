@@ -1,17 +1,5 @@
-/**
- * Dev Agent (开发者)
- * 
- * 职责：实现功能、生成代码、确保可运行
- * 
- * 注意：sessions_spawn, sessions_history 是 OpenClaw 的内置工具，
- * 在 OpenClaw 环境中全局可用，无需导入。
- */
-
-import type { Task, DevResult } from '../orchestrator'
-
-// 声明 OpenClaw 全局工具（用于类型检查）
-declare const sessions_spawn: typeof import('openclaw').sessions_spawn
-declare const sessions_history: typeof import('openclaw').sessions_history
+import { BaseOpenClawAgent } from '../core/base-agent'
+import type { Task, DevResult } from '../core/types'
 
 export interface DevAgentConfig {
   runtime?: 'acp' | 'subagent'
@@ -19,59 +7,50 @@ export interface DevAgentConfig {
   thinking?: 'low' | 'medium' | 'high'
 }
 
-export class DevAgent {
-  private config: DevAgentConfig
-
+export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
   constructor(config: DevAgentConfig = {}) {
-    this.config = {
+    super('dev', {
       runtime: 'acp',
       agentId: 'opencode',
       thinking: 'medium',
-      ...config
-    }
+      ...config,
+    })
   }
 
-  /**
-   * 执行开发任务
-   */
   async execute(task: Task, projectPath: string): Promise<DevResult> {
     const prompt = this.buildPrompt(task)
-    
+
     try {
-      // 尝试使用 ACP runtime (真实编码代理)
       if (this.config.runtime === 'acp') {
-        const session = await sessions_spawn({
+        const session = await this.spawnAgent(prompt, {
           runtime: 'acp',
           agentId: this.config.agentId || 'opencode',
-          task: prompt,
-          mode: 'run',
-          cwd: projectPath
+          cwd: projectPath,
         })
-        return await this.parseResult(session)
+        return await this.parseJSONFromSession<DevResult>(session, {
+          success: true,
+          files: [],
+          summary: '任务完成',
+        })
       }
     } catch (error) {
-      console.log('⚠ ACP runtime 不可用，切换到 subagent')
+      this.log('ACP runtime 不可用，切换到 subagent')
     }
 
-    // Fallback to subagent
-    const session = await sessions_spawn({
-      runtime: 'subagent',
-      task: prompt,
-      thinking: this.config.thinking,
-      mode: 'run'
+    const session = await this.spawnAgent(prompt)
+    return await this.parseJSONFromSession<DevResult>(session, {
+      success: true,
+      files: [],
+      summary: '任务完成',
     })
-    
-    return await this.parseResult(session)
   }
 
-  /**
-   * 构建 Dev Agent prompt
-   */
-  private buildPrompt(task: Task): string {
+  protected buildPrompt(task: unknown): string {
+    const t = task as Task
     return `你是 Dev Agent (开发者)。
 
-任务：${task.title}
-描述：${task.description}
+任务：${t.title}
+描述：${t.description}
 
 你的职责：
 1. 理解任务需求
@@ -95,37 +74,8 @@ export class DevAgent {
 
 注意：只返回 JSON。`
   }
-
-  /**
-   * 解析 Dev Agent 结果
-   */
-  private async parseResult(session: any): Promise<DevResult> {
-    try {
-      const history = await sessions_history({ sessionKey: session.sessionKey })
-      const lastMessage = history.messages?.[history.messages.length - 1]
-      
-      if (lastMessage?.content) {
-        const content = lastMessage.content
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0])
-        }
-      }
-    } catch (error) {
-      console.error('❌ 解析 Dev 结果失败:', error)
-    }
-    
-    return {
-      success: true,
-      files: [],
-      summary: '任务完成'
-    }
-  }
 }
 
-/**
- * 便捷函数：执行开发任务
- */
 export async function executeTask(
   task: Task,
   projectPath: string,

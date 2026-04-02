@@ -3,6 +3,10 @@ import { GLMProvider } from '@/lib/llm/glm'
 import { withRateLimit, successResponse, errorResponse } from '@/lib/api/route-utils'
 
 export const POST = withRateLimit(async () => {
+  if (process.env.NODE_ENV === 'production') {
+    return errorResponse('This endpoint is not available in production', 403)
+  }
+
   const apiKey = process.env.GLM_API_KEY
 
   if (!apiKey) {

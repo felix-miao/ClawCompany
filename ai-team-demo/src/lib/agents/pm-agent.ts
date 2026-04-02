@@ -1,7 +1,5 @@
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext, AgentRole } from './types'
-import { getLLMProvider } from '../llm/factory'
-import { extractJSONObject } from '../utils/json-parser'
 
 export class PMAgent extends BaseAgent {
   constructor() {
@@ -16,30 +14,52 @@ export class PMAgent extends BaseAgent {
   async execute(task: Task, context: AgentContext): Promise<AgentResponse> {
     this.log(`分析任务: ${task.title}`)
 
-    // PM Claw 的核心逻辑：
-    // 1. 理解用户需求
-    // 2. 拆分成可执行的子任务
-    // 3. 分配给合适的 Agent
+    return this.executeWithLLMFallback(
+      task,
+      context,
+      (response) => this.handleLLMResponse(response),
+      () => this.analyzeAndPlan(task, context),
+      this.getSystemPrompt(),
+      (t) => `用户需求: ${t.title}\n描述: ${t.description}\n\n请分析这个需求并制定执行计划。`,
+    )
+  }
 
-    const llmProvider = getLLMProvider()
-    
-    if (llmProvider) {
-      // 使用 LLM 进行智能分析
-      const response = await this.analyzeWithLLM(task, context, llmProvider)
-      return response
-    } else {
-      // 回退到规则系统
-      const response = await this.analyzeAndPlan(task, context)
-      return response
+  private handleLLMResponse(response: string): AgentResponse {
+    const parsed = this.parseJSONResponse<{
+      analysis: string
+      tasks: Record<string, unknown>[]
+      message: string
+    }>(response)
+
+    if (parsed) {
+      const tasks = (parsed.tasks || []).map((t) => ({
+        title: (t.title as string) || '未命名任务',
+        description: (t.description as string) || '',
+        status: 'pending' as const,
+        assignedTo: (t.assignedTo as AgentRole) || 'dev',
+        dependencies: (t.dependencies as string[]) || [],
+        files: [],
+      }))
+
+      return {
+        agent: 'pm',
+        message: parsed.message || '任务规划完成',
+        tasks,
+        nextAgent: 'dev',
+        status: 'success',
+      }
+    }
+
+    return {
+      agent: 'pm',
+      message: response,
+      nextAgent: 'dev',
+      status: 'success',
     }
   }
 
-  private async analyzeWithLLM(
-    task: Task,
-    context: AgentContext,
-    llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
-  ): Promise<AgentResponse> {
-    const systemPrompt = `你是一个经验丰富的产品经理（PM Claw）。你的职责是：
+  private getSystemPrompt(): string {
+    return `你是一个经验丰富的产品经理（PM Claw）。你的职责是：
 1. 分析用户需求，理解他们想要构建什么
 2. 将需求拆分成具体的、可执行的子任务
 3. 为每个子任务分配合适的 Agent（dev 或 review）
@@ -63,69 +83,10 @@ export class PMAgent extends BaseAgent {
 - 每个任务应该有明确的负责人
 - 如果任务之间有依赖关系，请在 dependencies 中注明
 - 回复消息应该友好、专业`
-
-    const userPrompt = `用户需求: ${task.title}
-描述: ${task.description}
-
-请分析这个需求并制定执行计划。`
-
-    try {
-      const response = await llmProvider.chat([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ])
-
-      // 解析 LLM 响应
-      const parsed = this.parseLLMResponse(response)
-      
-      return {
-        agent: 'pm',
-        message: parsed.message,
-        tasks: parsed.tasks,
-        nextAgent: 'dev',
-        status: 'success'
-      }
-    } catch (error) {
-      this.log(`LLM 调用失败，回退到规则系统: ${error}`)
-      return this.analyzeAndPlan(task, context)
-    }
-  }
-
-  private parseLLMResponse(response: string): {
-    analysis: string
-    tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>[]
-    message: string
-  } {
-    const parsed = extractJSONObject(response)
-    if (parsed) {
-      const tasks = ((parsed.tasks as Record<string, unknown>[]) || []).map((t) => ({
-        title: (t.title as string) || '未命名任务',
-        description: (t.description as string) || '',
-        status: 'pending' as const,
-        assignedTo: (t.assignedTo as AgentRole) || 'dev',
-        dependencies: (t.dependencies as string[]) || [],
-        files: []
-      }))
-
-      return {
-        analysis: (parsed.analysis as string) || '',
-        tasks,
-        message: (parsed.message as string) || '任务规划完成'
-      }
-    }
-
-    return {
-      analysis: '',
-      tasks: [],
-      message: response
-    }
   }
 
   private async analyzeAndPlan(task: Task, context: AgentContext): Promise<AgentResponse> {
-    // 模拟 PM Claw 的分析和规划逻辑
     const keywords = this.extractKeywords(task.description)
-    
-    // 根据关键词生成子任务
     const subTasks = this.generateSubTasks(task, keywords)
 
     return {
@@ -133,13 +94,13 @@ export class PMAgent extends BaseAgent {
       message: this.generatePlanningMessage(task, subTasks),
       tasks: subTasks,
       nextAgent: 'dev',
-      status: 'success'
+      status: 'success',
     }
   }
 
   private extractKeywords(description: string): string[] {
     const keywords: string[] = []
-    
+
     if (description.includes('登录') || description.includes('login')) {
       keywords.push('auth', 'form', 'validation')
     }
@@ -172,7 +133,7 @@ export class PMAgent extends BaseAgent {
         status: 'pending',
         assignedTo: 'dev',
         dependencies: [],
-        files: []
+        files: [],
       })
     }
 
@@ -183,7 +144,7 @@ export class PMAgent extends BaseAgent {
         status: 'pending',
         assignedTo: 'dev',
         dependencies: ['创建表单组件'],
-        files: []
+        files: [],
       })
     }
 
@@ -194,7 +155,7 @@ export class PMAgent extends BaseAgent {
         status: 'pending',
         assignedTo: 'dev',
         dependencies: [],
-        files: []
+        files: [],
       })
     }
 
@@ -205,11 +166,10 @@ export class PMAgent extends BaseAgent {
         status: 'pending',
         assignedTo: 'dev',
         dependencies: ['创建表单组件', '实现 API 接口'],
-        files: []
+        files: [],
       })
     }
 
-    // 默认任务
     if (tasks.length === 0) {
       tasks.push({
         title: `实现 ${parentTask.title}`,
@@ -217,7 +177,7 @@ export class PMAgent extends BaseAgent {
         status: 'pending',
         assignedTo: 'dev',
         dependencies: [],
-        files: []
+        files: [],
       })
     }
 
@@ -230,7 +190,7 @@ export class PMAgent extends BaseAgent {
   ): string {
     let message = `好的！我已经分析了需求 "${task.title}"。\n\n`
     message += `我将其拆分为以下 ${subTasks.length} 个子任务：\n\n`
-    
+
     subTasks.forEach((t, i) => {
       message += `${i + 1}. **${t.title}**\n`
       message += `   - 负责人: ${t.assignedTo === 'dev' ? 'Dev Claw' : 'Reviewer Claw'}\n`

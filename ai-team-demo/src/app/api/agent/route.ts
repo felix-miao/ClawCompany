@@ -171,7 +171,7 @@ export function LoginForm() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // 登录逻辑
-    console.log('Login:', { email, password })
+    // TODO: implement login logic
   }
 
   return (
