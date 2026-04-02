@@ -18,7 +18,7 @@ export abstract class BaseAgent {
   abstract execute(task: Task, context: AgentContext): Promise<AgentResponse>
 
   protected generateTaskId(): string {
-    return `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    return `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   }
 
   protected log(message: string): void {

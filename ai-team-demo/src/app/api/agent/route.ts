@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { SecurityManager, InputValidator } from '@/lib/security/utils'
+import { InputValidator } from '@/lib/security/utils'
 import { FileSystemManager } from '@/lib/filesystem/manager'
 import { StorageManager } from '@/lib/storage/manager'
 import { GitManager } from '@/lib/git/manager'
 import { defaultAgents } from '@/lib/agents/config'
 import { withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { getLLMProvider } from '@/lib/llm/factory'
 
 const fsManager = new FileSystemManager(process.cwd())
 const storageManager = new StorageManager()
@@ -54,50 +55,24 @@ export const POST = withRateLimit(async (request: NextRequest) => {
     await storageManager.saveAgent(agentConfig)
   }
 
-  const apiKey = SecurityManager.getFromEnv()
   const useMock = process.env.USE_MOCK_LLM === 'true'
-
-  console.log('[Agent API] useMock:', useMock)
-  console.log('[Agent API] hasApiKey:', !!apiKey)
 
   let agentMessage: string
 
-  if (useMock || !apiKey) {
-    console.log('[Agent API] Using Mock mode')
+  if (useMock) {
     await new Promise(resolve => setTimeout(resolve, 800))
-
     agentMessage = generateMockResponse(agentId, userMessage)
   } else {
-    console.log('[Agent API] Calling real GLM-5 API')
-    const response = await fetch('https://api.z.ai/api/coding/paas/v4/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'glm-5',
-        messages: [
-          {
-            role: 'system',
-            content: agentConfig.systemPrompt
-          },
-          {
-            role: 'user',
-            content: userMessage
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error(`GLM API error: ${response.status}`)
+    const llmProvider = getLLMProvider()
+    if (llmProvider) {
+      agentMessage = await llmProvider.chat([
+        { role: 'system', content: agentConfig.systemPrompt },
+        { role: 'user', content: userMessage }
+      ])
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 800))
+      agentMessage = generateMockResponse(agentId, userMessage)
     }
-
-    const data = await response.json()
-    agentMessage = data.choices[0]?.message?.content || 'No response'
   }
 
   conversation = storageManager.addMessageToConversation(conversation, {
