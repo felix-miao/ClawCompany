@@ -114,12 +114,16 @@
   - /dashboard 页面（Phaser 游戏 + 侧边栏面板布局，连接状态指示器，事件统计）
   - 73 个新测试（DashboardStore: 29, useEventStream: 8, useDashboardStore: 5, AgentStatusPanel: 8, EventLog: 6, ControlPanel: 9, DashboardPage: 8）
 
-### ⏳ Version 10: 优化（待开始）
-- **时间:** 待定
+### ✅ Version 10: 优化（完成）
+- **时间:** ~45 分钟
 - **内容:**
-  - 性能优化
-  - 内存优化
-  - 渲染优化
+  - ObjectPool 通用对象池（预分配、复用、缩容、统计、批量获取/释放）
+  - PerformanceMonitor 帧性能监控（FPS 追踪、帧预算、性能告警 warning/critical、节流建议）
+  - MemoryManager 内存管理（资源追踪/生命周期、按类型清理、过期清理、内存快照、预算控制）
+  - RenderOptimizer 渲染优化（视口裁剪 culling、LOD 距离等级 near/medium/far/minimal、更新节流）
+  - ThrottleSystem 节流系统（throttle/debounce/rateLimit、多 key 管理、取消机制）
+  - OfficeScene 集成（帧性能记录、自适应 agent 更新频率、粒子发射器内存追踪和上限、定期优化清理）
+  - 96 个新测试（ObjectPool: 24, PerformanceMonitor: 22, MemoryManager: 21, RenderOptimizer: 18, ThrottleSystem: 11）
 
 ### ⏳ Version 11: 最终打磨（待开始）
 - **时间:** 待定
@@ -139,9 +143,9 @@
 
 ## 完成统计
 
-- **已完成**: 9/12 (75%)
-- **总用时**: ~5.5 小时
-- **测试覆盖**: 767/767 测试通过（44 个测试套件）
+- **已完成**: 10/12 (83%)
+- **总用时**: ~6.25 小时
+- **测试覆盖**: 874/874 测试通过（49 个测试套件）
 - **最新 Commit**: (pending)
 
 ---
