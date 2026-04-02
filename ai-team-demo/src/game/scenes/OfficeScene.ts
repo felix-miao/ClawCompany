@@ -1,11 +1,11 @@
 import Phaser from 'phaser';
 import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
 import type { AgentConfig } from '@/types/agent-config';
-import { PHYSICS_CONFIG, TILE_SIZE } from '../config/gameConfig';
+import { TILE_SIZE } from '../config/gameConfig';
 import { DebugOverlay } from '../utils/DebugOverlay';
 import { MovementSystem } from '../systems/MovementSystem';
 import { AnimationController } from '../systems/AnimationController';
-import { CharacterSprites, createCharacterSprites } from '../sprites/CharacterSprites';
+import { createCharacterSprites } from '../sprites/CharacterSprites';
 import { NavigationMesh } from '../data/NavigationMesh';
 import { PathfindingSystem } from '../systems/PathfindingSystem';
 import { NavigationSystem } from '../systems/NavigationSystem';
@@ -16,6 +16,11 @@ import { PerformanceMonitor } from '../systems/PerformanceMonitor';
 import { MemoryManager } from '../systems/MemoryManager';
 import { RenderOptimizer } from '../systems/RenderOptimizer';
 import { ThrottleSystem } from '../systems/ThrottleSystem';
+import { SoundSystem } from '../systems/SoundSystem';
+import { TargetMarker } from '../ui/TargetMarker';
+import { OfficeDecorator } from '../ui/OfficeDecorator';
+import { ShadowRenderer } from '../sprites/ShadowRenderer';
+import { RoleVisuals } from '../sprites/RoleVisuals';
 
 type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
 
@@ -52,10 +57,10 @@ interface ActiveTask {
 }
 
 const AGENT_CONFIGS: AgentConfig[] = [
-  { id: 'dev1', name: 'Alice', role: 'Developer' },
-  { id: 'dev2', name: 'Bob', role: 'Developer' },
-  { id: 'pm', name: 'Charlie', role: 'Project Manager' },
-  { id: 'reviewer', name: 'Diana', role: 'Code Reviewer' },
+  { id: 'alice', name: 'Alice', role: 'Developer' },
+  { id: 'bob', name: 'Bob', role: 'Developer' },
+  { id: 'charlie', name: 'Charlie', role: 'Project Manager' },
+  { id: 'diana', name: 'Diana', role: 'Code Reviewer' },
 ];
 
 export class OfficeScene extends Phaser.Scene {
@@ -85,6 +90,13 @@ export class OfficeScene extends Phaser.Scene {
   private static readonly OPTIMIZATION_CHECK_INTERVAL = 5000;
   private static readonly MAX_PARTICLE_EMITTERS = 20;
   private static readonly STALE_EMITTER_AGE = 3000;
+  private soundSystem!: SoundSystem;
+  private targetMarker!: TargetMarker;
+  private officeDecorator!: OfficeDecorator;
+  private shadowRenderer!: ShadowRenderer;
+  private roleVisuals!: RoleVisuals;
+  private shadowGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map();
+  private decorationGraphics: Phaser.GameObjects.Graphics[] = [];
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -104,7 +116,7 @@ export class OfficeScene extends Phaser.Scene {
     try {
       const response = await fetch('/assets/office-tilemap.json');
       this.tilemapData = await response.json();
-    } catch (error) {
+    } catch {
       console.warn('Failed to load tilemap, using defaults');
       this.tilemapData = {
         width: 20,
@@ -132,26 +144,28 @@ export class OfficeScene extends Phaser.Scene {
   private createParticleTexture(): void {
     const graphics = this.add.graphics();
     graphics.fillStyle(0x00ff00, 1);
-    graphics.fillCircle(4, 4, 4);
+    graphics.fillStar(4, 4, 5, 4, 2);
     graphics.generateTexture('particle', 8, 8);
     graphics.destroy();
 
     const celebrationGraphics = this.add.graphics();
     celebrationGraphics.fillStyle(0xffffff, 1);
     celebrationGraphics.fillRect(0, 0, 6, 6);
+    celebrationGraphics.lineStyle(1, 0xffdd00, 0.5);
+    celebrationGraphics.strokeRect(0, 0, 6, 6);
     celebrationGraphics.generateTexture('particle-rect', 6, 6);
     celebrationGraphics.destroy();
 
     const errorGraphics = this.add.graphics();
     errorGraphics.fillStyle(0xff4444, 1);
-    errorGraphics.fillCircle(3, 3, 3);
+    graphics.fillStar(3, 3, 4, 3, 1.5);
     errorGraphics.generateTexture('particle-error', 6, 6);
     errorGraphics.destroy();
 
     const sparkleGraphics = this.add.graphics();
     sparkleGraphics.fillStyle(0xffdd00, 1);
-    sparkleGraphics.fillCircle(2, 2, 2);
-    sparkleGraphics.generateTexture('particle-sparkle', 4, 4);
+    sparkleGraphics.fillStar(3, 3, 4, 3, 1);
+    sparkleGraphics.generateTexture('particle-sparkle', 6, 6);
     sparkleGraphics.destroy();
 
     this.particleTextures.set('celebration', 'particle-rect');
@@ -180,6 +194,11 @@ export class OfficeScene extends Phaser.Scene {
       lodDistances: { near: 200, medium: 500, far: 800 },
     });
     this.throttleSystem = new ThrottleSystem();
+    this.soundSystem = new SoundSystem();
+    this.shadowRenderer = new ShadowRenderer();
+    this.roleVisuals = new RoleVisuals();
+    this.officeDecorator = new OfficeDecorator();
+    this.targetMarker = new TargetMarker(this);
     this.particles = this.add.particles(0, 0, 'particle', {
       speed: { min: 20, max: 50 },
       scale: { start: 0.4, end: 0 },
@@ -189,6 +208,7 @@ export class OfficeScene extends Phaser.Scene {
       emitting: false,
     });
     this.createPlatforms();
+    this.createDecorations();
     this.createNavigationMesh();
     this.createAgents();
     this.setupCollisions();
@@ -256,6 +276,8 @@ export class OfficeScene extends Phaser.Scene {
 
     agent.moveTo(target.x, target.y);
 
+    this.soundSystem.play('task-assigned');
+
     this.activeTasks.set(agent.agentId, {
       agentId: agent.agentId,
       targetX: target.x,
@@ -297,6 +319,7 @@ export class OfficeScene extends Phaser.Scene {
           const dy = Math.abs(agent.y - original.y);
 
           if (dx < 20 && dy < 20) {
+            this.soundSystem.play('task-complete');
             completed.push(agentId);
           }
         }
@@ -315,6 +338,7 @@ export class OfficeScene extends Phaser.Scene {
       this.selectedAgentIndex = (this.selectedAgentIndex + 1) % this.agents.length;
       if (this.agents[this.selectedAgentIndex]) {
         this.movementSystem.setActiveAgent(this.agents[this.selectedAgentIndex]);
+        this.soundSystem.play('tab-switch');
       }
     });
 
@@ -325,11 +349,14 @@ export class OfficeScene extends Phaser.Scene {
         if (idx >= 0) {
           this.selectedAgentIndex = idx;
           this.movementSystem.setActiveAgent(clickedAgent);
+          this.soundSystem.play('click');
         }
       } else {
         const agent = this.agents[this.selectedAgentIndex];
         if (agent) {
           agent.moveTo(pointer.worldX, pointer.worldY);
+          this.targetMarker.setTarget(pointer.worldX, pointer.worldY);
+          this.soundSystem.play('click');
         }
       }
     });
@@ -356,28 +383,36 @@ export class OfficeScene extends Phaser.Scene {
 
     if (isWorking) {
       this.playParticleEffect(agent.agentId, 'work-start');
+      this.soundSystem.play('work-start');
+    } else {
+      this.soundSystem.play('work-end');
     }
   }
 
   private createPlatforms(): void {
     if (!this.tilemapData) return;
 
-    const platformColors: Record<string, number> = {
-      floor: 0x888888,
-      wall_left: 0x666666,
-      wall_right: 0x666666,
-      desk: 0x4a3728,
+    const platformColors: Record<string, { fill: number; border: number; highlight: number }> = {
+      floor: { fill: 0x555555, border: 0x444444, highlight: 0x666666 },
+      wall_left: { fill: 0x3a3a3a, border: 0x2a2a2a, highlight: 0x4a4a4a },
+      wall_right: { fill: 0x3a3a3a, border: 0x2a2a2a, highlight: 0x4a4a4a },
+      desk: { fill: 0x5c3a1e, border: 0x3a2210, highlight: 0x7a4f2e },
     };
 
     this.tilemapData.platforms.forEach((platform) => {
       const x = platform.x * TILE_SIZE + (platform.width * TILE_SIZE) / 2;
       const y = platform.y * TILE_SIZE + (platform.height * TILE_SIZE) / 2;
       const width = platform.width * TILE_SIZE;
-      const height = platform.height * TILE_SIZE;
+      const height = Math.max(platform.height * TILE_SIZE, 4);
 
+      const colors = platformColors[platform.type] || platformColors.floor;
       const graphics = this.add.graphics();
-      graphics.fillStyle(platformColors[platform.type] || 0x888888, 1);
+      graphics.fillStyle(colors.fill, 1);
       graphics.fillRect(-width / 2, -height / 2, width, height);
+      graphics.fillStyle(colors.highlight, 0.3);
+      graphics.fillRect(-width / 2, -height / 2, width, Math.max(2, height * 0.3));
+      graphics.lineStyle(1, colors.border, 0.5);
+      graphics.strokeRect(-width / 2, -height / 2, width, height);
       graphics.generateTexture(`platform_${platform.type}`, width, height);
       graphics.destroy();
 
@@ -395,6 +430,7 @@ export class OfficeScene extends Phaser.Scene {
     this.tilemapData.workstations.forEach((ws, index) => {
       const color = agentColors[index % agentColors.length];
       const config = AGENT_CONFIGS[index] ?? { id: ws.id, name: ws.label, role: ws.taskType };
+      const badgeConfig = this.roleVisuals.getNameBadgeConfig(config.role);
       createCharacterSprites(this, color);
 
       const x = ws.x * TILE_SIZE + TILE_SIZE / 2;
@@ -411,13 +447,22 @@ export class OfficeScene extends Phaser.Scene {
       this.workstationMap.set(ws.id, ws);
 
       const nameLabel = this.add.text(x, y + 20, config.name, {
-        fontSize: '10px',
-        color: '#ffffff',
-        backgroundColor: '#00000088',
-        padding: { x: 2, y: 1 },
+        fontSize: `${badgeConfig.fontSize}px`,
+        color: badgeConfig.textColor,
+        backgroundColor: `#${badgeConfig.bgColor.toString(16).padStart(6, '0')}`,
+        padding: { x: badgeConfig.padding, y: 1 },
       });
       nameLabel.setOrigin(0.5);
+      nameLabel.setStroke(`#${badgeConfig.borderColor.toString(16).padStart(6, '0')}`, 1);
       this.nameLabels.set(agent.agentId, nameLabel);
+
+      const shadowDims = this.shadowRenderer.getShadowDimensions(32, 32);
+      const shadowGfx = this.add.graphics();
+      const shadowColor = this.shadowRenderer.getShadowColor();
+      shadowGfx.fillStyle(shadowColor.color, shadowColor.alpha);
+      shadowGfx.fillEllipse(0, 0, shadowDims.width, shadowDims.height);
+      shadowGfx.setPosition(agent.x, agent.y + shadowDims.offsetY);
+      this.shadowGraphics.set(agent.agentId, shadowGfx);
 
       this.memoryManager.track({
         type: 'text-label',
@@ -567,11 +612,18 @@ export class OfficeScene extends Phaser.Scene {
     }
 
     this.syncNameLabels();
+    this.syncShadows();
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
     this.checkTaskCompletion();
     if (this.particleSystem) {
       this.particleSystem.update(delta);
+    }
+    this.soundSystem.update(delta);
+
+    const selectedAgent = this.agents[this.selectedAgentIndex];
+    if (selectedAgent && this.targetMarker.isActive()) {
+      this.targetMarker.updatePosition(selectedAgent.x, selectedAgent.y);
     }
 
     this.runOptimizationCheck();
@@ -585,6 +637,115 @@ export class OfficeScene extends Phaser.Scene {
         label.setDepth(agent.depth + 1);
       }
     });
+  }
+
+  private syncShadows(): void {
+    this.shadowGraphics.forEach((gfx, agentId) => {
+      const agent = this.agentMap.get(agentId);
+      if (agent) {
+        const dims = this.shadowRenderer.getShadowDimensions(32, 32);
+        gfx.setPosition(agent.x, agent.y + dims.offsetY);
+      }
+    });
+  }
+
+  private createDecorations(): void {
+    if (!this.tilemapData) return;
+
+    this.officeDecorator.autoDecorate(
+      this.tilemapData.platforms,
+      this.tilemapData.width,
+      this.tilemapData.height
+    );
+
+    const decorations = this.officeDecorator.getDecorations();
+    for (const deco of decorations) {
+      const gfx = this.add.graphics();
+      this.drawDecoration(gfx, deco.type, deco.config);
+      gfx.setPosition(deco.x, deco.y);
+      gfx.setDepth(deco.config.zIndex);
+      gfx.setAlpha(0.85);
+      this.decorationGraphics.push(gfx);
+
+      this.memoryManager.track({
+        type: 'decoration',
+        id: deco.id,
+        estimatedSize: deco.config.width * deco.config.height * 4,
+      });
+    }
+  }
+
+  private drawDecoration(gfx: Phaser.GameObjects.Graphics, type: string, config: import('../ui/OfficeDecorator').DecorationConfig): void {
+    switch (type) {
+      case 'monitor':
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-config.width / 2, -config.height, config.width, config.height);
+        gfx.fillStyle(config.secondaryColor, 1);
+        gfx.fillRect(-config.width / 2 + 2, -config.height + 2, config.width - 4, config.height - 6);
+        gfx.fillStyle(config.accentColor, 0.7);
+        gfx.fillRect(-config.width / 4, -config.height / 2, config.width / 2, 2);
+        break;
+      case 'plant':
+        gfx.fillStyle(config.accentColor, 1);
+        gfx.fillRect(-3, -6, 6, 6);
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillCircle(-4, -10, 5);
+        gfx.fillStyle(config.secondaryColor, 1);
+        gfx.fillCircle(3, -12, 4);
+        gfx.fillCircle(-1, -14, 3);
+        break;
+      case 'coffee-cup':
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-config.width / 2, -config.height, config.width, config.height - 2);
+        gfx.fillStyle(config.secondaryColor, 1);
+        gfx.fillRect(-config.width / 2 + 1, -config.height + 1, config.width - 2, 3);
+        break;
+      case 'wall-art':
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-config.width / 2, -config.height, config.width, config.height);
+        gfx.fillStyle(config.secondaryColor, 0.8);
+        gfx.fillRect(-config.width / 2 + 2, -config.height + 2, config.width / 2 - 3, config.height - 4);
+        gfx.fillStyle(config.accentColor, 0.9);
+        gfx.fillRect(1, -config.height + 2, config.width / 2 - 3, config.height - 4);
+        break;
+      case 'bookshelf':
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-config.width / 2, -config.height, config.width, config.height);
+        gfx.fillStyle(config.secondaryColor, 1);
+        for (let i = 0; i < 3; i++) {
+          gfx.fillRect(-config.width / 2 + 2, -config.height + 4 + i * 10, 8, 6);
+        }
+        gfx.fillStyle(config.accentColor, 1);
+        gfx.fillRect(-config.width / 2 + 12, -config.height + 4, 6, 6);
+        break;
+      case 'lamp':
+        gfx.fillStyle(config.accentColor, 1);
+        gfx.fillRect(-1, -8, 2, 8);
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-4, -4, 8, 2);
+        gfx.fillStyle(config.secondaryColor, 0.8);
+        gfx.fillTriangle(-6, -8, 6, -8, 0, -16);
+        break;
+      case 'whiteboard':
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-config.width / 2, -config.height, config.width, config.height);
+        gfx.fillStyle(config.secondaryColor, 1);
+        gfx.lineStyle(1, config.accentColor, 1);
+        gfx.strokeRect(-config.width / 2, -config.height, config.width, config.height);
+        for (let i = 0; i < 3; i++) {
+          gfx.fillStyle(0x999999, 0.5);
+          gfx.fillRect(-config.width / 2 + 3, -config.height + 4 + i * 5, config.width - 6, 2);
+        }
+        break;
+      case 'poster':
+        gfx.fillStyle(config.primaryColor, 1);
+        gfx.fillRect(-config.width / 2, -config.height, config.width, config.height);
+        gfx.fillStyle(config.secondaryColor, 0.8);
+        gfx.fillCircle(0, -config.height / 2, 6);
+        gfx.fillStyle(config.accentColor, 0.9);
+        gfx.fillRect(-config.width / 2 + 3, -config.height + 3, config.width - 6, 3);
+        break;
+    }
   }
 
   toggleDebug(): void {
@@ -685,5 +846,32 @@ export class OfficeScene extends Phaser.Scene {
 
   private cleanupStaleMemory(): void {
     this.memoryManager.cleanupStale(OfficeScene.STALE_EMITTER_AGE);
+  }
+
+  shutdown(): void {
+    this.soundSystem.stopAll();
+    this.soundSystem.destroy();
+    this.officeDecorator.destroy();
+    this.particleSystem.clearAllEffects();
+    this.eventBridge?.disconnect();
+    this.particleEmitters.forEach(e => e.destroy());
+    this.particleEmitters.clear();
+    this.shadowGraphics.forEach(g => g.destroy());
+    this.shadowGraphics.clear();
+    this.decorationGraphics.forEach(g => g.destroy());
+    this.decorationGraphics = [];
+    this.nameLabels.forEach(l => l.destroy());
+    this.nameLabels.clear();
+    this.activeTasks.clear();
+    this.agents = [];
+    this.agentMap.clear();
+  }
+
+  getSoundSystem(): SoundSystem {
+    return this.soundSystem;
+  }
+
+  getOfficeDecorator(): OfficeDecorator {
+    return this.officeDecorator;
   }
 }
