@@ -1,4 +1,5 @@
 import { StorageManager, Conversation, AgentConfig } from '../manager'
+import type { PersistedAgentConfig } from '@/types/agent-config'
 import * as fs from 'fs/promises'
 import * as path from 'path'
 

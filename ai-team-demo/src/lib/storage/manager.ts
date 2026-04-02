@@ -3,6 +3,8 @@ import * as path from 'path'
 import { FileSystemManager } from '../filesystem/manager'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
+import type { PersistedAgentConfig } from '@/types/agent-config'
+import { PersistedAgentConfigSchema } from '@/types/agent-config'
 
 /**
  * 持久化存储管理器
@@ -37,19 +39,9 @@ export interface Message {
   timestamp: string
 }
 
-export interface AgentConfig {
-  id: string
-  name: string
-  role: string
-  emoji: string
-  color: string
-  systemPrompt: string
-  runtime: 'subagent' | 'acp'
-  agentId?: string
-  thinking?: 'low' | 'medium' | 'high'
-  createdAt: string
-  updatedAt: string
-}
+export type AgentConfig = PersistedAgentConfig
+
+export { PersistedAgentConfigSchema as AgentConfigSchema } from '@/types/agent-config'
 
 export class StorageManager {
   private dataDir: string
@@ -144,10 +136,11 @@ export class StorageManager {
    * 保存 Agent 配置
    */
   async saveAgent(agent: AgentConfig): Promise<void> {
-    const filePath = `agents/${agent.id}.json`
+    const validated = PersistedAgentConfigSchema.parse(agent)
+    const filePath = `agents/${validated.id}.json`
     await this.fsManager.createFile(
       filePath,
-      JSON.stringify(agent, null, 2)
+      JSON.stringify(validated, null, 2)
     )
   }
 
@@ -162,9 +155,13 @@ export class StorageManager {
       return null
     }
 
-    return safeJsonParse<AgentConfig>(result.content, 'StorageManager.loadAgent').success
-      ? (JSON.parse(result.content) as AgentConfig)
-      : null
+    const parsed = safeJsonParse<AgentConfig>(result.content, 'StorageManager.loadAgent')
+    if (!parsed.success) return null
+
+    const validated = PersistedAgentConfigSchema.safeParse(
+      JSON.parse(result.content)
+    )
+    return validated.success ? validated.data : null
   }
 
   /**

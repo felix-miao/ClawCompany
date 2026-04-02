@@ -1,16 +1,9 @@
-export interface AgentConfig {
-  id: string
-  name: string
-  role: 'pm' | 'dev' | 'review' | 'custom'
-  emoji: string
-  color: string
-  systemPrompt: string
-  runtime: 'subagent' | 'acp'
-  agentId?: string
-  thinking?: 'low' | 'medium' | 'high'
-}
+export type { AgentConfig, AppAgentConfig } from '@/types/agent-config'
+export { AgentConfigSchema, AppAgentConfigSchema } from '@/types/agent-config'
 
-export const defaultAgents: AgentConfig[] = [
+import type { AppAgentConfig } from '@/types/agent-config'
+
+export const defaultAgents: AppAgentConfig[] = [
   {
     id: 'pm-agent',
     name: 'PM Claw',

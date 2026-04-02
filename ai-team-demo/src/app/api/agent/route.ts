@@ -4,6 +4,8 @@ import { FileSystemManager } from '@/lib/filesystem/manager'
 import { StorageManager } from '@/lib/storage/manager'
 import { GitManager } from '@/lib/git/manager'
 import { defaultAgents } from '@/lib/agents/config'
+import { PersistedAgentConfigSchema } from '@/types/agent-config'
+import type { PersistedAgentConfig } from '@/types/agent-config'
 import { withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
 import { getLLMProvider } from '@/lib/llm/factory'
 
@@ -38,7 +40,7 @@ export const POST = withRateLimit(async (request: NextRequest) => {
     content: userMessage
   })
 
-  let agentConfig = await storageManager.loadAgent(agentId)
+  let agentConfig: PersistedAgentConfig | null = await storageManager.loadAgent(agentId)
 
   if (!agentConfig) {
     const defaultAgent = defaultAgents.find(a => a.id === agentId)
@@ -46,11 +48,11 @@ export const POST = withRateLimit(async (request: NextRequest) => {
       return errorResponse('Agent not found', 404)
     }
 
-    agentConfig = {
+    agentConfig = PersistedAgentConfigSchema.parse({
       ...defaultAgent,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    }
+    })
 
     await storageManager.saveAgent(agentConfig)
   }
@@ -274,11 +276,11 @@ export const PUT = withErrorHandling(async (request: NextRequest) => {
     return errorResponse('Agent not found', 404)
   }
 
-  const updated = {
+  const updated = PersistedAgentConfigSchema.parse({
     ...agent,
     ...updates,
     updatedAt: new Date().toISOString()
-  }
+  })
 
   await storageManager.saveAgent(updated)
 
