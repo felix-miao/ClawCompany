@@ -107,6 +107,12 @@ export default function Home() {
             >
               View Demo
             </Link>
+            <Link
+              href="/dashboard"
+              className="px-8 py-4 glass text-white font-semibold rounded-xl hover:bg-dark-100 transition-all duration-300 border border-primary-500/30"
+            >
+              Dashboard
+            </Link>
           </motion.div>
         </motion.div>
         
