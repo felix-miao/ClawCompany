@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { AgentConfig, defaultAgents } from '@/lib/agents/config'
+import { type AgentConfig, type AppAgentConfig, defaultAgents } from '@/lib/agents/config'
 
 interface CodeFile {
   path: string
@@ -113,7 +113,7 @@ function MessageContent({ message }: { message: Message }) {
 }
 
 export default function TeamChatPage() {
-  const [agents] = useState<AgentConfig[]>(defaultAgents)
+  const [agents] = useState<AppAgentConfig[]>(defaultAgents)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -168,7 +168,7 @@ export default function TeamChatPage() {
     const startTime = Date.now()
 
     addMessage(
-      { id: 'user', name: 'You', emoji: '👤', color: '#6B7280' } as any,
+      { id: 'user', name: 'You', role: 'user', emoji: '👤', color: '#6B7280' },
       userMessage
     )
 
@@ -236,14 +236,14 @@ export default function TeamChatPage() {
       const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
 
       addMessage(
-        { id: 'system', name: 'System', emoji: '🎉', color: '#FF5833' } as any,
+        { id: 'system', name: 'System', role: 'system', emoji: '🎉', color: '#FF5833' },
         `团队协作完成！\n\n📊 性能统计：\n• PM Claw: ${pmDuration}秒\n• Dev Claw: ${devDuration}秒\n• Reviewer Claw: ${reviewDuration}秒\n• 总用时: ${totalDuration}秒`
       )
 
     } catch (error) {
       console.error('Error:', error)
       addMessage(
-        { id: 'error', name: 'Error', emoji: '❌', color: '#EF4444' } as any,
+        { id: 'error', name: 'Error', role: 'error', emoji: '❌', color: '#EF4444' },
         `错误: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
     } finally {

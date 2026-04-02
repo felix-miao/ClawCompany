@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { AgentCharacter, AgentConfig, createAgent } from '../characters/AgentCharacter';
+import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
+import type { AgentConfig } from '@/types/agent-config';
 import { PHYSICS_CONFIG, TILE_SIZE } from '../config/gameConfig';
 import { DebugOverlay } from '../utils/DebugOverlay';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -64,8 +65,7 @@ export class OfficeScene extends Phaser.Scene {
   private activeTasks: Map<string, ActiveTask> = new Map();
   private selectedAgentIndex: number = 0;
   private nameLabels: Map<string, Phaser.GameObjects.Text> = new Map();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private particles!: any;
+  private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },

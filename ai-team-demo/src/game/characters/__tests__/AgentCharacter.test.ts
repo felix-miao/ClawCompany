@@ -1,11 +1,6 @@
 import { EmotionSystem } from '../../systems/EmotionSystem';
 import { PathPoint } from '../../systems/PathfindingSystem';
-
-interface AgentConfig {
-  id: string;
-  name: string;
-  role: string;
-}
+import type { AgentConfig } from '@/types/agent-config';
 
 interface AgentState {
   config: AgentConfig;
