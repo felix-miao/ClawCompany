@@ -211,9 +211,8 @@ export class ReviewAgent extends BaseAgent {
     task: Task,
     context: AgentContext
   ): { message: string; approved: boolean } {
-    // 模拟代码审查逻辑
-    const checks = this.runCodeChecks(task)
-    const issues = checks.filter(c => !c.passed)
+    const checks = this.runCodeChecks(task, context)
+    const issues = checks.filter(c => !c.passed && !c.warning)
     const warnings = checks.filter(c => c.warning)
 
     let message = `📋 代码审查报告 - **${task.title}**\n\n`
@@ -242,67 +241,149 @@ export class ReviewAgent extends BaseAgent {
     }
   }
 
-  private runCodeChecks(task: Task): Array<{
+  private getAllFileContent(context: AgentContext): string {
+    return Object.values(context.files).join('\n')
+  }
+
+  private runCodeChecks(task: Task, context: AgentContext): Array<{
     name: string
     passed: boolean
     warning?: boolean
     message?: string
   }> {
     const checks = []
+    const code = this.getAllFileContent(context)
 
-    // 1. 代码风格检查
-    checks.push({
+    checks.push(this.checkCodeStyle(code))
+    checks.push(this.checkTypeSafety(code))
+    checks.push(this.checkErrorHandling(code))
+    checks.push(this.checkAccessibility(code))
+    checks.push(this.checkPerformance(code))
+    checks.push(this.checkSecurity(code))
+    checks.push(this.checkTestCoverage(code))
+
+    return checks
+  }
+
+  private checkCodeStyle(code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    const hasConsistentIndentation = !code || /^(  |\t|    )/m.test(code) || code.split('\n').length <= 3
+    return {
       name: '代码风格',
-      passed: Math.random() > 0.2,
+      passed: hasConsistentIndentation,
       message: '建议使用 Prettier 格式化代码'
-    })
+    }
+  }
 
-    // 2. 类型安全
-    checks.push({
-      name: 'TypeScript 类型安全',
-      passed: Math.random() > 0.3,
-      warning: Math.random() > 0.7,
-      message: '部分变量缺少类型定义'
-    })
+  private checkTypeSafety(code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    if (!code) {
+      return { name: 'TypeScript 类型安全', passed: true }
+    }
+    const hasAny = /\bany\b/.test(code)
+    if (hasAny) {
+      return {
+        name: 'TypeScript 类型安全',
+        passed: false,
+        warning: true,
+        message: '部分变量缺少类型定义'
+      }
+    }
+    return { name: 'TypeScript 类型安全', passed: true }
+  }
 
-    // 3. 错误处理
-    checks.push({
-      name: '错误处理',
-      passed: Math.random() > 0.3,
-      message: '建议添加 try-catch 错误处理'
-    })
+  private checkErrorHandling(code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    if (!code) {
+      return { name: '错误处理', passed: true }
+    }
+    const hasTryCatch = /try\s*\{/.test(code)
+    const hasAsync = /async\s/.test(code) || /await\s/.test(code)
+    const hasFetch = /fetch\s*\(/.test(code)
+    if ((hasAsync || hasFetch) && !hasTryCatch) {
+      return {
+        name: '错误处理',
+        passed: false,
+        message: '建议添加 try-catch 错误处理'
+      }
+    }
+    return { name: '错误处理', passed: true }
+  }
 
-    // 4. 可访问性
-    checks.push({
-      name: '可访问性 (a11y)',
-      passed: Math.random() > 0.4,
-      warning: Math.random() > 0.6,
-      message: '建议添加 aria-label 属性'
-    })
+  private checkAccessibility(code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    if (!code) {
+      return { name: '可访问性 (a11y)', passed: true }
+    }
+    const hasForm = /<form[\s>]/i.test(code) || /<input[\s>]/i.test(code) || /<button[\s>]/i.test(code)
+    if (!hasForm) {
+      return { name: '可访问性 (a11y)', passed: true }
+    }
+    const hasAria = /aria-/.test(code)
+    const hasLabel = /<label[\s>]/i.test(code) || /htmlFor=/.test(code)
+    const hasRole = /role=/.test(code)
+    if (!hasAria && !hasLabel && !hasRole) {
+      return {
+        name: '可访问性 (a11y)',
+        passed: false,
+        warning: true,
+        message: '建议添加 aria-label 属性'
+      }
+    }
+    return { name: '可访问性 (a11y)', passed: true }
+  }
 
-    // 5. 性能
-    checks.push({
-      name: '性能优化',
-      passed: Math.random() > 0.5,
-      warning: Math.random() > 0.5,
-      message: '考虑使用 React.memo 优化渲染'
-    })
+  private checkPerformance(code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    if (!code) {
+      return { name: '性能优化', passed: true }
+    }
+    const hasAwaitInLoop = /for\s*\(.*\n?[\s\S]*?await\s/.test(code)
+      || /\.forEach\(.*=>[\s\S]*?await\s/.test(code)
+      || /for\s*\(\s*(?:const|let|var)\s+\w+\s+of\b[\s\S]*?await\s/.test(code)
+    if (hasAwaitInLoop) {
+      return {
+        name: '性能优化',
+        passed: false,
+        warning: true,
+        message: '循环中使用 await 可能导致性能问题，考虑使用 Promise.all'
+      }
+    }
+    return { name: '性能优化', passed: true }
+  }
 
-    // 6. 安全性
-    checks.push({
-      name: '安全性检查',
-      passed: Math.random() > 0.2,
-      message: '请确保用户输入已正确验证'
-    })
+  private checkSecurity(code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    if (!code) {
+      return { name: '安全性检查', passed: true }
+    }
+    const hasDangerousHTML = /dangerouslySetInnerHTML/.test(code)
+    const hasEval = /\beval\s*\(/.test(code)
+    const hasInnerHtml = /\.innerHTML\s*=/.test(code)
+    if (hasDangerousHTML || hasEval || hasInnerHtml) {
+      return {
+        name: '安全性检查',
+        passed: false,
+        message: '请确保用户输入已正确验证，发现潜在安全风险'
+      }
+    }
+    return { name: '安全性检查', passed: true }
+  }
 
-    // 7. 测试覆盖
-    checks.push({
+  private checkTestCoverage(_code: string): {
+    name: string; passed: boolean; warning?: boolean; message?: string
+  } {
+    return {
       name: '测试覆盖',
       passed: false,
       warning: true,
       message: '建议添加单元测试'
-    })
-
-    return checks
+    }
   }
 }
