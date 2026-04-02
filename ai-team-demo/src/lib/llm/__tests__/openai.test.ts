@@ -23,7 +23,7 @@ describe('OpenAIProvider', () => {
     it('应该在缺少 API key 时抛出错误', () => {
       expect(() => {
         new OpenAIProvider({ provider: 'openai', apiKey: '' })
-      }).toThrow('OpenAI API key is required')
+      }).toThrow('API key is required')
     })
   })
 

@@ -31,7 +31,7 @@ describe('GLMProvider', () => {
     it('应该在缺少 API key 时抛出错误', () => {
       expect(() => {
         new GLMProvider({ provider: 'glm', apiKey: '' })
-      }).toThrow('GLM API key is required')
+      }).toThrow('API key is required')
     })
   })
 

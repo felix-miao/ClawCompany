@@ -5,7 +5,7 @@ export class GLMProvider extends BaseLLMProvider {
   private baseUrl: string
 
   constructor(config: LLMConfig) {
-    super(config)
+    super(config, 'glm-5')
     this.baseUrl = 'https://api.z.ai/api/coding/paas/v4'
   }
 

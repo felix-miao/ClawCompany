@@ -13,15 +13,15 @@ export abstract class BaseLLMProvider implements LLMProvider {
   protected abstract get providerName(): string
   protected abstract get defaultModel(): string
 
-  constructor(config: LLMConfig) {
+  constructor(config: LLMConfig, fallbackModel: string) {
     if (!config.apiKey) {
-      throw new Error(`${this.providerName} API key is required`)
+      throw new Error('API key is required')
     }
     this.apiKey = config.apiKey
-    this.model = config.model || this.defaultModel
     this.temperature = config.temperature ?? 0.7
     this.maxTokens = config.maxTokens ?? 2000
     this.timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS
+    this.model = config.model ?? fallbackModel
   }
 
   private createAbortSignal(): AbortSignal {

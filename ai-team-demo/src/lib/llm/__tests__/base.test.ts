@@ -4,6 +4,10 @@ import { ChatMessage, LLMConfig } from '../types'
 global.fetch = jest.fn()
 
 class TestProvider extends BaseLLMProvider {
+  constructor(config: LLMConfig) {
+    super(config, 'test-model-v1')
+  }
+
   protected get apiUrl(): string {
     return 'https://test.api.com/v1/chat/completions'
   }
@@ -33,10 +37,10 @@ describe('BaseLLMProvider', () => {
       expect(provider).toBeDefined()
     })
 
-    it('应该在缺少 API key 时抛出错误（含 provider 名称）', () => {
+    it('应该在缺少 API key 时抛出错误', () => {
       expect(() => {
         new TestProvider({ provider: 'openai', apiKey: '' })
-      }).toThrow('Test API key is required')
+      }).toThrow('API key is required')
     })
 
     it('应该使用默认模型', async () => {
@@ -377,12 +381,14 @@ describe('BaseLLMProvider', () => {
   describe('子类继承验证', () => {
     it('不同子类应使用各自的 providerName', async () => {
       class ProviderA extends BaseLLMProvider {
+        constructor(config: LLMConfig) { super(config, 'model-a') }
         protected get apiUrl(): string { return 'https://a.com/v1' }
         protected get providerName(): string { return 'ProviderA' }
         protected get defaultModel(): string { return 'model-a' }
       }
 
       class ProviderB extends BaseLLMProvider {
+        constructor(config: LLMConfig) { super(config, 'model-b') }
         protected get apiUrl(): string { return 'https://b.com/v1' }
         protected get providerName(): string { return 'ProviderB' }
         protected get defaultModel(): string { return 'model-b' }
@@ -408,6 +414,7 @@ describe('BaseLLMProvider', () => {
       })
 
       class ModelX extends BaseLLMProvider {
+        constructor(config: LLMConfig) { super(config, 'x-model-1') }
         protected get apiUrl(): string { return 'https://x.com/v1' }
         protected get providerName(): string { return 'X' }
         protected get defaultModel(): string { return 'x-model-1' }
@@ -427,12 +434,14 @@ describe('BaseLLMProvider', () => {
       })
 
       class ApiA extends BaseLLMProvider {
+        constructor(config: LLMConfig) { super(config, 'a') }
         protected get apiUrl(): string { return 'https://api-a.com/v1/chat' }
         protected get providerName(): string { return 'A' }
         protected get defaultModel(): string { return 'a' }
       }
 
       class ApiB extends BaseLLMProvider {
+        constructor(config: LLMConfig) { super(config, 'b') }
         protected get apiUrl(): string { return 'https://api-b.com/v2/chat' }
         protected get providerName(): string { return 'B' }
         protected get defaultModel(): string { return 'b' }

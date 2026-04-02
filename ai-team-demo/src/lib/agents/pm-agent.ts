@@ -1,5 +1,5 @@
 import { BaseAgent } from './base'
-import { Task, AgentResponse, AgentContext } from './types'
+import { Task, AgentResponse, AgentContext, AgentRole } from './types'
 import { getLLMProvider } from '../llm/factory'
 import { extractJSONObject } from '../utils/json-parser'
 
@@ -102,7 +102,7 @@ export class PMAgent extends BaseAgent {
         title: (t.title as string) || '未命名任务',
         description: (t.description as string) || '',
         status: 'pending' as const,
-        assignedTo: (t.assignedTo as string) || 'dev',
+        assignedTo: (t.assignedTo as AgentRole) || 'dev',
         dependencies: (t.dependencies as string[]) || [],
         files: []
       }))
