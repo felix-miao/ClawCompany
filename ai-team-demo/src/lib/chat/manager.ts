@@ -1,6 +1,6 @@
-// Chat Manager - 对话管理器
-
 import { AgentRole, Message } from '../agents/types'
+import { generateId } from '../utils/id'
+import { safeJsonParse } from '../utils/json-parser'
 
 export class ChatManager {
   private messages: Message[] = []
@@ -17,7 +17,7 @@ export class ChatManager {
     metadata?: Message['metadata']
   ): Message {
     const message: Message = {
-      id: this.generateId(),
+      id: generateId('msg_'),
       agent,
       content,
       type,
@@ -49,32 +49,26 @@ export class ChatManager {
     this.messages = []
   }
 
-  // 模拟 Agent 发送消息
   broadcast(agent: AgentRole, content: string): Message {
     return this.addMessage(agent, content, 'text')
   }
 
-  // 用户发送消息
   sendUserMessage(content: string): Message {
     return this.addMessage('user', content, 'text')
   }
 
-  // 代码消息
   sendCodeMessage(agent: AgentRole, code: string, language: string = 'typescript'): Message {
     return this.addMessage(agent, code, 'code', { codeLanguage: language })
   }
 
-  // 文件消息
   sendFileMessage(agent: AgentRole, filePath: string, content: string): Message {
     return this.addMessage(agent, content, 'file', { filePath })
   }
 
-  // 任务消息
   sendTaskMessage(agent: AgentRole, taskId: string, content: string): Message {
     return this.addMessage(agent, content, 'task', { taskId })
   }
 
-  // 序列化/反序列化
   toJSON(): string {
     return JSON.stringify({
       sessionId: this.sessionId,
@@ -83,19 +77,17 @@ export class ChatManager {
   }
 
   static fromJSON(json: string): ChatManager {
-    const data = JSON.parse(json)
-    const manager = new ChatManager(data.sessionId)
-    manager.messages = data.messages.map((m: Message) => ({
+    const result = safeJsonParse<{ sessionId: string; messages: Message[] }>(json, 'ChatManager')
+    if (!result.success) {
+      throw new Error(result.error)
+    }
+    const manager = new ChatManager(result.data.sessionId)
+    manager.messages = result.data.messages.map((m: Message) => ({
       ...m,
       timestamp: new Date(m.timestamp)
     }))
     return manager
   }
-
-  private generateId(): string {
-    return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-  }
 }
 
-// 全局聊天管理器实例
 export const chatManager = new ChatManager()

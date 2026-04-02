@@ -1,8 +1,7 @@
-// PM Claw - 产品经理 Agent
-
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
 import { getLLMProvider } from '../llm/factory'
+import { extractJSONObject } from '../utils/json-parser'
 
 export class PMAgent extends BaseAgent {
   constructor() {
@@ -97,33 +96,24 @@ export class PMAgent extends BaseAgent {
     tasks: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>[]
     message: string
   } {
-    try {
-      // 尝试提取 JSON
-      const jsonMatch = response.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        
-        // 转换为标准格式
-        const tasks = (parsed.tasks || []).map((t: any) => ({
-          title: t.title || '未命名任务',
-          description: t.description || '',
-          status: 'pending' as const,
-          assignedTo: t.assignedTo || 'dev',
-          dependencies: t.dependencies || [],
-          files: []
-        }))
+    const parsed = extractJSONObject(response)
+    if (parsed) {
+      const tasks = ((parsed.tasks as Record<string, unknown>[]) || []).map((t) => ({
+        title: (t.title as string) || '未命名任务',
+        description: (t.description as string) || '',
+        status: 'pending' as const,
+        assignedTo: (t.assignedTo as string) || 'dev',
+        dependencies: (t.dependencies as string[]) || [],
+        files: []
+      }))
 
-        return {
-          analysis: parsed.analysis || '',
-          tasks,
-          message: parsed.message || '任务规划完成'
-        }
+      return {
+        analysis: (parsed.analysis as string) || '',
+        tasks,
+        message: (parsed.message as string) || '任务规划完成'
       }
-    } catch (e) {
-      this.log(`解析 LLM 响应失败: ${e}`)
     }
 
-    // 如果解析失败，使用整个响应作为消息
     return {
       analysis: '',
       tasks: [],

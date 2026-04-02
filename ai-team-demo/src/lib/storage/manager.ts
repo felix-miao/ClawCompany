@@ -1,6 +1,8 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
 import { FileSystemManager } from '../filesystem/manager'
+import { generateId } from '../utils/id'
+import { safeJsonParse } from '../utils/json-parser'
 
 /**
  * 持久化存储管理器
@@ -95,7 +97,9 @@ export class StorageManager {
       return null
     }
 
-    return JSON.parse(result.content) as Conversation
+    return safeJsonParse<Conversation>(result.content, 'StorageManager.loadConversation').success
+      ? (JSON.parse(result.content) as Conversation)
+      : null
   }
 
   /**
@@ -158,7 +162,9 @@ export class StorageManager {
       return null
     }
 
-    return JSON.parse(result.content) as AgentConfig
+    return safeJsonParse<AgentConfig>(result.content, 'StorageManager.loadAgent').success
+      ? (JSON.parse(result.content) as AgentConfig)
+      : null
   }
 
   /**
@@ -200,7 +206,7 @@ export class StorageManager {
    * 生成唯一 ID
    */
   generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    return generateId()
   }
 
   /**
