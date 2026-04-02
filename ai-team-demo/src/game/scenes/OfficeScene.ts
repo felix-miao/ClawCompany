@@ -9,6 +9,8 @@ import { CharacterSprites, createCharacterSprites } from '../sprites/CharacterSp
 import { NavigationMesh } from '../data/NavigationMesh';
 import { PathfindingSystem } from '../systems/PathfindingSystem';
 import { NavigationSystem } from '../systems/NavigationSystem';
+import { SceneEventBridge, SceneActions } from '../systems/SceneEventBridge';
+import { EmotionType } from '../systems/EmotionSystem';
 
 type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
 
@@ -66,6 +68,7 @@ export class OfficeScene extends Phaser.Scene {
   private selectedAgentIndex: number = 0;
   private nameLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private eventBridge: SceneEventBridge | null = null;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -139,6 +142,7 @@ export class OfficeScene extends Phaser.Scene {
     }
     this.setupKeyboard();
     this.setupTaskSystem();
+    this.setupEventBridge();
   }
 
   private createNavigationMesh(): void {
@@ -395,6 +399,37 @@ export class OfficeScene extends Phaser.Scene {
 
   private setupDebug(): void {
     this.debugOverlay = new DebugOverlay(this);
+  }
+
+  private setupEventBridge(): void {
+    const actions: SceneActions = {
+      setAgentWorking: (agentId: string, working: boolean) => {
+        const agent = this.agentMap.get(agentId);
+        if (agent) agent.setWorking(working);
+      },
+      moveAgentToRoom: (agentId: string, room: string) => {
+        this.moveAgentToRoom(agentId, room as any);
+      },
+      moveAgentToPosition: (agentId: string, x: number, y: number) => {
+        this.moveToPosition(agentId, x, y);
+      },
+      setAgentEmotion: (agentId: string, emotion: string, duration?: number) => {
+        const agent = this.agentMap.get(agentId);
+        if (agent) agent.setEmotion(emotion as EmotionType, duration);
+      },
+      getAgentStatus: (agentId: string) => {
+        const agent = this.agentMap.get(agentId);
+        if (!agent) return 'offline';
+        return agent.isWorkingState() ? 'busy' : 'idle';
+      },
+    };
+
+    this.eventBridge = new SceneEventBridge(actions);
+    this.eventBridge.connect();
+  }
+
+  getEventBridge(): SceneEventBridge | null {
+    return this.eventBridge;
   }
 
   update(): void {
