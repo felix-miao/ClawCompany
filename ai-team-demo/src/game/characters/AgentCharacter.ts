@@ -6,6 +6,12 @@ import { EmotionSystem, EmotionType } from '../systems/EmotionSystem';
 
 type NavigationState = 'idle' | 'moving' | 'jumping' | 'arrived';
 
+export interface AgentConfig {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
   private isOnFloor: boolean = false;
   private animationController!: AnimationController;
@@ -18,10 +24,12 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
   private arrivalThreshold: number = 10;
   private navigationState: NavigationState = 'idle';
   private currentPath: PathPoint[] = [];
+  private currentPathIndex: number = 0;
   private arrivalCallback: (() => void) | null = null;
   private onArrivalCallbacks: (() => void)[] = [];
   private emotionSystem: EmotionSystem;
   private emotionBubble: Phaser.GameObjects.Container | null = null;
+  readonly agentConfig: AgentConfig;
 
   constructor(
     scene: Phaser.Scene,
@@ -29,18 +37,32 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     y: number,
     texture: string,
     frame?: string | number,
-    color: number = 0xffffff
+    color: number = 0xffffff,
+    config?: AgentConfig
   ) {
     super(scene, x, y, texture, frame);
 
     this.color = color;
     this.emotionSystem = new EmotionSystem();
+    this.agentConfig = config ?? { id: `agent_${Date.now()}`, name: 'Agent', role: 'general' };
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
     this.setBounce(0);
     this.setDrag(PHYSICS_CONFIG.drag, 0);
+  }
+
+  get agentId(): string {
+    return this.agentConfig.id;
+  }
+
+  get agentName(): string {
+    return this.agentConfig.name;
+  }
+
+  get agentRole(): string {
+    return this.agentConfig.role;
   }
 
   setAnimationController(controller: AnimationController): void {
@@ -82,16 +104,16 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     this.pathfindingSystem = system;
   }
 
-moveTo(targetX: number, targetY: number, onArrival?: () => void): void {
+  moveTo(targetX: number, targetY: number, onArrival?: () => void): void {
     if (!this.pathfindingSystem) return;
 
     if (!this.originalPosition) {
       this.originalPosition = { x: this.x, y: this.y };
     }
 
-    this.pathfindingSystem.findPath(this.x, this.y, targetX, targetY);
-    this.currentPath = this.pathfindingSystem.getCurrentPath();
-    this.pathfindingSystem.resetPath();
+    const path = this.pathfindingSystem.findPath(this.x, this.y, targetX, targetY);
+    this.currentPath = path;
+    this.currentPathIndex = 0;
     this.targetPosition = { x: targetX, y: targetY };
     this.isNavigating = true;
     this.navigationState = 'moving';
@@ -101,19 +123,13 @@ moveTo(targetX: number, targetY: number, onArrival?: () => void): void {
     }
   }
 
-  updateNavigation(): void {
+  private updateNavigation(): void {
     if (!this.isNavigating || this.currentPath.length === 0) return;
 
-    const currentIndex = this.pathfindingSystem?.getCurrentPathIndex() || 0;
-    const nextPoint = this.currentPath[currentIndex];
-    
+    const nextPoint = this.currentPath[this.currentPathIndex];
+
     if (!nextPoint) {
-      this.isNavigating = false;
-      this.navigationState = 'arrived';
-      this.setVelocityX(0);
-      this.arrivalCallback?.();
-      this.onArrivalCallbacks.forEach(cb => cb());
-      this.arrivalCallback = null;
+      this.completeNavigation();
       return;
     }
 
@@ -127,27 +143,30 @@ moveTo(targetX: number, targetY: number, onArrival?: () => void): void {
         this.navigationState = 'jumping';
       }
 
-      const nextIndex = currentIndex + 1;
-      if (nextIndex >= this.currentPath.length) {
-        this.isNavigating = false;
-        this.navigationState = 'arrived';
-        this.setVelocityX(0);
-        this.arrivalCallback?.();
-        this.onArrivalCallbacks.forEach(cb => cb());
-        this.arrivalCallback = null;
+      this.currentPathIndex++;
+      if (this.currentPathIndex >= this.currentPath.length) {
+        this.completeNavigation();
         return;
       }
-      
-      this.pathfindingSystem?.advancePath();
     }
 
     const direction = dx > 0 ? 1 : -1;
     this.setVelocityX(direction * PHYSICS_CONFIG.moveSpeed);
 
-    if (nextPoint.action === 'jump' && this.getOnFloor() && distance < 64) {
+    const nextIdx = this.currentPathIndex;
+    if (nextIdx < this.currentPath.length && this.currentPath[nextIdx].action === 'jump' && this.getOnFloor() && distance < 64) {
       this.setVelocityY(PHYSICS_CONFIG.jumpForce);
       this.navigationState = 'jumping';
     }
+  }
+
+  private completeNavigation(): void {
+    this.isNavigating = false;
+    this.navigationState = 'arrived';
+    this.setVelocityX(0);
+    this.arrivalCallback?.();
+    this.onArrivalCallbacks.forEach(cb => cb());
+    this.arrivalCallback = null;
   }
 
   isNavigatingToTarget(): boolean {
@@ -191,6 +210,14 @@ moveTo(targetX: number, targetY: number, onArrival?: () => void): void {
   setEmotionFromTask(taskDescription: string): void {
     const emotion = this.emotionSystem.getEmotionFromTask(taskDescription);
     this.emotionSystem.setEmotion(emotion);
+  }
+
+  getOriginalPosition(): { x: number; y: number } | null {
+    return this.originalPosition;
+  }
+
+  clearOriginalPosition(): void {
+    this.originalPosition = null;
   }
 
   private updateEmotionBubble(): void {
@@ -246,7 +273,8 @@ export function createAgent(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  color: number
+  color: number,
+  config?: AgentConfig
 ): AgentCharacter {
   const graphics = scene.add.graphics();
   graphics.fillStyle(color, 1);
@@ -254,5 +282,5 @@ export function createAgent(
   graphics.generateTexture('agent_' + color, 32, 32);
   graphics.destroy();
 
-  return new AgentCharacter(scene, x, y, 'agent_' + color, undefined, color);
+  return new AgentCharacter(scene, x, y, 'agent_' + color, undefined, color, config);
 }
