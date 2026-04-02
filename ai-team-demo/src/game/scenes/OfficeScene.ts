@@ -12,6 +12,10 @@ import { NavigationSystem } from '../systems/NavigationSystem';
 import { SceneEventBridge, SceneActions } from '../systems/SceneEventBridge';
 import { EmotionType } from '../systems/EmotionSystem';
 import { ParticleSystem, ParticleEffectType } from '../systems/ParticleSystem';
+import { PerformanceMonitor } from '../systems/PerformanceMonitor';
+import { MemoryManager } from '../systems/MemoryManager';
+import { RenderOptimizer } from '../systems/RenderOptimizer';
+import { ThrottleSystem } from '../systems/ThrottleSystem';
 
 type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
 
@@ -73,6 +77,14 @@ export class OfficeScene extends Phaser.Scene {
   private particleSystem!: ParticleSystem;
   private particleEmitters: Map<string, Phaser.GameObjects.Particles.ParticleEmitter> = new Map();
   private particleTextures: Map<string, string> = new Map();
+  private performanceMonitor!: PerformanceMonitor;
+  private memoryManager!: MemoryManager;
+  private renderOptimizer!: RenderOptimizer;
+  private throttleSystem!: ThrottleSystem;
+  private lastOptimizationCheck: number = 0;
+  private static readonly OPTIMIZATION_CHECK_INTERVAL = 5000;
+  private static readonly MAX_PARTICLE_EMITTERS = 20;
+  private static readonly STALE_EMITTER_AGE = 3000;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -151,6 +163,23 @@ export class OfficeScene extends Phaser.Scene {
 
   create(): void {
     this.particleSystem = new ParticleSystem();
+    this.performanceMonitor = new PerformanceMonitor({
+      targetFPS: 60,
+      sampleSize: 60,
+      warningThreshold: 0.8,
+      criticalThreshold: 0.5,
+    });
+    this.memoryManager = new MemoryManager({
+      maxTrackedResources: 200,
+      memoryBudgetMB: 10,
+    });
+    this.renderOptimizer = new RenderOptimizer({
+      viewportWidth: Number(this.scale.width) || 800,
+      viewportHeight: Number(this.scale.height) || 600,
+      cullingMargin: 64,
+      lodDistances: { near: 200, medium: 500, far: 800 },
+    });
+    this.throttleSystem = new ThrottleSystem();
     this.particles = this.add.particles(0, 0, 'particle', {
       speed: { min: 20, max: 50 },
       scale: { start: 0.4, end: 0 },
@@ -389,6 +418,12 @@ export class OfficeScene extends Phaser.Scene {
       });
       nameLabel.setOrigin(0.5);
       this.nameLabels.set(agent.agentId, nameLabel);
+
+      this.memoryManager.track({
+        type: 'text-label',
+        id: `label_${agent.agentId}`,
+        estimatedSize: 256,
+      });
     });
 
     this.setupInterAgentCollisions();
@@ -469,6 +504,8 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private playParticleEffect(agentId: string, effectType: ParticleEffectType): void {
+    if (this.particleEmitters.size >= OfficeScene.MAX_PARTICLE_EMITTERS) return;
+
     const agent = this.agentMap.get(agentId);
     if (!agent) return;
 
@@ -490,15 +527,45 @@ export class OfficeScene extends Phaser.Scene {
     });
 
     emitter.explode(config.quantity);
-    this.particleEmitters.set(`${agentId}_${effectType}_${Date.now()}`, emitter);
+    const emitterKey = `${agentId}_${effectType}_${Date.now()}`;
+    this.particleEmitters.set(emitterKey, emitter);
+
+    this.memoryManager.track({
+      type: 'particle-emitter',
+      id: emitterKey,
+      estimatedSize: config.quantity * 64,
+      destroy: () => emitter.destroy(),
+    });
 
     this.time.delayedCall(config.lifespan + 200, () => {
       emitter.destroy();
+      this.particleEmitters.delete(emitterKey);
+      this.memoryManager.untrack(emitterKey);
     });
   }
 
   update(_time: number, delta: number): void {
-    this.agents.forEach((agent) => agent.update());
+    this.performanceMonitor.recordFrame(delta);
+
+    const throttleLevel = this.performanceMonitor.getThrottleLevel();
+    const shouldUpdateAll = throttleLevel < 0.3;
+
+    if (shouldUpdateAll) {
+      this.agents.forEach((agent) => agent.update());
+    } else {
+      const cameraX = this.cameras.main.scrollX;
+      const cameraY = this.cameras.main.scrollY;
+      this.agents.forEach((agent) => {
+        const result = this.renderOptimizer.cull(
+          { x: agent.x - 16, y: agent.y - 32, width: 32, height: 32 },
+          cameraX, cameraY
+        );
+        if (result === 'visible') {
+          agent.update();
+        }
+      });
+    }
+
     this.syncNameLabels();
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
@@ -506,6 +573,8 @@ export class OfficeScene extends Phaser.Scene {
     if (this.particleSystem) {
       this.particleSystem.update(delta);
     }
+
+    this.runOptimizationCheck();
   }
 
   private syncNameLabels(): void {
@@ -568,5 +637,53 @@ export class OfficeScene extends Phaser.Scene {
 
   private findWorkstationByTaskType(taskType: TaskType): Workstation | undefined {
     return this.tilemapData?.workstations.find(ws => ws.taskType === taskType);
+  }
+
+  getPerformanceMonitor(): PerformanceMonitor {
+    return this.performanceMonitor;
+  }
+
+  getMemoryManager(): MemoryManager {
+    return this.memoryManager;
+  }
+
+  getRenderOptimizer(): RenderOptimizer {
+    return this.renderOptimizer;
+  }
+
+  private runOptimizationCheck(): void {
+    const now = Date.now();
+    if (now - this.lastOptimizationCheck < OfficeScene.OPTIMIZATION_CHECK_INTERVAL) return;
+    this.lastOptimizationCheck = now;
+
+    this.cleanupParticleEmitters();
+
+    if (this.performanceMonitor.shouldThrottle()) {
+      this.cleanupStaleMemory();
+    }
+  }
+
+  private cleanupParticleEmitters(): void {
+    const staleKeys: string[] = [];
+    this.particleEmitters.forEach((emitter, key) => {
+      if (!emitter.active) {
+        staleKeys.push(key);
+        emitter.destroy();
+      }
+    });
+    staleKeys.forEach(k => this.particleEmitters.delete(k));
+
+    if (this.particleEmitters.size > OfficeScene.MAX_PARTICLE_EMITTERS) {
+      const entries = Array.from(this.particleEmitters.entries());
+      const excess = entries.slice(0, this.particleEmitters.size - OfficeScene.MAX_PARTICLE_EMITTERS);
+      for (const [key, emitter] of excess) {
+        emitter.destroy();
+        this.particleEmitters.delete(key);
+      }
+    }
+  }
+
+  private cleanupStaleMemory(): void {
+    this.memoryManager.cleanupStale(OfficeScene.STALE_EMITTER_AGE);
   }
 }
