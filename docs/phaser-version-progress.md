@@ -88,12 +88,19 @@
   - OfficeScene 集成（SceneActions 实现，自动连接 SSE）
   - 90 个新测试（EventBus: 23, LiveSessionManager: 18, GameEventStore: 12, GameEvents: 18, SceneEventBridge: 19）
 
-### ⏳ Version 8: 粒子效果（待开始）
-- **时间:** 待定
+### ✅ Version 8: 粒子效果（完成）
+- **时间:** ~30 分钟
 - **内容:**
-  - 庆祝烟花
-  - 错误火花
-  - 任务完成特效
+  - ParticleSystem 粒子效果引擎（5 种预设效果：celebration/error/task-complete/work-start/sparkle）
+  - 效果配置系统（speed/scale/lifespan/gravity/alpha/tint/quantity）
+  - 事件到效果的智能映射（task-completed → celebration/error, status-change → work-start 等）
+  - 效果生命周期管理（自动过期、清理）
+  - 效果历史记录（最多 50 条）
+  - 自定义效果注册（registerCustomEffect）
+  - SceneEventBridge 集成（事件自动触发粒子效果）
+  - OfficeScene 集成（Phaser 原生粒子发射器、多种粒子纹理）
+  - SceneActions 扩展（triggerParticleEffect）
+  - 52 个新测试（ParticleSystem: 45, SceneEventBridge 粒子集成: 7）
 
 ### ⏳ Version 9: UI 集成（待开始）
 - **时间:** 待定
@@ -127,9 +134,9 @@
 
 ## 完成统计
 
-- **已完成**: 7/12 (58%)
-- **总用时**: ~4 小时
-- **测试覆盖**: 642/642 测试通过（36 个测试套件）
+- **已完成**: 8/12 (67%)
+- **总用时**: ~4.5 小时
+- **测试覆盖**: 694/694 测试通过（37 个测试套件）
 - **最新 Commit**: (pending)
 
 ---

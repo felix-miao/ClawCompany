@@ -11,6 +11,7 @@ import { PathfindingSystem } from '../systems/PathfindingSystem';
 import { NavigationSystem } from '../systems/NavigationSystem';
 import { SceneEventBridge, SceneActions } from '../systems/SceneEventBridge';
 import { EmotionType } from '../systems/EmotionSystem';
+import { ParticleSystem, ParticleEffectType } from '../systems/ParticleSystem';
 
 type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
 
@@ -69,6 +70,9 @@ export class OfficeScene extends Phaser.Scene {
   private nameLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
   private eventBridge: SceneEventBridge | null = null;
+  private particleSystem!: ParticleSystem;
+  private particleEmitters: Map<string, Phaser.GameObjects.Particles.ParticleEmitter> = new Map();
+  private particleTextures: Map<string, string> = new Map();
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -119,9 +123,34 @@ export class OfficeScene extends Phaser.Scene {
     graphics.fillCircle(4, 4, 4);
     graphics.generateTexture('particle', 8, 8);
     graphics.destroy();
+
+    const celebrationGraphics = this.add.graphics();
+    celebrationGraphics.fillStyle(0xffffff, 1);
+    celebrationGraphics.fillRect(0, 0, 6, 6);
+    celebrationGraphics.generateTexture('particle-rect', 6, 6);
+    celebrationGraphics.destroy();
+
+    const errorGraphics = this.add.graphics();
+    errorGraphics.fillStyle(0xff4444, 1);
+    errorGraphics.fillCircle(3, 3, 3);
+    errorGraphics.generateTexture('particle-error', 6, 6);
+    errorGraphics.destroy();
+
+    const sparkleGraphics = this.add.graphics();
+    sparkleGraphics.fillStyle(0xffdd00, 1);
+    sparkleGraphics.fillCircle(2, 2, 2);
+    sparkleGraphics.generateTexture('particle-sparkle', 4, 4);
+    sparkleGraphics.destroy();
+
+    this.particleTextures.set('celebration', 'particle-rect');
+    this.particleTextures.set('error', 'particle-error');
+    this.particleTextures.set('task-complete', 'particle');
+    this.particleTextures.set('work-start', 'particle');
+    this.particleTextures.set('sparkle', 'particle-sparkle');
   }
 
   create(): void {
+    this.particleSystem = new ParticleSystem();
     this.particles = this.add.particles(0, 0, 'particle', {
       speed: { min: 20, max: 50 },
       scale: { start: 0.4, end: 0 },
@@ -297,7 +326,7 @@ export class OfficeScene extends Phaser.Scene {
     agent.setWorking(isWorking);
 
     if (isWorking) {
-      this.particles.emitParticleAt(agent.x, agent.y - 20, 10);
+      this.playParticleEffect(agent.agentId, 'work-start');
     }
   }
 
@@ -422,6 +451,9 @@ export class OfficeScene extends Phaser.Scene {
         if (!agent) return 'offline';
         return agent.isWorkingState() ? 'busy' : 'idle';
       },
+      triggerParticleEffect: (agentId: string, effectType: ParticleEffectType) => {
+        this.playParticleEffect(agentId, effectType);
+      },
     };
 
     this.eventBridge = new SceneEventBridge(actions);
@@ -432,12 +464,48 @@ export class OfficeScene extends Phaser.Scene {
     return this.eventBridge;
   }
 
-  update(): void {
+  getParticleSystem(): ParticleSystem {
+    return this.particleSystem;
+  }
+
+  private playParticleEffect(agentId: string, effectType: ParticleEffectType): void {
+    const agent = this.agentMap.get(agentId);
+    if (!agent) return;
+
+    const config = this.particleSystem.getEffectConfig(effectType);
+    if (!config) return;
+
+    const texture = this.particleTextures.get(effectType) ?? 'particle';
+
+    const emitter = this.add.particles(agent.x, agent.y - 20, texture, {
+      speed: config.speed,
+      scale: config.scale,
+      lifespan: config.lifespan,
+      gravityY: config.gravityY,
+      alpha: config.alpha,
+      tint: config.tints,
+      quantity: config.quantity,
+      blendMode: Phaser.BlendModes.ADD,
+      emitting: false,
+    });
+
+    emitter.explode(config.quantity);
+    this.particleEmitters.set(`${agentId}_${effectType}_${Date.now()}`, emitter);
+
+    this.time.delayedCall(config.lifespan + 200, () => {
+      emitter.destroy();
+    });
+  }
+
+  update(_time: number, delta: number): void {
     this.agents.forEach((agent) => agent.update());
     this.syncNameLabels();
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
     this.checkTaskCompletion();
+    if (this.particleSystem) {
+      this.particleSystem.update(delta);
+    }
   }
 
   private syncNameLabels(): void {

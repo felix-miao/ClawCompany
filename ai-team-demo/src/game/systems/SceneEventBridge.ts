@@ -11,6 +11,7 @@ import {
   GameEventType,
   ROLE_TO_ROOM,
 } from '../types/GameEvents';
+import { ParticleSystem, ParticleEffectType } from './ParticleSystem';
 
 export interface SceneActions {
   setAgentWorking(agentId: string, working: boolean): void;
@@ -18,6 +19,7 @@ export interface SceneActions {
   moveAgentToPosition(agentId: string, x: number, y: number): void;
   setAgentEmotion(agentId: string, emotion: string, duration?: number): void;
   getAgentStatus(agentId: string): 'idle' | 'busy' | 'offline';
+  triggerParticleEffect(agentId: string, effectType: ParticleEffectType): void;
 }
 
 interface BridgeStats {
@@ -30,6 +32,7 @@ export class SceneEventBridge {
   private readonly eventBus: EventBus;
   private readonly sessionManager: LiveSessionManager;
   private readonly actions: SceneActions;
+  private readonly particleSystem: ParticleSystem;
   private stats: BridgeStats = {
     eventsProcessed: 0,
     lastEventAt: null,
@@ -40,6 +43,7 @@ export class SceneEventBridge {
     this.actions = actions;
     this.eventBus = new EventBus();
     this.sessionManager = new LiveSessionManager(this.eventBus, config);
+    this.particleSystem = new ParticleSystem();
     this.registerHandlers();
   }
 
@@ -75,6 +79,10 @@ export class SceneEventBridge {
     return this.eventBus;
   }
 
+  getParticleSystem(): ParticleSystem {
+    return this.particleSystem;
+  }
+
   getStats(): BridgeStats {
     return { ...this.stats };
   }
@@ -84,10 +92,18 @@ export class SceneEventBridge {
     this.stats.lastEventAt = Date.now();
   }
 
+  private triggerParticle(agentId: string, eventType: string, context: Record<string, string>): void {
+    const effectType = this.particleSystem.getEffectForEvent(eventType, context);
+    if (effectType) {
+      this.actions.triggerParticleEffect(agentId, effectType);
+    }
+  }
+
   private handleStatusChange(event: AgentStatusEvent): void {
     this.updateStats();
     const isWorking = event.status === 'busy' || event.status === 'working';
     this.actions.setAgentWorking(event.agentId, isWorking);
+    this.triggerParticle(event.agentId, 'agent:status-change', { status: event.status });
   }
 
   private handleTaskAssigned(event: TaskAssignedEvent): void {
@@ -110,6 +126,7 @@ export class SceneEventBridge {
 
     const emotion = event.result === 'success' ? 'celebrating' : 'stressed';
     this.actions.setAgentEmotion(event.agentId, emotion);
+    this.triggerParticle(event.agentId, 'agent:task-completed', { result: event.result });
   }
 
   private handleNavigationRequest(event: NavigationRequestEvent): void {
@@ -144,5 +161,6 @@ export class SceneEventBridge {
 
     const emotion = event.status === 'completed' ? 'celebrating' : 'stressed';
     this.actions.setAgentEmotion(event.role, emotion);
+    this.triggerParticle(event.role, 'session:completed', { status: event.status });
   }
 }

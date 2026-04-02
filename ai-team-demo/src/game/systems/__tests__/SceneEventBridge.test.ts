@@ -59,6 +59,7 @@ describe('SceneEventBridge', () => {
       moveAgentToPosition: jest.fn(),
       setAgentEmotion: jest.fn(),
       getAgentStatus: jest.fn().mockReturnValue('idle'),
+      triggerParticleEffect: jest.fn(),
     };
     bridge = new SceneEventBridge(mockActions, { url: '/api/game-events' });
   });
@@ -308,6 +309,87 @@ describe('SceneEventBridge', () => {
       });
 
       bridge.connect();
+    });
+  });
+
+  describe('particle effects integration', () => {
+    it('should trigger celebration particle on successful task completion', () => {
+      bridge.getEventBus().emit({
+        type: 'agent:task-completed',
+        timestamp: Date.now(),
+        agentId: 'dev1',
+        taskId: 'task-1',
+        result: 'success',
+        duration: 5000,
+      });
+
+      expect(mockActions.triggerParticleEffect).toHaveBeenCalledWith('dev1', 'celebration');
+    });
+
+    it('should trigger error particle on failed task completion', () => {
+      bridge.getEventBus().emit({
+        type: 'agent:task-completed',
+        timestamp: Date.now(),
+        agentId: 'dev1',
+        taskId: 'task-1',
+        result: 'failure',
+        duration: 5000,
+      });
+
+      expect(mockActions.triggerParticleEffect).toHaveBeenCalledWith('dev1', 'error');
+    });
+
+    it('should trigger work-start particle on busy status change', () => {
+      bridge.getEventBus().emit({
+        type: 'agent:status-change',
+        timestamp: Date.now(),
+        agentId: 'dev1',
+        status: 'busy',
+      });
+
+      expect(mockActions.triggerParticleEffect).toHaveBeenCalledWith('dev1', 'work-start');
+    });
+
+    it('should not trigger particle on idle status change', () => {
+      bridge.getEventBus().emit({
+        type: 'agent:status-change',
+        timestamp: Date.now(),
+        agentId: 'dev1',
+        status: 'idle',
+      });
+
+      expect(mockActions.triggerParticleEffect).not.toHaveBeenCalled();
+    });
+
+    it('should trigger celebration particle on completed session', () => {
+      bridge.getEventBus().emit({
+        type: 'session:completed',
+        timestamp: Date.now(),
+        sessionKey: 'sess-1',
+        role: 'dev1',
+        status: 'completed',
+        duration: 30000,
+      });
+
+      expect(mockActions.triggerParticleEffect).toHaveBeenCalledWith('dev1', 'celebration');
+    });
+
+    it('should trigger error particle on failed session', () => {
+      bridge.getEventBus().emit({
+        type: 'session:completed',
+        timestamp: Date.now(),
+        sessionKey: 'sess-1',
+        role: 'dev1',
+        status: 'failed',
+        duration: 30000,
+      });
+
+      expect(mockActions.triggerParticleEffect).toHaveBeenCalledWith('dev1', 'error');
+    });
+
+    it('should expose particle system', () => {
+      expect(bridge.getParticleSystem()).toBeDefined();
+      expect(bridge.getParticleSystem().getAvailablePresets().length).toBeGreaterThan(0);
     });
   });
 });
