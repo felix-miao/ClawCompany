@@ -1,9 +1,8 @@
-// Dev Claw - 开发 Agent
-
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
 import { getLLMProvider } from '../llm/factory'
 import { getAgentExecutor, OpenClawAgentExecutor } from '../gateway/executor'
+import { extractJSONObject } from '../utils/json-parser'
 
 export type DevAgentMode = 'mock' | 'llm' | 'openclaw'
 
@@ -227,26 +226,20 @@ export class DevAgent extends BaseAgent {
     message: string
     notes: string[]
   } {
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        
-        const files = (parsed.files || []).map((f: any) => ({
-          path: f.path || 'unknown.ts',
-          content: f.content || '',
-          action: (f.action || 'create') as 'create' | 'modify'
-        }))
+    const parsed = extractJSONObject(response)
+    if (parsed) {
+      const files = ((parsed.files as Record<string, unknown>[]) || []).map((f) => ({
+        path: (f.path as string) || 'unknown.ts',
+        content: (f.content as string) || '',
+        action: ((f.action as string) || 'create') as 'create' | 'modify'
+      }))
 
-        return {
-          analysis: parsed.analysis || '',
-          files,
-          message: parsed.message || '代码实现完成',
-          notes: parsed.notes || []
-        }
+      return {
+        analysis: (parsed.analysis as string) || '',
+        files,
+        message: (parsed.message as string) || '代码实现完成',
+        notes: (parsed.notes as string[]) || []
       }
-    } catch (e) {
-      this.log(`解析 LLM 响应失败: ${e}`)
     }
 
     return {

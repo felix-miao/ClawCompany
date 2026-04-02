@@ -1,6 +1,5 @@
-// Agent 基础类
-
 import { AgentRole, Task, AgentResponse, AgentContext } from './types'
+import { generateId } from '../utils/id'
 
 export abstract class BaseAgent {
   id: string
@@ -18,7 +17,7 @@ export abstract class BaseAgent {
   abstract execute(task: Task, context: AgentContext): Promise<AgentResponse>
 
   protected generateTaskId(): string {
-    return `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    return generateId('task_')
   }
 
   protected log(message: string): void {

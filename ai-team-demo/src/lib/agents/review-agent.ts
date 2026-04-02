@@ -1,8 +1,7 @@
-// Reviewer Claw - 代码审查 Agent
-
 import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
 import { getLLMProvider } from '../llm/factory'
+import { extractJSONObject } from '../utils/json-parser'
 
 export class ReviewAgent extends BaseAgent {
   constructor() {
@@ -172,20 +171,19 @@ export class ReviewAgent extends BaseAgent {
     message: string
     suggestions: string[]
   } {
-    try {
-      const jsonMatch = response.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        
-        return {
-          checks: parsed.checks || [],
-          approved: parsed.approved ?? true,
-          message: parsed.message || '代码审查完成',
-          suggestions: parsed.suggestions || []
-        }
+    const parsed = extractJSONObject(response)
+    if (parsed) {
+      return {
+        checks: ((parsed.checks as Record<string, unknown>[]) || []).map((c) => ({
+          name: (c.name as string) || '',
+          passed: (c.passed as boolean) ?? true,
+          warning: (c.warning as boolean) || false,
+          message: (c.message as string) || ''
+        })),
+        approved: (parsed.approved as boolean) ?? true,
+        message: (parsed.message as string) || '代码审查完成',
+        suggestions: ((parsed.suggestions as string[]) || []).map((s) => s || '')
       }
-    } catch (e) {
-      this.log(`解析 LLM 响应失败: ${e}`)
     }
 
     return {

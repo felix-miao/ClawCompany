@@ -1,6 +1,6 @@
-// Task Manager - 任务管理器
-
 import { Task, TaskStatus, AgentRole } from '../agents/types'
+import { generateId } from '../utils/id'
+import { safeJsonParse } from '../utils/json-parser'
 
 export class TaskManager {
   private tasks: Map<string, Task> = new Map()
@@ -18,7 +18,7 @@ export class TaskManager {
     files: string[] = []
   ): Task {
     const task: Task = {
-      id: this.generateId(),
+      id: generateId('task_'),
       title,
       description,
       status: 'pending',
@@ -94,11 +94,6 @@ export class TaskManager {
     this.tasks.clear()
   }
 
-  private generateId(): string {
-    return `task_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
-  }
-
-  // 序列化/反序列化（用于持久化）
   toJSON(): string {
     return JSON.stringify({
       projectId: this.projectId,
@@ -107,9 +102,12 @@ export class TaskManager {
   }
 
   static fromJSON(json: string): TaskManager {
-    const data = JSON.parse(json)
-    const manager = new TaskManager(data.projectId)
-    data.tasks.forEach(([id, task]: [string, Task]) => {
+    const result = safeJsonParse<{ projectId: string; tasks: [string, Task][] }>(json, 'TaskManager')
+    if (!result.success) {
+      throw new Error(result.error)
+    }
+    const manager = new TaskManager(result.data.projectId)
+    result.data.tasks.forEach(([id, task]: [string, Task]) => {
       manager.tasks.set(id, {
         ...task,
         createdAt: new Date(task.createdAt),
@@ -120,5 +118,4 @@ export class TaskManager {
   }
 }
 
-// 全局任务管理器实例
 export const taskManager = new TaskManager()
