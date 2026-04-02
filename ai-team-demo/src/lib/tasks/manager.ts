@@ -1,4 +1,4 @@
-import { Task, TaskStatus, AgentRole } from '../agents/types'
+import { Task, TaskStatus, AgentRole } from '../core/types'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
 

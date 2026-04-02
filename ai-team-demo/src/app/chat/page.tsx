@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Message, Task } from '@/lib/agents/types'
+import { Message, Task } from '@/lib/core/types'
 import { sendMessage, getChatHistory } from '@/lib/api/client'
 
 const agentConfig = {

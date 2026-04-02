@@ -3,7 +3,7 @@
 import { PMAgent } from './pm-agent'
 import { DevAgent } from './dev-agent'
 import { ReviewAgent } from './review-agent'
-import { BaseAgent } from './base'
+import { BaseAgent } from '../core/base-agent'
 import { AgentRole, Task, AgentResponse, AgentContext } from './types'
 
 export class AgentManager {

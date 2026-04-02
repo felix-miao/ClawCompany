@@ -1,4 +1,4 @@
-import { BaseAgent } from './base'
+import { BaseAgent } from '../core/base-agent'
 import { Task, AgentResponse, AgentContext } from './types'
 import { getLLMProvider } from '../llm/factory'
 import { getAgentExecutor, OpenClawAgentExecutor } from '../gateway/executor'

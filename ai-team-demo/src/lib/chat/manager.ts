@@ -1,4 +1,4 @@
-import { AgentRole, Message } from '../agents/types'
+import { AgentRole, Message } from '../core/types'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
 

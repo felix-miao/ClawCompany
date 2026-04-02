@@ -1,6 +1,6 @@
 // API 客户端 - 与后端交互
 
-import { Message, Task } from '../agents/types'
+import { Message, Task } from '../core/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 

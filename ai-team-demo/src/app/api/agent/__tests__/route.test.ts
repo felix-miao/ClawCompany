@@ -147,8 +147,13 @@ describe('/api/agent', () => {
     storage.loadAgent.mockResolvedValue({
       id: 'pm-agent',
       name: 'PM Claw',
+      role: 'pm',
+      emoji: '🤖',
+      color: '#6B7280',
       systemPrompt: 'You are PM Claw',
-      runtime: 'subagent'
+      runtime: 'subagent',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     })
     storage.listAgents.mockResolvedValue([])
   })
@@ -330,7 +335,13 @@ describe('/api/agent', () => {
       storage.loadAgent.mockResolvedValue({
         id: 'pm-agent',
         name: 'PM Claw',
-        systemPrompt: 'You are PM Claw'
+        role: 'pm',
+        emoji: '🤖',
+        color: '#6B7280',
+        systemPrompt: 'You are PM Claw',
+        runtime: 'subagent',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       })
       storage.saveAgent.mockResolvedValue(undefined)
 

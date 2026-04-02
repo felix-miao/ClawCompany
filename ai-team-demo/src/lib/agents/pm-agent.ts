@@ -1,4 +1,4 @@
-import { BaseAgent } from './base'
+import { BaseAgent } from '../core/base-agent'
 import { Task, AgentResponse, AgentContext, AgentRole } from './types'
 
 export class PMAgent extends BaseAgent {
