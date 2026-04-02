@@ -1,24 +1,11 @@
-/**
- * Review Agent (代码审查)
- * 
- * 职责：检查代码质量、安全性审查、提出改进建议
- * 
- * 注意：sessions_spawn, sessions_history 是 OpenClaw 的内置工具，
- * 在 OpenClaw 环境中全局可用，无需导入。
- */
-
-import type { Task, DevResult, ReviewResult } from '../orchestrator'
-
-// 声明 OpenClaw 全局工具（用于类型检查）
-declare const sessions_spawn: typeof import('openclaw').sessions_spawn
-declare const sessions_history: typeof import('openclaw').sessions_history
+import { BaseOpenClawAgent } from '../core/base-agent'
+import type { Task, DevResult, ReviewResult } from '../core/types'
 
 export interface ReviewAgentConfig {
   thinking?: 'low' | 'medium' | 'high'
   checklist?: string[]
 }
 
-// 默认审查清单
 const DEFAULT_CHECKLIST = [
   '代码风格',
   'TypeScript 类型安全',
@@ -27,42 +14,36 @@ const DEFAULT_CHECKLIST = [
   '性能优化',
   '安全性检查',
   '代码可读性',
-  '测试覆盖'
+  '测试覆盖',
 ]
 
-export class ReviewAgent {
-  private config: ReviewAgentConfig
-
+export class ReviewAgent extends BaseOpenClawAgent<ReviewAgentConfig> {
   constructor(config: ReviewAgentConfig = {}) {
-    this.config = {
+    super('review', {
       thinking: 'high',
       checklist: DEFAULT_CHECKLIST,
-      ...config
-    }
+      ...config,
+    })
   }
 
-  /**
-   * 审查开发结果
-   */
   async review(task: Task, devResult: DevResult): Promise<ReviewResult> {
     const prompt = this.buildPrompt(task, devResult)
-    
-    const session = await sessions_spawn({
-      runtime: 'subagent',
-      task: prompt,
-      thinking: this.config.thinking,
-      mode: 'run'
-    })
 
-    return await this.parseResult(session)
+    const session = await this.spawnAgent(prompt)
+
+    return await this.parseJSONFromSession<ReviewResult>(session, {
+      approved: true,
+      issues: [],
+      suggestions: [],
+      summary: '审查通过',
+    })
   }
 
-  /**
-   * 构建 Review Agent prompt
-   */
-  private buildPrompt(task: Task, devResult: DevResult): string {
+  protected buildPrompt(...args: unknown[]): string {
+    const task = args[0] as Task
+    const devResult = args[1] as DevResult
     const checklist = this.config.checklist || DEFAULT_CHECKLIST
-    
+
     return `你是 Review Agent (代码审查)。
 
 任务：${task.title}
@@ -98,39 +79,8 @@ ${checklist.map(item => `- ${item}`).join('\n')}
 - suggestions 可以包含优化建议
 - summary 简洁总结审查结果`
   }
-
-  /**
-   * 解析 Review Agent 结果
-   */
-  private async parseResult(session: any): Promise<ReviewResult> {
-    try {
-      const history = await sessions_history({ sessionKey: session.sessionKey })
-      const lastMessage = history.messages?.[history.messages.length - 1]
-      
-      if (lastMessage?.content) {
-        const content = lastMessage.content
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          return JSON.parse(jsonMatch[0])
-        }
-      }
-    } catch (error) {
-      console.error('❌ 解析 Review 结果失败:', error)
-    }
-    
-    // 默认通过
-    return {
-      approved: true,
-      issues: [],
-      suggestions: [],
-      summary: '审查通过'
-    }
-  }
 }
 
-/**
- * 便捷函数：审查开发结果
- */
 export async function reviewResult(
   task: Task,
   devResult: DevResult,

@@ -1,55 +1,36 @@
-/**
- * PM Agent (产品经理)
- * 
- * 职责：分析需求、拆分任务、协调团队
- * 
- * 注意：sessions_spawn, sessions_history 是 OpenClaw 的内置工具，
- * 在 OpenClaw 环境中全局可用，无需导入。
- */
+import { BaseOpenClawAgent } from '../core/base-agent'
+import type { Task, PMResult, AgentConfig } from '../core/types'
 
-import type { Task, PMResult } from '../orchestrator'
+export interface PMAgentConfig extends AgentConfig {}
 
-// 声明 OpenClaw 全局工具（用于类型检查）
-declare const sessions_spawn: typeof import('openclaw').sessions_spawn
-declare const sessions_history: typeof import('openclaw').sessions_history
-
-export interface PMAgentConfig {
-  thinking?: 'low' | 'medium' | 'high'
-  model?: string
-}
-
-export class PMAgent {
-  private config: PMAgentConfig
-
+export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {
   constructor(config: PMAgentConfig = {}) {
-    this.config = {
+    super('pm', {
       thinking: 'high',
       model: 'glm-5',
-      ...config
-    }
+      ...config,
+    })
   }
 
-  /**
-   * 分析用户需求并拆分任务
-   */
   async analyze(userRequest: string): Promise<PMResult> {
     const prompt = this.buildPrompt(userRequest)
-    
-    const session = await sessions_spawn({
-      runtime: 'subagent',
-      task: prompt,
-      thinking: this.config.thinking,
-      mode: 'run',
-      model: this.config.model
-    })
 
-    return await this.parseResult(session)
+    const session = await this.spawnAgent(prompt)
+
+    return await this.parseJSONFromSession<PMResult>(session, {
+      analysis: '自动生成的任务分解',
+      tasks: [{
+        id: 'task-1',
+        title: '实现用户需求',
+        description: '根据用户需求实现核心功能',
+        assignedTo: 'dev',
+        dependencies: [],
+        status: 'pending',
+      }],
+    })
   }
 
-  /**
-   * 构建 PM Agent prompt
-   */
-  private buildPrompt(userRequest: string): string {
+  protected buildPrompt(userRequest: unknown): string {
     return `你是 PM Agent (产品经理)。
 
 用户需求：${userRequest}
@@ -82,50 +63,8 @@ export class PMAgent {
 
 注意：只返回 JSON，不要有其他内容。`
   }
-
-  /**
-   * 解析 PM Agent 结果
-   */
-  private async parseResult(session: any): Promise<PMResult> {
-    try {
-      const history = await sessions_history({ sessionKey: session.sessionKey })
-      const lastMessage = history.messages?.[history.messages.length - 1]
-      
-      if (lastMessage?.content) {
-        const content = lastMessage.content
-        const jsonMatch = content.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          const result = JSON.parse(jsonMatch[0])
-          // 确保所有任务都有正确的状态
-          result.tasks = result.tasks.map((task: any) => ({
-            ...task,
-            status: task.status || 'pending'
-          }))
-          return result
-        }
-      }
-    } catch (error) {
-      console.error('❌ 解析 PM 结果失败:', error)
-    }
-    
-    // 返回默认任务
-    return {
-      analysis: '自动生成的任务分解',
-      tasks: [{
-        id: 'task-1',
-        title: '实现用户需求',
-        description: '根据用户需求实现核心功能',
-        assignedTo: 'dev',
-        dependencies: [],
-        status: 'pending'
-      }]
-    }
-  }
 }
 
-/**
- * 便捷函数：分析需求
- */
 export async function analyzeRequest(
   userRequest: string,
   config?: PMAgentConfig

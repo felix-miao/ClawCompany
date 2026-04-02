@@ -2,7 +2,6 @@ import { BaseAgent } from './base'
 import { Task, AgentResponse, AgentContext } from './types'
 import { getLLMProvider } from '../llm/factory'
 import { getAgentExecutor, OpenClawAgentExecutor } from '../gateway/executor'
-import { extractJSONObject } from '../utils/json-parser'
 
 export type DevAgentMode = 'mock' | 'llm' | 'openclaw'
 
@@ -64,6 +63,30 @@ export class DevAgent extends BaseAgent {
     }
   }
 
+  private getLLMSystemPrompt(): string {
+    return `你是 Dev Claw，一个资深全栈开发者。生成完整、可运行的代码。
+
+**技术栈**：Next.js 14 + React + TypeScript + Tailwind CSS
+
+**回复格式 (JSON)**：
+{
+  "files": [{
+    "path": "文件路径（相对于 src/）",
+    "content": "完整代码",
+    "action": "create"
+  }],
+  "message": "实现说明（Markdown 格式）"
+}
+
+**要求**：
+- 完整可运行的代码（不要 TODO）
+- TypeScript 类型定义
+- Tailwind CSS 样式
+- 错误处理
+
+直接返回 JSON，不要额外的解释。`
+  }
+
   private async implementWithOpenClaw(task: Task, context: AgentContext): Promise<AgentResponse> {
     try {
       if (!this.executor) {
@@ -95,8 +118,8 @@ export class DevAgent extends BaseAgent {
         metadata: {
           sessionKey: result.sessionKey,
           runId: result.runId,
-          mode: 'openclaw'
-        }
+          mode: 'openclaw',
+        },
       }
     } catch (error) {
       this.log(`OpenClaw 调用失败，回退到 mock: ${error}`)
@@ -116,15 +139,15 @@ export class DevAgent extends BaseAgent {
           files: (parsed.files || []).map((f: any) => ({
             path: f.path || 'unknown.ts',
             content: f.content || '',
-            action: (f.action || 'create') as 'create' | 'modify'
+            action: (f.action || 'create') as 'create' | 'modify',
           })),
-          message: parsed.message || content
+          message: parsed.message || content,
         }
       }
 
       const codeBlocks = content.match(/```\w*\s*([\s\S]*?)\s*```/g) || []
       const files: { path: string; content: string; action: 'create' | 'modify' }[] = []
-      
+
       codeBlocks.forEach((block, index) => {
         const match = block.match(/```(\w*)\s*([\s\S]*?)\s*```/)
         if (match) {
@@ -132,37 +155,26 @@ export class DevAgent extends BaseAgent {
           files.push({
             path: `src/generated/file-${index + 1}.${ext}`,
             content: match[2],
-            action: 'create'
+            action: 'create',
           })
         }
       })
 
       return {
         files,
-        message: content.replace(/```\w*\s*[\s\S]*?\s*```/g, '').trim() || '代码实现完成'
+        message: content.replace(/```\w*\s*[\s\S]*?\s*```/g, '').trim() || '代码实现完成',
       }
     } catch (e) {
       this.log(`解析 OpenClaw 响应失败: ${e}`)
-      return {
-        files: [],
-        message: content
-      }
+      return { files: [], message: content }
     }
   }
 
   private getExtensionFromLang(lang: string): string {
     const map: Record<string, string> = {
-      typescript: 'ts',
-      typescriptreact: 'tsx',
-      tsx: 'tsx',
-      ts: 'ts',
-      javascript: 'js',
-      javascriptreact: 'jsx',
-      jsx: 'jsx',
-      js: 'js',
-      css: 'css',
-      json: 'json',
-      markdown: 'md'
+      typescript: 'ts', typescriptreact: 'tsx', tsx: 'tsx', ts: 'ts',
+      javascript: 'js', javascriptreact: 'jsx', jsx: 'jsx', js: 'js',
+      css: 'css', json: 'json', markdown: 'md',
     }
     return map[lang.toLowerCase()] || 'ts'
   }
@@ -172,81 +184,43 @@ export class DevAgent extends BaseAgent {
     context: AgentContext,
     llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
   ): Promise<AgentResponse> {
-    const systemPrompt = `你是 Dev Claw，一个资深全栈开发者。生成完整、可运行的代码。
-
-**技术栈**：Next.js 14 + React + TypeScript + Tailwind CSS
-
-**回复格式 (JSON)**：
-{
-  "files": [{
-    "path": "文件路径（相对于 src/）",
-    "content": "完整代码",
-    "action": "create"
-  }],
-  "message": "实现说明（Markdown 格式）"
-}
-
-**要求**：
-- 完整可运行的代码（不要 TODO）
-- TypeScript 类型定义
-- Tailwind CSS 样式
-- 错误处理
-
-直接返回 JSON，不要额外的解释。`
-
-    const userPrompt = `任务：${task.title}
-描述：${task.description}
-
-生成完整的代码实现（JSON 格式）。`
-
     try {
-      const response = await llmProvider.chat([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ])
+      const response = await this.callLLM(
+        this.getLLMSystemPrompt(),
+        `任务：${task.title}\n描述：${task.description}\n\n生成完整的代码实现（JSON 格式）。`
+      )
 
-      const parsed = this.parseLLMResponse(response)
-      
-      return {
-        agent: 'dev',
-        message: parsed.message,
-        files: parsed.files,
-        nextAgent: 'review',
-        status: 'success'
+      if (!response) {
+        return this.implement(task, context)
       }
+
+      const parsed = this.parseJSONResponse<{
+        analysis: string
+        files: Record<string, unknown>[]
+        message: string
+        notes: string[]
+      }>(response)
+
+      if (parsed) {
+        const files = (parsed.files || []).map((f) => ({
+          path: (f.path as string) || 'unknown.ts',
+          content: (f.content as string) || '',
+          action: ((f.action as string) || 'create') as 'create' | 'modify',
+        }))
+
+        return {
+          agent: 'dev',
+          message: parsed.message || '代码实现完成',
+          files,
+          nextAgent: 'review',
+          status: 'success',
+        }
+      }
+
+      return this.implement(task, context)
     } catch (error) {
       this.log(`LLM 调用失败，回退到规则系统: ${error}`)
       return this.implement(task, context)
-    }
-  }
-
-  private parseLLMResponse(response: string): {
-    analysis: string
-    files: { path: string; content: string; action: 'create' | 'modify' }[]
-    message: string
-    notes: string[]
-  } {
-    const parsed = extractJSONObject(response)
-    if (parsed) {
-      const files = ((parsed.files as Record<string, unknown>[]) || []).map((f) => ({
-        path: (f.path as string) || 'unknown.ts',
-        content: (f.content as string) || '',
-        action: ((f.action as string) || 'create') as 'create' | 'modify'
-      }))
-
-      return {
-        analysis: (parsed.analysis as string) || '',
-        files,
-        message: (parsed.message as string) || '代码实现完成',
-        notes: (parsed.notes as string[]) || []
-      }
-    }
-
-    return {
-      analysis: '',
-      files: [],
-      message: response,
-      notes: []
     }
   }
 
@@ -258,7 +232,7 @@ export class DevAgent extends BaseAgent {
       message: this.generateImplementationMessage(task, code),
       files: code ? [code] : undefined,
       nextAgent: 'review',
-      status: 'success'
+      status: 'success',
     }
   }
 
@@ -272,7 +246,7 @@ export class DevAgent extends BaseAgent {
       return {
         path: `src/components/${this.toPascalCase(task.title)}.tsx`,
         content: this.generateFormComponent(task),
-        action: 'create'
+        action: 'create',
       }
     }
 
@@ -280,20 +254,20 @@ export class DevAgent extends BaseAgent {
       return {
         path: `src/app/api/${this.toKebabCase(task.title)}/route.ts`,
         content: this.generateAPIRoute(task),
-        action: 'create'
+        action: 'create',
       }
     }
 
     return {
       path: `src/components/${this.toPascalCase(task.title)}.tsx`,
       content: this.generateGenericComponent(task),
-      action: 'create'
+      action: 'create',
     }
   }
 
   private generateFormComponent(task: Task): string {
     const componentName = this.toPascalCase(task.title)
-    
+
     return `"use client";
 
 import { useState } from 'react';
@@ -380,7 +354,7 @@ export async function GET(request: NextRequest) {
 
   private generateGenericComponent(task: Task): string {
     const componentName = this.toPascalCase(task.title)
-    
+
     return `export default function ${componentName}() {
   return (
     <div className="p-4">
@@ -405,25 +379,9 @@ export async function GET(request: NextRequest) {
       message += `- 响应式设计\n`
       message += `- 表单验证\n`
       message += `- 错误处理\n\n`
-      message += `Reviewer Claw，请帮我审查代码质量。`
-    } else {
-      message += `Reviewer Claw，请帮我审查代码质量。`
     }
+    message += `Reviewer Claw，请帮我审查代码质量。`
 
     return message
-  }
-
-  private toPascalCase(str: string): string {
-    return str
-      .replace(/[-_\s]+(.)?/g, (_, c) => (c ? c.toUpperCase() : ''))
-      .replace(/^(.)/, (c) => c.toUpperCase())
-      .replace(/[^a-zA-Z0-9]/g, '')
-  }
-
-  private toKebabCase(str: string): string {
-    return str
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]/g, '')
   }
 }
