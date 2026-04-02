@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
+import { AgentCharacter, AgentConfig, createAgent } from '../characters/AgentCharacter';
 import { PHYSICS_CONFIG, TILE_SIZE } from '../config/gameConfig';
 import { DebugOverlay } from '../utils/DebugOverlay';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -36,8 +36,23 @@ interface TilemapData {
   platforms: Platform[];
 }
 
+interface ActiveTask {
+  agentId: string;
+  targetX: number;
+  targetY: number;
+  returning: boolean;
+}
+
+const AGENT_CONFIGS: AgentConfig[] = [
+  { id: 'dev1', name: 'Alice', role: 'Developer' },
+  { id: 'dev2', name: 'Bob', role: 'Developer' },
+  { id: 'pm', name: 'Charlie', role: 'Project Manager' },
+  { id: 'reviewer', name: 'Diana', role: 'Code Reviewer' },
+];
+
 export class OfficeScene extends Phaser.Scene {
   private agents: AgentCharacter[] = [];
+  private agentMap: Map<string, AgentCharacter> = new Map();
   private platforms: Phaser.Physics.Arcade.StaticGroup;
   private debugOverlay!: DebugOverlay;
   private movementSystem!: MovementSystem;
@@ -46,7 +61,9 @@ export class OfficeScene extends Phaser.Scene {
   private workstationMap: Map<string, Workstation> = new Map();
   private navMesh!: NavigationMesh;
   private pathfindingSystem!: PathfindingSystem;
-  private activeTask: { agentId: number; targetX: number; targetY: number; returning: boolean } | null = null;
+  private activeTasks: Map<string, ActiveTask> = new Map();
+  private selectedAgentIndex: number = 0;
+  private nameLabels: Map<string, Phaser.GameObjects.Text> = new Map();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private particles!: any;
 
@@ -158,10 +175,12 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private triggerRandomTask(): void {
-    if (this.activeTask || this.agents.length === 0) return;
+    if (this.agents.length === 0) return;
 
-    const randomAgentIndex = Math.floor(Math.random() * this.agents.length);
-    const agent = this.agents[randomAgentIndex];
+    const idleAgents = this.agents.filter(a => !this.activeTasks.has(a.agentId) && !a.isNavigatingToTarget());
+    if (idleAgents.length === 0) return;
+
+    const agent = idleAgents[Math.floor(Math.random() * idleAgents.length)];
     const targetPositions = [
       { x: 100, y: 400 },
       { x: 300, y: 400 },
@@ -172,47 +191,57 @@ export class OfficeScene extends Phaser.Scene {
     ];
 
     const target = targetPositions[Math.floor(Math.random() * targetPositions.length)];
-    
+
     agent.moveTo(target.x, target.y);
-    
-    this.activeTask = {
-      agentId: randomAgentIndex,
+
+    this.activeTasks.set(agent.agentId, {
+      agentId: agent.agentId,
       targetX: target.x,
       targetY: target.y,
       returning: false,
-    };
+    });
   }
 
   private checkTaskCompletion(): void {
-    if (!this.activeTask) return;
+    const completed: string[] = [];
 
-    const agent = this.agents[this.activeTask.agentId];
-    if (!agent) return;
+    this.activeTasks.forEach((task, agentId) => {
+      const agent = this.agentMap.get(agentId);
+      if (!agent) {
+        completed.push(agentId);
+        return;
+      }
 
-    if (!this.activeTask.returning) {
-      const targetPos = agent.getTargetPosition();
-      if (targetPos) {
-        const dx = Math.abs(agent.x - targetPos.x);
-        const dy = Math.abs(agent.y - targetPos.y);
-        
-        if (dx < 20 && dy < 20) {
-          this.time.delayedCall(2000, () => {
-            this.activeTask!.returning = true;
-            agent.returnToOriginal();
-          });
+      if (!task.returning) {
+        const targetPos = agent.getTargetPosition();
+        if (targetPos) {
+          const dx = Math.abs(agent.x - targetPos.x);
+          const dy = Math.abs(agent.y - targetPos.y);
+
+          if (dx < 20 && dy < 20) {
+            this.time.delayedCall(2000, () => {
+              const t = this.activeTasks.get(agentId);
+              if (t) {
+                t.returning = true;
+                agent.returnToOriginal();
+              }
+            });
+          }
+        }
+      } else {
+        const original = agent.getOriginalPosition();
+        if (original) {
+          const dx = Math.abs(agent.x - original.x);
+          const dy = Math.abs(agent.y - original.y);
+
+          if (dx < 20 && dy < 20) {
+            completed.push(agentId);
+          }
         }
       }
-    } else {
-      const original = agent.getTargetPosition();
-      if (original) {
-        const dx = Math.abs(agent.x - original.x);
-        const dy = Math.abs(agent.y - original.y);
-        
-        if (dx < 20 && dy < 20) {
-          this.activeTask = null;
-        }
-      }
-    }
+    });
+
+    completed.forEach(id => this.activeTasks.delete(id));
   }
 
   private setupKeyboard(): void {
@@ -220,19 +249,44 @@ export class OfficeScene extends Phaser.Scene {
       this.toggleActiveAgentWork();
     });
 
+    this.input.keyboard!.on('keydown-TAB', () => {
+      this.selectedAgentIndex = (this.selectedAgentIndex + 1) % this.agents.length;
+      if (this.agents[this.selectedAgentIndex]) {
+        this.movementSystem.setActiveAgent(this.agents[this.selectedAgentIndex]);
+      }
+    });
+
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const agent = this.agents[0];
-      if (agent) {
-        const worldX = pointer.worldX;
-        const worldY = pointer.worldY;
-        agent.moveTo(worldX, worldY);
+      const clickedAgent = this.findAgentNear(pointer.worldX, pointer.worldY, 40);
+      if (clickedAgent) {
+        const idx = this.agents.indexOf(clickedAgent);
+        if (idx >= 0) {
+          this.selectedAgentIndex = idx;
+          this.movementSystem.setActiveAgent(clickedAgent);
+        }
+      } else {
+        const agent = this.agents[this.selectedAgentIndex];
+        if (agent) {
+          agent.moveTo(pointer.worldX, pointer.worldY);
+        }
       }
     });
   }
 
+  private findAgentNear(x: number, y: number, radius: number): AgentCharacter | null {
+    for (const agent of this.agents) {
+      const dx = Math.abs(agent.x - x);
+      const dy = Math.abs(agent.y - y);
+      if (dx < radius && dy < radius) {
+        return agent;
+      }
+    }
+    return null;
+  }
+
   private toggleActiveAgentWork(): void {
     if (!this.movementSystem) return;
-    const agent = this.agents[0];
+    const agent = this.agents[this.selectedAgentIndex];
     if (!agent) return;
 
     const isWorking = !agent.isWorkingState();
@@ -277,12 +331,13 @@ export class OfficeScene extends Phaser.Scene {
     const agentColors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0x96ceb4];
 
     this.tilemapData.workstations.forEach((ws, index) => {
-      const color = agentColors[index];
+      const color = agentColors[index % agentColors.length];
+      const config = AGENT_CONFIGS[index] ?? { id: ws.id, name: ws.label, role: ws.taskType };
       createCharacterSprites(this, color);
 
       const x = ws.x * TILE_SIZE + TILE_SIZE / 2;
       const y = (ws.y - 1) * TILE_SIZE;
-      const agent = createAgent(this, x, y, color);
+      const agent = createAgent(this, x, y, color, config);
 
       const controller = new AnimationController(agent, color);
       agent.setAnimationController(controller);
@@ -290,8 +345,28 @@ export class OfficeScene extends Phaser.Scene {
       agent.setPathfindingSystem(this.pathfindingSystem);
 
       this.agents.push(agent);
+      this.agentMap.set(agent.agentId, agent);
       this.workstationMap.set(ws.id, ws);
+
+      const nameLabel = this.add.text(x, y + 20, config.name, {
+        fontSize: '10px',
+        color: '#ffffff',
+        backgroundColor: '#00000088',
+        padding: { x: 2, y: 1 },
+      });
+      nameLabel.setOrigin(0.5);
+      this.nameLabels.set(agent.agentId, nameLabel);
     });
+
+    this.setupInterAgentCollisions();
+  }
+
+  private setupInterAgentCollisions(): void {
+    for (let i = 0; i < this.agents.length; i++) {
+      for (let j = i + 1; j < this.agents.length; j++) {
+        this.physics.add.collider(this.agents[i], this.agents[j]);
+      }
+    }
   }
 
   private setupWorkstationStatus(): void {
@@ -324,24 +399,35 @@ export class OfficeScene extends Phaser.Scene {
 
   update(): void {
     this.agents.forEach((agent) => agent.update());
+    this.syncNameLabels();
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
     this.checkTaskCompletion();
+  }
+
+  private syncNameLabels(): void {
+    this.nameLabels.forEach((label, agentId) => {
+      const agent = this.agentMap.get(agentId);
+      if (agent) {
+        label.setPosition(agent.x, agent.y + 24);
+        label.setDepth(agent.depth + 1);
+      }
+    });
   }
 
   toggleDebug(): void {
     this.physics.world.drawDebug = !this.physics.world.drawDebug;
   }
 
-  moveToPosition(agentId: number, targetX: number, targetY: number): void {
-    const agent = this.agents[agentId];
+  moveToPosition(agentId: string, targetX: number, targetY: number): void {
+    const agent = this.agentMap.get(agentId);
     if (!agent) return;
 
     agent.moveTo(targetX, targetY);
   }
 
-  moveAgentToRoom(agentId: number, room: 'pm-office' | 'dev-studio' | 'test-lab' | 'review-center'): void {
-    const agent = this.agents[agentId];
+  moveAgentToRoom(agentId: string, room: 'pm-office' | 'dev-studio' | 'test-lab' | 'review-center'): void {
+    const agent = this.agentMap.get(agentId);
     if (!agent) return;
 
     const roomPos = this.roomPositions[room];
@@ -350,8 +436,8 @@ export class OfficeScene extends Phaser.Scene {
     agent.moveTo(roomPos.x, roomPos.y);
   }
 
-  assignTask(agentId: number, taskType: TaskType): void {
-    const agent = this.agents[agentId];
+  assignTask(agentId: string, taskType: TaskType): void {
+    const agent = this.agentMap.get(agentId);
     if (!agent) return;
 
     const workstation = this.findWorkstationByTaskType(taskType);
@@ -363,6 +449,18 @@ export class OfficeScene extends Phaser.Scene {
     agent.moveTo(worldX, worldY, () => {
       agent.setWorking(true);
     });
+  }
+
+  getAgentById(agentId: string): AgentCharacter | undefined {
+    return this.agentMap.get(agentId);
+  }
+
+  getAgents(): AgentCharacter[] {
+    return [...this.agents];
+  }
+
+  getSelectedAgent(): AgentCharacter | undefined {
+    return this.agents[this.selectedAgentIndex];
   }
 
   private findWorkstationByTaskType(taskType: TaskType): Workstation | undefined {
