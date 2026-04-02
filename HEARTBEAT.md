@@ -8,12 +8,15 @@
 - **工作目录**: `/Users/felixmiao/Projects/ClawCompany`
 - **详细 Prompt**: `~/.openclaw/workspace/memory/clawcompany-iterate-prompt.md`
 - **执行内容**:
-  1. **检查项目状态**（测试、编译、覆盖率）
-  2. **Review 迭代计划**（`docs/phaser-iteration-plan.md` 和 `docs/phaser-version-progress.md`）
-  3. **优化迭代计划**（调整顺序、拆分任务、更新进度）
-  4. **执行改进**（使用 OpenCode + TDD）
-  5. **提交代码**（commit + push）
-  6. **更新进度文件**（记录完成状态和 commit hash）
+  1. **启动 OpenCode**（使用 `exec` + `pty:true` + `background:true`）
+  2. **监督执行**（通过 `process` 工具监控进度，确保 OpenCode 没有偷懒）
+  3. **检查结果**（验证任务是否真的完成，代码是否提交，进度是否更新）
+
+**我的角色**:
+- ✅ 启动任务（不是 OpenCode 自己启动）
+- ✅ 监督执行（定期检查进度，防止 OpenCode 卡住或偷懒）
+- ✅ 检查结果（确认任务完成、代码提交、进度文件更新）
+- ❌ 不做决策（所有决策由 OpenCode 来做）
 
 ### 每天早上 8 点研究任务
 - **任务名**: daily-multiagent-research
