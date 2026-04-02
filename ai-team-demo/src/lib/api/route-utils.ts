@@ -18,7 +18,16 @@ export function checkRateLimit(request: NextRequest): NextResponse | null {
 }
 
 export function errorResponse(error: unknown, status = 500, context?: string): NextResponse {
-  const message = error instanceof Error ? error.message : 'Unknown error'
+  let message: string
+  if (error instanceof Error) {
+    message = error.message
+  } else if (typeof error === 'string') {
+    message = error
+  } else if (error && typeof error === 'object') {
+    message = (error as any).error || (error as any).message || 'Unknown error'
+  } else {
+    message = 'Unknown error'
+  }
   if (context) {
     console.error(`[${context}] Error:`, error)
   } else {

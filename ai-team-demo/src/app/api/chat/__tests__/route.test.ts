@@ -16,18 +16,73 @@ jest.mock('next/server', () => ({
   },
 }))
 
+jest.mock('@/lib/security/utils', () => ({
+  RateLimiter: {
+    isAllowed: jest.fn(() => true),
+    getRemaining: jest.fn(() => 60),
+  },
+  InputValidator: {
+    validateAgentId: jest.fn(() => true),
+    validateMessage: (message: string) => {
+      if (!message || message.trim().length === 0) {
+        return { valid: false, error: 'Message cannot be empty' }
+      }
+      return { valid: true }
+    },
+    validatePath: jest.fn(() => true),
+  },
+  SecurityManager: {
+    getFromEnv: jest.fn(() => null),
+  },
+}))
+
+jest.mock('@/lib/orchestrator', () => ({
+  orchestrator: {
+    executeUserRequest: jest.fn(() => Promise.resolve({
+      success: true,
+      messages: [
+        { agent: 'user', content: '创建登录页面', timestamp: new Date().toISOString() },
+        { agent: 'pm', content: '好的！我已经分析了需求。\n我将其拆分为以下 2 个子任务：', timestamp: new Date().toISOString() },
+        { agent: 'dev', content: '我已完成创建表单组件的实现。', timestamp: new Date().toISOString() },
+        { agent: 'review', content: '代码审查报告 - 审查通过', timestamp: new Date().toISOString() },
+      ],
+      tasks: [
+        { id: 'task-1', title: '创建表单组件', status: 'done', assignedTo: 'dev' },
+        { id: 'task-2', title: '添加表单验证', status: 'done', assignedTo: 'dev' },
+      ],
+      files: [],
+      stats: {
+        totalTasks: 2,
+        successfulTasks: 2,
+        failedTasks: 0,
+        totalRetries: 0,
+        executionTime: 1500,
+      },
+    })),
+    getStatus: jest.fn(() => ({
+      projectId: 'default',
+      tasks: [],
+      messages: [],
+      stats: { total: 0, pending: 0, in_progress: 0, review: 0, done: 0 },
+    })),
+    reset: jest.fn(),
+  },
+}))
+
 import { POST, GET } from '../route'
 
-// Helper to create mock NextRequest
 function createMockRequest(body: any): any {
   return {
     json: async () => body,
+    headers: {
+      get: (name: string) => null,
+    },
   } as any
 }
 
 describe('Chat API', () => {
   beforeEach(() => {
-    // 重置状态
+    jest.clearAllMocks()
   })
 
   describe('POST /api/chat', () => {
