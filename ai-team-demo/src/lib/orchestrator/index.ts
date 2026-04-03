@@ -6,8 +6,7 @@ import { chatManager } from '../chat/manager'
 import { fileSystemManager } from '../filesystem/manager'
 import { resolveTaskOrder, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
-import { toAppError, ErrorCategory, ErrorSeverity, AppError } from '../core/errors'
-import { ErrorCategory as EC, ErrorSeverity as ES } from '../core/errors'
+import { OrchestratorError, FileSystemError, AppError, ErrorCategory, ErrorSeverity } from '../core/errors'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 
@@ -55,6 +54,8 @@ export class Orchestrator extends BaseOrchestrator {
 
     const cb = this.getCallbacks()
 
+    this.logInfo('Workflow started', { userMessage })
+
     try {
       cb.sendUserMessage(userMessage)
 
@@ -62,6 +63,7 @@ export class Orchestrator extends BaseOrchestrator {
 
       const pmResponse = await this.executeAgentWithRetry('pm', initialTask, cb)
       if (!pmResponse) {
+        this.logError('Workflow completed', { success: false, reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
       cb.broadcast('pm', pmResponse.message)
@@ -93,6 +95,8 @@ export class Orchestrator extends BaseOrchestrator {
       } catch (depError) {
         if (depError instanceof DependencyError) {
           console.error('[Orchestrator] Dependency resolution failed:', depError.message)
+          this.obs.errors.track(new OrchestratorError(depError.message))
+          this.logError('Workflow completed', { success: false, reason: 'Dependency resolution failed' })
           return {
             success: false,
             messages: cb.getChatHistory().map(m => ({
@@ -111,12 +115,17 @@ export class Orchestrator extends BaseOrchestrator {
         throw depError
       }
 
+      this.obs.perf.increment('orchestrator.tasks.total', subTaskIds.length)
+      this.obs.perf.setGauge('orchestrator.tasks.active', subTaskIds.length)
+
       for (const task of sortedTasks) {
         const unresolvedDep = task.dependencies.find(
           (dep) => subTaskIds.includes(dep) && !completedTaskIds.has(dep),
         )
         if (unresolvedDep) {
           console.warn(`[Orchestrator] Skipping task ${task.id}: dependency ${unresolvedDep} was not completed`)
+          this.logWarn('Task skipped due to unmet dependency', { taskId: task.id, dependency: unresolvedDep })
+          this.obs.perf.increment('orchestrator.tasks.failed')
           continue
         }
 
@@ -124,10 +133,14 @@ export class Orchestrator extends BaseOrchestrator {
           cb.updateTaskStatus(task.id, 'in_progress')
 
           if (task.assignedTo === 'dev') {
+            this.logInfo('Task execution started', { taskId: task.id, role: 'dev' })
+
             const devResponse = await this.executeAgentWithRetry('dev', task, cb)
 
             if (!devResponse) {
               this.recordFailedTask(task, 'Dev task failed after all retries')
+              this.obs.perf.increment('orchestrator.tasks.failed')
+              this.logError('Task execution completed', { taskId: task.id, success: false, reason: 'Dev task failed' })
               continue
             }
 
@@ -138,8 +151,14 @@ export class Orchestrator extends BaseOrchestrator {
                 try {
                   await cb.saveFile?.(file.path, file.content)
                   console.log(`[Orchestrator] Saved file: ${file.path}`)
+                  this.logInfo('File saved', { path: file.path })
                 } catch (error) {
                   console.error(`[Orchestrator] Failed to save file ${file.path}:`, error)
+                  this.logError('File save failed', { path: file.path, error: error instanceof Error ? error.message : String(error) })
+                  const fsErr = error instanceof Error
+                    ? new FileSystemError(error.message, file.path)
+                    : new FileSystemError(String(error), file.path)
+                  this.obs.errors.track(fsErr)
                 }
               }
               allFiles.push(...devResponse.files)
@@ -151,6 +170,8 @@ export class Orchestrator extends BaseOrchestrator {
 
             if (!reviewResponse) {
               this.recordFailedTask(task, 'Review task failed after all retries')
+              this.obs.perf.increment('orchestrator.tasks.failed')
+              this.logError('Task execution completed', { taskId: task.id, success: false, reason: 'Review task failed' })
               continue
             }
 
@@ -159,17 +180,27 @@ export class Orchestrator extends BaseOrchestrator {
             if (reviewResponse.status === 'success') {
               cb.updateTaskStatus(task.id, 'done')
               completedTaskIds.add(task.id)
+              this.obs.perf.increment('orchestrator.tasks.completed')
+              this.logInfo('Task execution completed', { taskId: task.id, success: true })
             } else {
               cb.updateTaskStatus(task.id, 'pending')
+              this.logInfo('Task execution completed', { taskId: task.id, success: false, reason: 'Review not approved' })
             }
           }
         } catch (error) {
           console.error(`[Orchestrator] Unexpected error in task ${task.id}:`, error)
           this.recordFailedTask(task, error instanceof Error ? error.message : 'Unknown error')
+          this.obs.perf.increment('orchestrator.tasks.failed')
+          this.obs.errors.track(error instanceof Error ? error : new Error(String(error)))
+          this.logError('Task execution completed', { taskId: task.id, success: false, error: error instanceof Error ? error.message : 'Unknown error' })
         }
       }
 
+      this.obs.perf.recordValue('orchestrator.workflow.duration', Date.now() - this.startTime)
+      this.obs.perf.setGauge('orchestrator.tasks.active', 0)
+
       const hasSuccess = subTaskIds.length === 0 || this.failedTasks.length < subTaskIds.length
+      this.logInfo('Workflow completed', { success: hasSuccess })
       return {
         success: hasSuccess,
         messages: cb.getChatHistory().map(m => ({
@@ -184,6 +215,8 @@ export class Orchestrator extends BaseOrchestrator {
       }
     } catch (error) {
       console.error('[Orchestrator] Fatal error in executeUserRequest:', error)
+      this.obs.errors.track(error instanceof Error ? error : new Error(String(error)))
+      this.logError('Fatal error in workflow', { error: error instanceof Error ? error.message : 'Unknown error' })
       return {
         success: false,
         messages: cb.getChatHistory().map(m => ({

@@ -12,6 +12,7 @@ import {
 import { StructuredLogger, StructuredLogEntry } from './structured-logger'
 import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
+import { OrchestratorError, AppError, isAppError } from './errors'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -139,7 +140,7 @@ export abstract class BaseOrchestrator {
             lastError.message
           )
 
-          this.obs.errors.track(lastError)
+          this.obs.errors.track(isAppError(lastError) ? lastError : new OrchestratorError(lastError.message, { cause: lastError }))
         }
       }
     }
@@ -177,16 +178,6 @@ export abstract class BaseOrchestrator {
   resetObservability(): void {
     this.obs.perf.reset()
     this.obs.errors.clear()
-    this.logCount = 0
-  }
-  }
-
-  /**
-   * Reset observability state (useful for testing)
-   */
-  resetObservability(): void {
-    this.obs.perf.reset()
-    this.obs.errors.reset()
     this.logCount = 0
   }
 
