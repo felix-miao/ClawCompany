@@ -13,6 +13,7 @@ import { StructuredLogger, StructuredLogEntry } from './structured-logger'
 import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
 import { OrchestratorError, AppError, isAppError } from './errors'
+import { AgentEventBus, AgentEventType } from './agent-event-bus'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -38,6 +39,7 @@ export interface ObservabilityConfig {
   logger?: StructuredLogger
   performanceMonitor?: PerformanceMonitor
   errorTracker?: ErrorTracker
+  eventBus?: AgentEventBus
 }
 
 export interface ObservabilitySnapshot {
@@ -55,6 +57,7 @@ export abstract class BaseOrchestrator {
     logger: StructuredLogger | null
     perf: PerformanceMonitor
     errors: ErrorTracker
+    eventBus: AgentEventBus
   }
   protected logCount: number = 0
   private capturedLogs: StructuredLogEntry[] = []
@@ -65,6 +68,7 @@ export abstract class BaseOrchestrator {
       logger: observability?.logger ?? null,
       perf: observability?.performanceMonitor ?? new PerformanceMonitor(),
       errors: observability?.errorTracker ?? new ErrorTracker(),
+      eventBus: observability?.eventBus ?? new AgentEventBus(),
     }
   }
 
@@ -80,11 +84,19 @@ export abstract class BaseOrchestrator {
   protected logWarn(message: string, context?: Record<string, unknown>): void {
     this.logCount++
     this.obs.logger?.warn(message, context)
+    this.obs.eventBus.emit({
+      type: 'error:tracked',
+      data: { level: 'warn', message, ...context },
+    })
   }
 
   protected logError(message: string, context?: Record<string, unknown>): void {
     this.logCount++
     this.obs.logger?.error(message, context)
+    this.obs.eventBus.emit({
+      type: 'error:tracked',
+      data: { level: 'error', message, ...context },
+    })
   }
 
   protected async executeAgentWithRetry(
@@ -120,10 +132,17 @@ export abstract class BaseOrchestrator {
             error: lastError.message,
           })
 
-          console.warn(
-            `[Orchestrator] Retry ${attempt + 1}/${this.retryConfig.maxRetries} for ${role} agent after ${delay}ms:`,
-            lastError.message
-          )
+          this.obs.eventBus.emit({
+            type: 'agent:retrying',
+            agentRole: role,
+            taskId: task.id,
+            data: {
+              attempt: attempt + 1,
+              maxRetries: this.retryConfig.maxRetries,
+              delay,
+              error: lastError.message,
+            },
+          })
 
           this.obs.perf.increment('orchestrator.retries')
           this.totalRetries++
@@ -135,10 +154,15 @@ export abstract class BaseOrchestrator {
             error: lastError.message,
           })
 
-          console.error(
-            `[Orchestrator] All ${this.retryConfig.maxRetries} retries failed for ${role} agent:`,
-            lastError.message
-          )
+          this.obs.eventBus.emit({
+            type: 'agent:failed',
+            agentRole: role,
+            taskId: task.id,
+            data: {
+              maxRetries: this.retryConfig.maxRetries,
+              error: lastError.message,
+            },
+          })
 
           this.obs.errors.track(isAppError(lastError) ? lastError : new OrchestratorError(lastError.message, { cause: lastError }))
         }
@@ -175,9 +199,14 @@ export abstract class BaseOrchestrator {
     }
   }
 
+  getEventBus(): AgentEventBus {
+    return this.obs.eventBus
+  }
+
   resetObservability(): void {
     this.obs.perf.reset()
     this.obs.errors.clear()
+    this.obs.eventBus.clear()
     this.logCount = 0
   }
 

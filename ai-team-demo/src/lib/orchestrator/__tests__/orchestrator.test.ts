@@ -293,10 +293,10 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       
       await orchestrator.executeUserRequest('test request')
       
-      expect(consoleSpy).toHaveBeenCalled()
-      expect(consoleSpy.mock.calls.some(call => 
-        call[0].includes('Error') || call[1]?.includes('Test error')
-      )).toBe(true)
+      const eventHistory = orchestrator.getEventBus().getHistory()
+      const errorEvents = eventHistory.filter(e => e.type === 'agent:failed' || e.type === 'workflow:failed' || (e.type === 'error:tracked' && e.data?.level === 'error'))
+      expect(errorEvents.length).toBeGreaterThanOrEqual(1)
+      expect(errorEvents.some(e => JSON.stringify(e.data).includes('Test error'))).toBe(true)
       
       consoleSpy.mockRestore()
     }, 10000)
@@ -315,11 +315,10 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       
       await orchestrator.executeUserRequest('test request')
       
-      // Should log retry attempts
-      const warnCalls = consoleSpy.mock.calls
-      expect(warnCalls.some(call => 
-        call[0]?.includes('Retry') || call[0]?.includes('重试')
-      )).toBe(true)
+      const eventHistory = orchestrator.getEventBus().getHistory()
+      const retryEvents = eventHistory.filter(e => e.type === 'agent:retrying')
+      expect(retryEvents.length).toBeGreaterThanOrEqual(1)
+      expect(retryEvents.some(e => JSON.stringify(e.data).includes('Temporary error'))).toBe(true)
       
       consoleSpy.mockRestore()
     })
