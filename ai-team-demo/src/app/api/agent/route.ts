@@ -7,7 +7,7 @@ import { GitManager } from '@/lib/git/manager'
 import { defaultAgents } from '@/lib/agents/config'
 import { PersistedAgentConfigSchema } from '@/types/agent-config'
 import type { PersistedAgentConfig } from '@/types/agent-config'
-import { withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withRateLimit, withErrorHandling, withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
 import { getLLMProvider } from '@/lib/llm/factory'
 
 const fsManager = new FileSystemManager(process.cwd())
@@ -264,7 +264,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   return successResponse({ agent })
 }, 'Agent API')
 
-export const PUT = withErrorHandling(async (request: NextRequest) => {
+export const PUT = withAuth(async (request: NextRequest) => {
   const body = await request.json()
   const { agentId, ...updates } = body
 
@@ -288,7 +288,7 @@ export const PUT = withErrorHandling(async (request: NextRequest) => {
   return successResponse({ agent: updated })
 }, 'Agent API')
 
-export const DELETE = withErrorHandling(async (request: NextRequest) => {
+export const DELETE = withAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const agentId = searchParams.get('agentId')
 
