@@ -2,9 +2,11 @@
 
 import { useEffect, useRef } from "react";
 
+import { Game } from "@/game";
+
 export default function OfficePage() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<any>(null);
+  const gameRef = useRef<Game | null>(null);
 
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {

@@ -32,7 +32,7 @@ export default [
     },
     rules: {
       // TypeScript rules
-      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': 'warn',
       'no-unused-vars': 'off', // Use @typescript-eslint/no-unused-vars instead
       'no-undef': 'off', // TypeScript handles this

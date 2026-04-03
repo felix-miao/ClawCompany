@@ -109,7 +109,7 @@ export default function ChatPage() {
       
       if (response.success && response.chatHistory) {
         // 确保 timestamp 是 Date 对象
-        const messagesWithDates = response.chatHistory.map((m: any) => ({
+        const messagesWithDates = response.chatHistory.map((m: Message) => ({
           ...m,
           timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
         }))

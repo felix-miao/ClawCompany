@@ -135,9 +135,12 @@ export class DevAgent extends BaseAgent {
     try {
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/)
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[1])
+        const parsed = JSON.parse(jsonMatch[1]) as {
+          files?: Array<{ path?: string; content?: string; action?: string }>
+          message?: string
+        }
         return {
-          files: (parsed.files || []).map((f: any) => ({
+          files: (parsed.files || []).map((f) => ({
             path: f.path || 'unknown.ts',
             content: f.content || '',
             action: (f.action || 'create') as 'create' | 'modify',

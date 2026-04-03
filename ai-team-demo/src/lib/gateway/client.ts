@@ -1,3 +1,5 @@
+import { PendingCall, RPCRequest, RPCResponse } from '../core/types'
+
 export interface SpawnOptions {
   task: string
   label?: string
@@ -32,34 +34,14 @@ export interface GatewayOptions {
   token?: string
 }
 
-interface RPCRequest {
-  jsonrpc: '2.0'
-  id: number
-  method: string
-  params: Record<string, any>
-}
-
-interface RPCResponse {
-  jsonrpc: '2.0'
-  id: number
-  result?: any
-  error?: {
-    code: number
-    message: string
-    data?: any
-  }
-}
-
 export class OpenClawGatewayClient {
   private url: string
   private token?: string
   private timeout: number
   private ws: WebSocket | null = null
   private requestId = 0
-  private pendingCalls = new Map<number, {
-    resolve: (value: any) => void
-    reject: (error: Error) => void
-  }>()
+  private pendingCalls = new Map<number, PendingCall>()
+  private connecting = false
 
   constructor(url: string = 'ws://127.0.0.1:18789', options: GatewayOptions = {}) {
     this.url = url
@@ -68,7 +50,13 @@ export class OpenClawGatewayClient {
   }
 
   async connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    if (this.connecting) {
+      throw new Error('Already connecting')
+    }
+    this.connecting = true
+
+    try {
+      return await new Promise<void>((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject(new Error('Connection timeout'))
         this.ws?.close()
@@ -107,6 +95,9 @@ export class OpenClawGatewayClient {
         reject(e)
       }
     })
+    } finally {
+      this.connecting = false
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -120,7 +111,7 @@ export class OpenClawGatewayClient {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN
   }
 
-  async call<T = any>(method: string, params: Record<string, any> = {}): Promise<T> {
+  async call<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     if (!this.ws || !this.isConnected()) {
       throw new Error('Not connected to Gateway')
     }
@@ -143,9 +134,9 @@ export class OpenClawGatewayClient {
       }, this.timeout)
 
       this.pendingCalls.set(id, {
-        resolve: (value) => {
+        resolve: (value: unknown) => {
           clearTimeout(timeoutId)
-          resolve(value)
+          resolve(value as T)
         },
         reject: (error) => {
           clearTimeout(timeoutId)
@@ -173,7 +164,7 @@ export class OpenClawGatewayClient {
   }
 
   async sessions_spawn(options: SpawnOptions): Promise<SpawnResult> {
-    const params: Record<string, any> = {
+    const params: Record<string, unknown> = {
       task: options.task,
     }
 

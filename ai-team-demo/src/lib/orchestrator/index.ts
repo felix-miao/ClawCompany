@@ -24,7 +24,7 @@ export class Orchestrator extends BaseOrchestrator {
       createTask: (title, desc, assignedTo, deps, files) =>
         taskManager.createTask(title, desc, assignedTo, deps, files),
       getTask: (id) => taskManager.getTask(id),
-      updateTaskStatus: (id, status) => taskManager.updateTaskStatus(id, status as any),
+      updateTaskStatus: (id, status) => { taskManager.updateTaskStatus(id, status) },
       getAllTasks: () => taskManager.getAllTasks(),
       getChatHistory: () => chatManager.getHistory(),
       executeAgent: (role, task, context) => agentManager.executeAgent(role, task, context),

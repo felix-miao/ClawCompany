@@ -1,7 +1,9 @@
-import { OpenClawGatewayClient, SpawnOptions, SpawnResult } from '../client'
+import { OpenClawGatewayClient, SpawnOptions, SpawnResult, getGatewayClient, resetGatewayClient } from '../client'
 
 class MockWebSocket {
   static instances: MockWebSocket[] = []
+  static throwOnSend: boolean = false
+  static noAutoOpen: boolean = false
   
   readyState: number = WebSocket.CONNECTING
   onopen: ((event: Event) => void) | null = null
@@ -16,13 +18,18 @@ class MockWebSocket {
     this.url = url
     MockWebSocket.instances.push(this)
     
-    setTimeout(() => {
-      this.readyState = WebSocket.OPEN
-      this.onopen?.({ type: 'open' } as Event)
-    }, 0)
+    if (!MockWebSocket.noAutoOpen) {
+      setTimeout(() => {
+        this.readyState = WebSocket.OPEN
+        this.onopen?.({ type: 'open' } as Event)
+      }, 0)
+    }
   }
   
   send(data: string) {
+    if (MockWebSocket.throwOnSend) {
+      throw new Error('WebSocket is not open')
+    }
     this.sentMessages.push(JSON.parse(data))
   }
   
@@ -64,6 +71,8 @@ describe('OpenClawGatewayClient', () => {
   
   beforeEach(() => {
     MockWebSocket.instances = []
+    MockWebSocket.throwOnSend = false
+    MockWebSocket.noAutoOpen = false
     client = new OpenClawGatewayClient('ws://127.0.0.1:18789')
   })
   
@@ -358,5 +367,70 @@ describe('OpenClawGatewayClient', () => {
       expect(result).toContain('Done!')
       callSpy.mockRestore()
     }, 15000)
+  })
+
+  describe('call() error handling', () => {
+    it('should handle WebSocket send exception gracefully', async () => {
+      await client.connect()
+      MockWebSocket.throwOnSend = true
+
+      await expect(client.call('health', {})).rejects.toThrow('WebSocket is not open')
+    })
+  })
+
+  describe('connect() concurrency guard', () => {
+    it('should reject concurrent connect() calls', async () => {
+      MockWebSocket.noAutoOpen = true
+      MockWebSocket.instances = []
+
+      const clientA = new OpenClawGatewayClient('ws://127.0.0.1:18789')
+
+      const first = clientA.connect()
+      const second = clientA.connect()
+
+      const ws = MockWebSocket.instances[0]
+      setTimeout(() => {
+        ws.readyState = WebSocket.OPEN
+        ws.onopen?.({ type: 'open' } as Event)
+      }, 10)
+
+      await expect(second).rejects.toThrow(/already.*connect/i)
+      await expect(first).resolves.toBeUndefined()
+
+      await clientA.disconnect()
+    })
+  })
+})
+
+describe('getGatewayClient / resetGatewayClient singleton', () => {
+  beforeEach(() => {
+    resetGatewayClient()
+  })
+
+  afterEach(() => {
+    resetGatewayClient()
+  })
+
+  it('getGatewayClient() should return the same instance', () => {
+    const a = getGatewayClient()
+    const b = getGatewayClient()
+    expect(a).toBe(b)
+  })
+
+  it('resetGatewayClient() should clear the singleton', () => {
+    const a = getGatewayClient()
+    resetGatewayClient()
+    const b = getGatewayClient()
+    expect(a).not.toBe(b)
+  })
+
+  it('getGatewayClient() should use OPENCLAW_GATEWAY_URL env', () => {
+    const originalUrl = process.env.OPENCLAW_GATEWAY_URL
+    process.env.OPENCLAW_GATEWAY_URL = 'ws://custom:9999'
+
+    const c = getGatewayClient()
+    expect(c).toBeInstanceOf(OpenClawGatewayClient)
+
+    process.env.OPENCLAW_GATEWAY_URL = originalUrl
   })
 })

@@ -8,6 +8,7 @@ import { EventLog } from "@/components/dashboard/EventLog";
 import { ControlPanel } from "@/components/dashboard/ControlPanel";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
+import { Game } from "@/game";
 import { DashboardStore } from "@/game/data/DashboardStore";
 import { GameEvent } from "@/game/types/GameEvents";
 
@@ -16,7 +17,7 @@ export default function DashboardPage() {
   const { isConnected, isReconnecting } = useEventStream(store);
   const { agents, events, stats } = useDashboardStore(store);
   const containerRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<any>(null);
+  const gameRef = useRef<Game | null>(null);
 
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {
