@@ -1,4 +1,5 @@
 import { TaskManager } from '../manager'
+import { InvalidTransitionError } from '../state-machine'
 
 describe('TaskManager', () => {
   let tm: TaskManager
@@ -133,12 +134,13 @@ describe('TaskManager', () => {
     it('updates updatedAt timestamp', () => {
       const task = tm.createTask('T', 'd', 'dev')
       const originalUpdatedAt = task.updatedAt
-      const updated = tm.updateTaskStatus(task.id, 'done')
+      tm.updateTaskStatus(task.id, 'in_progress')
 
+      const updated = tm.updateTaskStatus(task.id, 'review')
       expect(updated!.updatedAt.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime())
     })
 
-    it('cycles through all statuses', () => {
+    it('cycles through valid statuses', () => {
       const task = tm.createTask('T', 'd', 'dev')
 
       tm.updateTaskStatus(task.id, 'in_progress')
@@ -150,12 +152,33 @@ describe('TaskManager', () => {
       tm.updateTaskStatus(task.id, 'done')
       expect(tm.getTask(task.id)!.status).toBe('done')
 
-      tm.updateTaskStatus(task.id, 'pending')
-      expect(tm.getTask(task.id)!.status).toBe('pending')
+      tm.updateTaskStatus(task.id, 'in_progress')
+      expect(tm.getTask(task.id)!.status).toBe('in_progress')
     })
 
     it('returns undefined for non-existent task', () => {
       expect(tm.updateTaskStatus('nope', 'done')).toBeUndefined()
+    })
+
+    it('throws InvalidTransitionError for invalid transition', () => {
+      const task = tm.createTask('T', 'd', 'dev')
+      tm.updateTaskStatus(task.id, 'in_progress')
+      tm.updateTaskStatus(task.id, 'review')
+      tm.updateTaskStatus(task.id, 'done')
+
+      expect(() => tm.updateTaskStatus(task.id, 'pending')).toThrow(InvalidTransitionError)
+    })
+
+    it('throws InvalidTransitionError for pending → done', () => {
+      const task = tm.createTask('T', 'd', 'dev')
+
+      expect(() => tm.updateTaskStatus(task.id, 'done')).toThrow(InvalidTransitionError)
+    })
+
+    it('allows idempotent status update', () => {
+      const task = tm.createTask('T', 'd', 'dev')
+      const updated = tm.updateTaskStatus(task.id, 'pending')
+      expect(updated!.status).toBe('pending')
     })
   })
 
@@ -176,6 +199,8 @@ describe('TaskManager', () => {
   describe('completeTask', () => {
     it('marks task as done', () => {
       const task = tm.createTask('T', 'd', 'dev')
+      tm.updateTaskStatus(task.id, 'in_progress')
+      tm.updateTaskStatus(task.id, 'review')
       const completed = tm.completeTask(task.id)
 
       expect(completed!.status).toBe('done')
@@ -204,7 +229,10 @@ describe('TaskManager', () => {
       tm.createTask('D', 'd', 'review')
 
       tm.updateTaskStatus(t1.id, 'in_progress')
+      tm.updateTaskStatus(t2.id, 'in_progress')
+      tm.updateTaskStatus(t2.id, 'review')
       tm.updateTaskStatus(t2.id, 'done')
+      tm.updateTaskStatus(t3.id, 'in_progress')
       tm.updateTaskStatus(t3.id, 'review')
 
       const stats = tm.getStats()
@@ -260,6 +288,8 @@ describe('TaskManager', () => {
       const t1 = tm.createTask('A', 'a', 'dev')
       const t2 = tm.createTask('B', 'b', 'pm')
       tm.updateTaskStatus(t1.id, 'in_progress')
+      tm.updateTaskStatus(t2.id, 'in_progress')
+      tm.updateTaskStatus(t2.id, 'review')
       tm.updateTaskStatus(t2.id, 'done')
 
       const restored = TaskManager.fromJSON(tm.toJSON())

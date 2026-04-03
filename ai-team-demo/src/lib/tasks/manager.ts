@@ -1,6 +1,9 @@
 import { Task, TaskStatus, AgentRole } from '../core/types'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
+import { TaskStateMachine, InvalidTransitionError } from './state-machine'
+
+export { TaskStateMachine, InvalidTransitionError } from './state-machine'
 
 export class TaskManager {
   private tasks: Map<string, Task> = new Map()
@@ -52,6 +55,10 @@ export class TaskManager {
   updateTaskStatus(taskId: string, status: TaskStatus): Task | undefined {
     const task = this.tasks.get(taskId)
     if (!task) return undefined
+
+    if (!TaskStateMachine.isValidTransition(task.status, status)) {
+      throw new InvalidTransitionError(task.status, status)
+    }
 
     task.status = status
     task.updatedAt = new Date()
