@@ -181,14 +181,12 @@ export default function TeamChatPage() {
       const pmResponse = await callAgent(pmAgent, userMessage)
       const pmDuration = ((Date.now() - pmStartTime) / 1000).toFixed(1)
       
-      setMessages(prev => {
-        const newMsgs = [...prev]
-        const lastPmMsg = newMsgs.find(m => m.agentId === 'pm-agent' && m.content === '正在分析需求...')
-        if (lastPmMsg) {
-          lastPmMsg.content = pmResponse + `\n\n⏱️ 用时：${pmDuration}秒`
-        }
-        return newMsgs
-      })
+      const pmPlaceholder = '正在分析需求...'
+      setMessages(prev => prev.map(m =>
+        m.agentId === 'pm-agent' && m.content === pmPlaceholder
+          ? { ...m, content: pmResponse + `\n\n⏱️ 用时：${pmDuration}秒` }
+          : m
+      ))
 
       const devAgent = agents.find(a => a.id === 'dev-agent')!
       addMessage(devAgent, '正在实现功能...')
@@ -200,17 +198,12 @@ export default function TeamChatPage() {
       )
       const devDuration = ((Date.now() - devStartTime) / 1000).toFixed(1)
       
-      setMessages(prev => {
-        const newMsgs = [...prev]
-        const lastDevMsg = newMsgs.find(m => 
-          m.agentId === 'dev-agent' && 
-          m.content === '正在实现功能...'
-        )
-        if (lastDevMsg) {
-          lastDevMsg.content = devResponse + `\n\n⏱️ 用时：${devDuration}秒`
-        }
-        return newMsgs
-      })
+      const devPlaceholder = '正在实现功能...'
+      setMessages(prev => prev.map(m =>
+        m.agentId === 'dev-agent' && m.content === devPlaceholder
+          ? { ...m, content: devResponse + `\n\n⏱️ 用时：${devDuration}秒` }
+          : m
+      ))
 
       const reviewAgent = agents.find(a => a.id === 'review-agent')!
       addMessage(reviewAgent, '正在审查代码...')
@@ -222,17 +215,12 @@ export default function TeamChatPage() {
       )
       const reviewDuration = ((Date.now() - reviewStartTime) / 1000).toFixed(1)
       
-      setMessages(prev => {
-        const newMsgs = [...prev]
-        const lastReviewMsg = newMsgs.find(m => 
-          m.agentId === 'review-agent' && 
-          m.content === '正在审查代码...'
-        )
-        if (lastReviewMsg) {
-          lastReviewMsg.content = reviewResponse + `\n\n⏱️ 用时：${reviewDuration}秒`
-        }
-        return newMsgs
-      })
+      const reviewPlaceholder = '正在审查代码...'
+      setMessages(prev => prev.map(m =>
+        m.agentId === 'review-agent' && m.content === reviewPlaceholder
+          ? { ...m, content: reviewResponse + `\n\n⏱️ 用时：${reviewDuration}秒` }
+          : m
+      ))
 
       const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
 
@@ -368,7 +356,7 @@ export default function TeamChatPage() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="输入你的需求..."
                 aria-label="输入你的需求"
                 className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500"

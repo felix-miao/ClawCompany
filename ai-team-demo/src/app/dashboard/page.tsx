@@ -6,11 +6,16 @@ import Link from "next/link";
 import { AgentStatusPanel } from "@/components/dashboard/AgentStatusPanel";
 import { EventLog } from "@/components/dashboard/EventLog";
 import { ControlPanel } from "@/components/dashboard/ControlPanel";
+import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetricsPanel";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { Game } from "@/game";
 import { DashboardStore } from "@/game/data/DashboardStore";
 import { GameEvent } from "@/game/types/GameEvents";
+import { MetricsAggregator } from "@/lib/core/metrics-aggregator";
+import { PerformanceMonitor } from "@/lib/core/performance-monitor";
+import { ErrorTracker } from "@/lib/core/error-tracker";
+import { StructuredLogger } from "@/lib/core/structured-logger";
 
 export default function DashboardPage() {
   const store = useMemo(() => new DashboardStore(), []);
@@ -18,6 +23,14 @@ export default function DashboardPage() {
   const { agents, events, stats } = useDashboardStore(store);
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
+  
+  // 初始化性能监控组件
+  const metricsAggregator = useMemo(() => {
+    const perfMonitor = new PerformanceMonitor();
+    const errorTracker = new ErrorTracker();
+    const logger = new StructuredLogger();
+    return new MetricsAggregator(perfMonitor, errorTracker, logger);
+  }, []);
 
   useEffect(() => {
     if (containerRef.current && !gameRef.current) {
@@ -100,6 +113,7 @@ export default function DashboardPage() {
         <aside className="w-80 border-l border-dark-100 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <AgentStatusPanel agents={agents} />
+            <PerformanceMetricsPanel metricsAggregator={metricsAggregator} />
             <EventLog events={events} />
           </div>
           <div className="border-t border-dark-100 p-3">

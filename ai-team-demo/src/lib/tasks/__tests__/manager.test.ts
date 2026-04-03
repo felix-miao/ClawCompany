@@ -218,7 +218,9 @@ describe('TaskManager', () => {
         pending: 0,
         inProgress: 0,
         review: 0,
-        done: 0
+        done: 0,
+        completed: 0,
+        failed: 0
       })
     })
 
@@ -241,7 +243,9 @@ describe('TaskManager', () => {
         pending: 1,
         inProgress: 1,
         review: 1,
-        done: 1
+        done: 1,
+        completed: 0,
+        failed: 0
       })
     })
   })
@@ -312,6 +316,165 @@ describe('TaskManager', () => {
       const empty = new TaskManager('empty')
       const restored = TaskManager.fromJSON(empty.toJSON())
       expect(restored.getAllTasks()).toEqual([])
+    })
+  })
+
+  describe('getStats includes completed and failed', () => {
+    it('counts completed tasks', () => {
+      const t1 = tm.createTask('A', 'a', 'dev')
+      tm.updateTaskStatus(t1.id, 'in_progress')
+      tm.updateTaskStatus(t1.id, 'review')
+      tm.updateTaskStatus(t1.id, 'completed')
+
+      const stats = tm.getStats()
+      expect(stats.completed).toBe(1)
+      expect(stats.total).toBe(1)
+    })
+
+    it('counts failed tasks', () => {
+      const t1 = tm.createTask('A', 'a', 'dev')
+      tm.updateTaskStatus(t1.id, 'in_progress')
+      tm.updateTaskStatus(t1.id, 'failed')
+
+      const stats = tm.getStats()
+      expect(stats.failed).toBe(1)
+      expect(stats.total).toBe(1)
+    })
+
+    it('counts mixed statuses including completed and failed', () => {
+      const t1 = tm.createTask('A', 'a', 'dev')
+      const t2 = tm.createTask('B', 'b', 'dev')
+      const t3 = tm.createTask('C', 'c', 'dev')
+      const t4 = tm.createTask('D', 'd', 'dev')
+      const t5 = tm.createTask('E', 'e', 'dev')
+      const t6 = tm.createTask('F', 'f', 'dev')
+
+      tm.updateTaskStatus(t1.id, 'in_progress')
+      tm.updateTaskStatus(t2.id, 'in_progress')
+      tm.updateTaskStatus(t2.id, 'review')
+      tm.updateTaskStatus(t3.id, 'in_progress')
+      tm.updateTaskStatus(t3.id, 'review')
+      tm.updateTaskStatus(t3.id, 'completed')
+      tm.updateTaskStatus(t4.id, 'in_progress')
+      tm.updateTaskStatus(t4.id, 'failed')
+      tm.updateTaskStatus(t5.id, 'in_progress')
+      tm.updateTaskStatus(t5.id, 'review')
+      tm.updateTaskStatus(t5.id, 'done')
+
+      const stats = tm.getStats()
+      expect(stats).toEqual({
+        total: 6,
+        pending: 1,
+        inProgress: 1,
+        review: 1,
+        done: 1,
+        completed: 1,
+        failed: 1,
+      })
+    })
+
+    it('returns zeros for completed and failed when none exist', () => {
+      tm.createTask('A', 'a', 'dev')
+      const stats = tm.getStats()
+      expect(stats.completed).toBe(0)
+      expect(stats.failed).toBe(0)
+    })
+  })
+
+  describe('createTask validation', () => {
+    it('throws on empty title', () => {
+      expect(() => tm.createTask('', 'desc', 'dev')).toThrow('title is required')
+    })
+
+    it('throws on whitespace-only title', () => {
+      expect(() => tm.createTask('   ', 'desc', 'dev')).toThrow('title is required')
+    })
+
+    it('throws on empty description', () => {
+      expect(() => tm.createTask('Title', '', 'dev')).toThrow('description is required')
+    })
+
+    it('throws on invalid agent role', () => {
+      expect(() => tm.createTask('Title', 'desc', 'invalid' as any)).toThrow('Invalid agent role')
+    })
+
+    it('throws on self-referencing dependency', () => {
+      const task = tm.createTask('A', 'a', 'dev')
+      expect(() => tm.createTask('B', 'b', 'dev', [task.id], [])).not.toThrow()
+    })
+
+    it('trims title whitespace', () => {
+      const task = tm.createTask('  Valid Title  ', 'desc', 'dev')
+      expect(task.title).toBe('Valid Title')
+    })
+  })
+
+  describe('fromJSON validation', () => {
+    it('throws on invalid JSON', () => {
+      expect(() => TaskManager.fromJSON('not json')).toThrow()
+    })
+
+    it('throws when projectId is missing', () => {
+      const json = JSON.stringify({ tasks: [] })
+      expect(() => TaskManager.fromJSON(json)).toThrow('projectId is required')
+    })
+
+    it('throws when tasks is not an array', () => {
+      const json = JSON.stringify({ projectId: 'test', tasks: 'invalid' })
+      expect(() => TaskManager.fromJSON(json)).toThrow('tasks must be an array')
+    })
+
+    it('throws when a task has invalid status', () => {
+      const badTask = {
+        id: 't1', title: 'T', description: 'd',
+        status: 'invalid_status', assignedTo: 'dev',
+        dependencies: [], files: [],
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      }
+      const json = JSON.stringify({ projectId: 'test', tasks: [['t1', badTask]] })
+      expect(() => TaskManager.fromJSON(json)).toThrow('Invalid task status')
+    })
+
+    it('throws when a task has invalid agent role', () => {
+      const badTask = {
+        id: 't1', title: 'T', description: 'd',
+        status: 'pending', assignedTo: 'invalid_role',
+        dependencies: [], files: [],
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      }
+      const json = JSON.stringify({ projectId: 'test', tasks: [['t1', badTask]] })
+      expect(() => TaskManager.fromJSON(json)).toThrow('Invalid agent role')
+    })
+
+    it('throws when a task is missing required fields', () => {
+      const badTask = { id: 't1' }
+      const json = JSON.stringify({ projectId: 'test', tasks: [['t1', badTask]] })
+      expect(() => TaskManager.fromJSON(json)).toThrow()
+    })
+
+    it('handles valid JSON with all status types', () => {
+      const tasks = [
+        ['t1', {
+          id: 't1', title: 'A', description: 'a', status: 'pending',
+          assignedTo: 'dev', dependencies: [], files: [],
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        }],
+        ['t2', {
+          id: 't2', title: 'B', description: 'b', status: 'completed',
+          assignedTo: 'pm', dependencies: [], files: [],
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        }],
+        ['t3', {
+          id: 't3', title: 'C', description: 'c', status: 'failed',
+          assignedTo: 'review', dependencies: ['t1'], files: ['x.ts'],
+          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        }],
+      ]
+      const json = JSON.stringify({ projectId: 'test', tasks })
+      const restored = TaskManager.fromJSON(json)
+      expect(restored.getAllTasks()).toHaveLength(3)
+      expect(restored.getTask('t3')!.status).toBe('failed')
+      expect(restored.getTask('t3')!.dependencies).toEqual(['t1'])
     })
   })
 
