@@ -50,7 +50,11 @@ export interface ChatMessage {
   }
 }
 
-export type Message = ChatMessage
+export interface Message extends ChatMessage {
+  id: string
+  type: 'text' | 'code' | 'file' | 'task'
+  timestamp: Date
+}
 
 export interface PMResult {
   analysis: string

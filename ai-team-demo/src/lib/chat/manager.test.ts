@@ -1,5 +1,6 @@
-import { ChatManager, Message } from './manager'
-import { AgentRole } from '../../core/types'
+import { ChatManager } from './manager'
+import { Message } from '../core/types'
+import { AgentRole } from '../core/types'
 
 describe('ChatManager Performance Optimization', () => {
   let chatManager: ChatManager
@@ -22,7 +23,7 @@ describe('ChatManager Performance Optimization', () => {
 
     it('should return correct message from multiple messages', () => {
       const msg1 = chatManager.addMessage('user', 'Message 1')
-      const msg2 = chatManager.addMessage('assistant', 'Message 2')
+      const msg2 = chatManager.addMessage('dev', 'Message 2')
       const msg3 = chatManager.addMessage('user', 'Message 3')
 
       const found = chatManager.getMessage(msg2.id)
@@ -32,11 +33,9 @@ describe('ChatManager Performance Optimization', () => {
     })
 
     it('should handle duplicate IDs gracefully (though generateId should prevent this)', () => {
-      // This test documents the current behavior - with generateId, duplicates shouldn't occur
       const msg1 = chatManager.addMessage('user', 'First message')
-      const msg2 = chatManager.addMessage('assistant', 'Second message')
+      const msg2 = chatManager.addMessage('dev', 'Second message')
       
-      // Find by the actual ID that was generated
       const found1 = chatManager.getMessage(msg1.id)
       const found2 = chatManager.getMessage(msg2.id)
       
@@ -48,13 +47,11 @@ describe('ChatManager Performance Optimization', () => {
 
   describe('Performance characteristics', () => {
     it('should handle many messages efficiently', () => {
-      // Add 1000 messages to test performance
       const messages: Message[] = []
       for (let i = 0; i < 1000; i++) {
         messages.push(chatManager.addMessage('user', `Message ${i}`))
       }
 
-      // Test lookup of each message - this should be O(1) after optimization
       const startTime = performance.now()
       messages.forEach(msg => {
         const found = chatManager.getMessage(msg.id)
@@ -65,12 +62,10 @@ describe('ChatManager Performance Optimization', () => {
       const lookupTime = endTime - startTime
       console.log(`1000 message lookups took ${lookupTime}ms`)
       
-      // Should be reasonable performance (this documents current behavior)
-      expect(lookupTime).toBeLessThan(100) // Should complete within 100ms
+      expect(lookupTime).toBeLessThan(100)
     })
 
     it('should get recent messages without performance degradation', () => {
-      // Add many messages
       for (let i = 0; i < 5000; i++) {
         chatManager.addMessage('user', `Message ${i}`)
       }
@@ -88,7 +83,6 @@ describe('ChatManager Performance Optimization', () => {
 
   describe('Backwards compatibility', () => {
     it('should maintain all existing API methods', () => {
-      // Verify all existing methods still work
       expect(chatManager.addMessage).toBeDefined()
       expect(chatManager.getHistory).toBeDefined()
       expect(chatManager.getRecentMessages).toBeDefined()

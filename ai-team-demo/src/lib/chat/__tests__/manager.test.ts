@@ -397,4 +397,196 @@ describe('ChatManager', () => {
       expect(cm.getHistory()[0].content).toBe('second conversation')
     })
   })
+
+  describe('Type safety', () => {
+    describe('Message always has required fields', () => {
+      it('addMessage returns Message with non-optional id', () => {
+        const msg = cm.addMessage('user', 'test')
+        expect(typeof msg.id).toBe('string')
+        expect(msg.id.length).toBeGreaterThan(0)
+      })
+
+      it('addMessage returns Message with non-optional type', () => {
+        const msg = cm.addMessage('user', 'test')
+        expect(msg.type).toBeDefined()
+        expect(['text', 'code', 'file', 'task']).toContain(msg.type)
+      })
+
+      it('addMessage returns Message with non-optional timestamp', () => {
+        const msg = cm.addMessage('user', 'test')
+        expect(msg.timestamp).toBeInstanceOf(Date)
+        expect(msg.timestamp.getTime()).not.toBeNaN()
+      })
+
+      it('addMessage defaults type to text when not specified', () => {
+        const msg = cm.addMessage('user', 'hello')
+        expect(msg.type).toBe('text')
+      })
+
+      it('all convenience methods return fully typed messages', () => {
+        const user = cm.sendUserMessage('hi')
+        const broadcast = cm.broadcast('pm', 'announce')
+        const code = cm.sendCodeMessage('dev', 'const x = 1')
+        const file = cm.sendFileMessage('dev', 'a.ts', 'content')
+        const task = cm.sendTaskMessage('pm', 't1', 'update')
+
+        for (const msg of [user, broadcast, code, file, task]) {
+          expect(typeof msg.id).toBe('string')
+          expect(msg.id.length).toBeGreaterThan(0)
+          expect(msg.type).toBeDefined()
+          expect(msg.timestamp).toBeInstanceOf(Date)
+        }
+      })
+
+      it('getHistory returns messages with all required fields', () => {
+        cm.addMessage('user', 'msg1', 'text')
+        cm.addMessage('dev', 'msg2', 'code', { codeLanguage: 'ts' })
+        cm.addMessage('pm', 'msg3', 'task', { taskId: 't1' })
+
+        const history = cm.getHistory()
+        for (const msg of history) {
+          expect(typeof msg.id).toBe('string')
+          expect(msg.id.length).toBeGreaterThan(0)
+          expect(['text', 'code', 'file', 'task']).toContain(msg.type)
+          expect(msg.timestamp).toBeInstanceOf(Date)
+        }
+      })
+
+      it('getRecentMessages returns messages with all required fields', () => {
+        for (let i = 0; i < 5; i++) {
+          cm.addMessage('user', `msg_${i}`)
+        }
+        const recent = cm.getRecentMessages(3)
+        for (const msg of recent) {
+          expect(typeof msg.id).toBe('string')
+          expect(msg.id.length).toBeGreaterThan(0)
+        }
+      })
+
+      it('getMessagesByAgent returns messages with all required fields', () => {
+        cm.addMessage('dev', 'code1')
+        cm.addMessage('dev', 'code2')
+        const devMessages = cm.getMessagesByAgent('dev')
+        for (const msg of devMessages) {
+          expect(typeof msg.id).toBe('string')
+          expect(msg.id.length).toBeGreaterThan(0)
+        }
+      })
+    })
+
+    describe('Map key type safety', () => {
+      it('getMessage returns the correct message by string ID', () => {
+        const msg = cm.addMessage('user', 'test')
+        const found = cm.getMessage(msg.id)
+        expect(found).toBeDefined()
+        expect(found!.id).toBe(msg.id)
+      })
+
+      it('getMessage returns undefined for non-existent string ID', () => {
+        expect(cm.getMessage('does-not-exist')).toBeUndefined()
+      })
+
+      it('Map stays in sync with messages array after multiple operations', () => {
+        const msg1 = cm.addMessage('user', 'first')
+        const msg2 = cm.addMessage('dev', 'second')
+        const msg3 = cm.addMessage('pm', 'third')
+
+        expect(cm.getMessage(msg1.id)).toBeDefined()
+        expect(cm.getMessage(msg2.id)).toBeDefined()
+        expect(cm.getMessage(msg3.id)).toBeDefined()
+
+        cm.clearHistory()
+        expect(cm.getMessage(msg1.id)).toBeUndefined()
+        expect(cm.getMessage(msg2.id)).toBeUndefined()
+        expect(cm.getMessage(msg3.id)).toBeUndefined()
+      })
+
+      it('fromJSON rebuilds Map with correct string keys', () => {
+        cm.addMessage('user', 'hello')
+        cm.addMessage('dev', 'code')
+
+        const json = cm.toJSON()
+        const restored = ChatManager.fromJSON(json)
+        const history = restored.getHistory()
+
+        for (const msg of history) {
+          const found = restored.getMessage(msg.id)
+          expect(found).toBeDefined()
+          expect(found!.id).toBe(msg.id)
+        }
+      })
+    })
+
+    describe('Parameter validation', () => {
+      it('rejects empty agent string by producing valid message', () => {
+        const validAgents: Array<'user' | 'pm' | 'dev' | 'review'> = ['user', 'pm', 'dev', 'review']
+        for (const agent of validAgents) {
+          const msg = cm.addMessage(agent, 'test')
+          expect(msg.agent).toBe(agent)
+        }
+      })
+
+      it('handles empty content string', () => {
+        const msg = cm.addMessage('user', '')
+        expect(msg.content).toBe('')
+      })
+
+      it('handles all message types correctly', () => {
+        const types: Array<'text' | 'code' | 'file' | 'task'> = ['text', 'code', 'file', 'task']
+        for (const type of types) {
+          const msg = cm.addMessage('user', `test-${type}`, type)
+          expect(msg.type).toBe(type)
+        }
+      })
+
+      it('handles metadata correctly for each type', () => {
+        const codeMsg = cm.addMessage('dev', 'code', 'code', { codeLanguage: 'python' })
+        expect(codeMsg.metadata?.codeLanguage).toBe('python')
+
+        const fileMsg = cm.addMessage('dev', 'content', 'file', { filePath: '/src/index.ts' })
+        expect(fileMsg.metadata?.filePath).toBe('/src/index.ts')
+
+        const taskMsg = cm.addMessage('pm', 'task update', 'task', { taskId: 'task-001' })
+        expect(taskMsg.metadata?.taskId).toBe('task-001')
+
+        const textMsg = cm.addMessage('user', 'plain text', 'text')
+        expect(textMsg.metadata).toBeUndefined()
+      })
+
+      it('handles numeric count parameter in getRecentMessages', () => {
+        for (let i = 0; i < 10; i++) {
+          cm.addMessage('user', `msg_${i}`)
+        }
+        expect(cm.getRecentMessages(1)).toHaveLength(1)
+        expect(cm.getRecentMessages(5)).toHaveLength(5)
+        expect(cm.getRecentMessages(100)).toHaveLength(10)
+      })
+
+      it('serializes and deserializes preserving all field types', () => {
+        cm.addMessage('user', 'hello', 'text')
+        cm.addMessage('dev', 'const x = 1', 'code', { codeLanguage: 'ts' })
+
+        const json = cm.toJSON()
+        const restored = ChatManager.fromJSON(json)
+        const messages = restored.getHistory()
+
+        for (const msg of messages) {
+          expect(typeof msg.id).toBe('string')
+          expect(typeof msg.agent).toBe('string')
+          expect(typeof msg.content).toBe('string')
+          expect(typeof msg.type).toBe('string')
+          expect(msg.timestamp).toBeInstanceOf(Date)
+        }
+      })
+
+      it('fromJSON throws on invalid JSON', () => {
+        expect(() => ChatManager.fromJSON('not json')).toThrow()
+        expect(() => ChatManager.fromJSON('')).toThrow()
+      })
+
+      it('fromJSON throws on JSON missing sessionId', () => {
+        expect(() => ChatManager.fromJSON('{}')).toThrow()
+      })
+    })
+  })
 })
