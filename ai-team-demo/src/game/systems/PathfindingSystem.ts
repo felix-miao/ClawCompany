@@ -22,7 +22,6 @@ export class PathfindingSystem {
   private scene: Phaser.Scene;
   private navMesh: NavigationMesh;
   private path: PathPoint[] = [];
-  private currentPathIndex: number = 0;
   private debugGraphics: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene, navMesh: NavigationMesh) {
@@ -44,7 +43,7 @@ export class PathfindingSystem {
     }
 
     const gridPath = this.findGridPath(startGridX, startGridY, endGridX, endGridY);
-    this.path = this.gridToWorldPath(gridPath);
+    this.path = gridPath;
     return this.path;
   }
 
@@ -124,7 +123,9 @@ export class PathfindingSystem {
   private findGridPath(startX: number, startY: number, endX: number, endY: number): PathPoint[] {
     const openHeap = new MinHeap<PathNode>((a, b) => a.f - b.f);
     const closedSet = new Set<string>();
-    
+    const openMap = new Map<string, PathNode>();
+
+    const startKey = `${startX},${startY}`;
     const startNode: PathNode = {
       x: startX,
       y: startY,
@@ -135,20 +136,22 @@ export class PathfindingSystem {
     };
     startNode.f = startNode.g + startNode.h;
     openHeap.push(startNode);
+    openMap.set(startKey, startNode);
 
     while (openHeap.size() > 0) {
       const current = openHeap.pop()!;
+      const currentKey = `${current.x},${current.y}`;
 
       if (current.x === endX && current.y === endY) {
         return this.reconstructPath(current);
       }
 
-      const key = `${current.x},${current.y}`;
-      if (closedSet.has(key)) continue;
-      closedSet.add(key);
+      if (closedSet.has(currentKey)) continue;
+      closedSet.add(currentKey);
+      openMap.delete(currentKey);
 
       const neighbors = this.getNeighbors(current.x, current.y);
-      
+
       for (const neighbor of neighbors) {
         const neighborKey = `${neighbor.x},${neighbor.y}`;
         if (closedSet.has(neighborKey)) continue;
@@ -157,7 +160,7 @@ export class PathfindingSystem {
         if (!node || !node.isWalkable) continue;
 
         const tentativeG = current.g + 1;
-        const existingNode = openHeap.find(n => n.x === neighbor.x && n.y === neighbor.y);
+        const existingNode = openMap.get(neighborKey);
 
         if (!existingNode) {
           const newNode: PathNode = {
@@ -170,11 +173,16 @@ export class PathfindingSystem {
           };
           newNode.f = newNode.g + newNode.h;
           openHeap.push(newNode);
+          openMap.set(neighborKey, newNode);
         } else if (tentativeG < existingNode.g) {
-          openHeap.decreaseKey(
-            { ...existingNode, g: tentativeG, f: tentativeG + existingNode.h, parent: current },
-            (item) => item.x === neighbor.x && item.y === neighbor.y
-          );
+          const updated: PathNode = {
+            ...existingNode,
+            g: tentativeG,
+            f: tentativeG + existingNode.h,
+            parent: current,
+          };
+          openHeap.decreaseKey(updated, (item) => item.x === neighbor.x && item.y === neighbor.y);
+          openMap.set(neighborKey, updated);
         }
       }
     }
@@ -216,14 +224,6 @@ export class PathfindingSystem {
     return path;
   }
 
-  private gridToWorldPath(gridPath: PathPoint[]): PathPoint[] {
-    return gridPath.map(point => ({
-      x: point.x,
-      y: point.y,
-      action: 'move' as const,
-    }));
-  }
-
   private smoothPath(path: PathPoint[]): PathPoint[] {
     if (path.length <= 2) return path;
 
@@ -248,36 +248,8 @@ export class PathfindingSystem {
     return smoothed;
   }
 
-  getNextPoint(): PathPoint | null {
-    if (this.currentPathIndex < this.path.length) {
-      return this.path[this.currentPathIndex];
-    }
-    return null;
-  }
-
-  advancePath(): void {
-    this.currentPathIndex++;
-  }
-
-  hasMorePoints(): boolean {
-    return this.currentPathIndex < this.path.length - 1;
-  }
-
-  isPathComplete(): boolean {
-    return this.currentPathIndex >= this.path.length - 1;
-  }
-
-  resetPath(): void {
-    this.path = [];
-    this.currentPathIndex = 0;
-  }
-
   getCurrentPath(): PathPoint[] {
     return this.path;
-  }
-
-  getCurrentPathIndex(): number {
-    return this.currentPathIndex;
   }
 
   drawDebug(visible: boolean): void {

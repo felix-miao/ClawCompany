@@ -44,6 +44,12 @@ export class PerformanceMonitor {
   private writeIndex: number = 0;
   private isBufferFull: boolean = false;
 
+  private cachedAvgFPS: number = 0;
+  private cachedMinFPS: number = 0;
+  private cachedMaxFPS: number = 0;
+  private cachedAvgFrameTime: number = 0;
+  private statsDirty: boolean = true;
+
   constructor(config?: PerformanceMonitorConfig) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
@@ -59,6 +65,7 @@ export class PerformanceMonitor {
       this.isBufferFull = true;
     }
 
+    this.statsDirty = true;
     this.checkAlerts();
   }
 
@@ -68,9 +75,8 @@ export class PerformanceMonitor {
   }
 
   getAverageFPS(): number {
-    if (this.frameTimes.length === 0) return 0;
-    const fpsValues = this.frameTimes.map(d => (d > 0 ? 1000 / d : 0));
-    return fpsValues.reduce((a, b) => a + b, 0) / fpsValues.length;
+    this.recomputeStatsIfNeeded();
+    return this.cachedAvgFPS;
   }
 
   getFrameStats(): FrameStats {
@@ -85,17 +91,48 @@ export class PerformanceMonitor {
       };
     }
 
-    const fpsValues = this.frameTimes.map(d => (d > 0 ? 1000 / d : 0));
-    const avgDelta = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+    this.recomputeStatsIfNeeded();
 
     return {
       currentFPS: this.getCurrentFPS(),
-      averageFPS: this.getAverageFPS(),
-      minFPS: Math.min(...fpsValues),
-      maxFPS: Math.max(...fpsValues),
+      averageFPS: this.cachedAvgFPS,
+      minFPS: this.cachedMinFPS,
+      maxFPS: this.cachedMaxFPS,
       samples: this.frameTimes.length,
-      avgFrameTime: avgDelta,
+      avgFrameTime: this.cachedAvgFrameTime,
     };
+  }
+
+  private recomputeStatsIfNeeded(): void {
+    if (!this.statsDirty) return;
+    this.statsDirty = false;
+
+    if (this.frameTimes.length === 0) {
+      this.cachedAvgFPS = 0;
+      this.cachedMinFPS = 0;
+      this.cachedMaxFPS = 0;
+      this.cachedAvgFrameTime = 0;
+      return;
+    }
+
+    let sumDelta = 0;
+    let minFPS = Infinity;
+    let maxFPS = 0;
+    let sumFPS = 0;
+
+    for (let i = 0; i < this.frameTimes.length; i++) {
+      const d = this.frameTimes[i];
+      sumDelta += d;
+      const fps = d > 0 ? 1000 / d : 0;
+      sumFPS += fps;
+      if (fps < minFPS) minFPS = fps;
+      if (fps > maxFPS) maxFPS = fps;
+    }
+
+    this.cachedAvgFPS = sumFPS / this.frameTimes.length;
+    this.cachedMinFPS = minFPS;
+    this.cachedMaxFPS = maxFPS;
+    this.cachedAvgFrameTime = sumDelta / this.frameTimes.length;
   }
 
   getFrameBudgetMs(): number {
@@ -138,6 +175,11 @@ export class PerformanceMonitor {
     this.lastFrameDelta = 0;
     this.writeIndex = 0;
     this.isBufferFull = false;
+    this.cachedAvgFPS = 0;
+    this.cachedMinFPS = 0;
+    this.cachedMaxFPS = 0;
+    this.cachedAvgFrameTime = 0;
+    this.statsDirty = true;
   }
 
   private checkAlerts(): void {
