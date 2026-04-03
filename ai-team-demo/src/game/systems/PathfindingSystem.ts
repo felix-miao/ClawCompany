@@ -49,7 +49,7 @@ export class PathfindingSystem {
 
   private findPlatformPath(startX: number, startY: number, endX: number, endY: number): PathPoint[] {
     const platformNodes = this.navMesh.getPlatformNodes();
-    
+
     const startPlatform = this.findNearestPlatform(startX, startY, platformNodes);
     const endPlatform = this.findNearestPlatform(endX, endY, platformNodes);
 
@@ -62,44 +62,63 @@ export class PathfindingSystem {
     }
 
     const visited = new Set<PlatformNode>();
-    const queue: { platform: PlatformNode; path: PathPoint[] }[] = [
-      { platform: startPlatform, path: [{ x: startPlatform.x, y: startPlatform.y, action: 'move' }] }
-    ];
+    const parentMap = new Map<PlatformNode, { parent: PlatformNode; action: 'move' | 'jump' }>();
+    const queue: PlatformNode[] = [startPlatform];
 
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const currentPlatform = current.platform;
+    let head = 0;
+    while (head < queue.length) {
+      const currentPlatform = queue[head++];
 
       if (visited.has(currentPlatform)) continue;
       visited.add(currentPlatform);
 
       if (currentPlatform === endPlatform) {
-        const finalPath = [...current.path];
-        finalPath.push({ x: endX, y: endY, action: 'move' });
-        return finalPath;
+        return this.reconstructPlatformPath(parentMap, endPlatform, endX, endY);
       }
 
       for (const jumpTarget of currentPlatform.jumpTargets) {
-        if (!visited.has(jumpTarget)) {
-          const newPath: PathPoint[] = [...current.path, { x: jumpTarget.x, y: jumpTarget.y, action: 'jump' as const }];
-          queue.push({ platform: jumpTarget, path: newPath });
+        if (!visited.has(jumpTarget) && !parentMap.has(jumpTarget)) {
+          parentMap.set(jumpTarget, { parent: currentPlatform, action: 'jump' });
+          queue.push(jumpTarget);
         }
       }
 
       for (const platform of platformNodes) {
-        if (!visited.has(platform) && platform !== currentPlatform) {
+        if (!visited.has(platform) && platform !== currentPlatform && !parentMap.has(platform)) {
           const dx = Math.abs(platform.x - currentPlatform.x);
           const dy = platform.y - currentPlatform.y;
-          
-          if (dy === 0 && dx <= currentPlatform.width / TILE_SIZE) {
-            const newPath: PathPoint[] = [...current.path, { x: platform.x, y: platform.y, action: 'move' as const }];
-            queue.push({ platform: platform, path: newPath });
+
+          if (dy === 0 && dx <= currentPlatform.width) {
+            parentMap.set(platform, { parent: currentPlatform, action: 'move' });
+            queue.push(platform);
           }
         }
       }
     }
 
     return [];
+  }
+
+  private reconstructPlatformPath(
+    parentMap: Map<PlatformNode, { parent: PlatformNode; action: 'move' | 'jump' }>,
+    endPlatform: PlatformNode,
+    endX: number,
+    endY: number
+  ): PathPoint[] {
+    const segments: { x: number; y: number; action: 'move' | 'jump' }[] = [];
+    let current: PlatformNode | undefined = endPlatform;
+
+    while (current && parentMap.has(current)) {
+      const entry: { parent: PlatformNode; action: 'move' | 'jump' } = parentMap.get(current)!;
+      segments.push({ x: current.x, y: current.y, action: entry.action });
+      current = entry.parent;
+    }
+
+    segments.reverse();
+    segments.unshift({ x: segments[0]?.x ?? endX, y: segments[0]?.y ?? endY, action: 'move' });
+    segments.push({ x: endX, y: endY, action: 'move' });
+
+    return segments;
   }
 
   private findNearestPlatform(x: number, y: number, platforms: PlatformNode[]): PlatformNode | null {

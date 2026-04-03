@@ -38,6 +38,8 @@ export class EventBusEnhanced extends EventBus {
   private readonly enableEventValidation: boolean;
   private readonly maxErrorHandlerRetries: number;
   private readonly maxErrorHistory = 100;
+  private errorHead = 0;
+  private errorCount = 0;
 
   constructor(config: EventBusEnhancedConfig = {}) {
     super({ maxHistorySize: config.maxHistorySize });
@@ -157,9 +159,14 @@ export class EventBusEnhanced extends EventBus {
     const currentCount = this.errorStats.errorsByType.get(errorTypeKey) || 0;
     this.errorStats.errorsByType.set(errorTypeKey, currentCount + 1);
 
-    this.errorStats.recentErrors.push(errorEvent);
-    if (this.errorStats.recentErrors.length > this.maxErrorHistory) {
-      this.errorStats.recentErrors.shift();
+    if (this.errorStats.recentErrors.length < this.maxErrorHistory) {
+      this.errorStats.recentErrors.push(errorEvent);
+    } else {
+      this.errorStats.recentErrors[this.errorHead] = errorEvent;
+    }
+    this.errorHead = (this.errorHead + 1) % this.maxErrorHistory;
+    if (this.errorCount < this.maxErrorHistory) {
+      this.errorCount++;
     }
 
     if (this.enableErrorLogging) {
@@ -195,6 +202,8 @@ export class EventBusEnhanced extends EventBus {
       lastError: null,
       recentErrors: []
     };
+    this.errorHead = 0;
+    this.errorCount = 0;
   }
 
   getPerformanceMetrics() {
