@@ -20,15 +20,20 @@ jest.mock('@/lib/llm/factory', () => {
   }
 })
 process.env.USE_MOCK_LLM = 'true'
+process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
 
 // Helper to create mock request
 function createMockRequest(options?: any): any {
   const url = options?.url || 'http://localhost/api/agent'
+  const headers = {
+    'x-api-key': process.env.AGENT_API_KEY,
+    ...(options?.headers || {})
+  }
   return {
     url,
     method: options?.method || 'GET',
     headers: {
-      get: (name: string) => options?.headers?.[name] || null
+      get: (name: string) => headers[name] || null
     },
     json: () => Promise.resolve(options?.body || {})
   }
