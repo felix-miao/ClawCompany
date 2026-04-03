@@ -24,7 +24,7 @@ describe('ChatManager', () => {
     it('adds a text message', () => {
       const msg = cm.addMessage('user', 'Hello')
 
-      expect(msg.id).toMatch(/^msg_\d+-[a-z0-9]+$/)
+      expect(msg.id).toMatch(/^msg_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
       expect(msg.agent).toBe('user')
       expect(msg.content).toBe('Hello')
       expect(msg.type).toBe('text')

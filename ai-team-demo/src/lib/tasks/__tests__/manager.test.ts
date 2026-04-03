@@ -25,7 +25,7 @@ describe('TaskManager', () => {
     it('creates a task with required fields', () => {
       const task = tm.createTask('Fix bug', 'Fix the login bug', 'dev')
 
-      expect(task.id).toMatch(/^task_\d+-[a-z0-9]+$/)
+      expect(task.id).toMatch(/^task_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
       expect(task.title).toBe('Fix bug')
       expect(task.description).toBe('Fix the login bug')
       expect(task.status).toBe('pending')
