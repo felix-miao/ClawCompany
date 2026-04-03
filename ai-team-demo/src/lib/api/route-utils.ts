@@ -92,6 +92,42 @@ export function successResponse(data: Record<string, unknown>, request?: NextReq
 
 type RouteHandler = (request: NextRequest) => Promise<NextResponse>
 
+export function requireApiKey(request: NextRequest): NextResponse | null {
+  const apiKey = process.env.AGENT_API_KEY
+  if (!apiKey) {
+    return NextResponse.json(
+      { success: false, error: 'Server authentication not configured' },
+      { status: 500 }
+    )
+  }
+
+  const headerKey =
+    request.headers.get('x-api-key') ||
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+
+  if (!headerKey || headerKey !== apiKey) {
+    return NextResponse.json(
+      { success: false, error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  return null
+}
+
+export function withAuth(handler: RouteHandler, context?: string): RouteHandler {
+  return async (request: NextRequest) => {
+    const authError = requireApiKey(request)
+    if (authError) return authError
+
+    try {
+      return await handler(request)
+    } catch (error) {
+      return errorResponse(error, undefined, context)
+    }
+  }
+}
+
 export function withRateLimit(handler: RouteHandler, context?: string): RouteHandler {
   return async (request: NextRequest) => {
     try {
