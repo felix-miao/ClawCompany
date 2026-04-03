@@ -168,7 +168,7 @@ export default function TeamChatPage() {
     const startTime = Date.now()
 
     addMessage(
-      { id: 'user', name: 'You', role: 'user', emoji: '👤', color: '#6B7280' },
+      { id: 'user', name: 'You', role: 'user', emoji: '👤', color: '#6B7280', systemPrompt: '', runtime: 'subagent' },
       userMessage
     )
 
@@ -236,14 +236,14 @@ export default function TeamChatPage() {
       const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
 
       addMessage(
-        { id: 'system', name: 'System', role: 'system', emoji: '🎉', color: '#FF5833' },
+        { id: 'system', name: 'System', role: 'system', emoji: '🎉', color: '#FF5833', systemPrompt: '', runtime: 'subagent' },
         `团队协作完成！\n\n📊 性能统计：\n• PM Claw: ${pmDuration}秒\n• Dev Claw: ${devDuration}秒\n• Reviewer Claw: ${reviewDuration}秒\n• 总用时: ${totalDuration}秒`
       )
 
     } catch (error) {
       console.error('Error:', error)
       addMessage(
-        { id: 'error', name: 'Error', role: 'error', emoji: '❌', color: '#EF4444' },
+        { id: 'error', name: 'Error', role: 'error', emoji: '❌', color: '#EF4444', systemPrompt: '', runtime: 'subagent' },
         `错误: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
     } finally {
