@@ -1,15 +1,33 @@
 /**
  * 简单测试：使用 sessions_spawn 测试 Agent 功能
- * 
- * 这个测试直接使用 OpenClaw 的 sessions_spawn 工具
- * 来验证 PM、Dev、Review Agent 的基本功能
+ *
+ * 运行方式: cd skill && npx jest --testPathPattern="root-agents-simple"
+ *
+ * 此文件也作为独立脚本使用。
+ * 正式的 Jest 测试在 skill/tests/root-agents-simple.test.ts
+ *
+ * 注意：独立运行时需要 OpenClaw 环境 (sessions_spawn, sessions_history 全局可用)
  */
 
-// 测试 1: PM Agent
+declare const sessions_spawn: (opts: {
+  runtime?: string
+  task: string
+  thinking?: string
+  mode?: string
+  runTimeoutSeconds?: number
+  agentId?: string
+  cwd?: string
+}) => Promise<string>
+
+declare const sessions_history: (opts: {
+  sessionKey: string
+  limit?: number
+}) => Promise<Array<{ status: string; content: string }>>
+
 async function testPMAgent() {
-  console.log('\n🧪 测试 PM Agent')
-  console.log('=' .repeat(60))
-  
+  console.log('\nTest: PM Agent')
+  console.log('='.repeat(60))
+
   const task = `你是 PM Agent (产品经理)。
 
 用户需求：创建一个计数器组件
@@ -32,34 +50,31 @@ async function testPMAgent() {
 }`
 
   try {
-    // 使用 sessions_spawn 创建 PM Agent
     const sessionKey = await sessions_spawn({
       runtime: 'subagent',
       task: task,
       thinking: 'high',
       mode: 'run',
-      runTimeoutSeconds: 60
+      runTimeoutSeconds: 60,
     })
-    
-    console.log(`✅ PM Agent session 已创建: ${sessionKey}`)
-    
-    // 等待完成并获取结果
+
+    console.log(`Session created: ${sessionKey}`)
+
     const result = await waitForAgentCompletion(sessionKey, 60000)
-    console.log(`✅ PM Agent 完成`)
-    console.log(`结果: ${result.substring(0, 200)}...`)
-    
+    console.log(`PM Agent completed`)
+    console.log(`Result: ${result.substring(0, 200)}...`)
+
     return { success: true, result }
   } catch (error) {
-    console.error(`❌ PM Agent 失败:`, error)
+    console.error(`PM Agent failed:`, error)
     return { success: false, error }
   }
 }
 
-// 测试 2: Dev Agent
 async function testDevAgent() {
-  console.log('\n🧪 测试 Dev Agent')
-  console.log('=' .repeat(60))
-  
+  console.log('\nTest: Dev Agent')
+  console.log('='.repeat(60))
+
   const task = `你是 Dev Agent (开发者)。
 
 任务：实现一个简单的计数器组件
@@ -72,43 +87,40 @@ async function testDevAgent() {
 完成后，请说明你做了什么。`
 
   try {
-    // 使用 sessions_spawn 创建 Dev Agent
     const sessionKey = await sessions_spawn({
       runtime: 'acp',
       agentId: 'opencode',
       task: task,
       mode: 'run',
       runTimeoutSeconds: 120,
-      cwd: process.cwd()
+      cwd: process.cwd(),
     })
-    
-    console.log(`✅ Dev Agent session 已创建: ${sessionKey}`)
-    
-    // 等待完成并获取结果
+
+    console.log(`Session created: ${sessionKey}`)
+
     const result = await waitForAgentCompletion(sessionKey, 120000)
-    console.log(`✅ Dev Agent 完成`)
-    console.log(`结果: ${result.substring(0, 200)}...`)
-    
+    console.log(`Dev Agent completed`)
+    console.log(`Result: ${result.substring(0, 200)}...`)
+
     return { success: true, result }
   } catch (error) {
-    console.error(`❌ Dev Agent 失败:`, error)
+    console.error(`Dev Agent failed:`, error)
     return { success: false, error }
   }
 }
 
-// 测试 3: Review Agent
 async function testReviewAgent() {
-  console.log('\n🧪 测试 Review Agent')
-  console.log('=' .repeat(60))
-  
+  console.log('\nTest: Review Agent')
+  console.log('='.repeat(60))
+
   const task = `你是 Review Agent (代码审查)。
 
 任务：审查计数器组件代码
 
 审查清单：
-- ✅ 代码风格
-- ✅ TypeScript 类型安全
-- ✅ 错误处理
+- 代码风格
+- TypeScript 类型安全
+- 错误处理
 
 请返回 JSON 格式：
 {
@@ -119,33 +131,30 @@ async function testReviewAgent() {
 }`
 
   try {
-    // 使用 sessions_spawn 创建 Review Agent
     const sessionKey = await sessions_spawn({
       runtime: 'subagent',
       task: task,
       thinking: 'high',
       mode: 'run',
-      runTimeoutSeconds: 60
+      runTimeoutSeconds: 60,
     })
-    
-    console.log(`✅ Review Agent session 已创建: ${sessionKey}`)
-    
-    // 等待完成并获取结果
+
+    console.log(`Session created: ${sessionKey}`)
+
     const result = await waitForAgentCompletion(sessionKey, 60000)
-    console.log(`✅ Review Agent 完成`)
-    console.log(`结果: ${result.substring(0, 200)}...`)
-    
+    console.log(`Review Agent completed`)
+    console.log(`Result: ${result.substring(0, 200)}...`)
+
     return { success: true, result }
   } catch (error) {
-    console.error(`❌ Review Agent 失败:`, error)
+    console.error(`Review Agent failed:`, error)
     return { success: false, error }
   }
 }
 
-// 辅助函数：等待 agent 完成
 async function waitForAgentCompletion(
   sessionKey: string,
-  timeout: number
+  timeout: number,
 ): Promise<string> {
   const startTime = Date.now()
   const pollInterval = 2000
@@ -154,16 +163,16 @@ async function waitForAgentCompletion(
     try {
       const history = await sessions_history({
         sessionKey,
-        limit: 1
+        limit: 1,
       })
 
       if (history && history.length > 0) {
         const lastMessage = history[0]
-        
+
         if (lastMessage.status === 'completed') {
           return lastMessage.content
         }
-        
+
         if (lastMessage.status === 'failed') {
           throw new Error(`Session failed: ${lastMessage.content}`)
         }
@@ -171,6 +180,9 @@ async function waitForAgentCompletion(
 
       await new Promise(resolve => setTimeout(resolve, pollInterval))
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Session failed')) {
+        throw error
+      }
       await new Promise(resolve => setTimeout(resolve, pollInterval))
     }
   }
@@ -178,39 +190,35 @@ async function waitForAgentCompletion(
   throw new Error('Wait for completion timeout')
 }
 
-// 主测试函数
-async function runTests() {
-  console.log('🚀 开始测试 ClawCompany Agent 功能\n')
-  console.log('测试需求: 创建一个计数器组件')
-  console.log('=' .repeat(60))
-  
+async function main() {
+  console.log('ClawCompany Agent Tests\n')
+  console.log('='.repeat(60))
+
   const results = {
     pm: await testPMAgent(),
     dev: await testDevAgent(),
-    review: await testReviewAgent()
+    review: await testReviewAgent(),
   }
-  
-  // 输出测试报告
-  console.log('\n\n' + '=' .repeat(60))
-  console.log('📊 测试报告')
-  console.log('=' .repeat(60))
-  
-  console.log(`\n✓ PM Agent: ${results.pm.success ? '✅ 成功' : '❌ 失败'}`)
-  console.log(`✓ Dev Agent: ${results.dev.success ? '✅ 成功' : '❌ 失败'}`)
-  console.log(`✓ Review Agent: ${results.review.success ? '✅ 成功' : '❌ 失败'}`)
-  
+
+  console.log('\n\n' + '='.repeat(60))
+  console.log('Report')
+  console.log('='.repeat(60))
+
+  console.log(`PM Agent: ${results.pm.success ? 'PASS' : 'FAIL'}`)
+  console.log(`Dev Agent: ${results.dev.success ? 'PASS' : 'FAIL'}`)
+  console.log(`Review Agent: ${results.review.success ? 'PASS' : 'FAIL'}`)
+
   const allSuccess = results.pm.success && results.dev.success && results.review.success
-  console.log(`\n${allSuccess ? '✅ 所有测试通过' : '❌ 部分测试失败'}`)
-  
+  console.log(`\n${allSuccess ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}`)
+
   return results
 }
 
-// 运行测试
-runTests()
+main()
   .then(() => {
-    console.log('\n' + '=' .repeat(60))
-    console.log('✅ 测试完成')
+    console.log('\n' + '='.repeat(60))
+    console.log('Tests completed')
   })
   .catch((error) => {
-    console.error('\n❌ 测试失败:', error)
+    console.error('\nTests failed:', error)
   })

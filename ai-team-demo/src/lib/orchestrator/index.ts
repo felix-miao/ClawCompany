@@ -4,6 +4,7 @@ import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
 import { fileSystemManager } from '../filesystem/manager'
+import { resolveTaskOrder, DependencyError } from '../utils/task-resolver'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 
@@ -54,7 +55,7 @@ export class Orchestrator extends BaseOrchestrator {
       }
       cb.broadcast('pm', pmResponse.message)
 
-      const subTaskIds: string[] = []
+      const subTasks: Task[] = []
       if (pmResponse.tasks) {
         for (const taskData of pmResponse.tasks) {
           const task = cb.createTask(
@@ -64,17 +65,50 @@ export class Orchestrator extends BaseOrchestrator {
             taskData.dependencies,
             taskData.files,
           )
-          subTaskIds.push(task.id)
+          subTasks.push(task)
         }
       }
 
+      const subTaskIds = subTasks.map((t) => t.id)
+
       const allFiles: WorkflowResult['files'] = []
-      for (const taskId of subTaskIds) {
-        const task = cb.getTask(taskId)
-        if (!task) continue
+      const completedTaskIds = new Set<string>()
+
+      let sortedTasks: Task[]
+      try {
+        sortedTasks = resolveTaskOrder(subTasks)
+      } catch (depError) {
+        if (depError instanceof DependencyError) {
+          console.error('[Orchestrator] Dependency resolution failed:', depError.message)
+          return {
+            success: false,
+            messages: cb.getChatHistory().map(m => ({
+              agent: m.agent,
+              content: m.content,
+              timestamp: m.timestamp,
+            })),
+            tasks: cb.getAllTasks(),
+            error: {
+              message: depError.message,
+              timestamp: new Date(),
+            },
+            stats: this.buildWorkflowStats(subTaskIds.length, cb),
+          }
+        }
+        throw depError
+      }
+
+      for (const task of sortedTasks) {
+        const unresolvedDep = task.dependencies.find(
+          (dep) => subTaskIds.includes(dep) && !completedTaskIds.has(dep),
+        )
+        if (unresolvedDep) {
+          console.warn(`[Orchestrator] Skipping task ${task.id}: dependency ${unresolvedDep} was not completed`)
+          continue
+        }
 
         try {
-          cb.updateTaskStatus(taskId, 'in_progress')
+          cb.updateTaskStatus(task.id, 'in_progress')
 
           if (task.assignedTo === 'dev') {
             const devResponse = await this.executeAgentWithRetry('dev', task, cb)
@@ -98,7 +132,7 @@ export class Orchestrator extends BaseOrchestrator {
               allFiles.push(...devResponse.files)
             }
 
-            cb.updateTaskStatus(taskId, 'review')
+            cb.updateTaskStatus(task.id, 'review')
 
             const reviewResponse = await this.executeAgentWithRetry('review', task, cb)
 
@@ -110,13 +144,14 @@ export class Orchestrator extends BaseOrchestrator {
             cb.broadcast('review', reviewResponse.message)
 
             if (reviewResponse.status === 'success') {
-              cb.updateTaskStatus(taskId, 'done')
+              cb.updateTaskStatus(task.id, 'done')
+              completedTaskIds.add(task.id)
             } else {
-              cb.updateTaskStatus(taskId, 'pending')
+              cb.updateTaskStatus(task.id, 'pending')
             }
           }
         } catch (error) {
-          console.error(`[Orchestrator] Unexpected error in task ${taskId}:`, error)
+          console.error(`[Orchestrator] Unexpected error in task ${task.id}:`, error)
           this.recordFailedTask(task, error instanceof Error ? error.message : 'Unknown error')
         }
       }

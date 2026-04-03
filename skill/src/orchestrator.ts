@@ -10,7 +10,17 @@ import {
   OrchestratorConfig,
 } from './core/types'
 
-export type { Task, PMResult, DevResult, ReviewResult, ExecutionResult, OrchestratorConfig }
+export type { Task, PMResult, DevResult, ReviewResult, ReviewResult as ReviewAgentResult, ExecutionResult, OrchestratorConfig }
+
+export interface WorkflowResult {
+  success: boolean
+  tasks: Task[]
+  messages: Array<{
+    agent: string
+    content: string
+    timestamp: string
+  }>
+}
 
 export class ClawCompanyOrchestrator {
   private config: OrchestratorConfig
@@ -99,5 +109,57 @@ export class ClawCompanyOrchestrator {
 
   private async runReview(task: Task, devResult: DevResult): Promise<ReviewResult> {
     return await this.reviewAgent.review(task, devResult)
+  }
+}
+
+export async function orchestrate(
+  userRequest: string,
+  projectPath?: string,
+): Promise<WorkflowResult> {
+  const orchestrator = new ClawCompanyOrchestrator({ projectPath })
+  const messages: WorkflowResult['messages'] = []
+
+  try {
+    const pmResult = await orchestrator['runPM'](userRequest)
+    messages.push({
+      agent: 'pm',
+      content: pmResult.analysis,
+      timestamp: new Date().toISOString(),
+    })
+
+    if (!pmResult.tasks || pmResult.tasks.length === 0) {
+      return { success: false, tasks: [], messages }
+    }
+
+    const cwd = projectPath || process.cwd()
+
+    for (const task of pmResult.tasks) {
+      task.status = 'in_progress'
+      const devResult = await orchestrator['runDev'](task, cwd)
+      messages.push({
+        agent: 'dev',
+        content: devResult.summary,
+        timestamp: new Date().toISOString(),
+      })
+
+      const reviewResult = await orchestrator['runReview'](task, devResult)
+      messages.push({
+        agent: 'review',
+        content: reviewResult.summary,
+        timestamp: new Date().toISOString(),
+      })
+
+      task.status = reviewResult.approved ? 'done' : 'pending'
+    }
+
+    return { success: true, tasks: pmResult.tasks, messages }
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+    messages.push({
+      agent: 'system',
+      content: `Error: ${errorMsg}`,
+      timestamp: new Date().toISOString(),
+    })
+    return { success: false, tasks: [], messages }
   }
 }

@@ -4,7 +4,7 @@
  * 管理任务状态、依赖关系和执行顺序
  */
 
-import type { Task } from '../orchestrator'
+import type { Task } from '../core/types'
 
 export interface TaskManagerConfig {
   tasks: Task[]

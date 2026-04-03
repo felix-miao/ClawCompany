@@ -1,30 +1,59 @@
-/**
- * Orchestrator 测试
- * 
- * 测试 ClawCompany orchestrator 的基本功能
- */
+import {
+  ClawCompanyOrchestrator,
+  orchestrate,
+} from '../src/orchestrator'
+import type { Task } from '../src/core/types'
 
-import { ClawCompanyOrchestrator } from '../src/orchestrator'
-
-// 声明全局类型扩展
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace NodeJS {
-    interface Global {
-      sessions_spawn: jest.Mock
-      sessions_history: jest.Mock
-    }
-  }
-}
-
-// Mock OpenClaw 全局工具
 const mockSessionsSpawn = jest.fn()
 const mockSessionsHistory = jest.fn()
 
 ;(global as any).sessions_spawn = mockSessionsSpawn
 ;(global as any).sessions_history = mockSessionsHistory
 
-describe('ClawCompany Orchestrator', () => {
+function mockPMResponse(tasks: Partial<Task>[] = []) {
+  return {
+    sessionKey: `pm-${Date.now()}`,
+    status: 'completed',
+  }
+}
+
+function mockDevResponse() {
+  return {
+    sessionKey: `dev-${Date.now()}`,
+    status: 'completed',
+  }
+}
+
+function mockReviewResponse(approved = true) {
+  return {
+    sessionKey: `review-${Date.now()}`,
+    status: 'completed',
+  }
+}
+
+function mockHistoryContent(json: object) {
+  return {
+    messages: [
+      {
+        role: 'assistant',
+        content: JSON.stringify(json),
+      },
+    ],
+  }
+}
+
+const defaultPMTasks: Partial<Task>[] = [
+  {
+    id: 'task-1',
+    title: '实现功能',
+    description: '实现测试功能',
+    assignedTo: 'dev',
+    dependencies: [],
+    status: 'pending',
+  },
+]
+
+describe('ClawCompanyOrchestrator', () => {
   let orchestrator: ClawCompanyOrchestrator
 
   beforeEach(() => {
@@ -36,127 +65,274 @@ describe('ClawCompany Orchestrator', () => {
     expect(orchestrator).toBeDefined()
   })
 
-  test('应该能够分析简单需求', async () => {
-    // Mock PM Agent 响应
-    mockSessionsSpawn.mockResolvedValueOnce({
-      sessionKey: 'pm-session-1',
-      status: 'completed'
+  describe('execute - 完整工作流', () => {
+    test('应该能够执行完整的 PM → Dev → Review 流程', async () => {
+      mockSessionsSpawn
+        .mockResolvedValueOnce(mockPMResponse())
+        .mockResolvedValueOnce(mockDevResponse())
+        .mockResolvedValueOnce(mockReviewResponse())
+
+      mockSessionsHistory
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            analysis: '这是一个测试需求',
+            tasks: defaultPMTasks,
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            success: true,
+            files: ['src/test.ts'],
+            summary: '开发完成',
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            approved: true,
+            issues: [],
+            suggestions: [],
+            summary: '审查通过',
+          })
+        )
+
+      const result = await orchestrator.execute('创建一个登录页面')
+
+      expect(result.success).toBe(true)
+      expect(result.tasks).toHaveLength(1)
+      expect(result.results).toHaveLength(1)
+      expect(result.results[0].review.approved).toBe(true)
     })
-    
-    mockSessionsHistory.mockResolvedValueOnce({
-      messages: [{
-        role: 'assistant',
-        content: JSON.stringify({
-          analysis: '这是一个简单的登录页面需求',
-          tasks: [
-            {
-              id: 'task-1',
-              title: '创建登录表单',
-              description: '实现用户登录表单',
-              assignedTo: 'dev',
-              dependencies: [],
-              status: 'pending'
-            }
-          ]
+
+    test('应该处理 PM 返回空任务的情况', async () => {
+      mockSessionsSpawn.mockResolvedValueOnce(mockPMResponse())
+      mockSessionsHistory.mockResolvedValueOnce(
+        mockHistoryContent({
+          analysis: '无法理解需求',
+          tasks: [],
         })
-      }]
+      )
+
+      const result = await orchestrator.execute('模糊的需求')
+
+      expect(result.success).toBe(false)
+      expect(result.tasks).toHaveLength(0)
+      expect(result.summary).toContain('未能生成有效任务')
     })
 
-    const result = await orchestrator.execute('创建一个登录页面')
+    test('应该处理 OpenClaw API 不可用的情况', async () => {
+      delete (global as any).sessions_spawn
 
-    expect(result.success).toBe(true)
-    expect(result.tasks).toHaveLength(1)
-    expect(result.tasks[0].title).toBe('创建登录表单')
+      const result = await orchestrator.execute('测试需求')
+
+      expect(result.success).toBe(false)
+      expect(result.summary).toContain('不可用')
+
+      ;(global as any).sessions_spawn = mockSessionsSpawn
+    })
+
+    test('应该处理 Review 不通过的情况', async () => {
+      mockSessionsSpawn
+        .mockResolvedValueOnce(mockPMResponse())
+        .mockResolvedValueOnce(mockDevResponse())
+        .mockResolvedValueOnce(mockReviewResponse())
+
+      mockSessionsHistory
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            analysis: '测试分析',
+            tasks: defaultPMTasks,
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            success: true,
+            files: ['src/test.ts'],
+            summary: '开发完成',
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            approved: false,
+            issues: ['缺少错误处理'],
+            suggestions: ['添加 try-catch'],
+            summary: '审查不通过',
+          })
+        )
+
+      const result = await orchestrator.execute('测试需求')
+
+      expect(result.success).toBe(true)
+      expect(result.results[0].review.approved).toBe(false)
+      expect(result.results[0].review.issues).toContain('缺少错误处理')
+    })
+
+    test('应该处理多任务并行执行', async () => {
+      const multiTasks: Partial<Task>[] = [
+        {
+          id: 'task-1',
+          title: '任务一',
+          description: '第一个任务',
+          assignedTo: 'dev',
+          dependencies: [],
+          status: 'pending',
+        },
+        {
+          id: 'task-2',
+          title: '任务二',
+          description: '第二个任务',
+          assignedTo: 'dev',
+          dependencies: ['task-1'],
+          status: 'pending',
+        },
+      ]
+
+      mockSessionsSpawn
+        .mockResolvedValueOnce(mockPMResponse())
+        .mockResolvedValueOnce(mockDevResponse())
+        .mockResolvedValueOnce(mockReviewResponse())
+        .mockResolvedValueOnce(mockDevResponse())
+        .mockResolvedValueOnce(mockReviewResponse())
+
+      mockSessionsHistory
+        .mockResolvedValueOnce(
+          mockHistoryContent({ analysis: '多任务分析', tasks: multiTasks })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            success: true,
+            files: ['src/a.ts'],
+            summary: '任务一完成',
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            approved: true,
+            issues: [],
+            suggestions: [],
+            summary: '审查通过',
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            success: true,
+            files: ['src/b.ts'],
+            summary: '任务二完成',
+          })
+        )
+        .mockResolvedValueOnce(
+          mockHistoryContent({
+            approved: true,
+            issues: [],
+            suggestions: [],
+            summary: '审查通过',
+          })
+        )
+
+      const result = await orchestrator.execute('多任务需求')
+
+      expect(result.success).toBe(true)
+      expect(result.tasks).toHaveLength(2)
+      expect(result.results).toHaveLength(2)
+    })
+
+    test('应该处理 PM Agent 抛出异常', async () => {
+      mockSessionsSpawn.mockRejectedValueOnce(new Error('PM Agent 崩溃'))
+
+      await expect(orchestrator.execute('测试')).rejects.toThrow('PM Agent 启动失败')
+    })
+  })
+})
+
+describe('orchestrate standalone function', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
   })
 
-  test('应该能够处理任务执行', async () => {
-    // Mock PM Agent
-    mockSessionsSpawn.mockResolvedValueOnce({
-      sessionKey: 'pm-session-1',
-      status: 'completed'
-    })
-    
-    mockSessionsHistory.mockResolvedValueOnce({
-      messages: [{
-        role: 'assistant',
-        content: JSON.stringify({
-          analysis: '需求分析完成',
-          tasks: [
-            {
-              id: 'task-1',
-              title: '实现功能',
-              description: '测试功能',
-              assignedTo: 'dev',
-              dependencies: [],
-              status: 'pending'
-            }
-          ]
-        })
-      }]
-    })
+  test('应该返回 WorkflowResult 结构', async () => {
+    mockSessionsSpawn
+      .mockResolvedValueOnce(mockPMResponse())
+      .mockResolvedValueOnce(mockDevResponse())
+      .mockResolvedValueOnce(mockReviewResponse())
 
-    // Mock Dev Agent
-    mockSessionsSpawn.mockResolvedValueOnce({
-      sessionKey: 'dev-session-1',
-      status: 'completed'
-    })
-    
-    mockSessionsHistory.mockResolvedValueOnce({
-      messages: [{
-        role: 'assistant',
-        content: JSON.stringify({
+    mockSessionsHistory
+      .mockResolvedValueOnce(
+        mockHistoryContent({
+          analysis: '测试分析',
+          tasks: defaultPMTasks,
+        })
+      )
+      .mockResolvedValueOnce(
+        mockHistoryContent({
           success: true,
           files: ['src/test.ts'],
-          summary: '实现完成'
+          summary: '开发完成',
         })
-      }]
-    })
-
-    // Mock Review Agent
-    mockSessionsSpawn.mockResolvedValueOnce({
-      sessionKey: 'review-session-1',
-      status: 'completed'
-    })
-    
-    mockSessionsHistory.mockResolvedValueOnce({
-      messages: [{
-        role: 'assistant',
-        content: JSON.stringify({
+      )
+      .mockResolvedValueOnce(
+        mockHistoryContent({
           approved: true,
           issues: [],
           suggestions: [],
-          summary: '审查通过'
+          summary: '审查通过',
         })
-      }]
-    })
+      )
 
-    const result = await orchestrator.execute('测试需求')
+    const result = await orchestrate('创建计数器')
 
-    expect(result.success).toBe(true)
-    expect(result.results).toHaveLength(1)
-    expect(result.results[0].review.approved).toBe(true)
+    expect(result).toHaveProperty('success')
+    expect(result).toHaveProperty('tasks')
+    expect(result).toHaveProperty('messages')
+    expect(result.messages.length).toBeGreaterThanOrEqual(1)
   })
 
-  test('应该能够处理 PM Agent 无法生成任务的情况', async () => {
-    // Mock PM Agent 返回空任务
-    mockSessionsSpawn.mockResolvedValueOnce({
-      sessionKey: 'pm-session-1',
-      status: 'completed'
-    })
-    
-    mockSessionsHistory.mockResolvedValueOnce({
-      messages: [{
-        role: 'assistant',
-        content: JSON.stringify({
-          analysis: '无法理解需求',
-          tasks: []
-        })
-      }]
-    })
+  test('应该包含 pm、dev、review 三个 agent 的消息', async () => {
+    mockSessionsSpawn
+      .mockResolvedValueOnce(mockPMResponse())
+      .mockResolvedValueOnce(mockDevResponse())
+      .mockResolvedValueOnce(mockReviewResponse())
 
-    const result = await orchestrator.execute('模糊的需求')
+    mockSessionsHistory
+      .mockResolvedValueOnce(
+        mockHistoryContent({
+          analysis: '分析完成',
+          tasks: defaultPMTasks,
+        })
+      )
+      .mockResolvedValueOnce(
+        mockHistoryContent({
+          success: true,
+          files: [],
+          summary: '代码已实现',
+        })
+      )
+      .mockResolvedValueOnce(
+        mockHistoryContent({
+          approved: true,
+          issues: [],
+          suggestions: [],
+          summary: '审查通过',
+        })
+      )
+
+    const result = await orchestrate('创建计数器')
+
+    const agents = result.messages.map(m => m.agent)
+    expect(agents).toContain('pm')
+    expect(agents).toContain('dev')
+    expect(agents).toContain('review')
+  })
+
+  test('应该处理异常并返回错误消息', async () => {
+    delete (global as any).sessions_spawn
+    delete (global as any).sessions_history
+
+    const result = await orchestrate('测试')
 
     expect(result.success).toBe(false)
-    expect(result.tasks).toHaveLength(0)
+    expect(result.messages.length).toBeGreaterThan(0)
+    expect(result.messages[0].agent).toBe('system')
+
+    ;(global as any).sessions_spawn = mockSessionsSpawn
+    ;(global as any).sessions_history = mockSessionsHistory
   })
 })

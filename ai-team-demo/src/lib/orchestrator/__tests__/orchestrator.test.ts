@@ -423,6 +423,155 @@ describe('Orchestrator - 错误处理和重试机制', () => {
     })
   })
 
+  describe('任务依赖排序', () => {
+    it('应该按照依赖关系顺序执行子任务', async () => {
+      const executionOrder: string[] = []
+
+      const pmTask = {
+        id: 'pm-task',
+        title: 'PM',
+        description: 'PM',
+        assignedTo: 'pm' as const,
+        dependencies: [],
+        files: [],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const dev1Task = {
+        id: 'dev-1',
+        title: '创建组件',
+        description: '创建组件',
+        assignedTo: 'dev' as const,
+        dependencies: [] as string[],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const dev2Task = {
+        id: 'dev-2',
+        title: '实现逻辑',
+        description: '实现逻辑',
+        assignedTo: 'dev' as const,
+        dependencies: ['dev-1'],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const dev3Task = {
+        id: 'dev-3',
+        title: '集成测试',
+        description: '集成测试',
+        assignedTo: 'dev' as const,
+        dependencies: ['dev-1', 'dev-2'],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(pmTask)
+        .mockReturnValueOnce(dev3Task)
+        .mockReturnValueOnce(dev2Task)
+        .mockReturnValueOnce(dev1Task)
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockImplementationOnce(async () => {
+          executionOrder.push('pm')
+          return {
+            message: 'PM done',
+            tasks: [
+              { title: '集成测试', description: '集成测试', assignedTo: 'dev', dependencies: ['dev-1', 'dev-2'], files: [] },
+              { title: '实现逻辑', description: '实现逻辑', assignedTo: 'dev', dependencies: ['dev-1'], files: [] },
+              { title: '创建组件', description: '创建组件', assignedTo: 'dev', dependencies: [], files: [] },
+            ],
+          }
+        })
+        .mockImplementation(async (_role: string, task: any) => {
+          executionOrder.push(task.id)
+          return { message: `${task.id} done`, files: [], status: 'success' }
+        })
+
+      ;(taskManager.getTask as jest.Mock)
+        .mockReturnValueOnce(dev3Task)
+        .mockReturnValueOnce(dev1Task)
+        .mockReturnValueOnce(dev2Task)
+        .mockReturnValue(dev1Task)
+
+      await orchestrator.executeUserRequest('build a form')
+
+      expect(executionOrder[0]).toBe('pm')
+      expect(executionOrder.indexOf('dev-1')).toBeLessThan(executionOrder.indexOf('dev-2'))
+      expect(executionOrder.indexOf('dev-2')).toBeLessThan(executionOrder.indexOf('dev-3'))
+    })
+
+    it('应该在循环依赖时优雅处理错误', async () => {
+      const pmTask = {
+        id: 'pm-task',
+        title: 'PM',
+        description: 'PM',
+        assignedTo: 'pm' as const,
+        dependencies: [],
+        files: [],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const dev1Task = {
+        id: 'dev-1',
+        title: 'Task 1',
+        description: 'Task 1',
+        assignedTo: 'dev' as const,
+        dependencies: ['dev-2'],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      const dev2Task = {
+        id: 'dev-2',
+        title: 'Task 2',
+        description: 'Task 2',
+        assignedTo: 'dev' as const,
+        dependencies: ['dev-1'],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(pmTask)
+        .mockReturnValueOnce(dev1Task)
+        .mockReturnValueOnce(dev2Task)
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: ['dev-2'], files: [] },
+            { title: 'Task 2', description: 'Task 2', assignedTo: 'dev', dependencies: ['dev-1'], files: [] },
+          ],
+        })
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(result.success).toBe(false)
+
+      consoleSpy.mockRestore()
+    })
+  })
+
   describe('超时处理', () => {
     it('应该在Agent执行超时时触发重试', async () => {
       let attemptCount = 0
