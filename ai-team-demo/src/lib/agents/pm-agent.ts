@@ -1,5 +1,7 @@
 import { BaseAgent } from '../core/base-agent'
 import { Task, AgentResponse, AgentContext, AgentRole } from './types'
+import { PMAgentResponseSchema } from './schemas'
+import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 
 export class PMAgent extends BaseAgent {
   constructor() {
@@ -20,7 +22,7 @@ export class PMAgent extends BaseAgent {
       (response) => this.handleLLMResponse(response),
       () => this.analyzeAndPlan(task, context),
       this.getSystemPrompt(),
-      (t) => `用户需求: ${t.title}\n描述: ${t.description}\n\n请分析这个需求并制定执行计划。`,
+      (t) => this.buildUserPrompt(t),
     )
   }
 
@@ -32,18 +34,30 @@ export class PMAgent extends BaseAgent {
     }>(response)
 
     if (parsed) {
-      const tasks = (parsed.tasks || []).map((t) => ({
-        title: (t.title as string) || '未命名任务',
-        description: (t.description as string) || '',
+      const validated = PMAgentResponseSchema.safeParse(parsed)
+      if (!validated.success) {
+        this.log(`LLM 响应验证失败: ${validated.error.message}`)
+        return {
+          agent: 'pm',
+          message: parsed.message || response,
+          nextAgent: 'dev',
+          status: 'success',
+        }
+      }
+
+      const data = validated.data
+      const tasks = data.tasks.map((t) => ({
+        title: t.title,
+        description: t.description,
         status: 'pending' as const,
-        assignedTo: (t.assignedTo as AgentRole) || 'dev',
-        dependencies: (t.dependencies as string[]) || [],
+        assignedTo: t.assignedTo as AgentRole,
+        dependencies: t.dependencies,
         files: [],
       }))
 
       return {
         agent: 'pm',
-        message: parsed.message || '任务规划完成',
+        message: data.message || '任务规划完成',
         tasks,
         nextAgent: 'dev',
         status: 'success',
@@ -56,6 +70,10 @@ export class PMAgent extends BaseAgent {
       nextAgent: 'dev',
       status: 'success',
     }
+  }
+
+  private buildUserPrompt(task: Task): string {
+    return `${sanitizeTaskPrompt(task)}\n\n请分析这个需求并制定执行计划。`
   }
 
   private getSystemPrompt(): string {

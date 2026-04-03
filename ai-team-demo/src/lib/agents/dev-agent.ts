@@ -2,6 +2,8 @@ import { BaseAgent } from '../core/base-agent'
 import { Task, AgentResponse, AgentContext } from './types'
 import { getLLMProvider } from '../llm/factory'
 import { getAgentExecutor, OpenClawAgentExecutor } from '../gateway/executor'
+import { DevAgentResponseSchema } from './schemas'
+import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 
 export type DevAgentMode = 'mock' | 'llm' | 'openclaw'
 
@@ -86,6 +88,10 @@ export class DevAgent extends BaseAgent {
 - 错误处理
 
 直接返回 JSON，不要额外的解释。`
+  }
+
+  private buildLLMUserPrompt(task: Task): string {
+    return `${sanitizeTaskPrompt(task)}\n\n生成完整的代码实现（JSON 格式）。`
   }
 
   private async implementWithOpenClaw(task: Task, context: AgentContext): Promise<AgentResponse> {
@@ -191,7 +197,7 @@ export class DevAgent extends BaseAgent {
     try {
       const response = await this.callLLM(
         this.getLLMSystemPrompt(),
-        `任务：${task.title}\n描述：${task.description}\n\n生成完整的代码实现（JSON 格式）。`
+        this.buildLLMUserPrompt(task),
       )
 
       if (!response) {
@@ -206,15 +212,22 @@ export class DevAgent extends BaseAgent {
       }>(response)
 
       if (parsed) {
-        const files = (parsed.files || []).map((f) => ({
-          path: (f.path as string) || 'unknown.ts',
-          content: (f.content as string) || '',
-          action: ((f.action as string) || 'create') as 'create' | 'modify',
+        const validated = DevAgentResponseSchema.safeParse(parsed)
+        if (!validated.success) {
+          this.log(`LLM 响应验证失败: ${validated.error.message}`)
+          return this.implement(task, context)
+        }
+
+        const data = validated.data
+        const files = data.files.map((f) => ({
+          path: f.path,
+          content: f.content,
+          action: f.action,
         }))
 
         return {
           agent: 'dev',
-          message: parsed.message || '代码实现完成',
+          message: data.message || '代码实现完成',
           files,
           nextAgent: 'review',
           status: 'success',

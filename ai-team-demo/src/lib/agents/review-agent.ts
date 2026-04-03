@@ -1,5 +1,7 @@
 import { BaseAgent } from '../core/base-agent'
 import { Task, AgentResponse, AgentContext } from './types'
+import { ReviewAgentResponseSchema } from './schemas'
+import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 
 export class ReviewAgent extends BaseAgent {
   constructor() {
@@ -20,7 +22,7 @@ export class ReviewAgent extends BaseAgent {
       (response) => this.handleLLMResponse(response),
       () => this.review(task, context),
       this.getSystemPrompt(),
-      (t) => `## 任务信息\n标题：${t.title}\n描述：${t.description}\n\n## 审查范围\n请对刚才实现的代码进行全面审查。\n\n请开始审查。`,
+      (t, _ctx) => this.buildUserPrompt(t),
     )
   }
 
@@ -33,11 +35,22 @@ export class ReviewAgent extends BaseAgent {
     }>(response)
 
     if (parsed) {
+      const validated = ReviewAgentResponseSchema.safeParse(parsed)
+      if (!validated.success) {
+        this.log(`LLM 响应验证失败: ${validated.error.message}`)
+        return {
+          agent: 'review',
+          message: parsed.message || response,
+          status: 'success',
+        }
+      }
+
+      const data = validated.data
       return {
         agent: 'review',
-        message: parsed.message || '代码审查完成',
-        status: parsed.approved ? 'success' : 'need_input',
-        nextAgent: parsed.approved ? undefined : 'dev',
+        message: data.message || '代码审查完成',
+        status: data.approved ? 'success' : 'need_input',
+        nextAgent: data.approved ? undefined : 'dev',
       }
     }
 
@@ -46,6 +59,10 @@ export class ReviewAgent extends BaseAgent {
       message: response,
       status: 'success',
     }
+  }
+
+  private buildUserPrompt(task: Task): string {
+    return `## 任务信息\n${sanitizeTaskPrompt(task)}\n\n## 审查范围\n请对刚才实现的代码进行全面审查。\n\n请开始审查。`
   }
 
   private getSystemPrompt(): string {
