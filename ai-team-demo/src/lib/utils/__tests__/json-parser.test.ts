@@ -1,4 +1,4 @@
-import { extractJSONObject, safeJsonParse } from '../json-parser'
+import { extractJSONObject, extractJSONArray, extractJSON, safeJsonParse } from '../json-parser'
 
 describe('extractJSONObject', () => {
   it('should extract JSON from plain JSON string', () => {
@@ -214,5 +214,98 @@ describe('safeJsonParse', () => {
     if (result.success) {
       expect(result.data).toEqual({ key: null })
     }
+  })
+})
+
+describe('extractJSONArray', () => {
+  it('should extract JSON array from plain string', () => {
+    const result = extractJSONArray('[1, 2, 3]')
+    expect(result).toEqual([1, 2, 3])
+  })
+
+  it('should extract JSON array from LLM response with surrounding text', () => {
+    const response = 'Here are the items:\n[{"name": "task1"}, {"name": "task2"}]\nEnd.'
+    const result = extractJSONArray(response)
+    expect(result).toEqual([{ name: 'task1' }, { name: 'task2' }])
+  })
+
+  it('should extract JSON array from markdown code block', () => {
+    const response = '```json\n["a", "b", "c"]\n```'
+    const result = extractJSONArray(response)
+    expect(result).toEqual(['a', 'b', 'c'])
+  })
+
+  it('should return null when no JSON array is found', () => {
+    const result = extractJSONArray('no array here')
+    expect(result).toBeNull()
+  })
+
+  it('should return null for empty string', () => {
+    const result = extractJSONArray('')
+    expect(result).toBeNull()
+  })
+
+  it('should return null for malformed array', () => {
+    const result = extractJSONArray('[broken array]')
+    expect(result).toBeNull()
+  })
+
+  it('should handle nested arrays', () => {
+    const result = extractJSONArray('[[1, 2], [3, 4]]')
+    expect(result).toEqual([[1, 2], [3, 4]])
+  })
+
+  it('should handle array with unicode', () => {
+    const result = extractJSONArray('["任务一", "任务二"]')
+    expect(result).toEqual(['任务一', '任务二'])
+  })
+
+  it('should handle empty array', () => {
+    const result = extractJSONArray('Result: []')
+    expect(result).toEqual([])
+  })
+
+  it('should skip non-array brackets before the actual array', () => {
+    const response = 'Use items[0] to get first. Result: [1, 2, 3]'
+    const result = extractJSONArray(response)
+    expect(result).toEqual([1, 2, 3])
+  })
+})
+
+describe('extractJSON', () => {
+  it('should extract JSON object from text', () => {
+    const result = extractJSON('Result: {"key": "value"}')
+    expect(result).toEqual({ key: 'value' })
+  })
+
+  it('should extract JSON array from text', () => {
+    const result = extractJSON('Result: [1, 2, 3]')
+    expect(result).toEqual([1, 2, 3])
+  })
+
+  it('should prefer object when both exist in text', () => {
+    const response = 'First {"a": 1} then [1, 2]'
+    const result = extractJSON(response)
+    expect(result).toEqual({ a: 1 })
+  })
+
+  it('should return null when no JSON found', () => {
+    const result = extractJSON('no json')
+    expect(result).toBeNull()
+  })
+
+  it('should return null for empty string', () => {
+    const result = extractJSON('')
+    expect(result).toBeNull()
+  })
+
+  it('should handle array-only input', () => {
+    const result = extractJSON('["x", "y"]')
+    expect(result).toEqual(['x', 'y'])
+  })
+
+  it('should handle object-only input', () => {
+    const result = extractJSON('{"only": "object"}')
+    expect(result).toEqual({ only: 'object' })
   })
 })
