@@ -1,6 +1,8 @@
-import { AgentRole, Message } from '../core/types'
+import { AgentRole, Message, ChatMessage } from '../core/types'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
+
+export type { Message }
 
 export class ChatManager {
   private messages: Message[] = []
@@ -32,7 +34,6 @@ export class ChatManager {
   }
 
   getMessage(messageId: string): Message | undefined {
-    // Use Map for O(1) lookup instead of Array.find for O(n)
     return this.messageMap.get(messageId)
   }
 
@@ -45,7 +46,6 @@ export class ChatManager {
   }
 
   getMessagesByAgent(agent: 'user' | AgentRole): Message[] {
-    // Keep using filter for this as it's not a hot path and agent filtering is still needed
     return this.messages.filter(m => m.agent === agent)
   }
 
@@ -82,14 +82,19 @@ export class ChatManager {
   }
 
   static fromJSON(json: string): ChatManager {
-    const result = safeJsonParse<{ sessionId: string; messages: Message[] }>(json, 'ChatManager')
+    const result = safeJsonParse<{ sessionId: string; messages: ChatMessage[] }>(json, 'ChatManager')
     if (!result.success) {
       throw new Error(result.error)
     }
-    const manager = new ChatManager(result.data.sessionId)
-    // Rebuild both array and map from JSON
-    manager.messages = result.data.messages.map((m: Message) => ({
+    const data = result.data
+    if (data.sessionId === undefined || data.sessionId === null) {
+      throw new Error('ChatManager: sessionId is required')
+    }
+    const manager = new ChatManager(data.sessionId)
+    manager.messages = data.messages.map((m: ChatMessage): Message => ({
       ...m,
+      id: m.id ?? generateId('msg_'),
+      type: m.type ?? 'text',
       timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp ?? Date.now())
     }))
     manager.messageMap = new Map(manager.messages.map(m => [m.id, m]))
