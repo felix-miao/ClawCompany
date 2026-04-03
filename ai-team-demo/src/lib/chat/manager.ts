@@ -4,6 +4,7 @@ import { safeJsonParse } from '../utils/json-parser'
 
 export class ChatManager {
   private messages: Message[] = []
+  private messageMap: Map<string, Message> = new Map()
   private sessionId: string
 
   constructor(sessionId: string = 'default') {
@@ -26,11 +27,13 @@ export class ChatManager {
     }
 
     this.messages.push(message)
+    this.messageMap.set(message.id, message)
     return message
   }
 
   getMessage(messageId: string): Message | undefined {
-    return this.messages.find(m => m.id === messageId)
+    // Use Map for O(1) lookup instead of Array.find for O(n)
+    return this.messageMap.get(messageId)
   }
 
   getHistory(): Message[] {
@@ -42,11 +45,13 @@ export class ChatManager {
   }
 
   getMessagesByAgent(agent: 'user' | AgentRole): Message[] {
+    // Keep using filter for this as it's not a hot path and agent filtering is still needed
     return this.messages.filter(m => m.agent === agent)
   }
 
   clearHistory(): void {
     this.messages = []
+    this.messageMap.clear()
   }
 
   broadcast(agent: AgentRole, content: string): Message {
@@ -82,10 +87,12 @@ export class ChatManager {
       throw new Error(result.error)
     }
     const manager = new ChatManager(result.data.sessionId)
+    // Rebuild both array and map from JSON
     manager.messages = result.data.messages.map((m: Message) => ({
       ...m,
       timestamp: m.timestamp instanceof Date ? m.timestamp : new Date(m.timestamp ?? Date.now())
     }))
+    manager.messageMap = new Map(manager.messages.map(m => [m.id, m]))
     return manager
   }
 }

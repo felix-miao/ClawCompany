@@ -282,6 +282,93 @@ describe('ChatManager', () => {
     })
   })
 
+  describe('getMessage performance', () => {
+    const MESSAGE_COUNT = 10000
+
+    beforeEach(() => {
+      for (let i = 0; i < MESSAGE_COUNT; i++) {
+        cm.addMessage('user', `message_${i}`)
+      }
+    })
+
+    it('uses Map-based O(1) lookup for getMessage', () => {
+      const lastMsg = cm.getHistory()[MESSAGE_COUNT - 1]
+      const start = performance.now()
+      for (let i = 0; i < 1000; i++) {
+        cm.getMessage(lastMsg.id)
+      }
+      const mapTime = performance.now() - start
+
+      const firstMsg = cm.getHistory()[0]
+      const start2 = performance.now()
+      for (let i = 0; i < 1000; i++) {
+        cm.getMessage(firstMsg.id)
+      }
+      const firstTime = performance.now() - start2
+
+      expect(mapTime).toBeLessThan(50)
+      expect(firstTime).toBeLessThan(50)
+    })
+
+    it('lookups for last message are not slower than first message', () => {
+      const firstMsg = cm.getHistory()[0]
+      const lastMsg = cm.getHistory()[MESSAGE_COUNT - 1]
+
+      const iterations = 500
+
+      const startFirst = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        cm.getMessage(firstMsg.id)
+      }
+      const firstTime = performance.now() - startFirst
+
+      const startLast = performance.now()
+      for (let i = 0; i < iterations; i++) {
+        cm.getMessage(lastMsg.id)
+      }
+      const lastTime = performance.now() - startLast
+
+      expect(lastTime).toBeLessThan(firstTime * 10 + 10)
+    })
+
+    it('returns correct message from large dataset', () => {
+      const middleIndex = Math.floor(MESSAGE_COUNT / 2)
+      const middleMsg = cm.getHistory()[middleIndex]
+      const found = cm.getMessage(middleMsg.id)
+
+      expect(found).toBeDefined()
+      expect(found!.content).toBe(`message_${middleIndex}`)
+    })
+
+    it('handles non-existent IDs efficiently', () => {
+      const start = performance.now()
+      for (let i = 0; i < 1000; i++) {
+        cm.getMessage(`nonexistent_${i}`)
+      }
+      const elapsed = performance.now() - start
+
+      expect(elapsed).toBeLessThan(50)
+    })
+
+    it('map stays in sync after clearHistory', () => {
+      const msg = cm.addMessage('user', 'after-clear-test')
+      cm.clearHistory()
+      expect(cm.getMessage(msg.id)).toBeUndefined()
+    })
+
+    it('map stays in sync after fromJSON', () => {
+      cm.addMessage('user', 'serialized')
+      const json = cm.toJSON()
+      const restored = ChatManager.fromJSON(json)
+      const history = restored.getHistory()
+
+      const target = history[Math.floor(history.length / 2)]
+      expect(restored.getMessage(target.id)).toBeDefined()
+      expect(restored.getMessage(target.id)!.content).toBe(target.content)
+      expect(restored.getMessage('nonexistent')).toBeUndefined()
+    })
+  })
+
   describe('conversation flow', () => {
     it('supports a realistic multi-agent conversation', () => {
       cm.sendUserMessage('Build me a login page')
