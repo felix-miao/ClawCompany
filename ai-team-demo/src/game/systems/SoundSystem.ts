@@ -44,8 +44,6 @@ const SOUND_CONFIGS: Record<SoundType, SoundConfig> = {
   ambient: { duration: 3000, cooldown: 0, volume: 0.15, category: 'ambient', loop: true },
 };
 
-let soundIdCounter = 0;
-
 export class SoundSystem {
   private enabled: boolean = true;
   private masterVolume: number = 0.7;
@@ -55,6 +53,7 @@ export class SoundSystem {
   private ambientId: string | null = null;
   private destroyed: boolean = false;
   private nowMs: number = 0;
+  private soundIdCounter: number = 0;
 
   getMasterVolume(): number {
     return this.masterVolume;
@@ -109,7 +108,7 @@ export class SoundSystem {
     const categoryVol = this.getCategoryVolume(config.category);
     const effectiveVolume = (options?.volume ?? config.volume) * categoryVol * this.masterVolume;
 
-    const id = `snd_${++soundIdCounter}_${this.nowMs}`;
+    const id = `snd_${++this.soundIdCounter}_${this.nowMs}`;
     const sound: PlayingSound = {
       id,
       type,

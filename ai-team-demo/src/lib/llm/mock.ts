@@ -29,10 +29,9 @@ export class MockProvider implements LLMProvider {
 
   async *stream(messages: ChatMessage[]): AsyncGenerator<string> {
     const response = await this.chat(messages)
-    // 逐字符返回，模拟打字效果
-    for (const char of response) {
-      yield char
-      await new Promise(resolve => setTimeout(resolve, 10))
+    const chunkSize = Math.max(1, Math.floor(response.length / 30))
+    for (let i = 0; i < response.length; i += chunkSize) {
+      yield response.slice(i, i + chunkSize)
     }
   }
 

@@ -30,7 +30,7 @@ export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {
     })
   }
 
-  protected buildPrompt(userRequest: unknown): string {
+  protected buildPrompt(userRequest: string): string {
     return `你是 PM Agent (产品经理)。
 
 用户需求：${userRequest}

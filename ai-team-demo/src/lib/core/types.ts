@@ -130,3 +130,59 @@ export interface AgentConfig {
   thinking?: 'low' | 'medium' | 'high'
   model?: string
 }
+
+export type Result<T, E = Error> =
+  | { success: true; data: T }
+  | { success: false; error: E }
+
+export function ok<T>(data: T): Result<T, never> {
+  return { success: true, data }
+}
+
+export function err<E>(error: E): Result<never, E> {
+  return { success: false, error }
+}
+
+export function isOk<T, E>(result: Result<T, E>): result is { success: true; data: T } {
+  return result.success
+}
+
+export function isErr<T, E>(result: Result<T, E>): result is { success: false; error: E } {
+  return !result.success
+}
+
+export interface ParsedFileEntry {
+  path: string
+  content: string
+  action: 'create' | 'modify' | 'delete'
+}
+
+export interface ParsedOpenClawResponse {
+  files: ParsedFileEntry[]
+  message: string
+}
+
+export interface RPCRequest {
+  jsonrpc: '2.0'
+  id: number
+  method: string
+  params: Record<string, unknown>
+}
+
+export interface RPCError {
+  code: number
+  message: string
+  data?: unknown
+}
+
+export interface RPCResponse {
+  jsonrpc: '2.0'
+  id: number
+  result?: unknown
+  error?: RPCError
+}
+
+export interface PendingCall {
+  resolve: (value: unknown) => void
+  reject: (error: Error) => void
+}
