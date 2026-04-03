@@ -7,7 +7,7 @@ import { getLLMProvider } from '../llm/factory'
 import { createLogger } from './logger'
 
 export type ParseResultSuccess<T> = { success: true; data: T }
-export type ParseResultFailure = { success: false; error: string; raw?: unknown }
+export type ParseResultFailure = { success: false; error: string; raw: unknown }
 export type ParseResult<T> = ParseResultSuccess<T> | ParseResultFailure
 
 declare global {
@@ -69,22 +69,17 @@ export abstract class BaseAgent {
   }
 
   protected parseJSONResponse<T>(response: string, schema: z.ZodType<T>): ParseResult<T>
-  protected parseJSONResponse<T>(response: string, schema: z.ZodType<T>): ParseResult<T> | null
-  protected parseJSONResponse<T>(response: string, schema?: z.ZodType<T>): ParseResult<T> | null {
+  protected parseJSONResponse<T>(response: string): T | null
+  protected parseJSONResponse<T>(response: string, schema?: z.ZodType<T>): ParseResult<T> | T | null {
     const raw = extractJSONObject(response)
 
     if (!schema) {
       if (!raw) return null
-      const anySchema: z.ZodType<T> = z.any() as unknown as z.ZodType<T>
-      const validated = anySchema.safeParse(raw)
-      if (validated.success) {
-        return { success: true, data: validated.data as T }
-      }
-      return { success: false, error: 'Parse failed', raw }
+      return raw as T
     }
 
     if (!raw) {
-      return { success: false, error: 'No JSON object found in response' }
+      return { success: false, error: 'No JSON object found in response', raw: response }
     }
 
     const validated = schema.safeParse(raw)
@@ -93,7 +88,7 @@ export abstract class BaseAgent {
     }
 
     const errorMessages = validated.error.issues
-      .map((issue: { path: (string | number)[]; message: string }) =>
+      .map((issue) =>
         `${issue.path.join('.')}: ${issue.message}`
       )
       .join('; ')

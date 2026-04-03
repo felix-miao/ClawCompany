@@ -27,25 +27,10 @@ export class ReviewAgent extends BaseAgent {
   }
 
   private handleLLMResponse(response: string): AgentResponse {
-    const parsed = this.parseJSONResponse<{
-      checks: Array<{ name: string; passed: boolean; warning?: boolean; message?: string }>
-      approved: boolean
-      message: string
-      suggestions: string[]
-    }>(response)
+    const parsed = this.parseJSONResponse(response, ReviewAgentResponseSchema)
 
-    if (parsed) {
-      const validated = ReviewAgentResponseSchema.safeParse(parsed)
-      if (!validated.success) {
-        this.log(`LLM 响应验证失败: ${validated.error.message}`)
-        return {
-          agent: 'review',
-          message: parsed.message || response,
-          status: 'success',
-        }
-      }
-
-      const data = validated.data
+    if (parsed.success) {
+      const data = parsed.data
       return {
         agent: 'review',
         message: data.message || '代码审查完成',

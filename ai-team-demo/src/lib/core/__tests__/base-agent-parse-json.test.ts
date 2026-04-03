@@ -1,4 +1,4 @@
-import { BaseAgent } from '../base-agent'
+import { BaseAgent, ParseResult } from '../base-agent'
 import { z } from 'zod'
 
 const TestSchema = z.object({
@@ -21,7 +21,7 @@ class TestAgent extends BaseAgent {
   testParseJSONWithSchema<T>(
     response: string,
     schema: z.ZodType<T>,
-  ): { success: true; data: T } | { success: false; error: string; raw: unknown } {
+  ): ParseResult<T> {
     return this.parseJSONResponse<T>(response, schema)
   }
 
@@ -115,7 +115,7 @@ describe('BaseAgent.parseJSONResponse - with Zod schema', () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(result.error).toBeTruthy()
-      expect(result.raw).toBeUndefined()
+      expect(result.raw).toBe('plain text without json')
     }
   })
 
@@ -140,7 +140,7 @@ describe('BaseAgent.parseJSONResponse - with Zod schema', () => {
   })
 
   it('should validate with existing PMAgentResponseSchema', () => {
-    const { PMAgentResponseSchema } = require('../../agents/schemas')
+    const { PMAgentResponseSchema } = require('../../agents/schemas') as typeof import('../../agents/schemas')
     const response = JSON.stringify({
       analysis: 'test analysis',
       tasks: [{ title: 'do thing', description: 'desc', assignedTo: 'dev', dependencies: [] }],

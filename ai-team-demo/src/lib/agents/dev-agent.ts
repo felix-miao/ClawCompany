@@ -204,21 +204,10 @@ export class DevAgent extends BaseAgent {
         return this.implement(task, context)
       }
 
-      const parsed = this.parseJSONResponse<{
-        analysis: string
-        files: Record<string, unknown>[]
-        message: string
-        notes: string[]
-      }>(response)
+      const parsed = this.parseJSONResponse(response, DevAgentResponseSchema)
 
-      if (parsed) {
-        const validated = DevAgentResponseSchema.safeParse(parsed)
-        if (!validated.success) {
-          this.log(`LLM 响应验证失败: ${validated.error.message}`)
-          return this.implement(task, context)
-        }
-
-        const data = validated.data
+      if (parsed.success) {
+        const data = parsed.data
         const files = data.files.map((f) => ({
           path: f.path,
           content: f.content,

@@ -67,7 +67,7 @@ describe('MetricsAggregator', () => {
 
       mockErrorTracker.getSummary.mockReturnValue({
         total: 5,
-        byCategory: { Orchestrator: 3, FileSystem: 2 },
+        byCategory: { orchestrator: 3, filesystem: 2 },
         bySeverity: { high: 3, medium: 2 },
       })
 
@@ -150,7 +150,7 @@ describe('MetricsAggregator', () => {
 
       mockErrorTracker.getSummary.mockReturnValue({
         total: 3,
-        byCategory: { Orchestrator: 2, FileSystem: 1 },
+        byCategory: { orchestrator: 2, filesystem: 1 },
         bySeverity: {},
       })
 
@@ -173,9 +173,7 @@ describe('MetricsAggregator', () => {
 
       let metrics = metricsAggregator.getCurrentMetrics()
       expect(metrics.health.overall).toBe('healthy')
-
-      // Test critical system (high error rate)
-      (mockDataSource.getMetricEntries as jest.Mock).mockReturnValue([
+      ;(mockDataSource.getMetricEntries as jest.Mock).mockReturnValue([
         { name: 'task.total', value: 10, timestamp: new Date().toISOString(), type: 0 },
         { name: 'task.completed', value: 3, timestamp: new Date().toISOString(), type: 0 },
         { name: 'task.failed', value: 5, timestamp: new Date().toISOString(), type: 0 },
@@ -183,7 +181,7 @@ describe('MetricsAggregator', () => {
 
       mockErrorTracker.getSummary.mockReturnValue({
         total: 5,
-        byCategory: { Orchestrator: 5 },
+        byCategory: { orchestrator: 5 },
         bySeverity: {},
       })
 
@@ -198,11 +196,9 @@ describe('MetricsAggregator', () => {
       const mockCallback = jest.fn()
       const cleanup = metricsAggregator.startPeriodicUpdate(mockCallback)
 
-      // Should be called immediately
       expect(mockCallback).toHaveBeenCalledTimes(1)
 
-      // Clean up
-      cleanup?.()
+      if (typeof cleanup === 'function') cleanup()
     })
 
     it('should clean up interval when cleanup is called', () => {
@@ -210,11 +206,9 @@ describe('MetricsAggregator', () => {
       const mockCallback = jest.fn()
       const cleanup = metricsAggregator.startPeriodicUpdate(mockCallback)
 
-      // Verify cleanup function is returned
       expect(typeof cleanup).toBe('function')
 
-      // Clean up
-      cleanup?.()
+      if (typeof cleanup === 'function') cleanup()
     })
   })
 
@@ -222,7 +216,7 @@ describe('MetricsAggregator', () => {
     it('should calculate 95th percentile correctly', () => {
       const responseTimes = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]
 
-      (mockDataSource.getMetricEntries as jest.Mock).mockReturnValue(
+      ;(mockDataSource.getMetricEntries as jest.Mock).mockReturnValue(
         responseTimes.map(time => ({
           name: 'response.time',
           value: time,

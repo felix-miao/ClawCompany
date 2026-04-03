@@ -27,25 +27,10 @@ export class PMAgent extends BaseAgent {
   }
 
   private handleLLMResponse(response: string): AgentResponse {
-    const parsed = this.parseJSONResponse<{
-      analysis: string
-      tasks: Record<string, unknown>[]
-      message: string
-    }>(response)
+    const parsed = this.parseJSONResponse(response, PMAgentResponseSchema)
 
-    if (parsed) {
-      const validated = PMAgentResponseSchema.safeParse(parsed)
-      if (!validated.success) {
-        this.log(`LLM 响应验证失败: ${validated.error.message}`)
-        return {
-          agent: 'pm',
-          message: parsed.message || response,
-          nextAgent: 'dev',
-          status: 'success',
-        }
-      }
-
-      const data = validated.data
+    if (parsed.success) {
+      const data = parsed.data
       const tasks = data.tasks.map((t) => ({
         title: t.title,
         description: t.description,
