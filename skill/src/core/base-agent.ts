@@ -1,4 +1,40 @@
+import type { SessionResult } from 'openclaw'
 import { AgentRole, AgentConfig } from './types'
+
+type SpawnOptions = {
+  runtime?: 'subagent' | 'acp'
+  task: string
+  thinking?: 'low' | 'medium' | 'high'
+  mode?: 'run'
+  model?: string
+  agentId?: string
+  cwd?: string
+}
+
+interface HistoryResult {
+  messages: Array<{ role: string; content: string }>
+}
+
+type SpawnFn = (options: SpawnOptions) => Promise<SessionResult>
+type HistoryFn = (options: { sessionKey: string }) => Promise<HistoryResult>
+
+interface OpenClawAPI {
+  sessions_spawn: SpawnFn
+  sessions_history: HistoryFn
+}
+
+function getGlobalFunction(name: string): unknown {
+  const g = globalThis as Record<string, unknown>
+  return g[name]
+}
+
+function asSpawnFn(fn: unknown): SpawnFn | null {
+  return typeof fn === 'function' ? (fn as SpawnFn) : null
+}
+
+function asHistoryFn(fn: unknown): HistoryFn | null {
+  return typeof fn === 'function' ? (fn as HistoryFn) : null
+}
 
 export abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfig> {
   readonly role: AgentRole
@@ -15,13 +51,13 @@ export abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfi
     runtime?: 'subagent' | 'acp'
     agentId?: string
     cwd?: string
-  }): Promise<any> {
-    const sessions_spawn = (global as any).sessions_spawn
-    if (typeof sessions_spawn !== 'function') {
+  }): Promise<SessionResult> {
+    const fn = asSpawnFn(getGlobalFunction('sessions_spawn'))
+    if (!fn) {
       throw new Error('OpenClaw sessions_spawn not available')
     }
 
-    return await sessions_spawn({
+    return await fn({
       runtime: options?.runtime || 'subagent',
       agentId: options?.agentId,
       task,
@@ -32,18 +68,18 @@ export abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfi
     })
   }
 
-  protected async parseJSONFromSession<T>(session: any, defaultValue: T): Promise<T> {
-    const sessions_history = (global as any).sessions_history
-    if (typeof sessions_history !== 'function') {
+  protected async parseJSONFromSession<T>(session: SessionResult | null | undefined, defaultValue: T): Promise<T> {
+    const fn = asHistoryFn(getGlobalFunction('sessions_history'))
+    if (!fn) {
       return defaultValue
     }
 
     try {
-      if (!session || !session.sessionKey) {
+      if (!session?.sessionKey) {
         return defaultValue
       }
 
-      const history = await sessions_history({ sessionKey: session.sessionKey })
+      const history = await fn({ sessionKey: session.sessionKey })
       const lastMessage = history.messages?.[history.messages.length - 1]
 
       if (lastMessage?.content) {
@@ -69,14 +105,14 @@ export abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfi
     console.log(`${roleEmoji[this.role] || '🤖'} [${this.role.toUpperCase()} Agent] ${message}`)
   }
 
-  protected checkOpenClawAPI(): { available: boolean; missing: string[] } {
+  checkOpenClawAPI(): { available: boolean; missing: string[] } {
     const missing: string[] = []
 
-    if (typeof (global as any).sessions_spawn !== 'function') {
+    if (!asSpawnFn(getGlobalFunction('sessions_spawn'))) {
       missing.push('sessions_spawn')
     }
 
-    if (typeof (global as any).sessions_history !== 'function') {
+    if (!asHistoryFn(getGlobalFunction('sessions_history'))) {
       missing.push('sessions_history')
     }
 

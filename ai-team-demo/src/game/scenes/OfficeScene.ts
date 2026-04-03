@@ -21,42 +21,8 @@ import { TargetMarker } from '../ui/TargetMarker';
 import { OfficeDecorator } from '../ui/OfficeDecorator';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
-
-type RoomName = 'pm-office' | 'dev-studio' | 'test-lab' | 'review-center';
-
-type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
-
-interface Workstation {
-  id: string;
-  x: number;
-  y: number;
-  label: string;
-  status: 'idle' | 'busy';
-  taskType: TaskType;
-}
-
-interface Platform {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  type: string;
-}
-
-interface TilemapData {
-  width: number;
-  height: number;
-  tileSize: number;
-  workstations: Workstation[];
-  platforms: Platform[];
-}
-
-interface ActiveTask {
-  agentId: string;
-  targetX: number;
-  targetY: number;
-  returning: boolean;
-}
+import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
+export type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 
 const AGENT_CONFIGS: AgentConfig[] = [
   { id: 'alice', name: 'Alice', role: 'Developer' },
@@ -624,9 +590,7 @@ export class OfficeScene extends Phaser.Scene {
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
     this.checkTaskCompletion();
-    if (this.particleSystem) {
-      this.particleSystem.update(delta);
-    }
+    this.particleSystem.update(delta);
     this.soundSystem.update(delta);
 
     const selectedAgent = this.agents[this.selectedAgentIndex];

@@ -1,10 +1,9 @@
 import { BaseOpenClawAgent } from '../core/base-agent'
-import type { Task, DevResult } from '../core/types'
+import type { Task, DevResult, AgentConfig } from '../core/types'
 
-export interface DevAgentConfig {
+export interface DevAgentConfig extends AgentConfig {
   runtime?: 'acp' | 'subagent'
   agentId?: string
-  thinking?: 'low' | 'medium' | 'high'
 }
 
 export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
@@ -45,12 +44,11 @@ export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
     })
   }
 
-  protected buildPrompt(task: unknown): string {
-    const t = task as Task
+  protected buildPrompt(task: Task): string {
     return `你是 Dev Agent (开发者)。
 
-任务：${t.title}
-描述：${t.description}
+任务：${task.title}
+描述：${task.description}
 
 你的职责：
 1. 理解任务需求

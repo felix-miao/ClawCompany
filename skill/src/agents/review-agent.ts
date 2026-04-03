@@ -1,8 +1,7 @@
 import { BaseOpenClawAgent } from '../core/base-agent'
-import type { Task, DevResult, ReviewResult } from '../core/types'
+import type { Task, DevResult, ReviewResult, AgentConfig } from '../core/types'
 
-export interface ReviewAgentConfig {
-  thinking?: 'low' | 'medium' | 'high'
+export interface ReviewAgentConfig extends AgentConfig {
   checklist?: string[]
 }
 
@@ -39,9 +38,7 @@ export class ReviewAgent extends BaseOpenClawAgent<ReviewAgentConfig> {
     })
   }
 
-  protected buildPrompt(...args: unknown[]): string {
-    const task = args[0] as Task
-    const devResult = args[1] as DevResult
+  protected buildPrompt(task: Task, devResult: DevResult): string {
     const checklist = this.config.checklist || DEFAULT_CHECKLIST
 
     return `你是 Review Agent (代码审查)。

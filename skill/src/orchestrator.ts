@@ -41,7 +41,7 @@ export class ClawCompanyOrchestrator {
   }
 
   async execute(userRequest: string, projectPath?: string): Promise<ExecutionResult> {
-    const apiCheck = this.pmAgent['checkOpenClawAPI']()
+    const apiCheck = this.pmAgent.checkOpenClawAPI()
     if (!apiCheck.available) {
       const errorMsg = `OpenClaw API 不可用: 缺少 ${apiCheck.missing.join(', ')}. ` +
         `请确保在 OpenClaw 环境中运行此代码。`
@@ -90,7 +90,7 @@ export class ClawCompanyOrchestrator {
     return { success: true, tasks: pmResult.tasks, results, summary }
   }
 
-  private async runPM(userRequest: string): Promise<PMResult> {
+  async runPM(userRequest: string): Promise<PMResult> {
     try {
       return await this.pmAgent.analyze(userRequest)
     } catch (error) {
@@ -103,11 +103,11 @@ export class ClawCompanyOrchestrator {
     }
   }
 
-  private async runDev(task: Task, projectPath: string): Promise<DevResult> {
+  async runDev(task: Task, projectPath: string): Promise<DevResult> {
     return await this.devAgent.execute(task, projectPath)
   }
 
-  private async runReview(task: Task, devResult: DevResult): Promise<ReviewResult> {
+  async runReview(task: Task, devResult: DevResult): Promise<ReviewResult> {
     return await this.reviewAgent.review(task, devResult)
   }
 }
@@ -120,7 +120,7 @@ export async function orchestrate(
   const messages: WorkflowResult['messages'] = []
 
   try {
-    const pmResult = await orchestrator['runPM'](userRequest)
+    const pmResult = await orchestrator.runPM(userRequest)
     messages.push({
       agent: 'pm',
       content: pmResult.analysis,
@@ -135,14 +135,14 @@ export async function orchestrate(
 
     for (const task of pmResult.tasks) {
       task.status = 'in_progress'
-      const devResult = await orchestrator['runDev'](task, cwd)
+      const devResult = await orchestrator.runDev(task, cwd)
       messages.push({
         agent: 'dev',
         content: devResult.summary,
         timestamp: new Date().toISOString(),
       })
 
-      const reviewResult = await orchestrator['runReview'](task, devResult)
+      const reviewResult = await orchestrator.runReview(task, devResult)
       messages.push({
         agent: 'review',
         content: reviewResult.summary,

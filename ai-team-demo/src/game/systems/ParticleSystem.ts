@@ -110,8 +110,6 @@ const BUILTIN_PRESETS: Record<ParticleEffectType, ParticleEffectConfig> = {
 
 const MAX_HISTORY = 50;
 
-let effectIdCounter = 0;
-
 interface EventContext {
   result?: string;
   status?: string;
@@ -124,6 +122,9 @@ export class ParticleSystem {
   private presets: Record<string, ParticleEffectConfig> = { ...BUILTIN_PRESETS };
   private activeEffects: ActiveEffect[] = [];
   private history: EffectHistoryEntry[] = [];
+  private effectIdCounter: number = 0;
+  private historyHead: number = 0;
+  private historyCount: number = 0;
 
   getEffectConfig(type: ParticleEffectType): ParticleEffectConfig | null {
     return this.presets[type] ?? null;
@@ -199,7 +200,7 @@ export class ParticleSystem {
     const config = this.presets[type];
     if (!config) return null;
 
-    const id = `fx_${++effectIdCounter}_${Date.now()}`;
+    const id = `fx_${++this.effectIdCounter}_${Date.now()}`;
     const now = Date.now();
 
     const effect: ActiveEffect = {
@@ -255,7 +256,13 @@ export class ParticleSystem {
   }
 
   getHistory(): EffectHistoryEntry[] {
-    return [...this.history];
+    if (this.historyCount === 0) return [];
+    const result: EffectHistoryEntry[] = [];
+    for (let i = 0; i < this.historyCount; i++) {
+      const idx = (this.historyHead - this.historyCount + i + MAX_HISTORY) % MAX_HISTORY;
+      result.push(this.history[idx]);
+    }
+    return result;
   }
 
   private addHistory(
@@ -265,9 +272,15 @@ export class ParticleSystem {
     y: number,
     timestamp: number
   ): void {
-    this.history.push({ type, agentId, x, y, timestamp });
-    while (this.history.length > MAX_HISTORY) {
-      this.history.shift();
+    const entry: EffectHistoryEntry = { type, agentId, x, y, timestamp };
+    if (this.history.length < MAX_HISTORY) {
+      this.history.push(entry);
+    } else {
+      this.history[this.historyHead] = entry;
+    }
+    this.historyHead = (this.historyHead + 1) % MAX_HISTORY;
+    if (this.historyCount < MAX_HISTORY) {
+      this.historyCount++;
     }
   }
 }

@@ -1,9 +1,3 @@
-/**
- * OpenClaw 类型声明
- * 
- * 这些工具在 OpenClaw 环境中全局可用
- */
-
 declare module 'openclaw' {
   export interface SpawnOptions {
     runtime?: 'subagent' | 'acp'
@@ -26,15 +20,26 @@ declare module 'openclaw' {
     includeTools?: boolean
   }
 
+  export interface HistoryMessage {
+    role: string
+    content: string
+  }
+
   export interface HistoryResult {
-    messages: Array<{
-      role: string
-      content: string
-    }>
+    messages: HistoryMessage[]
   }
 
   export function sessions_spawn(options: SpawnOptions): Promise<SessionResult>
   export function sessions_history(options: HistoryOptions): Promise<HistoryResult>
   export function sessions_send(options: { sessionKey: string; message: string }): Promise<void>
   export function sessions_yield(options?: { message?: string }): Promise<void>
+}
+
+interface OpenClawGlobal {
+  sessions_spawn?: (options: import('openclaw').SpawnOptions) => Promise<import('openclaw').SessionResult>
+  sessions_history?: (options: import('openclaw').HistoryOptions) => Promise<import('openclaw').HistoryResult>
+}
+
+declare global {
+  var openclaw: OpenClawGlobal | undefined
 }
