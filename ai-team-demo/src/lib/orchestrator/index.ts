@@ -5,6 +5,7 @@ import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
 import { fileSystemManager } from '../filesystem/manager'
 import { resolveTaskOrder, DependencyError } from '../utils/task-resolver'
+import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 
@@ -74,9 +75,11 @@ export class Orchestrator extends BaseOrchestrator {
       const allFiles: WorkflowResult['files'] = []
       const completedTaskIds = new Set<string>()
 
+      const resolvedSubTasks = resolveTitleDependencies(subTasks)
+
       let sortedTasks: Task[]
       try {
-        sortedTasks = resolveTaskOrder(subTasks)
+        sortedTasks = resolveTaskOrder(resolvedSubTasks)
       } catch (depError) {
         if (depError instanceof DependencyError) {
           console.error('[Orchestrator] Dependency resolution failed:', depError.message)
