@@ -1,9 +1,10 @@
 import { z } from 'zod'
+
 import { AgentRole, AgentResponse, AgentContext, Task, AgentConfig } from './types'
 import { generateId } from '../utils/id'
 import { extractJSONObject } from '../utils/json-parser'
 import { getLLMProvider } from '../llm/factory'
-import { ChatMessage } from '../llm/types'
+import { createLogger } from './logger'
 
 export type ParseResultSuccess<T> = { success: true; data: T }
 export type ParseResultFailure = { success: false; error: string; raw?: unknown }
@@ -31,6 +32,7 @@ export abstract class BaseAgent {
   readonly name: string
   readonly role: AgentRole
   readonly description: string
+  private readonly logger = createLogger('agent')
 
   constructor(id: string, name: string, role: AgentRole, description: string) {
     this.id = id
@@ -46,7 +48,7 @@ export abstract class BaseAgent {
   }
 
   protected log(message: string): void {
-    console.log(`[${this.name}] ${message}`)
+    this.logger.info(message, { agent: this.name })
   }
 
   protected getLLM() {
@@ -67,12 +69,18 @@ export abstract class BaseAgent {
   }
 
   protected parseJSONResponse<T>(response: string, schema: z.ZodType<T>): ParseResult<T>
-  protected parseJSONResponse<T>(response: string): T | null
-  protected parseJSONResponse<T>(response: string, schema?: z.ZodType<T>): T | null | ParseResult<T> {
+  protected parseJSONResponse<T>(response: string, schema: z.ZodType<T>): ParseResult<T> | null
+  protected parseJSONResponse<T>(response: string, schema?: z.ZodType<T>): ParseResult<T> | null {
     const raw = extractJSONObject(response)
 
     if (!schema) {
-      return raw as T | null
+      if (!raw) return null
+      const anySchema: z.ZodType<T> = z.any() as unknown as z.ZodType<T>
+      const validated = anySchema.safeParse(raw)
+      if (validated.success) {
+        return { success: true, data: validated.data as T }
+      }
+      return { success: false, error: 'Parse failed', raw }
     }
 
     if (!raw) {
@@ -140,6 +148,7 @@ export abstract class BaseAgent {
 export abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfig> {
   readonly role: AgentRole
   protected config: TConfig
+  private readonly logger = createLogger('openclaw-agent')
 
   constructor(role: AgentRole, config: TConfig) {
     this.role = role
@@ -201,11 +210,6 @@ export abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfi
   }
 
   protected log(message: string): void {
-    const roleEmoji: Record<string, string> = {
-      pm: '📋',
-      dev: '💻',
-      review: '🔍',
-    }
-    console.log(`${roleEmoji[this.role] || '🤖'} [${this.role.toUpperCase()} Agent] ${message}`)
+    this.logger.info(message, { role: this.role })
   }
 }

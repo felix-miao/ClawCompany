@@ -1,17 +1,19 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
-import { WorkflowResult, AgentRole, Task, AgentContext, RetryConfig } from '../core/types'
+import { WorkflowResult, Task, RetryConfig } from '../core/types'
 import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
 import { fileSystemManager } from '../filesystem/manager'
 import { resolveTaskOrder, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
-import { OrchestratorError, FileSystemError, AppError, ErrorCategory, ErrorSeverity } from '../core/errors'
+import { OrchestratorError, FileSystemError } from '../core/errors'
+import { createLogger } from '../core/logger'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 
 export class Orchestrator extends BaseOrchestrator {
   private projectId: string
+  private readonly log = createLogger('orchestrator')
 
   constructor(projectId: string = 'default', retryConfig?: Partial<RetryConfig>, observability?: ObservabilityConfig) {
     super(retryConfig, observability)
@@ -94,7 +96,7 @@ export class Orchestrator extends BaseOrchestrator {
         sortedTasks = resolveTaskOrder(resolvedSubTasks)
       } catch (depError) {
         if (depError instanceof DependencyError) {
-          console.error('[Orchestrator] Dependency resolution failed:', depError.message)
+          this.log.error('Dependency resolution failed', { error: depError.message })
           this.obs.errors.track(new OrchestratorError(depError.message))
           this.logError('Workflow completed', { success: false, reason: 'Dependency resolution failed' })
           return {
@@ -123,7 +125,7 @@ export class Orchestrator extends BaseOrchestrator {
           (dep) => subTaskIds.includes(dep) && !completedTaskIds.has(dep),
         )
         if (unresolvedDep) {
-          console.warn(`[Orchestrator] Skipping task ${task.id}: dependency ${unresolvedDep} was not completed`)
+          this.log.warn('Skipping task: dependency not completed', { taskId: task.id, dependency: unresolvedDep })
           this.logWarn('Task skipped due to unmet dependency', { taskId: task.id, dependency: unresolvedDep })
           this.obs.perf.increment('orchestrator.tasks.failed')
           continue
@@ -150,10 +152,10 @@ export class Orchestrator extends BaseOrchestrator {
               for (const file of devResponse.files) {
                 try {
                   await cb.saveFile?.(file.path, file.content)
-                  console.log(`[Orchestrator] Saved file: ${file.path}`)
+                  this.log.info('File saved', { path: file.path })
                   this.logInfo('File saved', { path: file.path })
                 } catch (error) {
-                  console.error(`[Orchestrator] Failed to save file ${file.path}:`, error)
+                  this.log.error('Failed to save file', { path: file.path, error: error instanceof Error ? error.message : String(error) })
                   this.logError('File save failed', { path: file.path, error: error instanceof Error ? error.message : String(error) })
                   const fsErr = error instanceof Error
                     ? new FileSystemError(error.message, file.path)
@@ -188,7 +190,7 @@ export class Orchestrator extends BaseOrchestrator {
             }
           }
         } catch (error) {
-          console.error(`[Orchestrator] Unexpected error in task ${task.id}:`, error)
+          this.log.error('Unexpected error in task', { taskId: task.id, error: error instanceof Error ? error.message : 'Unknown error' })
           this.recordFailedTask(task, error instanceof Error ? error.message : 'Unknown error')
           this.obs.perf.increment('orchestrator.tasks.failed')
           this.obs.errors.track(error instanceof Error ? error : new Error(String(error)))
@@ -214,7 +216,7 @@ export class Orchestrator extends BaseOrchestrator {
         stats: this.buildWorkflowStats(subTaskIds.length, cb),
       }
     } catch (error) {
-      console.error('[Orchestrator] Fatal error in executeUserRequest:', error)
+      this.log.error('Fatal error in executeUserRequest', { error: error instanceof Error ? error.message : 'Unknown error' })
       this.obs.errors.track(error instanceof Error ? error : new Error(String(error)))
       this.logError('Fatal error in workflow', { error: error instanceof Error ? error.message : 'Unknown error' })
       return {

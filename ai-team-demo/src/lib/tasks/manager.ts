@@ -5,6 +5,9 @@ import { TaskStateMachine, InvalidTransitionError } from './state-machine'
 
 export { TaskStateMachine, InvalidTransitionError } from './state-machine'
 
+const VALID_STATUSES: readonly string[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']
+const VALID_ROLES: readonly string[] = ['pm', 'dev', 'review']
+
 export class TaskManager {
   private tasks: Map<string, Task> = new Map()
   private projectId: string
@@ -20,10 +23,22 @@ export class TaskManager {
     dependencies: string[] = [],
     files: string[] = []
   ): Task {
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) {
+      throw new Error('title is required')
+    }
+    const trimmedDesc = description.trim()
+    if (!trimmedDesc) {
+      throw new Error('description is required')
+    }
+    if (!VALID_ROLES.includes(assignedTo)) {
+      throw new Error(`Invalid agent role: ${assignedTo}`)
+    }
+
     const task: Task = {
       id: generateId('task_'),
-      title,
-      description,
+      title: trimmedTitle,
+      description: trimmedDesc,
       status: 'pending',
       assignedTo,
       dependencies,
@@ -86,6 +101,8 @@ export class TaskManager {
     inProgress: number
     review: number
     done: number
+    completed: number
+    failed: number
   } {
     const tasks = this.getAllTasks()
     return {
@@ -93,7 +110,9 @@ export class TaskManager {
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       review: tasks.filter(t => t.status === 'review').length,
-      done: tasks.filter(t => t.status === 'done').length
+      done: tasks.filter(t => t.status === 'done').length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      failed: tasks.filter(t => t.status === 'failed').length
     }
   }
 
@@ -109,18 +128,41 @@ export class TaskManager {
   }
 
   static fromJSON(json: string): TaskManager {
-    const result = safeJsonParse<{ projectId: string; tasks: [string, Task][] }>(json, 'TaskManager')
+    const result = safeJsonParse<unknown>(json, 'TaskManager')
     if (!result.success) {
       throw new Error(result.error)
     }
-    const manager = new TaskManager(result.data.projectId)
-    result.data.tasks.forEach(([id, task]: [string, Task]) => {
+    const data = result.data
+    if (typeof data !== 'object' || data === null || !('projectId' in data) || typeof (data as any).projectId !== 'string') {
+      throw new Error('projectId is required')
+    }
+    if (!('tasks' in data) || !Array.isArray((data as any).tasks)) {
+      throw new Error('tasks must be an array')
+    }
+
+    const manager = new TaskManager((data as any).projectId)
+    for (const entry of (data as any).tasks) {
+      if (!Array.isArray(entry) || entry.length < 2) continue
+      const [id, task] = entry as [string, any]
+      if (typeof task.title !== 'string' || typeof task.description !== 'string') {
+        throw new Error('Task missing required fields: title and description')
+      }
+      if (!VALID_STATUSES.includes(task.status)) {
+        throw new Error(`Invalid task status: ${task.status}`)
+      }
+      if (!VALID_ROLES.includes(task.assignedTo)) {
+        throw new Error(`Invalid agent role: ${task.assignedTo}`)
+      }
       manager.tasks.set(id, {
         ...task,
-        createdAt: new Date(task.createdAt),
-        updatedAt: new Date(task.updatedAt)
+        status: task.status as TaskStatus,
+        assignedTo: task.assignedTo as AgentRole,
+        dependencies: Array.isArray(task.dependencies) ? task.dependencies : [],
+        files: Array.isArray(task.files) ? task.files : [],
+        createdAt: task.createdAt ? new Date(task.createdAt) : new Date(),
+        updatedAt: task.updatedAt ? new Date(task.updatedAt) : new Date()
       })
-    })
+    }
     return manager
   }
 }
