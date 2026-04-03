@@ -99,15 +99,12 @@ export class MetricsAggregator {
   }
 
   private getMemoryUsage(): PerformanceMetrics['memoryUsage'] {
-    const total = 4096
-    const used = Math.floor(total * (0.3 + Math.random() * 0.4))
-    const percentage = Math.round((used / total) * 100)
+    const mem = process.memoryUsage()
+    const used = Math.round(mem.heapUsed / 1024 / 1024)
+    const total = Math.round(mem.heapTotal / 1024 / 1024)
+    const percentage = total > 0 ? Math.round((used / total) * 100) : 0
 
-    return {
-      used,
-      total,
-      percentage
-    }
+    return { used, total, percentage }
   }
 
   private calculateTaskMetrics(): PerformanceMetrics['tasks'] {

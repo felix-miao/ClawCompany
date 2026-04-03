@@ -250,5 +250,40 @@ describe('MetricsAggregator', () => {
       expect(metrics.memoryUsage.percentage).toBeGreaterThanOrEqual(0)
       expect(metrics.memoryUsage.percentage).toBeLessThanOrEqual(100)
     })
+
+    it('should return deterministic memory usage (no random values)', () => {
+      const results = Array.from({ length: 5 }, () =>
+        metricsAggregator.getCurrentMetrics().memoryUsage
+      )
+
+      const usedValues = results.map(r => r.used)
+      const allSame = usedValues.every(v => v === usedValues[0])
+      expect(allSame).toBe(true)
+    })
+
+    it('should reflect actual process memory via process.memoryUsage()', () => {
+      const metrics = metricsAggregator.getCurrentMetrics()
+      const actualMem = process.memoryUsage()
+
+      expect(metrics.memoryUsage.used).toBe(Math.round(actualMem.heapUsed / 1024 / 1024))
+      expect(metrics.memoryUsage.total).toBe(Math.round(actualMem.heapTotal / 1024 / 1024))
+    })
+
+    it('should calculate percentage correctly from used and total', () => {
+      const metrics = metricsAggregator.getCurrentMetrics()
+      const expectedPercentage = Math.round(
+        (metrics.memoryUsage.used / metrics.memoryUsage.total) * 100
+      )
+      expect(metrics.memoryUsage.percentage).toBe(expectedPercentage)
+    })
+
+    it('should not use hardcoded total of 4096', () => {
+      const metrics = metricsAggregator.getCurrentMetrics()
+      const actualMem = process.memoryUsage()
+      const expectedTotal = Math.round(actualMem.heapTotal / 1024 / 1024)
+
+      expect(metrics.memoryUsage.total).toBe(expectedTotal)
+      expect(metrics.memoryUsage.total).not.toBe(4096)
+    })
   })
 })
