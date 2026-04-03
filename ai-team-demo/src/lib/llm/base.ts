@@ -30,6 +30,25 @@ export abstract class BaseLLMProvider implements LLMProvider {
     return controller.signal
   }
 
+  private async parseErrorBody(response: Response): Promise<string> {
+    try {
+      const text = await response.text()
+      try {
+        const error = JSON.parse(text)
+        return error.error?.message || response.statusText
+      } catch {
+        return text || response.statusText
+      }
+    } catch {
+      return response.statusText
+    }
+  }
+
+  private async handleErrorResponse(response: Response): Promise<never> {
+    const errorMessage = await this.parseErrorBody(response)
+    throw new Error(`${this.providerName} API error: ${errorMessage}`)
+  }
+
   async chat(messages: ChatMessage[]): Promise<string> {
     const response = await fetch(this.apiUrl, {
       method: 'POST',
@@ -50,12 +69,15 @@ export abstract class BaseLLMProvider implements LLMProvider {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(`${this.providerName} API error: ${error.error?.message || response.statusText}`)
+      await this.handleErrorResponse(response)
     }
 
-    const data = await response.json()
-    return data.choices[0]?.message?.content || ''
+    try {
+      const data = await response.json()
+      return data.choices[0]?.message?.content || ''
+    } catch {
+      throw new Error(`${this.providerName} API error: Failed to parse response`)
+    }
   }
 
   async *stream(messages: ChatMessage[]): AsyncGenerator<string> {
@@ -79,8 +101,7 @@ export abstract class BaseLLMProvider implements LLMProvider {
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(`${this.providerName} API error: ${error.error?.message || response.statusText}`)
+      await this.handleErrorResponse(response)
     }
 
     const reader = response.body?.getReader()

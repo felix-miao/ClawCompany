@@ -173,7 +173,7 @@ describe('BaseLLMProvider', () => {
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
-        json: async () => ({ error: { message: 'Bad key' } }),
+        text: async () => '{"error":{"message":"Bad key"}}',
       })
 
       await expect(
@@ -186,12 +186,49 @@ describe('BaseLLMProvider', () => {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
-        json: async () => ({}),
+        text: async () => '{}',
       })
 
       await expect(
         provider.chat([{ role: 'user', content: 'test' }]),
       ).rejects.toThrow('Test API error: Internal Server Error')
+    })
+
+    it('应该在 API 返回非 JSON 错误体时安全处理', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        statusText: 'Bad Gateway',
+        text: async () => '<html>Gateway Timeout</html>',
+      })
+
+      await expect(
+        provider.chat([{ role: 'user', content: 'test' }]),
+      ).rejects.toThrow('Test API error: <html>Gateway Timeout</html>')
+    })
+
+    it('应该在 API 错误体为空时使用 statusText', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        text: async () => '',
+      })
+
+      await expect(
+        provider.chat([{ role: 'user', content: 'test' }]),
+      ).rejects.toThrow('Test API error: Too Many Requests')
+    })
+
+    it('应该在成功响应 JSON 解析失败时抛出错误', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => { throw new SyntaxError('Unexpected token') },
+      })
+
+      await expect(
+        provider.chat([{ role: 'user', content: 'test' }]),
+      ).rejects.toThrow('Test API error: Failed to parse response')
     })
 
     it('应该为 fetch 传递 AbortSignal', async () => {
@@ -283,11 +320,23 @@ describe('BaseLLMProvider', () => {
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
-        json: async () => ({ error: { message: 'Invalid key' } }),
+        text: async () => '{"error":{"message":"Invalid key"}}',
       })
 
       const gen = provider.stream([{ role: 'user', content: 'test' }])
-      await expect(gen.next()).rejects.toThrow('Test API error')
+      await expect(gen.next()).rejects.toThrow('Test API error: Invalid key')
+    })
+
+    it('应该在流式 API 返回非 JSON 错误体时安全处理', async () => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        statusText: 'Bad Gateway',
+        text: async () => 'Service Unavailable',
+      })
+
+      const gen = provider.stream([{ role: 'user', content: 'test' }])
+      await expect(gen.next()).rejects.toThrow('Test API error: Service Unavailable')
     })
 
     it('应该在 response body 为 null 时抛出错误', async () => {
@@ -400,7 +449,7 @@ describe('BaseLLMProvider', () => {
       ;(global.fetch as jest.Mock).mockResolvedValue({
         ok: false,
         statusText: 'Error',
-        json: async () => ({}),
+        text: async () => '{}',
       })
 
       await expect(a.chat([{ role: 'user', content: '' }])).rejects.toThrow('ProviderA API error')
