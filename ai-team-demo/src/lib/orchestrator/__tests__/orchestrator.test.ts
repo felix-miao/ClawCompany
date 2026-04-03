@@ -592,4 +592,409 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       expect(attemptCount).toBeGreaterThan(1)
     }, 10000)
   })
+
+  describe('依赖未完成时跳过任务', () => {
+    it('应该在前置依赖任务失败时跳过后续任务', async () => {
+      const task1 = {
+        id: 'dev-1',
+        title: 'Task 1',
+        description: 'Task 1',
+        assignedTo: 'dev' as const,
+        dependencies: [] as string[],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+      const task2 = {
+        id: 'dev-2',
+        title: 'Task 2',
+        description: 'Task 2',
+        assignedTo: 'dev' as const,
+        dependencies: ['dev-1'],
+        files: [] as string[],
+        status: 'pending' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce(task1)
+        .mockReturnValueOnce(task2)
+
+      const executedRoles: string[] = []
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockImplementationOnce(async () => {
+          executedRoles.push('pm')
+          return {
+            message: 'PM done',
+            tasks: [
+              { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: [], files: [] },
+              { title: 'Task 2', description: 'Task 2', assignedTo: 'dev', dependencies: ['dev-1'], files: [] },
+            ],
+          }
+        })
+        .mockRejectedValue(new Error('Dev failed'))
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('build feature')
+
+      expect(executedRoles).toContain('pm')
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Skipping task'),
+      )
+      expect(result.stats?.totalTasks).toBe(2)
+
+      consoleSpy.mockRestore()
+    }, 15000)
+  })
+
+  describe('Review 拒绝处理', () => {
+    it('应该在 review 返回非 success 时将任务状态设为 pending', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Dev Task',
+          description: 'Dev Task',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: 'Dev Task', description: 'Dev Task', assignedTo: 'dev', dependencies: [], files: [] },
+          ],
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review rejected: needs fixes',
+          status: 'error',
+        })
+
+      const result = await orchestrator.executeUserRequest('build feature')
+
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'in_progress')
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'review')
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'pending')
+      expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'done')
+      expect(result.success).toBe(true)
+    })
+  })
+
+  describe('PM 无子任务时的工作流', () => {
+    it('应该在 PM 不返回子任务时快速成功', async () => {
+      ;(taskManager.createTask as jest.Mock).mockReturnValue({
+        id: 'pm-task',
+        title: 'PM',
+        description: 'PM',
+        assignedTo: 'pm',
+        dependencies: [],
+        files: [],
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+
+      ;(agentManager.executeAgent as jest.Mock).mockResolvedValueOnce({
+        message: 'PM completed, no subtasks needed',
+        tasks: [],
+      })
+
+      const result = await orchestrator.executeUserRequest('simple query')
+
+      expect(result.success).toBe(true)
+      expect(result.stats?.totalTasks).toBe(0)
+      expect(result.stats?.successfulTasks).toBe(0)
+    })
+  })
+
+  describe('getStatus', () => {
+    it('应该返回项目状态信息', () => {
+      const mockTasks = [
+        { id: 't1', title: 'Task 1', status: 'done' },
+        { id: 't2', title: 'Task 2', status: 'pending' },
+      ]
+      ;(taskManager.getAllTasks as jest.Mock).mockReturnValue(mockTasks)
+      ;(chatManager.getHistory as jest.Mock).mockReturnValue([
+        { agent: 'user', content: 'hello' },
+      ])
+      ;(taskManager.getStats as jest.Mock).mockReturnValue({
+        total: 2,
+        pending: 1,
+        in_progress: 0,
+        review: 0,
+        done: 1,
+      })
+
+      const status = orchestrator.getStatus()
+
+      expect(status.projectId).toBe('test-project')
+      expect(status.tasks).toEqual(mockTasks)
+      expect(status.messages).toHaveLength(1)
+      expect(status.stats.total).toBe(2)
+    })
+  })
+
+  describe('reset', () => {
+    it('应该清除所有状态', async () => {
+      ;(taskManager.createTask as jest.Mock).mockReturnValue({
+        id: 'pm-task',
+        title: 'PM',
+        description: 'PM',
+        assignedTo: 'pm',
+        dependencies: [],
+        files: [],
+        status: 'pending',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+
+      ;(agentManager.executeAgent as jest.Mock).mockResolvedValueOnce({
+        message: 'PM done',
+        tasks: [],
+      })
+
+      await orchestrator.executeUserRequest('test')
+
+      orchestrator.reset()
+
+      expect(taskManager.clearTasks).toHaveBeenCalled()
+      expect(chatManager.clearHistory).toHaveBeenCalled()
+    }, 10000)
+  })
+
+  describe('多文件保存', () => {
+    it('应该在 dev 返回多个文件时全部保存', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Dev Task',
+          description: 'Dev Task',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: 'Dev Task', description: 'Dev Task', assignedTo: 'dev', dependencies: [], files: [] },
+          ],
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev done',
+          files: [
+            { path: '/src/a.ts', content: 'export const a = 1', action: 'create' },
+            { path: '/src/b.ts', content: 'export const b = 2', action: 'create' },
+          ],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review OK',
+          status: 'success',
+        })
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('create files')
+
+      expect(fileSystemManager.createFile).toHaveBeenCalledWith('/src/a.ts', 'export const a = 1')
+      expect(fileSystemManager.createFile).toHaveBeenCalledWith('/src/b.ts', 'export const b = 2')
+      expect(result.files).toHaveLength(2)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Saved file: /src/a.ts'),
+      )
+
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('非 DependencyError 异常传播', () => {
+    it('应该在任务解析过程中抛出非依赖错误时作为致命错误处理', async () => {
+      // 模拟任务创建后在排序过程中抛出 TypeError
+      const originalGetAllTasks = taskManager.getAllTasks
+      taskManager.getAllTasks = jest.fn(() => [
+        {
+          id: 'dev-1',
+          title: 'Task',
+          description: 'Task',
+          assignedTo: 'dev',
+          dependencies: ['nonexistent-dep'],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      ])
+
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Task',
+          description: 'Task',
+          assignedTo: 'dev',
+          dependencies: ['nonexistent-dep'],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      ;(agentManager.executeAgent as jest.Mock).mockResolvedValueOnce({
+        message: 'PM done',
+        tasks: [
+          { title: 'Task', description: 'Task', assignedTo: 'dev', dependencies: ['nonexistent-dep'], files: [] },
+        ],
+      })
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(result.success).toBe(false)
+      expect(result.error?.message).toContain('Missing dependencies')
+
+      taskManager.getAllTasks = originalGetAllTasks
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('单任务意外错误', () => {
+    it('应该在单个任务出现意外错误时记录失败并继续', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Task 1',
+          description: 'Task 1',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-2',
+          title: 'Task 2',
+          description: 'Task 2',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      let callCount = 0
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockImplementationOnce(async () => {
+          return {
+            message: 'PM done',
+            tasks: [
+              { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: [], files: [] },
+              { title: 'Task 2', description: 'Task 2', assignedTo: 'dev', dependencies: [], files: [] },
+            ],
+          }
+        })
+        .mockImplementationOnce(async () => {
+          callCount++
+          throw new Error('Unexpected crash')
+        })
+        .mockImplementationOnce(async () => {
+          callCount++
+          throw new Error('Unexpected crash')
+        })
+        .mockImplementationOnce(async () => {
+          callCount++
+          throw new Error('Unexpected crash')
+        })
+        .mockImplementationOnce(async () => {
+          callCount++
+          throw new Error('Unexpected crash')
+        })
+        .mockImplementationOnce(async () => {
+          return { message: 'Dev 2 done', files: [], status: 'success' }
+        })
+        .mockImplementationOnce(async () => {
+          return { message: 'Review 2 done', status: 'success' }
+        })
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('build feature')
+
+      expect(result.success).toBe(true)
+      expect(result.stats?.failedTasks).toBeGreaterThanOrEqual(1)
+
+      consoleSpy.mockRestore()
+    }, 15000)
+  })
 })
