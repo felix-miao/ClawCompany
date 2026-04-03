@@ -44,6 +44,10 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, idx)]
 }
 
+const DEFAULT_MAX_HISTOGRAM_VALUES = 10000
+const DEFAULT_MAX_METRIC_ENTRIES = 1000
+const DEFAULT_MAX_TIMER_AGE_MS = 30 * 60 * 1000
+
 export class PerformanceMonitor {
   private counters: Map<string, number> = new Map()
   private gauges: Map<string, number> = new Map()
@@ -51,6 +55,19 @@ export class PerformanceMonitor {
   private activeTimers: Map<string, { name: string; start: number }> = new Map()
   private metricEntries: Map<string, MetricEntry[]> = new Map()
   private timerCounter = 0
+  private maxHistogramValues: number
+  private maxMetricEntries: number
+  private maxTimerAgeMs: number
+
+  constructor(options?: {
+    maxHistogramValues?: number
+    maxMetricEntries?: number
+    maxTimerAgeMs?: number
+  }) {
+    this.maxHistogramValues = options?.maxHistogramValues ?? DEFAULT_MAX_HISTOGRAM_VALUES
+    this.maxMetricEntries = options?.maxMetricEntries ?? DEFAULT_MAX_METRIC_ENTRIES
+    this.maxTimerAgeMs = options?.maxTimerAgeMs ?? DEFAULT_MAX_TIMER_AGE_MS
+  }
 
   increment(name: string, value = 1, tags?: Record<string, string>): void {
     this.counters.set(name, (this.counters.get(name) ?? 0) + value)
@@ -72,6 +89,9 @@ export class PerformanceMonitor {
   recordValue(name: string, value: number, tags?: Record<string, string>): void {
     const values = this.histograms.get(name) ?? []
     values.push(value)
+    if (values.length > this.maxHistogramValues) {
+      values.splice(0, values.length - this.maxHistogramValues)
+    }
     this.histograms.set(name, values)
     this.addMetricEntry(name, value, MetricType.HISTOGRAM, tags)
   }
@@ -121,6 +141,18 @@ export class PerformanceMonitor {
     return this.activeTimers.size
   }
 
+  cleanupStaleTimers(): number {
+    const now = performance.now()
+    let removed = 0
+    for (const [id, timer] of this.activeTimers) {
+      if (now - timer.start > this.maxTimerAgeMs) {
+        this.activeTimers.delete(id)
+        removed++
+      }
+    }
+    return removed
+  }
+
   getMetricEntries(name: string): MetricEntry[] {
     return this.metricEntries.get(name) ?? []
   }
@@ -168,6 +200,9 @@ export class PerformanceMonitor {
       timestamp: new Date().toISOString(),
       tags,
     })
+    if (entries.length > this.maxMetricEntries) {
+      entries.splice(0, entries.length - this.maxMetricEntries)
+    }
     this.metricEntries.set(name, entries)
   }
 }

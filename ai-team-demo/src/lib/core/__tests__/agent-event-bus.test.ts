@@ -266,6 +266,47 @@ describe('AgentEventBus', () => {
     })
   })
 
+  describe('history eviction', () => {
+    it('should evict oldest events when exceeding maxHistory', () => {
+      const smallBus = new AgentEventBus(5)
+      for (let i = 0; i < 8; i++) {
+        smallBus.emit({ type: 'agent:started', agentRole: 'pm', data: { i } })
+      }
+      const history = smallBus.getHistory()
+      expect(history).toHaveLength(5)
+      expect((history[0].data as { i: number }).i).toBe(3)
+      expect((history[4].data as { i: number }).i).toBe(7)
+    })
+
+    it('should retain events within maxHistory', () => {
+      const smallBus = new AgentEventBus(100)
+      for (let i = 0; i < 50; i++) {
+        smallBus.emit({ type: 'agent:started', agentRole: 'pm' })
+      }
+      expect(smallBus.getHistory()).toHaveLength(50)
+    })
+
+    it('should still notify subscribers after eviction', () => {
+      const smallBus = new AgentEventBus(2)
+      const handler = jest.fn()
+      smallBus.subscribe(handler)
+      for (let i = 0; i < 5; i++) {
+        smallBus.emit({ type: 'agent:started', agentRole: 'pm' })
+      }
+      expect(handler).toHaveBeenCalledTimes(5)
+    })
+
+    it('should use default maxHistory when not specified', () => {
+      const defaultBus = new AgentEventBus()
+      for (let i = 0; i < 1000; i++) {
+        defaultBus.emit({ type: 'agent:started', agentRole: 'pm' })
+      }
+      expect(defaultBus.getHistory()).toHaveLength(1000)
+      defaultBus.emit({ type: 'agent:started', agentRole: 'pm' })
+      expect(defaultBus.getHistory()).toHaveLength(1000)
+    })
+  })
+
   describe('listenerCount', () => {
     it('should return 0 when no subscribers', () => {
       expect(bus.listenerCount()).toBe(0)

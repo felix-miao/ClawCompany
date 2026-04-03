@@ -147,6 +147,60 @@ describe('PerformanceMonitor', () => {
     })
   })
 
+  describe('memory bounds', () => {
+    it('should limit histogram values per metric', () => {
+      const m = new PerformanceMonitor({ maxHistogramValues: 5 })
+      for (let i = 0; i < 10; i++) {
+        m.recordValue('latency', i)
+      }
+      const stats = m.getHistogramStats('latency')!
+      expect(stats.count).toBe(5)
+      expect(stats.min).toBe(5)
+      expect(stats.max).toBe(9)
+    })
+
+    it('should limit metric entries per metric name', () => {
+      const m = new PerformanceMonitor({ maxMetricEntries: 3 })
+      for (let i = 0; i < 6; i++) {
+        m.increment('requests', 1)
+      }
+      const entries = m.getMetricEntries('requests')
+      expect(entries).toHaveLength(3)
+      expect(entries[0].value).toBe(1)
+      expect(entries[2].value).toBe(1)
+    })
+
+    it('should cleanup stale timers', () => {
+      const m = new PerformanceMonitor({ maxTimerAgeMs: 0 })
+      m.startTimer('stale_task')
+      expect(m.getActiveTimerCount()).toBe(1)
+      const removed = m.cleanupStaleTimers()
+      expect(removed).toBe(1)
+      expect(m.getActiveTimerCount()).toBe(0)
+    })
+
+    it('should not cleanup fresh timers', () => {
+      const m = new PerformanceMonitor({ maxTimerAgeMs: 60000 })
+      const id = m.startTimer('fresh_task')
+      const removed = m.cleanupStaleTimers()
+      expect(removed).toBe(0)
+      expect(m.getActiveTimerCount()).toBe(1)
+      m.stopTimer(id)
+    })
+
+    it('should use default limits when options not provided', () => {
+      const m = new PerformanceMonitor()
+      for (let i = 0; i < 10000; i++) {
+        m.recordValue('latency', i)
+      }
+      const stats = m.getHistogramStats('latency')!
+      expect(stats.count).toBe(10000)
+      m.recordValue('latency', 99999)
+      const stats2 = m.getHistogramStats('latency')!
+      expect(stats2.count).toBe(10000)
+    })
+  })
+
   describe('metric entries with metadata', () => {
     it('should record metric entries with tags', () => {
       monitor.increment('requests', 1, { method: 'GET', path: '/api/users' })

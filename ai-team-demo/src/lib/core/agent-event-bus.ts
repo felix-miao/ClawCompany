@@ -22,9 +22,16 @@ export interface AgentEvent {
 
 type EventHandler = (event: AgentEvent) => void
 
+const DEFAULT_MAX_HISTORY = 1000
+
 export class AgentEventBus {
   private history: AgentEvent[] = []
   private handlers: Set<EventHandler> = new Set()
+  private maxHistory: number
+
+  constructor(maxHistory = DEFAULT_MAX_HISTORY) {
+    this.maxHistory = maxHistory
+  }
 
   emit(event: Omit<AgentEvent, 'timestamp'>): void {
     const fullEvent: AgentEvent = {
@@ -32,6 +39,9 @@ export class AgentEventBus {
       timestamp: new Date(),
     }
     this.history.push(fullEvent)
+    if (this.history.length > this.maxHistory) {
+      this.history = this.history.slice(-this.maxHistory)
+    }
 
     for (const handler of this.handlers) {
       try {
