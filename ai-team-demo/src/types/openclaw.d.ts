@@ -1,23 +1,19 @@
-// 全局类型声明
-
 declare global {
-  // OpenClaw API
-  function sessions_spawn(options: {
-    runtime: 'subagent' | 'acp'
+  // eslint-disable-next-line no-var
+  var sessions_spawn: ((opts: {
+    runtime?: string
     agentId?: string
     task: string
-    thinking?: 'low' | 'medium' | 'high'
-    mode: 'run'
-  }): Promise<string>
+    thinking?: string
+    mode?: string
+    model?: string
+    cwd?: string
+  }) => Promise<unknown>) | undefined
 
-  function sessions_history(options: {
+  // eslint-disable-next-line no-var
+  var sessions_history: ((opts: {
     sessionKey: string
-    limit?: number
-  }): Promise<Array<{
-    status: 'pending' | 'running' | 'completed' | 'failed'
-    content: string
-    error?: string
-  }>>
+  }) => Promise<{ messages?: Array<{ content?: string }> }>) | undefined
 
   function sessions_send(options: {
     sessionKey: string

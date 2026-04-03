@@ -194,7 +194,8 @@ describe('Chat API', () => {
 
   describe('GET /api/chat', () => {
     it('应该返回当前状态', async () => {
-      const response = await GET()
+      const request = createMockRequest({})
+      const response = await GET(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)

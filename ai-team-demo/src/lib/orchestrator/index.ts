@@ -1,5 +1,5 @@
 import { BaseOrchestrator, OrchestratorCallbacks } from '../core/base-orchestrator'
-import { WorkflowResult, AgentRole, Task, AgentContext } from '../core/types'
+import { WorkflowResult, AgentRole, Task, AgentContext, RetryConfig } from '../core/types'
 import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
@@ -11,7 +11,7 @@ export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '.
 export class Orchestrator extends BaseOrchestrator {
   private projectId: string
 
-  constructor(projectId: string = 'default', retryConfig?: Parameters<typeof BaseOrchestrator>[0]) {
+  constructor(projectId: string = 'default', retryConfig?: Partial<RetryConfig>) {
     super(retryConfig)
     this.projectId = projectId
   }
