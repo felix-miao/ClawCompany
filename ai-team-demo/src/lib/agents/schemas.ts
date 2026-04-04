@@ -4,10 +4,10 @@ export const SubTaskSchema = z.object({
   title: z.string().min(1),
   description: z.string(),
   assignedTo: z.enum(['dev', 'review']),
-  dependencies: z.any().transform((val) => {
-    if (Array.isArray(val)) return val
-    return []
-  }),
+  dependencies: z.preprocess(
+    (val) => Array.isArray(val) ? val : [],
+    z.array(z.string())
+  ),
 })
 
 export const PMAgentResponseSchema = z.object({

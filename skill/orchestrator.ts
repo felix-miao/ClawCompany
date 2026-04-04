@@ -191,7 +191,7 @@ async function spawnPMAgent(
     const parsed = JSON.parse(result)
     return {
       message: parsed.message,
-      tasks: parsed.tasks.map((t: any) => ({
+      tasks: parsed.tasks.map((t: { id?: string; title?: string; description?: string; assignedTo?: string; dependencies?: string[]; [key: string]: unknown }) => ({
         ...t,
         status: 'pending'
       }))

@@ -55,12 +55,12 @@ function parseJSONStructure(text: string, options: ParseOptions): unknown | null
   return null
 }
 
-export function extractJSONObject(text: string): Record<string, any> | null {
+export function extractJSONObject(text: string): Record<string, unknown> | null {
   const result = parseJSONStructure(text, {
     openingChar: '{',
     closingChar: '}'
   })
-  return result as Record<string, any> | null
+  return result as Record<string, unknown> | null
 }
 
 export function extractJSONArray(text: string): unknown[] | null {
