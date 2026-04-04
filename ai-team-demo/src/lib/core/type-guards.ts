@@ -3,16 +3,6 @@ import { ParsedFileEntry, TaskStatus, AgentRole, TASK_STATUS_VALUES } from './ty
 const AGENT_ROLES: readonly string[] = ['pm', 'dev', 'review']
 const VALID_FILE_ACTIONS: readonly string[] = ['create', 'modify', 'delete']
 
-export function safeParseJSON<T>(input: string): { success: true; data: T } | { success: false; error: SyntaxError } {
-  try {
-    const data: T = JSON.parse(input)
-    return { success: true, data }
-  } catch (e) {
-    const error = e instanceof SyntaxError ? e : new SyntaxError(String(e))
-    return { success: false, error }
-  }
-}
-
 export function isNonNullObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
