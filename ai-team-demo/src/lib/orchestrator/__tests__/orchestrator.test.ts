@@ -997,4 +997,214 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       consoleSpy.mockRestore()
     }, 15000)
   })
+
+  describe('PM 子任务输入验证', () => {
+    const basePmTask = () => ({
+      id: 'pm-task',
+      title: 'PM',
+      description: 'PM',
+      assignedTo: 'pm' as const,
+      dependencies: [],
+      files: [],
+      status: 'pending' as const,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const baseDevTask = (id: string, title: string) => ({
+      id,
+      title,
+      description: title,
+      assignedTo: 'dev' as const,
+      dependencies: [] as string[],
+      files: [] as string[],
+      status: 'pending' as const,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    it('应该在 PM 返回任务缺少 title 时跳过该任务并记录警告', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { description: 'a task', assignedTo: 'dev', dependencies: [] },
+          ],
+        })
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(result.success).toBe(true)
+      expect(result.stats?.totalTasks).toBe(0)
+
+      consoleSpy.mockRestore()
+    })
+
+    it('应该在 PM 返回 title 为空字符串时跳过该任务', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: '', description: 'desc', assignedTo: 'dev', dependencies: [] },
+          ],
+        })
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(result.success).toBe(true)
+      expect(result.stats?.totalTasks).toBe(0)
+
+      consoleSpy.mockRestore()
+    })
+
+    it('应该在 PM 返回 assignedTo 无效时跳过该任务', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: 'Task 1', description: 'desc', assignedTo: 'qa', dependencies: [] },
+          ],
+        })
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(result.success).toBe(true)
+      expect(result.stats?.totalTasks).toBe(0)
+
+      consoleSpy.mockRestore()
+    })
+
+    it('应该在 PM 返回 dependencies 非数组时使用空数组', async () => {
+      const devTask = baseDevTask('dev-1', 'Valid Task')
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+        .mockReturnValueOnce(devTask)
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: 'Valid Task', description: 'desc', assignedTo: 'dev', dependencies: 'not-an-array' },
+          ],
+        })
+        .mockResolvedValueOnce({ message: 'Dev done', files: [] })
+        .mockResolvedValueOnce({ message: 'Review OK', status: 'success' })
+
+      ;(taskManager.getTask as jest.Mock).mockReturnValue(devTask)
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(taskManager.createTask).toHaveBeenCalledWith(
+        'Valid Task', 'desc', 'dev', [], []
+      )
+      expect(result.success).toBe(true)
+
+      consoleSpy.mockRestore()
+    })
+
+    it('应该在 PM 返回 null tasks 字段时当作空数组处理', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: null,
+        })
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(result.success).toBe(true)
+      expect(result.stats?.totalTasks).toBe(0)
+    })
+
+    it('应该在混合有效和无效任务时只创建有效任务', async () => {
+      const devTask = baseDevTask('dev-1', 'Valid Task')
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+        .mockReturnValueOnce(devTask)
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            { title: 'Valid Task', description: 'desc', assignedTo: 'dev', dependencies: [] },
+            { description: 'no title', assignedTo: 'dev', dependencies: [] },
+            { title: '', description: 'empty title', assignedTo: 'dev', dependencies: [] },
+            { title: 'Bad Role', description: 'desc', assignedTo: 'qa', dependencies: [] },
+          ],
+        })
+        .mockResolvedValueOnce({ message: 'Dev done', files: [] })
+        .mockResolvedValueOnce({ message: 'Review OK', status: 'success' })
+
+      ;(taskManager.getTask as jest.Mock).mockReturnValue(devTask)
+
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(taskManager.createTask).toHaveBeenCalledTimes(2)
+      expect(taskManager.createTask).toHaveBeenCalledWith(
+        'Valid Task', 'desc', 'dev', [], []
+      )
+      expect(result.success).toBe(true)
+      expect(result.stats?.totalTasks).toBe(1)
+
+      consoleSpy.mockRestore()
+    })
+
+    it('应该在 PM 返回非对象元素时跳过并继续', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(basePmTask())
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [
+            'not-an-object',
+            42,
+            null,
+            { title: 'Good', description: 'desc', assignedTo: 'dev', dependencies: [] },
+          ],
+        })
+
+      const devTask = baseDevTask('dev-1', 'Good')
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce(devTask)
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({ message: 'Dev done', files: [] })
+        .mockResolvedValueOnce({ message: 'Review OK', status: 'success' })
+
+      ;(taskManager.getTask as jest.Mock).mockReturnValue(devTask)
+
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+
+      const result = await orchestrator.executeUserRequest('test')
+
+      expect(taskManager.createTask).toHaveBeenCalledWith(
+        'Good', 'desc', 'dev', [], []
+      )
+      expect(result.stats?.totalTasks).toBe(1)
+
+      consoleSpy.mockRestore()
+    })
+  })
 })
