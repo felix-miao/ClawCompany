@@ -66,8 +66,7 @@ export function extractJSONObject(text: string): Record<string, any> | null {
 export function extractJSONArray(text: string): any[] | null {
   const result = parseJSONStructure(text, {
     openingChar: '[',
-    closingChar: ']',
-    skipPrevCharCheck: true
+    closingChar: ']'
   })
   return result as any[] | null
 }
