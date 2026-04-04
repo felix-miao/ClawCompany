@@ -23,6 +23,8 @@ jest.mock('phaser', () => {
     height: 16,
     setPosition: jest.fn(),
     destroy: jest.fn(),
+    setInteractive: jest.fn(),
+    on: jest.fn(),
   });
 
   const createMockContainer = () => {
@@ -53,6 +55,11 @@ jest.mock('phaser', () => {
     },
     time: {
       delayedCall: jest.fn().mockReturnValue(mockTimerEvent),
+    },
+    tweens: {
+      add: jest.fn((config: any) => {
+        if (config.onComplete) config.onComplete();
+      }),
     },
   };
 
@@ -329,6 +336,59 @@ describe('TaskVisualizer', () => {
         expect(visualizer.getTaskBubble(agent)).toBeUndefined();
         expect(visualizer.getProgressBar(agent)).toBeUndefined();
       });
+    });
+  });
+
+  describe('Phase 4.1: TaskDetailPanel integration', () => {
+    it('should show detail panel for an agent', () => {
+      const task = createTestTask({ agentId: 'alice', status: 'working' });
+      visualizer.showTaskDetailPanel('alice', task);
+
+      expect(visualizer.getDetailPanel()).toBeDefined();
+      expect(visualizer.getDetailPanel()).not.toBeNull();
+    });
+
+    it('should hide detail panel when hideTaskDetailPanel is called', () => {
+      const task = createTestTask({ agentId: 'alice' });
+      visualizer.showTaskDetailPanel('alice', task);
+      expect(visualizer.getDetailPanel()).not.toBeNull();
+
+      visualizer.hideTaskDetailPanel();
+      expect(visualizer.getDetailPanel()).toBeNull();
+    });
+
+    it('should replace existing detail panel when showing another', () => {
+      const task1 = createTestTask({ agentId: 'alice' });
+      const task2 = createTestTask({ agentId: 'bob' });
+      visualizer.showTaskDetailPanel('alice', task1);
+      const panel1 = visualizer.getDetailPanel();
+
+      visualizer.showTaskDetailPanel('bob', task2);
+      const panel2 = visualizer.getDetailPanel();
+
+      expect(panel2).not.toBe(panel1);
+    });
+
+    it('should update detail panel when task changes', () => {
+      const task = createTestTask({ agentId: 'alice', status: 'working', progress: 30 });
+      taskManager.assignTask('alice', task);
+      visualizer.updateAgentPosition('alice', 100, 200);
+      visualizer.showTaskDetailPanel('alice', task);
+
+      taskManager.updateProgress('alice', 75, 'Almost done');
+      visualizer.update();
+
+      const panel = visualizer.getDetailPanel();
+      expect(panel!.getProgress()).toBe(75);
+    });
+
+    it('should clean up detail panel on destroy', () => {
+      const task = createTestTask({ agentId: 'alice' });
+      visualizer.showTaskDetailPanel('alice', task);
+
+      visualizer.destroy();
+
+      expect(visualizer.getDetailPanel()).toBeNull();
     });
   });
 });

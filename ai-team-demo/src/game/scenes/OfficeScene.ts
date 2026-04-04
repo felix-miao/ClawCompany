@@ -336,6 +336,13 @@ export class OfficeScene extends Phaser.Scene {
           this.selectedAgentIndex = idx;
           this.movementSystem.setActiveAgent(clickedAgent);
           this.soundSystem.play('click');
+
+          const task = this.taskManager.getTaskByAgent(clickedAgent.agentId);
+          if (task) {
+            this.taskVisualizer.showTaskDetailPanel(clickedAgent.agentId, task);
+          } else {
+            this.taskVisualizer.hideTaskDetailPanel();
+          }
         }
       } else {
         const agent = this.agents[this.selectedAgentIndex];
@@ -344,6 +351,7 @@ export class OfficeScene extends Phaser.Scene {
           this.targetMarker.setTarget(pointer.worldX, pointer.worldY);
           this.soundSystem.play('click');
         }
+        this.taskVisualizer.hideTaskDetailPanel();
       }
     });
   }

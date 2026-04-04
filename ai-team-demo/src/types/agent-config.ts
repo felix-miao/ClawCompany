@@ -3,14 +3,19 @@ import { z } from 'zod'
 export const APP_AGENT_ROLES = ['pm', 'dev', 'review', 'custom'] as const
 export type AppAgentRole = (typeof APP_AGENT_ROLES)[number]
 
+const DEFAULT_AGENT_EMOJI = '🤖'
+const DEFAULT_AGENT_COLOR = '#6B7280'
+const DEFAULT_AGENT_SYSTEM_PROMPT = ''
+const DEFAULT_AGENT_RUNTIME = 'subagent' as const
+
 export const AgentConfigSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   role: z.string().min(1),
-  emoji: z.string().optional().default('🤖'),
-  color: z.string().optional().default('#6B7280'),
-  systemPrompt: z.string().optional().default(''),
-  runtime: z.enum(['subagent', 'acp']).optional().default('subagent'),
+  emoji: z.string().optional(),
+  color: z.string().optional(),
+  systemPrompt: z.string().optional(),
+  runtime: z.enum(['subagent', 'acp']).optional(),
   agentId: z.string().optional(),
   thinking: z.enum(['low', 'medium', 'high']).optional(),
   createdAt: z.string().optional(),
@@ -18,6 +23,25 @@ export const AgentConfigSchema = z.object({
 })
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>
+
+export type ResolvedAgentConfig = Required<Pick<AgentConfig, 'id' | 'name' | 'role' | 'emoji' | 'color' | 'systemPrompt' | 'runtime'>> & Omit<AgentConfig, 'emoji' | 'color' | 'systemPrompt' | 'runtime'>
+
+export const AGENT_DEFAULTS = {
+  emoji: DEFAULT_AGENT_EMOJI,
+  color: DEFAULT_AGENT_COLOR,
+  systemPrompt: DEFAULT_AGENT_SYSTEM_PROMPT,
+  runtime: DEFAULT_AGENT_RUNTIME,
+} as const
+
+export function resolveAgentConfig(config: AgentConfig): ResolvedAgentConfig {
+  return {
+    ...config,
+    emoji: config.emoji ?? AGENT_DEFAULTS.emoji,
+    color: config.color ?? AGENT_DEFAULTS.color,
+    systemPrompt: config.systemPrompt ?? AGENT_DEFAULTS.systemPrompt,
+    runtime: config.runtime ?? AGENT_DEFAULTS.runtime,
+  }
+}
 
 export const AppAgentConfigSchema = z.object({
   id: z.string().min(1),
@@ -40,6 +64,7 @@ export const PersistedAgentConfigSchema = AppAgentConfigSchema.extend({
 
 export type PersistedAgentConfig = z.infer<typeof PersistedAgentConfigSchema>
 
-export function validateAgentConfig(data: unknown): AgentConfig {
-  return AgentConfigSchema.parse(data)
+export function validateAgentConfig(data: unknown): ResolvedAgentConfig {
+  const parsed = AgentConfigSchema.parse(data)
+  return resolveAgentConfig(parsed)
 }

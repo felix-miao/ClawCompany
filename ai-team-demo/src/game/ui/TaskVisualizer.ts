@@ -1,12 +1,15 @@
 import { TaskManager } from '../systems/TaskManager';
 import { TaskBubble } from './TaskBubble';
 import { ProgressBar } from './ProgressBar';
+import { TaskDetailPanel } from './TaskDetailPanel';
 import { Task, TaskStatus } from '../types/Task';
 import Phaser from 'phaser';
 
 const BUBBLE_OFFSET_Y = -60;
 const PROGRESS_BAR_OFFSET_Y = -48;
 const COMPLETED_HIDE_DELAY = 2000;
+const PANEL_OFFSET_X = 100;
+const PANEL_OFFSET_Y = -50;
 
 export class TaskVisualizer {
   private scene: Phaser.Scene;
@@ -15,6 +18,8 @@ export class TaskVisualizer {
   private progressBars: Map<string, ProgressBar> = new Map();
   private agentPositions: Map<string, { x: number; y: number }> = new Map();
   private completedTimers: Map<string, Phaser.Time.TimerEvent> = new Map();
+  private detailPanel: TaskDetailPanel | null = null;
+  private detailPanelAgentId: string | null = null;
 
   constructor(scene: Phaser.Scene, taskManager: TaskManager) {
     this.scene = scene;
@@ -53,6 +58,13 @@ export class TaskVisualizer {
     }
 
     this.cleanupCompletedAgents(activeTasks);
+
+    if (this.detailPanel && this.detailPanelAgentId) {
+      const task = this.taskManager.getTaskByAgent(this.detailPanelAgentId);
+      if (task) {
+        this.detailPanel.update(task);
+      }
+    }
   }
 
   showTask(agentId: string, task: Task): void {
@@ -110,6 +122,36 @@ export class TaskVisualizer {
     }
   }
 
+  showTaskDetailPanel(agentId: string, task: Task): void {
+    this.hideTaskDetailPanel();
+
+    const pos = this.agentPositions.get(agentId);
+    const panelX = (pos ? pos.x + PANEL_OFFSET_X : 200);
+    const panelY = (pos ? pos.y + PANEL_OFFSET_Y : 100);
+
+    this.detailPanel = new TaskDetailPanel(this.scene, {
+      task,
+      position: { x: panelX, y: panelY },
+      onClose: () => {
+        this.detailPanel = null;
+        this.detailPanelAgentId = null;
+      },
+    });
+    this.detailPanelAgentId = agentId;
+  }
+
+  hideTaskDetailPanel(): void {
+    if (this.detailPanel) {
+      this.detailPanel.destroy();
+      this.detailPanel = null;
+      this.detailPanelAgentId = null;
+    }
+  }
+
+  getDetailPanel(): TaskDetailPanel | null {
+    return this.detailPanel;
+  }
+
   destroy(): void {
     for (const timer of this.completedTimers.values()) {
       timer.remove(false);
@@ -126,6 +168,8 @@ export class TaskVisualizer {
     }
     this.progressBars.clear();
     this.agentPositions.clear();
+
+    this.hideTaskDetailPanel();
   }
 
   getTaskBubble(agentId: string): TaskBubble | undefined {
