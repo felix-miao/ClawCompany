@@ -1,51 +1,44 @@
 import { Task } from '../core/types'
+import { resolveTaskGraph, DependencyError } from './task-resolver'
 
 export function groupTasksByLevels(tasks: Task[]): string[][] {
   if (tasks.length === 0) return []
 
-  const taskMap = new Map(tasks.map((t) => [t.id, t]))
-  const inDegree = new Map<string, number>()
-  const adjList = new Map<string, string[]>()
+  try {
+    return resolveTaskGraph(tasks).levels
+  } catch (e) {
+    if (e instanceof DependencyError) {
+      const validIds = new Set(tasks.map((t) => t.id))
+      const filtered = tasks.map((t) => ({
+        ...t,
+        dependencies: t.dependencies.filter((d) => validIds.has(d)),
+      }))
 
-  for (const task of tasks) {
-    inDegree.set(task.id, 0)
-    adjList.set(task.id, [])
-  }
+      const visited = new Set<string>()
+      const inStack = new Set<string>()
 
-  for (const task of tasks) {
-    for (const dep of task.dependencies) {
-      if (!taskMap.has(dep)) continue
-      adjList.get(dep)!.push(task.id)
-      inDegree.set(task.id, (inDegree.get(task.id) || 0) + 1)
-    }
-  }
-
-  const levels: string[][] = []
-  let currentLevel: string[] = []
-
-  for (const [id, degree] of inDegree) {
-    if (degree === 0) {
-      currentLevel.push(id)
-    }
-  }
-
-  while (currentLevel.length > 0) {
-    levels.push(currentLevel)
-
-    const nextLevel: string[] = []
-    for (const id of currentLevel) {
-      const neighbors = adjList.get(id) || []
-      for (const neighbor of neighbors) {
-        const newDegree = (inDegree.get(neighbor) || 1) - 1
-        inDegree.set(neighbor, newDegree)
-        if (newDegree === 0) {
-          nextLevel.push(neighbor)
+      function hasCycle(id: string): boolean {
+        if (inStack.has(id)) return true
+        if (visited.has(id)) return false
+        visited.add(id)
+        inStack.add(id)
+        const task = filtered.find((t) => t.id === id)
+        if (task) {
+          for (const dep of task.dependencies) {
+            if (hasCycle(dep)) return true
+          }
         }
+        inStack.delete(id)
+        return false
+      }
+
+      const acyclic = filtered.filter((t) => !hasCycle(t.id))
+      try {
+        return resolveTaskGraph(acyclic).levels
+      } catch {
+        return []
       }
     }
-
-    currentLevel = nextLevel
+    return []
   }
-
-  return levels
 }

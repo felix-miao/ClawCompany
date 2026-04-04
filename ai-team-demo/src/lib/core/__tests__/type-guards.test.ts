@@ -1,15 +1,15 @@
 import {
-  safeParseJSON,
   isNonNullObject,
   hasProperty,
   assertTaskStatus,
   assertAgentRole,
   parseFileEntries,
 } from '../type-guards'
+import { safeJsonParse } from '../../utils/json-parser'
 
-describe('safeParseJSON', () => {
+describe('safeJsonParse (unified from json-parser)', () => {
   it('parses valid JSON string', () => {
-    const result = safeParseJSON<{ name: string }>('{"name":"test"}')
+    const result = safeJsonParse<{ name: string }>('{"name":"test"}')
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.name).toBe('test')
@@ -17,15 +17,15 @@ describe('safeParseJSON', () => {
   })
 
   it('returns error for invalid JSON', () => {
-    const result = safeParseJSON('not json')
+    const result = safeJsonParse('not json')
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error).toBeInstanceOf(SyntaxError)
+      expect(result.error).toContain('Failed to parse JSON')
     }
   })
 
   it('parses array JSON', () => {
-    const result = safeParseJSON<number[]>('[1,2,3]')
+    const result = safeJsonParse<number[]>('[1,2,3]')
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data).toEqual([1, 2, 3])
@@ -33,10 +33,18 @@ describe('safeParseJSON', () => {
   })
 
   it('parses nested objects', () => {
-    const result = safeParseJSON<{ a: { b: number } }>('{"a":{"b":42}}')
+    const result = safeJsonParse<{ a: { b: number } }>('{"a":{"b":42}}')
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.a.b).toBe(42)
+    }
+  })
+
+  it('includes context in error message', () => {
+    const result = safeJsonParse('{bad}', 'TestContext')
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error).toContain('TestContext')
     }
   })
 })
