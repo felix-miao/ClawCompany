@@ -10,6 +10,7 @@ const PROGRESS_BAR_OFFSET_Y = -48;
 const COMPLETED_HIDE_DELAY = 2000;
 const PANEL_OFFSET_X = 100;
 const PANEL_OFFSET_Y = -50;
+const PANEL_UPDATE_INTERVAL = 100;
 
 export class TaskVisualizer {
   private scene: Phaser.Scene;
@@ -20,6 +21,7 @@ export class TaskVisualizer {
   private completedTimers: Map<string, Phaser.Time.TimerEvent> = new Map();
   private detailPanel: TaskDetailPanel | null = null;
   private detailPanelAgentId: string | null = null;
+  private lastPanelUpdate: number = 0;
 
   constructor(scene: Phaser.Scene, taskManager: TaskManager) {
     this.scene = scene;
@@ -59,10 +61,12 @@ export class TaskVisualizer {
 
     this.cleanupCompletedAgents(activeTasks);
 
-    if (this.detailPanel && this.detailPanelAgentId) {
+    const now = Date.now();
+    if (this.detailPanel && this.detailPanelAgentId && now - this.lastPanelUpdate >= PANEL_UPDATE_INTERVAL) {
       const task = this.taskManager.getTaskByAgent(this.detailPanelAgentId);
       if (task) {
         this.detailPanel.update(task);
+        this.lastPanelUpdate = now;
       }
     }
   }

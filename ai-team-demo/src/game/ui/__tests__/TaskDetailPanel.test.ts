@@ -51,6 +51,7 @@ jest.mock('phaser', () => {
       setScrollFactor: jest.fn(),
       setInteractive: jest.fn(),
       on: jest.fn(),
+      getBounds: jest.fn().mockReturnValue({ contains: () => false }),
     };
     return c;
   };
