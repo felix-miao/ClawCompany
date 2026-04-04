@@ -6,6 +6,8 @@ import {
   type AppAgentConfig,
   type PersistedAgentConfig,
   validateAgentConfig,
+  resolveAgentConfig,
+  AGENT_DEFAULTS,
   APP_AGENT_ROLES,
 } from '../agent-config'
 
@@ -179,48 +181,48 @@ describe('AgentConfigSchema (unified)', () => {
     })
   })
 
-  describe('parse (with defaults)', () => {
-    it('should apply default emoji when omitted', () => {
+  describe('parse (optional fields)', () => {
+    it('should return undefined for emoji when omitted', () => {
       const result = AgentConfigSchema.parse({
         id: 'test',
         name: 'Test',
         role: 'dev',
       })
 
-      expect(result.emoji).toBe('🤖')
+      expect(result.emoji).toBeUndefined()
     })
 
-    it('should apply default color when omitted', () => {
+    it('should return undefined for color when omitted', () => {
       const result = AgentConfigSchema.parse({
         id: 'test',
         name: 'Test',
         role: 'dev',
       })
 
-      expect(result.color).toBe('#6B7280')
+      expect(result.color).toBeUndefined()
     })
 
-    it('should apply default systemPrompt when omitted', () => {
+    it('should return undefined for systemPrompt when omitted', () => {
       const result = AgentConfigSchema.parse({
         id: 'test',
         name: 'Test',
         role: 'dev',
       })
 
-      expect(result.systemPrompt).toBe('')
+      expect(result.systemPrompt).toBeUndefined()
     })
 
-    it('should apply default runtime when omitted', () => {
+    it('should return undefined for runtime when omitted', () => {
       const result = AgentConfigSchema.parse({
         id: 'test',
         name: 'Test',
         role: 'dev',
       })
 
-      expect(result.runtime).toBe('subagent')
+      expect(result.runtime).toBeUndefined()
     })
 
-    it('should preserve explicit values over defaults', () => {
+    it('should preserve explicit values', () => {
       const result = AgentConfigSchema.parse({
         id: 'test',
         name: 'Test',
@@ -233,6 +235,38 @@ describe('AgentConfigSchema (unified)', () => {
       expect(result.emoji).toBe('📋')
       expect(result.color).toBe('#FF0000')
       expect(result.runtime).toBe('acp')
+    })
+
+    it('resolveAgentConfig should fill defaults for omitted fields', () => {
+      const parsed = AgentConfigSchema.parse({
+        id: 'test',
+        name: 'Test',
+        role: 'dev',
+      })
+
+      const resolved = resolveAgentConfig(parsed)
+
+      expect(resolved.emoji).toBe(AGENT_DEFAULTS.emoji)
+      expect(resolved.color).toBe(AGENT_DEFAULTS.color)
+      expect(resolved.systemPrompt).toBe(AGENT_DEFAULTS.systemPrompt)
+      expect(resolved.runtime).toBe(AGENT_DEFAULTS.runtime)
+    })
+
+    it('resolveAgentConfig should preserve explicit values', () => {
+      const parsed = AgentConfigSchema.parse({
+        id: 'test',
+        name: 'Test',
+        role: 'dev',
+        emoji: '📋',
+        color: '#FF0000',
+        runtime: 'acp',
+      })
+
+      const resolved = resolveAgentConfig(parsed)
+
+      expect(resolved.emoji).toBe('📋')
+      expect(resolved.color).toBe('#FF0000')
+      expect(resolved.runtime).toBe('acp')
     })
   })
 })
