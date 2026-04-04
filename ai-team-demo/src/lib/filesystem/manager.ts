@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { SandboxedFileWriter } from '../security/sandbox'
 
 /**
  * 文件系统操作管理器
@@ -28,10 +29,17 @@ export interface FileResult {
 
 export class FileSystemManager {
   private rootDir: string
+  private sandboxedWriter: SandboxedFileWriter | null
 
-  constructor(rootDir: string) {
-    // 确保根目录是绝对路径
+  constructor(rootDir: string, options?: { sandbox?: boolean | SandboxedFileWriter }) {
     this.rootDir = path.resolve(rootDir)
+    if (options?.sandbox === true) {
+      this.sandboxedWriter = new SandboxedFileWriter(rootDir)
+    } else if (options?.sandbox instanceof SandboxedFileWriter) {
+      this.sandboxedWriter = options.sandbox
+    } else {
+      this.sandboxedWriter = null
+    }
   }
 
   /**
@@ -89,7 +97,17 @@ export class FileSystemManager {
    * @returns 操作结果
    */
   async createFile(filePath: string, content: string): Promise<FileResult> {
-    // 1. 验证路径
+    if (this.sandboxedWriter) {
+      const result = await this.sandboxedWriter.writeFile(filePath, content)
+      if (!result.success) {
+        return { success: false, error: result.error }
+      }
+      return {
+        success: true,
+        path: result.path,
+      }
+    }
+
     const validation = this.validatePath(filePath)
     if (!validation.valid) {
       return { success: false, error: validation.error }
@@ -98,7 +116,6 @@ export class FileSystemManager {
     const fullPath = this.getFullPath(filePath)
 
     try {
-      // 2. 检查文件是否已存在
       let exists = false
       try {
         await fs.access(fullPath)
@@ -107,11 +124,9 @@ export class FileSystemManager {
         // 文件不存在，继续
       }
 
-      // 3. 确保目录存在
       const dir = path.dirname(fullPath)
       await this.ensureDir(dir)
 
-      // 4. 写入文件
       await fs.writeFile(fullPath, content, 'utf-8')
 
       return {
@@ -166,7 +181,17 @@ export class FileSystemManager {
   }
 
   async updateFile(filePath: string, content: string): Promise<FileResult> {
-    // 1. 验证路径
+    if (this.sandboxedWriter) {
+      const result = await this.sandboxedWriter.writeFile(filePath, content)
+      if (!result.success) {
+        return { success: false, error: result.error }
+      }
+      return {
+        success: true,
+        path: result.path,
+      }
+    }
+
     const validation = this.validatePath(filePath)
     if (!validation.valid) {
       return { success: false, error: validation.error }
@@ -175,7 +200,6 @@ export class FileSystemManager {
     const fullPath = this.getFullPath(filePath)
 
     try {
-      // 2. 检查文件是否存在
       try {
         await fs.access(fullPath)
       } catch {
@@ -185,7 +209,6 @@ export class FileSystemManager {
         }
       }
 
-      // 3. 更新文件
       await fs.writeFile(fullPath, content, 'utf-8')
 
       return {
