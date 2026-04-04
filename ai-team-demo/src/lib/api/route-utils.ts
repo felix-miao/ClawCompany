@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { RateLimiter } from '@/lib/security/utils'
@@ -92,6 +93,11 @@ export function successResponse(data: Record<string, unknown>, request?: NextReq
 
 type RouteHandler = (request: NextRequest) => Promise<NextResponse>
 
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b))
+}
+
 export function requireApiKey(request: NextRequest): NextResponse | null {
   const apiKey = process.env.AGENT_API_KEY
   if (!apiKey) {
@@ -105,7 +111,7 @@ export function requireApiKey(request: NextRequest): NextResponse | null {
     request.headers.get('x-api-key') ||
     request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
 
-  if (!headerKey || headerKey !== apiKey) {
+  if (!headerKey || !safeEqual(headerKey, apiKey)) {
     return NextResponse.json(
       { success: false, error: 'Unauthorized' },
       { status: 401 }
