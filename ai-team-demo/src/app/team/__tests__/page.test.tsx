@@ -108,10 +108,10 @@ describe('Team Chat Page (/team)', () => {
     it('按 Enter 键应该发送消息', async () => {
       render(<TeamChatPage />)
       const input = screen.getByPlaceholderText(/输入你的需求/i)
-      
+
       fireEvent.change(input, { target: { value: '测试' } })
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 })
-      
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 })
+
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalled()
       })
