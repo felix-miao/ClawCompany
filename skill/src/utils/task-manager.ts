@@ -28,12 +28,16 @@ export class TaskManager {
     }
   }
 
+  private isCompleted(status: Task['status']): boolean {
+    return status === 'completed' || status === 'done'
+  }
+
   getNextTask(): Task | undefined {
     for (const task of this.tasks.values()) {
       if (task.status === 'pending') {
         const dependenciesMet = task.dependencies.every(depId => {
           const dep = this.tasks.get(depId)
-          return dep?.status === 'completed'
+          return dep ? this.isCompleted(dep.status) : false
         })
         
         if (dependenciesMet) {
@@ -51,7 +55,7 @@ export class TaskManager {
       if (task.status === 'pending') {
         const dependenciesMet = task.dependencies.every(depId => {
           const dep = this.tasks.get(depId)
-          return dep?.status === 'completed'
+          return dep ? this.isCompleted(dep.status) : false
         })
         
         if (dependenciesMet) {
@@ -65,7 +69,7 @@ export class TaskManager {
 
   isAllCompleted(): boolean {
     for (const task of this.tasks.values()) {
-      if (task.status !== 'completed') {
+      if (!this.isCompleted(task.status)) {
         return false
       }
     }
