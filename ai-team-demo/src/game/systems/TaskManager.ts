@@ -1,5 +1,12 @@
 import { EventBus } from './EventBus';
 import { Task, TaskStatus } from '../types/Task';
+import {
+  TaskVisualizationAssignedEvent,
+  TaskVisualizationProgressEvent,
+  TaskVisualizationCompletedEvent,
+  TaskVisualizationFailedEvent,
+  TaskVisualizationHandoverEvent,
+} from '../types/GameEvents';
 
 export interface TaskManagerConfig {
   maxHistorySize?: number;
@@ -44,7 +51,7 @@ export class TaskManager {
         taskType: assignedTask.taskType,
         metadata: assignedTask.metadata as Record<string, unknown> | undefined,
       },
-    } as any);
+    } as TaskVisualizationAssignedEvent);
   }
 
   updateProgress(agentId: string, progress: number, currentAction?: string): void {
@@ -69,7 +76,7 @@ export class TaskManager {
       taskId: task.id,
       progress: clampedProgress,
       currentAction: task.currentAction,
-    } as any);
+    } as TaskVisualizationProgressEvent);
   }
 
   completeTask(agentId: string, result: 'success' | 'failure'): void {
@@ -95,7 +102,7 @@ export class TaskManager {
         taskId: task.id,
         result: 'success',
         duration: now - task.assignedAt,
-      } as any);
+      } as TaskVisualizationCompletedEvent);
     } else {
       this.eventBus.emit({
         type: 'task:failed',
@@ -103,7 +110,7 @@ export class TaskManager {
         agentId,
         taskId: task.id,
         error: 'Task failed',
-      } as any);
+      } as TaskVisualizationFailedEvent);
     }
   }
 
@@ -127,7 +134,7 @@ export class TaskManager {
       toAgentId,
       taskId,
       description,
-    } as any);
+    } as TaskVisualizationHandoverEvent);
 
     this.eventBus.emit({
       type: 'task:assigned',
@@ -139,7 +146,7 @@ export class TaskManager {
         taskType: task.taskType,
         metadata: task.metadata as Record<string, unknown> | undefined,
       },
-    } as any);
+    } as TaskVisualizationAssignedEvent);
   }
 
   getTaskByAgent(agentId: string): Task | undefined {

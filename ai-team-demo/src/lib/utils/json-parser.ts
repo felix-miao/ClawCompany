@@ -63,15 +63,15 @@ export function extractJSONObject(text: string): Record<string, any> | null {
   return result as Record<string, any> | null
 }
 
-export function extractJSONArray(text: string): any[] | null {
+export function extractJSONArray(text: string): unknown[] | null {
   const result = parseJSONStructure(text, {
     openingChar: '[',
     closingChar: ']'
   })
-  return result as any[] | null
+  return (result as unknown[] | null)
 }
 
-export function extractJSON(text: string): any {
+export function extractJSON(text: string): Record<string, unknown> | unknown[] | null {
   const obj = extractJSONObject(text)
   if (obj !== null) return obj
 

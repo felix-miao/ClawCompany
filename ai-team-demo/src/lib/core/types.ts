@@ -4,6 +4,37 @@ export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'done' | 'comple
 
 export type GameTaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 'completed' | 'failed'
 
+export type GameTaskType = 'coding' | 'testing' | 'review' | 'meeting'
+
+export interface GameTaskMetadata {
+  files?: string[]
+  estimatedDuration?: number
+  priority?: 'low' | 'medium' | 'high'
+  dependencies?: string[]
+}
+
+export interface GameTask {
+  id: string
+  agentId: string
+  description: string
+  status: GameTaskStatus
+  progress: number
+  currentAction: string
+  taskType: GameTaskType
+  assignedAt: number
+  completedAt: number | null
+  parentTaskId: string | null
+  metadata?: GameTaskMetadata
+}
+
+export interface GameTaskCreateInput {
+  description: string
+  taskType: GameTaskType
+  currentAction?: string
+  parentTaskId?: string | null
+  metadata?: GameTaskMetadata
+}
+
 export type UnifiedTaskStatus = TaskStatus | GameTaskStatus
 
 export const TASK_STATUS_VALUES: readonly TaskStatus[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']

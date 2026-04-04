@@ -1,6 +1,6 @@
 export type RoomName = 'pm-office' | 'dev-studio' | 'test-lab' | 'review-center';
 
-export type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
+export type { GameTaskType as TaskType } from '../../lib/core/types'
 
 export interface Workstation {
   id: string;
