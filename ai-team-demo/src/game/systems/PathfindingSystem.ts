@@ -195,14 +195,10 @@ export class PathfindingSystem {
           openHeap.push(newNode);
           openMap.set(neighborKey, newNode);
         } else if (tentativeG < existingNode.g) {
-          const updated: PathNode = {
-            ...existingNode,
-            g: tentativeG,
-            f: tentativeG + existingNode.h,
-            parent: current,
-          };
-          openHeap.decreaseKey(updated, (item) => item.x === neighbor.x && item.y === neighbor.y);
-          openMap.set(neighborKey, updated);
+          existingNode.g = tentativeG;
+          existingNode.f = tentativeG + existingNode.h;
+          existingNode.parent = current;
+          openHeap.decreaseKey(existingNode);
         }
       }
     }

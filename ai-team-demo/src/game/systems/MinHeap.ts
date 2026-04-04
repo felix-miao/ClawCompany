@@ -1,5 +1,6 @@
 export class MinHeap<T> {
   private heap: T[] = [];
+  private positionMap = new Map<T, number>();
   private readonly compare: (a: T, b: T) => number;
 
   constructor(compare: (a: T, b: T) => number) {
@@ -8,15 +9,19 @@ export class MinHeap<T> {
 
   push(value: T): void {
     this.heap.push(value);
-    this.bubbleUp(this.heap.length - 1);
+    const index = this.heap.length - 1;
+    this.positionMap.set(value, index);
+    this.bubbleUp(index);
   }
 
   pop(): T | undefined {
     if (this.heap.length === 0) return undefined;
     const min = this.heap[0];
+    this.positionMap.delete(min);
     const last = this.heap.pop()!;
     if (this.heap.length > 0) {
       this.heap[0] = last;
+      this.positionMap.set(last, 0);
       this.sinkDown(0);
     }
     return min;
@@ -30,11 +35,18 @@ export class MinHeap<T> {
     return this.heap.length;
   }
 
-  decreaseKey(newValue: T, match: (item: T) => boolean): void {
-    const idx = this.heap.findIndex(match);
-    if (idx === -1) return;
-    this.heap[idx] = newValue;
+  decreaseKey(item: T): void {
+    const idx = this.positionMap.get(item);
+    if (idx === undefined) return;
     this.bubbleUp(idx);
+    const currentIdx = this.positionMap.get(item);
+    if (currentIdx !== undefined) {
+      this.sinkDown(currentIdx);
+    }
+  }
+
+  contains(item: T): boolean {
+    return this.positionMap.has(item);
   }
 
   find(match: (item: T) => boolean): T | undefined {
@@ -43,6 +55,7 @@ export class MinHeap<T> {
 
   clear(): void {
     this.heap.length = 0;
+    this.positionMap.clear();
   }
 
   private bubbleUp(index: number): void {
@@ -78,5 +91,7 @@ export class MinHeap<T> {
     const temp = this.heap[i];
     this.heap[i] = this.heap[j];
     this.heap[j] = temp;
+    this.positionMap.set(this.heap[i], i);
+    this.positionMap.set(this.heap[j], j);
   }
 }
