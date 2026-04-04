@@ -9,6 +9,8 @@ jest.mock('phaser', () => {
     fillStyle: jest.fn(),
     fillRect: jest.fn(),
     fillRoundedRect: jest.fn(),
+    lineStyle: jest.fn(),
+    strokeRoundedRect: jest.fn(),
     setPosition: jest.fn(),
     setDepth: jest.fn(),
     setAlpha: jest.fn(),
@@ -39,6 +41,7 @@ jest.mock('phaser', () => {
         c.x = x;
         c.y = y;
       }),
+      setScale: jest.fn(),
       getBounds: jest.fn().mockReturnValue({ contains: () => false }),
     };
     return c;

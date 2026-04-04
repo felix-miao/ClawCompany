@@ -53,7 +53,9 @@ export class TaskVisualizer {
 
       bubble.setStatus(task.status);
       bubble.setText(task.currentAction);
+      bubble.setPriority(task.metadata?.priority ?? 'medium');
       bar.setProgress(task.progress);
+      bar.setPriority(task.metadata?.priority ?? 'medium');
 
       bubble.update();
       bar.update();
@@ -86,8 +88,10 @@ export class TaskVisualizer {
 
     const pos = this.agentPositions.get(agentId) ?? { x: 0, y: 0 };
     bubble.show(pos.x, pos.y + BUBBLE_OFFSET_Y, task.status, task.currentAction);
+    bubble.setPriority(task.metadata?.priority ?? 'medium');
     bar.show(pos.x, pos.y + PROGRESS_BAR_OFFSET_Y);
     bar.setProgress(task.progress);
+    bar.setPriority(task.metadata?.priority ?? 'medium');
   }
 
   hideTask(agentId: string): void {

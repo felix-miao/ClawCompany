@@ -61,8 +61,17 @@ export function detectCircularDependencies(tasks: Task[]): string[][] {
   return cycles
 }
 
+export interface TaskGraphResult {
+  sorted: Task[]
+  levels: string[][]
+}
+
 export function resolveTaskOrder(tasks: Task[]): Task[] {
-  if (tasks.length === 0) return []
+  return resolveTaskGraph(tasks).sorted
+}
+
+export function resolveTaskGraph(tasks: Task[]): TaskGraphResult {
+  if (tasks.length === 0) return { sorted: [], levels: [] }
 
   const taskMap = new Map(tasks.map((t) => [t.id, t]))
 
@@ -96,33 +105,42 @@ export function resolveTaskOrder(tasks: Task[]): Task[] {
     }
   }
 
-  const queue: string[] = []
   const originalIndex = new Map(tasks.map((t, i) => [t.id, i]))
-
-  for (const [id, degree] of inDegree) {
-    if (degree === 0) {
-      queue.push(id)
-    }
-  }
-  queue.sort((a, b) => (originalIndex.get(a) ?? 0) - (originalIndex.get(b) ?? 0))
+  const sortByOriginal = (a: string, b: string) =>
+    (originalIndex.get(a) ?? 0) - (originalIndex.get(b) ?? 0)
 
   const sorted: Task[] = []
+  const levels: string[][] = []
 
-  while (queue.length > 0) {
-    const current = queue.shift()!
-    sorted.push(taskMap.get(current)!)
-
-    const neighbors = adjList.get(current) || []
-    neighbors.sort((a, b) => (originalIndex.get(a) ?? 0) - (originalIndex.get(b) ?? 0))
-    for (const neighbor of neighbors) {
-      const newDegree = (inDegree.get(neighbor) || 1) - 1
-      inDegree.set(neighbor, newDegree)
-      if (newDegree === 0) {
-        queue.push(neighbor)
-        queue.sort((a, b) => (originalIndex.get(a) ?? 0) - (originalIndex.get(b) ?? 0))
-      }
+  let currentLevel: string[] = []
+  for (const [id, degree] of inDegree) {
+    if (degree === 0) {
+      currentLevel.push(id)
     }
   }
+  currentLevel.sort(sortByOriginal)
 
-  return sorted
+  while (currentLevel.length > 0) {
+    levels.push(currentLevel)
+
+    for (const id of currentLevel) {
+      sorted.push(taskMap.get(id)!)
+    }
+
+    const nextLevel: string[] = []
+    for (const id of currentLevel) {
+      const neighbors = adjList.get(id) || []
+      for (const neighbor of neighbors) {
+        const newDegree = inDegree.get(neighbor)! - 1
+        inDegree.set(neighbor, newDegree)
+        if (newDegree === 0) {
+          nextLevel.push(neighbor)
+        }
+      }
+    }
+    nextLevel.sort(sortByOriginal)
+    currentLevel = nextLevel
+  }
+
+  return { sorted, levels }
 }

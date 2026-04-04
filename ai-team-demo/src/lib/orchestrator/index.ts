@@ -4,12 +4,10 @@ import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
 import { fileSystemManager } from '../filesystem/manager'
-import { resolveTaskOrder, DependencyError } from '../utils/task-resolver'
+import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
-import { groupTasksByLevels } from '../utils/task-levels'
 import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
-import { z } from 'zod'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 
@@ -29,6 +27,11 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
   for (let i = 0; i < rawTasks.length; i++) {
     const raw = rawTasks[i]
     if (raw === null || raw === undefined || typeof raw !== 'object') {
+      console.warn(
+        '[Orchestrator]',
+        'SubTask validation failed',
+        { index: i, reason: `Expected object, got ${raw === null ? 'null' : typeof raw}` },
+      )
       continue
     }
 
@@ -39,6 +42,13 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
         ? ((raw as Record<string, unknown>).files as string[])
         : []
       validTasks.push({ ...data, files })
+    } else {
+      const reason = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
+      console.warn(
+        '[Orchestrator]',
+        'SubTask validation failed',
+        { index: i, reason, raw: typeof raw === 'object' ? Object.keys(raw as object) : undefined },
+      )
     }
   }
 
@@ -148,8 +158,11 @@ export class Orchestrator extends BaseOrchestrator {
       const resolvedSubTasks = resolveTitleDependencies(subTasks)
 
       let sortedTasks: Task[]
+      let taskLevels: string[][]
       try {
-        sortedTasks = resolveTaskOrder(resolvedSubTasks)
+        const graph = resolveTaskGraph(resolvedSubTasks)
+        sortedTasks = graph.sorted
+        taskLevels = graph.levels
       } catch (depError) {
         if (depError instanceof DependencyError) {
           this.logError('Dependency resolution failed', { error: depError.message })
@@ -180,9 +193,7 @@ export class Orchestrator extends BaseOrchestrator {
       this.obs.perf.increment('orchestrator.tasks.total', subTaskIds.length)
       this.obs.perf.setGauge('orchestrator.tasks.active', subTaskIds.length)
 
-      const levels = groupTasksByLevels(sortedTasks)
-
-      for (const levelTaskIds of levels) {
+      for (const levelTaskIds of taskLevels) {
         const levelTasks = levelTaskIds
           .map((id) => sortedTasks.find((t) => t.id === id))
           .filter((t): t is Task => t !== undefined)

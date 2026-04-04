@@ -10,6 +10,18 @@ const STATUS_COLORS: Record<TaskStatus, number> = {
   failed: 0xEF4444,
 };
 
+const PRIORITY_COLORS: Record<string, number> = {
+  high: 0xEF4444,
+  medium: 0xF59E0B,
+  low: 0x10B981,
+};
+
+const PRIORITY_SCALES: Record<string, number> = {
+  high: 1.1,
+  medium: 1.0,
+  low: 0.9,
+};
+
 const DEFAULT_TEXT: Record<TaskStatus, string> = {
   pending: 'Waiting...',
   assigned: 'Task received',
@@ -30,9 +42,11 @@ export class TaskBubble {
   private scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container;
   private background: Phaser.GameObjects.Graphics;
+  private borderGraphics: Phaser.GameObjects.Graphics;
   private text: Phaser.GameObjects.Text;
   private status: TaskStatus = 'pending';
   private displayText: string = '';
+  private priority: string = 'medium';
   private dirty: boolean = true;
   private targetAlpha: number = 0;
   private currentAlpha: number = 0;
@@ -45,6 +59,7 @@ export class TaskBubble {
     this.container.setDepth(100);
 
     this.background = scene.add.graphics();
+    this.borderGraphics = scene.add.graphics();
     this.text = scene.add.text(0, 0, '', {
       fontSize: FONT_SIZE,
       color: '#ffffff',
@@ -52,8 +67,9 @@ export class TaskBubble {
     });
     this.text.setOrigin(0.5);
 
-    this.container.add([this.background, this.text]);
+    this.container.add([this.borderGraphics, this.background, this.text]);
     this.container.setAlpha(0);
+    this.applyPriorityScale();
   }
 
   setStatus(status: TaskStatus): void {
@@ -66,6 +82,30 @@ export class TaskBubble {
     if (this.displayText === text) return;
     this.displayText = text;
     this.dirty = true;
+  }
+
+  setPriority(priority: string): void {
+    if (this.priority === priority) return;
+    this.priority = priority;
+    this.dirty = true;
+    this.applyPriorityScale();
+  }
+
+  getPriority(): string {
+    return this.priority;
+  }
+
+  getBorderColor(): number {
+    return PRIORITY_COLORS[this.priority] ?? PRIORITY_COLORS.medium;
+  }
+
+  getScale(): number {
+    return PRIORITY_SCALES[this.priority] ?? PRIORITY_SCALES.medium;
+  }
+
+  private applyPriorityScale(): void {
+    const scale = this.getScale();
+    this.container.setScale(scale);
   }
 
   getPosition(): { x: number; y: number } {
@@ -114,12 +154,14 @@ export class TaskBubble {
   destroy(): void {
     this.destroyed = true;
     this.background.destroy();
+    this.borderGraphics.destroy();
     this.text.destroy();
     this.container.destroy();
   }
 
   private redraw(): void {
     this.background.clear();
+    this.borderGraphics.clear();
 
     const color = STATUS_COLORS[this.status] ?? STATUS_COLORS.pending;
     const text = this.displayText || DEFAULT_TEXT[this.status];
@@ -128,6 +170,16 @@ export class TaskBubble {
 
     const textWidth = this.text.width;
     const bubbleWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, textWidth + PADDING * 2));
+
+    const borderColor = this.getBorderColor();
+    this.borderGraphics.lineStyle(2, borderColor, 1);
+    this.borderGraphics.strokeRoundedRect(
+      -bubbleWidth / 2,
+      -BUBBLE_HEIGHT / 2,
+      bubbleWidth,
+      BUBBLE_HEIGHT,
+      6
+    );
 
     this.background.fillStyle(color, 1);
     this.background.fillRoundedRect(

@@ -10,11 +10,18 @@ const PROGRESS_COLORS = [
   { threshold: 101, color: 0x10B981 },
 ];
 
+const PRIORITY_PROGRESS_COLORS: Record<string, number> = {
+  high: 0xEF4444,
+  medium: 0xF59E0B,
+  low: 0x10B981,
+};
+
 export class ProgressBar {
   private scene: Phaser.Scene;
   private graphics: Phaser.GameObjects.Graphics;
   private targetProgress: number = 0;
   private displayedProgress: number = 0;
+  private priority: string | null = null;
   private destroyed: boolean = false;
 
   constructor(scene: Phaser.Scene) {
@@ -26,6 +33,24 @@ export class ProgressBar {
 
   setProgress(progress: number): void {
     this.targetProgress = Math.max(0, Math.min(100, progress));
+  }
+
+  setPriority(priority: string): void {
+    this.priority = priority;
+  }
+
+  getPriority(): string | null {
+    return this.priority;
+  }
+
+  getProgressColor(): number {
+    if (this.priority && PRIORITY_PROGRESS_COLORS[this.priority]) {
+      return PRIORITY_PROGRESS_COLORS[this.priority];
+    }
+    for (const { threshold, color } of PROGRESS_COLORS) {
+      if (this.displayedProgress < threshold) return color;
+    }
+    return 0x10B981;
   }
 
   show(x: number, y: number): void {
@@ -65,13 +90,6 @@ export class ProgressBar {
   destroy(): void {
     this.destroyed = true;
     this.graphics.destroy();
-  }
-
-  private getProgressColor(): number {
-    for (const { threshold, color } of PROGRESS_COLORS) {
-      if (this.displayedProgress < threshold) return color;
-    }
-    return 0x10B981;
   }
 
   private redraw(): void {
