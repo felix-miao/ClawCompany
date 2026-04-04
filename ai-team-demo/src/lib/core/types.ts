@@ -2,6 +2,48 @@ export type AgentRole = 'pm' | 'dev' | 'review'
 
 export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'done' | 'completed' | 'failed'
 
+export type GameTaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 'completed' | 'failed'
+
+export type UnifiedTaskStatus = TaskStatus | GameTaskStatus
+
+export const TASK_STATUS_VALUES: readonly TaskStatus[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']
+
+export const GAME_STATUS_VALUES: readonly GameTaskStatus[] = ['pending', 'assigned', 'working', 'reviewing', 'completed', 'failed']
+
+export const GAME_TO_LIB_STATUS: Readonly<Record<GameTaskStatus, TaskStatus>> = {
+  pending: 'pending',
+  assigned: 'pending',
+  working: 'in_progress',
+  reviewing: 'review',
+  completed: 'completed',
+  failed: 'failed',
+}
+
+export const LIB_TO_GAME_STATUS: Readonly<Record<TaskStatus, GameTaskStatus>> = {
+  pending: 'pending',
+  in_progress: 'working',
+  review: 'reviewing',
+  done: 'completed',
+  completed: 'completed',
+  failed: 'failed',
+}
+
+export function gameStatusToLib(status: GameTaskStatus): TaskStatus {
+  return GAME_TO_LIB_STATUS[status]
+}
+
+export function libStatusToGame(status: TaskStatus): GameTaskStatus {
+  return LIB_TO_GAME_STATUS[status]
+}
+
+export function isLibTaskStatus(value: string): value is TaskStatus {
+  return (TASK_STATUS_VALUES as readonly string[]).includes(value)
+}
+
+export function isGameTaskStatus(value: string): value is GameTaskStatus {
+  return (GAME_STATUS_VALUES as readonly string[]).includes(value)
+}
+
 export interface Task {
   id: string
   title: string

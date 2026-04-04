@@ -1,11 +1,11 @@
-import { Task, TaskStatus, AgentRole } from '../core/types'
+import { Task, TaskStatus, AgentRole, TASK_STATUS_VALUES } from '../core/types'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
 import { TaskStateMachine, InvalidTransitionError } from './state-machine'
 
 export { TaskStateMachine, InvalidTransitionError } from './state-machine'
 
-const VALID_STATUSES: readonly string[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']
+const VALID_STATUSES: readonly string[] = [...TASK_STATUS_VALUES]
 const VALID_ROLES: readonly string[] = ['pm', 'dev', 'review']
 
 export class TaskManager {

@@ -1,4 +1,6 @@
-export type TaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 'completed' | 'failed';
+export type { GameTaskStatus as TaskStatus } from '../../lib/core/types';
+export { gameStatusToLib, libStatusToGame, GAME_STATUS_VALUES, GAME_TO_LIB_STATUS, LIB_TO_GAME_STATUS } from '../../lib/core/types';
+import type { GameTaskStatus } from '../../lib/core/types';
 export type TaskType = 'coding' | 'testing' | 'review' | 'meeting';
 
 export interface TaskMetadata {

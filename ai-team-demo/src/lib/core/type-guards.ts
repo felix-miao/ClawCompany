@@ -1,6 +1,5 @@
-import { ParsedFileEntry, TaskStatus, AgentRole } from './types'
+import { ParsedFileEntry, TaskStatus, AgentRole, TASK_STATUS_VALUES } from './types'
 
-const TASK_STATUSES: readonly string[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']
 const AGENT_ROLES: readonly string[] = ['pm', 'dev', 'review']
 const VALID_FILE_ACTIONS: readonly string[] = ['create', 'modify', 'delete']
 
@@ -23,7 +22,7 @@ export function hasProperty<K extends string>(obj: unknown, key: K): obj is Reco
 }
 
 export function assertTaskStatus(value: unknown): value is TaskStatus {
-  return typeof value === 'string' && TASK_STATUSES.includes(value)
+  return typeof value === 'string' && (TASK_STATUS_VALUES as readonly string[]).includes(value)
 }
 
 export function assertAgentRole(value: unknown): value is AgentRole {
