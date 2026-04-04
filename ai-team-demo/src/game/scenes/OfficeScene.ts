@@ -22,6 +22,8 @@ import { OfficeDecorator } from '../ui/OfficeDecorator';
 import { TaskManager } from '../systems/TaskManager';
 import { TaskHandoverSystem } from '../systems/TaskHandoverSystem';
 import { TaskVisualizer } from '../ui/TaskVisualizer';
+import { TaskHistoryPanel } from '../ui/TaskHistoryPanel';
+import { TaskStatisticsPanel } from '../ui/TaskStatisticsPanel';
 import { EventBus } from '../systems/EventBus';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
@@ -78,6 +80,8 @@ export class OfficeScene extends Phaser.Scene {
   private taskManager!: TaskManager;
   private taskHandoverSystem!: TaskHandoverSystem;
   private taskVisualizer!: TaskVisualizer;
+  private historyPanel!: TaskHistoryPanel;
+  private statisticsPanel!: TaskStatisticsPanel;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -184,6 +188,10 @@ export class OfficeScene extends Phaser.Scene {
     this.eventBus = new EventBus();
     this.taskManager = new TaskManager(this.eventBus);
     this.taskVisualizer = new TaskVisualizer(this, this.taskManager);
+    this.historyPanel = new TaskHistoryPanel(this, this.taskManager.getHistoryStore());
+    this.historyPanel.setPosition(10, 10);
+    this.statisticsPanel = new TaskStatisticsPanel(this, this.taskManager.getStatisticsStore());
+    this.statisticsPanel.setPosition(340, 10);
     this.particles = this.add.particles(0, 0, 'particle', {
       speed: { min: 20, max: 50 },
       scale: { start: 0.4, end: 0 },
@@ -325,6 +333,22 @@ export class OfficeScene extends Phaser.Scene {
       if (this.agents[this.selectedAgentIndex]) {
         this.movementSystem.setActiveAgent(this.agents[this.selectedAgentIndex]);
         this.soundSystem.play('tab-switch');
+      }
+    });
+
+    this.input.keyboard!.on('keydown-H', () => {
+      if (this.historyPanel.isVisible()) {
+        this.historyPanel.hide();
+      } else {
+        this.historyPanel.show();
+      }
+    });
+
+    this.input.keyboard!.on('keydown-S', () => {
+      if (this.statisticsPanel.isVisible()) {
+        this.statisticsPanel.hide();
+      } else {
+        this.statisticsPanel.show();
       }
     });
 
@@ -611,6 +635,8 @@ export class OfficeScene extends Phaser.Scene {
     this.syncShadows();
     this.syncTaskVisualizer();
     this.taskVisualizer.update();
+    this.historyPanel.update();
+    this.statisticsPanel.update();
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
     this.checkTaskCompletion();
@@ -657,6 +683,14 @@ export class OfficeScene extends Phaser.Scene {
 
   getTaskVisualizer(): TaskVisualizer {
     return this.taskVisualizer;
+  }
+
+  getHistoryPanel(): TaskHistoryPanel {
+    return this.historyPanel;
+  }
+
+  getStatisticsPanel(): TaskStatisticsPanel {
+    return this.statisticsPanel;
   }
 
   getTaskHandoverSystem(): TaskHandoverSystem {
@@ -802,6 +836,8 @@ export class OfficeScene extends Phaser.Scene {
     this.soundSystem.destroy();
     this.officeDecorator.destroy();
     this.taskVisualizer.destroy();
+    this.historyPanel.destroy();
+    this.statisticsPanel.destroy();
     this.taskHandoverSystem.destroy();
     this.particleSystem.clearAllEffects();
     this.eventBridge?.disconnect();

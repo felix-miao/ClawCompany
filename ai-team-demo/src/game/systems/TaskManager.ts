@@ -1,5 +1,7 @@
 import { EventBus } from './EventBus';
 import { Task, TaskStatus } from '../types/Task';
+import { TaskHistoryStore } from '../data/TaskHistoryStore';
+import { TaskStatisticsStore } from '../data/TaskStatisticsStore';
 import {
   TaskVisualizationAssignedEvent,
   TaskVisualizationProgressEvent,
@@ -20,10 +22,14 @@ export class TaskManager {
   private taskQueue: Task[] = [];
   private eventBus: EventBus;
   private maxHistorySize: number;
+  private historyStore: TaskHistoryStore;
+  private statisticsStore: TaskStatisticsStore;
 
   constructor(eventBus: EventBus, config?: TaskManagerConfig) {
     this.eventBus = eventBus;
     this.maxHistorySize = config?.maxHistorySize ?? DEFAULT_MAX_HISTORY_SIZE;
+    this.historyStore = new TaskHistoryStore(this.maxHistorySize);
+    this.statisticsStore = new TaskStatisticsStore(this.historyStore);
   }
 
   assignTask(agentId: string, task: Task): void {
@@ -91,6 +97,8 @@ export class TaskManager {
       task.progress = 100;
     }
 
+    this.historyStore.addRecord(task);
+    this.statisticsStore.update();
     this.moveToHistory(task);
     this.activeTasks.delete(agentId);
 
@@ -121,6 +129,9 @@ export class TaskManager {
     this.activeTasks.delete(fromAgentId);
 
     const description = task.description;
+
+    this.historyStore.recordHandoff(taskId, fromAgentId, toAgentId);
+    this.statisticsStore.update();
 
     task.agentId = toAgentId;
     task.status = 'assigned';
@@ -184,6 +195,14 @@ export class TaskManager {
 
   getQueue(): Task[] {
     return [...this.taskQueue];
+  }
+
+  getHistoryStore(): TaskHistoryStore {
+    return this.historyStore;
+  }
+
+  getStatisticsStore(): TaskStatisticsStore {
+    return this.statisticsStore;
   }
 
   private moveToHistory(task: Task): void {

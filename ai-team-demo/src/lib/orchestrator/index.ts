@@ -1,5 +1,6 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
 import { WorkflowResult, Task, RetryConfig, FileChange } from '../core/types'
+import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
 import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
@@ -56,14 +57,26 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
   return validTasks
 }
 
+export interface OrchestratorTaskQueueOptions extends TaskQueueOptions {}
+
 export class Orchestrator extends BaseOrchestrator {
   private projectId: string
   private sandboxedWriter: SandboxedFileWriter
+  private taskQueue: TaskQueue
 
-  constructor(projectId: string = 'default', retryConfig?: Partial<RetryConfig>, observability?: ObservabilityConfig) {
+  constructor(
+    projectId: string = 'default',
+    retryConfig?: Partial<RetryConfig>,
+    observability?: ObservabilityConfig,
+    taskQueueOptions?: OrchestratorTaskQueueOptions,
+  ) {
     super(retryConfig, observability)
     this.projectId = projectId
     this.sandboxedWriter = new SandboxedFileWriter(process.cwd())
+    this.taskQueue = new TaskQueue({
+      concurrency: taskQueueOptions?.concurrency ?? 3,
+      defaultTimeout: taskQueueOptions?.defaultTimeout,
+    })
   }
 
   getObservability() {
@@ -207,11 +220,13 @@ export class Orchestrator extends BaseOrchestrator {
           .map((id) => sortedTasks.find((t) => t.id === id))
           .filter((t): t is Task => t !== undefined)
 
-        const promises = levelTasks.map((task) =>
-          this.executeSingleTask(task, cb, subTaskIds, completedTaskIds, allFiles)
+        const taskPromises = levelTasks.map((task) =>
+          this.taskQueue.add(async () => {
+            await this.executeSingleTask(task, cb, subTaskIds, completedTaskIds, allFiles)
+          })
         )
 
-        const levelResults = await Promise.allSettled(promises)
+        const levelResults = await Promise.allSettled(taskPromises)
 
         for (const r of levelResults) {
           if (r.status === 'rejected') {
@@ -274,6 +289,14 @@ export class Orchestrator extends BaseOrchestrator {
       messages: chatManager.getHistory(),
       stats: taskManager.getStats(),
     }
+  }
+
+  abortWorkflow(): void {
+    this.taskQueue.abort()
+  }
+
+  getTaskQueueStats() {
+    return this.taskQueue.getStats()
   }
 }
 
