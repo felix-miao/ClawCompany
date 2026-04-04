@@ -8,8 +8,42 @@ import { resolveTaskOrder, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { groupTasksByLevels } from '../utils/task-levels'
 import { OrchestratorError, FileSystemError } from '../core/errors'
+import { SubTaskSchema } from '../agents/schemas'
+import { z } from 'zod'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
+
+interface ValidatedSubTask {
+  title: string
+  description: string
+  assignedTo: 'dev' | 'review'
+  dependencies: string[]
+  files?: string[]
+}
+
+export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
+  if (!Array.isArray(rawTasks)) return []
+
+  const validTasks: ValidatedSubTask[] = []
+
+  for (let i = 0; i < rawTasks.length; i++) {
+    const raw = rawTasks[i]
+    if (raw === null || raw === undefined || typeof raw !== 'object') {
+      continue
+    }
+
+    const parsed = SubTaskSchema.safeParse(raw)
+    if (parsed.success) {
+      const data = parsed.data
+      const files = Array.isArray((raw as Record<string, unknown>).files)
+        ? ((raw as Record<string, unknown>).files as string[])
+        : []
+      validTasks.push({ ...data, files })
+    }
+  }
+
+  return validTasks
+}
 
 export class Orchestrator extends BaseOrchestrator {
   private projectId: string
@@ -93,18 +127,17 @@ export class Orchestrator extends BaseOrchestrator {
         taskId: initialTask.id,
       })
 
+      const validatedTasks = validateSubTasks(pmResponse.tasks)
       const subTasks: Task[] = []
-      if (pmResponse.tasks) {
-        for (const taskData of pmResponse.tasks) {
-          const task = cb.createTask(
-            taskData.title,
-            taskData.description,
-            taskData.assignedTo,
-            taskData.dependencies,
-            taskData.files,
-          )
-          subTasks.push(task)
-        }
+      for (const taskData of validatedTasks) {
+        const task = cb.createTask(
+          taskData.title,
+          taskData.description,
+          taskData.assignedTo,
+          taskData.dependencies,
+          taskData.files ?? [],
+        )
+        subTasks.push(task)
       }
 
       const subTaskIds = subTasks.map((t) => t.id)
