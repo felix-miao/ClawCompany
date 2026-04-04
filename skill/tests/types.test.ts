@@ -36,9 +36,8 @@ describe('Core Types', () => {
         'completed',
         'failed',
         'review',
-        'done',
       ]
-      expect(statuses).toHaveLength(6)
+      expect(statuses).toHaveLength(5)
     })
   })
 
@@ -86,7 +85,7 @@ describe('Core Types', () => {
         assignedTo: 'dev',
         dependencies: [],
         files: [],
-        status: 'done',
+        status: 'completed',
       }
 
       const result: ExecutionResult = {
