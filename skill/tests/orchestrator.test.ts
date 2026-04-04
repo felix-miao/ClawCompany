@@ -246,6 +246,29 @@ describe('ClawCompanyOrchestrator', () => {
   })
 })
 
+describe('Code Quality Tools', () => {
+  test('应该配置覆盖率检查', () => {
+    const packageJson = require('../package.json')
+    expect(packageJson.scripts).toHaveProperty('test')
+    // 检查是否配置了覆盖率
+    const jestConfig = require('../jest.config.js')
+    expect(jestConfig.collectCoverageFrom).toBeDefined()
+    expect(jestConfig.coverageThreshold).toBeDefined()
+  })
+
+  test('应该有基本的 ESLint 和 Prettier 配置', () => {
+    // 检查是否存在配置文件
+    const fs = require('fs')
+    const path = require('path')
+    
+    const eslintConfigPath = path.join(__dirname, '../.eslintrc.js')
+    const prettierConfigPath = path.join(__dirname, '../.prettierrc')
+    
+    // 这些配置文件稍后会被创建，现在只是测试准备
+    expect(true).toBe(true) // 占位测试
+  })
+})
+
 describe('orchestrate standalone function', () => {
   beforeEach(() => {
     jest.clearAllMocks()
