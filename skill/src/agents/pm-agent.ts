@@ -1,6 +1,8 @@
 import { BaseOpenClawAgent } from '../core/base-agent'
 import type { Task, PMResult, AgentConfig } from '../core/types'
 
+type SessionLike = { sessionKey?: string } | null | undefined
+
 export interface PMAgentConfig extends AgentConfig {}
 
 export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {
@@ -17,7 +19,7 @@ export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {
 
     const session = await this.spawnAgent(prompt)
 
-    return await this.parseJSONFromSession<PMResult>(session, {
+    return await this.parseJSONFromSession<PMResult>(session as SessionLike, {
       analysis: '自动生成的任务分解',
       tasks: [{
         id: 'task-1',
@@ -26,6 +28,7 @@ export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {
         assignedTo: 'dev',
         dependencies: [],
         status: 'pending',
+        files: [],
       }],
     })
   }

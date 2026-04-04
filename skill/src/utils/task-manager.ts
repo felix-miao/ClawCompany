@@ -1,10 +1,5 @@
-/**
- * Task Manager - 任务管理工具
- * 
- * 管理任务状态、依赖关系和执行顺序
- */
-
 import type { Task } from '../core/types'
+import { resolveTaskOrder } from '@ai-team-demo/lib/utils/task-resolver'
 
 export interface TaskManagerConfig {
   tasks: Task[]
@@ -17,23 +12,14 @@ export class TaskManager {
     this.tasks = new Map(config.tasks.map(task => [task.id, task]))
   }
 
-  /**
-   * 获取所有任务
-   */
   getAllTasks(): Task[] {
     return Array.from(this.tasks.values())
   }
 
-  /**
-   * 获取任务
-   */
   getTask(id: string): Task | undefined {
     return this.tasks.get(id)
   }
 
-  /**
-   * 更新任务状态
-   */
   updateTaskStatus(id: string, status: Task['status']): void {
     const task = this.tasks.get(id)
     if (task) {
@@ -42,10 +28,6 @@ export class TaskManager {
     }
   }
 
-  /**
-   * 获取下一个可执行的任务
-   * (没有未完成的依赖项)
-   */
   getNextTask(): Task | undefined {
     for (const task of this.tasks.values()) {
       if (task.status === 'pending') {
@@ -62,9 +44,6 @@ export class TaskManager {
     return undefined
   }
 
-  /**
-   * 获取所有可执行的任务
-   */
   getExecutableTasks(): Task[] {
     const executable: Task[] = []
     
@@ -84,9 +63,6 @@ export class TaskManager {
     return executable
   }
 
-  /**
-   * 检查所有任务是否完成
-   */
   isAllCompleted(): boolean {
     for (const task of this.tasks.values()) {
       if (task.status !== 'completed') {
@@ -96,9 +72,6 @@ export class TaskManager {
     return true
   }
 
-  /**
-   * 获取任务统计
-   */
   getStats(): {
     total: number
     pending: number
@@ -137,64 +110,20 @@ export class TaskManager {
     }
   }
 
-  /**
-   * 按依赖顺序排序任务（拓扑排序）
-   */
   getSortedTasks(): Task[] {
-    const sorted: Task[] = []
-    const visited = new Set<string>()
-    const visiting = new Set<string>()
-
-    const visit = (id: string) => {
-      if (visited.has(id)) return
-      if (visiting.has(id)) {
-        // 检测到循环依赖
-        console.warn(`⚠ 检测到循环依赖: ${id}`)
-        return
-      }
-
-      visiting.add(id)
-      const task = this.tasks.get(id)
-      
-      if (task) {
-        // 先访问依赖项
-        for (const depId of task.dependencies) {
-          visit(depId)
-        }
-        sorted.push(task)
-      }
-
-      visiting.delete(id)
-      visited.add(id)
-    }
-
-    // 访问所有任务
-    for (const id of this.tasks.keys()) {
-      visit(id)
-    }
-
-    return sorted
+    return resolveTaskOrder(this.getAllTasks())
   }
 
-  /**
-   * 导出任务列表（JSON）
-   */
   toJSON(): string {
     return JSON.stringify(this.getAllTasks(), null, 2)
   }
 
-  /**
-   * 从 JSON 导入任务
-   */
   static fromJSON(json: string): TaskManager {
     const tasks = JSON.parse(json) as Task[]
     return new TaskManager({ tasks })
   }
 }
 
-/**
- * 便捷函数：创建任务管理器
- */
 export function createTaskManager(tasks: Task[]): TaskManager {
   return new TaskManager({ tasks })
 }

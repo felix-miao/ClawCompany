@@ -1,5 +1,12 @@
 import { LLMProvider, ChatMessage, LLMConfig } from './types'
 
+interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: { content?: string }
+    delta?: { content?: string }
+  }>
+}
+
 const DEFAULT_TIMEOUT_MS = 30_000
 
 export abstract class BaseLLMProvider implements LLMProvider {
@@ -73,8 +80,8 @@ export abstract class BaseLLMProvider implements LLMProvider {
     }
 
     try {
-      const data = await response.json()
-      return data.choices[0]?.message?.content || ''
+      const data = (await response.json()) as ChatCompletionResponse
+      return data.choices?.[0]?.message?.content || ''
     } catch {
       throw new Error(`${this.providerName} API error: Failed to parse response`)
     }

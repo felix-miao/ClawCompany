@@ -1,6 +1,8 @@
 import { BaseOpenClawAgent } from '../core/base-agent'
 import type { Task, DevResult, ReviewResult, AgentConfig } from '../core/types'
 
+type SessionLike = { sessionKey?: string } | null | undefined
+
 export interface ReviewAgentConfig extends AgentConfig {
   checklist?: string[]
 }
@@ -30,7 +32,7 @@ export class ReviewAgent extends BaseOpenClawAgent<ReviewAgentConfig> {
 
     const session = await this.spawnAgent(prompt)
 
-    return await this.parseJSONFromSession<ReviewResult>(session, {
+    return await this.parseJSONFromSession<ReviewResult>(session as SessionLike, {
       approved: true,
       issues: [],
       suggestions: [],

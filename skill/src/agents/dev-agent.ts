@@ -1,6 +1,8 @@
 import { BaseOpenClawAgent } from '../core/base-agent'
 import type { Task, DevResult, AgentConfig } from '../core/types'
 
+type SessionLike = { sessionKey?: string } | null | undefined
+
 export interface DevAgentConfig extends AgentConfig {
   runtime?: 'acp' | 'subagent'
   agentId?: string
@@ -26,7 +28,7 @@ export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
           agentId: this.config.agentId || 'opencode',
           cwd: projectPath,
         })
-        return await this.parseJSONFromSession<DevResult>(session, {
+        return await this.parseJSONFromSession<DevResult>(session as SessionLike, {
           success: true,
           files: [],
           summary: '任务完成',
@@ -37,7 +39,7 @@ export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
     }
 
     const session = await this.spawnAgent(prompt)
-    return await this.parseJSONFromSession<DevResult>(session, {
+    return await this.parseJSONFromSession<DevResult>(session as SessionLike, {
       success: true,
       files: [],
       summary: '任务完成',

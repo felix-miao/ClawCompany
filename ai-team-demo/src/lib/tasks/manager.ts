@@ -155,6 +155,7 @@ export class TaskManager {
         throw new Error(`Invalid agent role: ${task.assignedTo}`)
       }
       manager.tasks.set(id, {
+        id,
         ...task,
         status: task.status as TaskStatus,
         assignedTo: task.assignedTo as AgentRole,

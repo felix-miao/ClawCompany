@@ -37,7 +37,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
       throw new Error(`API error: ${response.status}`)
     }
 
-    return await response.json()
+    return (await response.json()) as ChatResponse
   } catch (error) {
     console.error('Failed to send message:', error)
     return {
@@ -57,7 +57,7 @@ export async function getChatHistory(): Promise<ChatHistoryResponse> {
       throw new Error(`API error: ${response.status}`)
     }
 
-    return await response.json()
+    return (await response.json()) as ChatHistoryResponse
   } catch (error) {
     console.error('Failed to get chat history:', error)
     return {
