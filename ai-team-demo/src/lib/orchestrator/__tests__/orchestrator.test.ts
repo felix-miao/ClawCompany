@@ -709,7 +709,7 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'in_progress')
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'review')
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'pending')
-      expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'done')
+      expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'completed')
       expect(result.success).toBe(false)
     })
   })
@@ -744,7 +744,7 @@ describe('Orchestrator - 错误处理和重试机制', () => {
   describe('getStatus', () => {
     it('应该返回项目状态信息', () => {
       const mockTasks = [
-        { id: 't1', title: 'Task 1', status: 'done' },
+        { id: 't1', title: 'Task 1', status: 'completed' },
         { id: 't2', title: 'Task 2', status: 'pending' },
       ]
       ;(taskManager.getAllTasks as jest.Mock).mockReturnValue(mockTasks)

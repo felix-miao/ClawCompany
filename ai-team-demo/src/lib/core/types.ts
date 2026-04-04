@@ -1,6 +1,6 @@
 export type AgentRole = 'pm' | 'dev' | 'review'
 
-export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'done' | 'completed' | 'failed'
+export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'completed' | 'failed'
 
 export type GameTaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 'completed' | 'failed'
 
@@ -37,7 +37,7 @@ export interface GameTaskCreateInput {
 
 export type UnifiedTaskStatus = TaskStatus | GameTaskStatus
 
-export const TASK_STATUS_VALUES: readonly TaskStatus[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']
+export const TASK_STATUS_VALUES: readonly TaskStatus[] = ['pending', 'in_progress', 'review', 'completed', 'failed']
 
 export const GAME_STATUS_VALUES: readonly GameTaskStatus[] = ['pending', 'assigned', 'working', 'reviewing', 'completed', 'failed']
 
@@ -54,7 +54,6 @@ export const LIB_TO_GAME_STATUS: Readonly<Record<TaskStatus, GameTaskStatus>> = 
   pending: 'pending',
   in_progress: 'working',
   review: 'reviewing',
-  done: 'completed',
   completed: 'completed',
   failed: 'failed',
 }

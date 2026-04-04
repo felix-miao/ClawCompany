@@ -27,7 +27,7 @@ describe('TaskStatus type conflict resolution', () => {
     const gameOnly = gameStatuses.filter(s => !libSet.has(s as LibTaskStatus))
 
     expect(shared).toEqual(['pending', 'completed', 'failed'])
-    expect(libOnly).toEqual(['in_progress', 'review', 'done'])
+    expect(libOnly).toEqual(['in_progress', 'review'])
     expect(gameOnly).toEqual(['assigned', 'working', 'reviewing'])
   })
 
@@ -81,8 +81,8 @@ describe('libStatusToGame mapping', () => {
     expect(libStatusToGame('review')).toBe('reviewing')
   })
 
-  it('maps done → completed', () => {
-    expect(libStatusToGame('done')).toBe('completed')
+  it('maps completed → completed', () => {
+    expect(libStatusToGame('completed')).toBe('completed')
   })
 
   it('maps shared statuses to themselves', () => {
@@ -100,7 +100,7 @@ describe('UnifiedTaskStatus', () => {
     ]
 
     const unique = new Set(unified)
-    expect(unique.size).toBe(9)
+    expect(unique.size).toBe(8)
   })
 })
 
@@ -108,7 +108,6 @@ describe('isLibTaskStatus / isGameTaskStatus guards', () => {
   it('isLibTaskStatus identifies lib-only statuses', () => {
     expect(isLibTaskStatus('in_progress')).toBe(true)
     expect(isLibTaskStatus('review')).toBe(true)
-    expect(isLibTaskStatus('done')).toBe(true)
   })
 
   it('isLibTaskStatus rejects game-only statuses', () => {
@@ -126,7 +125,6 @@ describe('isLibTaskStatus / isGameTaskStatus guards', () => {
   it('isGameTaskStatus rejects lib-only statuses', () => {
     expect(isGameTaskStatus('in_progress')).toBe(false)
     expect(isGameTaskStatus('review')).toBe(false)
-    expect(isGameTaskStatus('done')).toBe(false)
   })
 
   it('both guards accept shared statuses', () => {
@@ -143,7 +141,6 @@ describe('Cross-module integration', () => {
       pending: 'pending',
       in_progress: 'in_progress',
       review: 'review',
-      done: 'completed',
       completed: 'completed',
       failed: 'failed',
     }

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 const BAR_WIDTH = 60;
 const BAR_HEIGHT = 4;

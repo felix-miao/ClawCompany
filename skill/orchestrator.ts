@@ -17,7 +17,7 @@ export interface Task {
   title: string
   description: string
   assignedTo: 'pm' | 'dev' | 'review'
-  status: 'pending' | 'in_progress' | 'review' | 'done'
+  status: 'pending' | 'in_progress' | 'review' | 'completed'
   dependencies: string[]
 }
 
@@ -107,7 +107,7 @@ export async function orchestrate(
     })
 
     if (reviewResult.approved) {
-      task.status = 'done'
+      task.status = 'completed'
       console.log(`✅ [Review Agent] 审查通过\n`)
     } else {
       task.status = 'pending'

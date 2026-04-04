@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { PathfindingSystem, PathPoint } from './PathfindingSystem';
 import { PHYSICS_CONFIG } from '../config/gameConfig';

@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { PHYSICS_CONFIG } from '../config/gameConfig';
 import { AnimationController, AnimationState } from '../systems/AnimationController';

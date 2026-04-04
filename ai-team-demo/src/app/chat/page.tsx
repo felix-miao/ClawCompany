@@ -279,7 +279,7 @@ export default function ChatPage() {
                 <div key={task.id} className="glass rounded-lg p-3">
                   <div className="flex items-center gap-2 mb-2">
                     <span className={`w-2 h-2 rounded-full ${
-                      task.status === 'done' ? 'bg-green-500' :
+                      task.status === 'completed' ? 'bg-green-500' :
                       task.status === 'in_progress' ? 'bg-yellow-500' :
                       task.status === 'review' ? 'bg-purple-500' :
                       'bg-gray-500'

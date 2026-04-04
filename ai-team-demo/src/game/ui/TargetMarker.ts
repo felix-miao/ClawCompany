@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 export class TargetMarker extends Phaser.GameObjects.Container {
   private circleGraphics: Phaser.GameObjects.Graphics;
