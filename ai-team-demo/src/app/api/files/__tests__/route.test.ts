@@ -61,6 +61,66 @@ import { RateLimiter } from '@/lib/security/utils'
 
 const getMockFsManager = () => (global as any).__mockFsManager__
 
+describe('Authentication', () => {
+  const originalApiKey = process.env.AGENT_API_KEY
+
+  beforeAll(() => {
+    process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
+  })
+
+  afterAll(() => {
+    if (originalApiKey) {
+      process.env.AGENT_API_KEY = originalApiKey
+    } else {
+      delete process.env.AGENT_API_KEY
+    }
+  })
+
+  it('POST should return 401 without API key', async () => {
+    const request = createMockRequest({
+      method: 'POST',
+      body: { path: 'test.ts', content: 'test' },
+    })
+    const response = await POST(request as any)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('GET should return 401 without API key', async () => {
+    const request = createMockRequest({
+      method: 'GET',
+      url: 'http://localhost/api/files?path=test.ts',
+    })
+    const response = await GET(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('PUT should return 401 without API key', async () => {
+    const request = createMockRequest({
+      method: 'PUT',
+      body: { path: 'test.ts', content: 'updated' },
+    })
+    const response = await PUT(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('DELETE should return 401 without API key', async () => {
+    const request = createMockRequest({
+      method: 'DELETE',
+      url: 'http://localhost/api/files?path=test.ts',
+    })
+    const response = await DELETE(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+})
+
 describe('/api/files', () => {
   beforeEach(() => {
     jest.clearAllMocks()

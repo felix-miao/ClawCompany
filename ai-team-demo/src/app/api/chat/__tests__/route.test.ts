@@ -80,6 +80,48 @@ function createMockRequest(body: any): any {
   } as any
 }
 
+describe('Authentication', () => {
+  const originalApiKey = process.env.AGENT_API_KEY
+
+  beforeAll(() => {
+    process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
+  })
+
+  afterAll(() => {
+    if (originalApiKey) {
+      process.env.AGENT_API_KEY = originalApiKey
+    } else {
+      delete process.env.AGENT_API_KEY
+    }
+  })
+
+  it('POST should return 401 without API key', async () => {
+    const request = createMockRequest({ message: 'test' })
+    const response = await POST(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('GET should return 401 without API key', async () => {
+    const request = createMockRequest({})
+    const response = await GET(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('POST should return 401 with wrong API key', async () => {
+    const request = {
+      json: async () => ({ message: 'test' }),
+      headers: { get: (name: string) => name === 'x-api-key' ? 'wrong-key' : null },
+    } as any
+    const response = await POST(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+  })
+})
+
 describe('Chat API', () => {
   beforeEach(() => {
     jest.clearAllMocks()

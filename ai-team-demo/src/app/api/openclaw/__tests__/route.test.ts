@@ -28,6 +28,38 @@ jest.mock('@/lib/security/utils', () => ({
 import { POST, GET } from '../route'
 import { RateLimiter } from '@/lib/security/utils'
 
+describe('Authentication', () => {
+  const originalApiKey = process.env.AGENT_API_KEY
+
+  beforeAll(() => {
+    process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
+  })
+
+  afterAll(() => {
+    if (originalApiKey) {
+      process.env.AGENT_API_KEY = originalApiKey
+    } else {
+      delete process.env.AGENT_API_KEY
+    }
+  })
+
+  it('POST should return 401 without API key', async () => {
+    const request = createMockRequest({ body: { action: 'orchestrate', userRequest: 'test' } })
+    const response = await POST(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('GET should return 401 without API key', async () => {
+    const request = createMockRequest()
+    const response = await GET(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+})
+
 function createMockRequest(options?: any): any {
   const url = options?.url || 'http://localhost/api/openclaw'
   return {

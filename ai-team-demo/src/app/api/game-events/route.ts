@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 
+import { withAuth } from '@/lib/api/route-utils';
 import { getGameEventStore } from '@/game/data/GameEventStore';
 
 export async function GET(request: NextRequest) {
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest) => {
   try {
     const body = await request.json();
 

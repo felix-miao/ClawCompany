@@ -123,6 +123,34 @@ import { getLLMProvider, setLLMProvider } from '@/lib/llm/factory'
 const getMockStorageManager = () => (global as any).__mockStorageManager__
 const getMockFsManager = () => (global as any).__mockFsManager__
 
+describe('Authentication', () => {
+  it('POST should return 401 without API key', async () => {
+    const request = {
+      url: 'http://localhost/api/agent',
+      method: 'POST',
+      headers: { get: () => null },
+      json: async () => ({ agentId: 'pm-agent', userMessage: 'Hello' }),
+    }
+    const response = await POST(request as any)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+
+  it('GET should return 401 without API key', async () => {
+    const request = {
+      url: 'http://localhost/api/agent',
+      method: 'GET',
+      headers: { get: () => null },
+      json: async () => ({}),
+    }
+    const response = await GET(request)
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+})
+
 describe('/api/agent', () => {
   beforeEach(() => {
     jest.clearAllMocks()

@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server'
 
 import { orchestrator } from '@/lib/orchestrator'
-import { withRateLimit, withErrorHandling, successResponse } from '@/lib/api/route-utils'
+import { withAuth, withRateLimit, withErrorHandling, successResponse } from '@/lib/api/route-utils'
 import { ChatRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 
-export const POST = withRateLimit(async (request: NextRequest) => {
+export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json()
   const parsed = parseRequestBody(ChatRequestSchema, body)
   if ('error' in parsed) return parsed.error
@@ -17,9 +17,9 @@ export const POST = withRateLimit(async (request: NextRequest) => {
     chatHistory: result.messages,
     files: result.files,
   }, request)
-}, 'Chat API')
+}, 'Chat API'))
 
-export const GET = withErrorHandling(async () => {
+export const GET = withAuth(async () => {
   const status = orchestrator.getStatus()
 
   return successResponse({

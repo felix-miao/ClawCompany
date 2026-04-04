@@ -23,6 +23,33 @@ jest.mock('@/lib/security/utils', () => ({
 import { POST } from '../route'
 import { RateLimiter } from '@/lib/security/utils'
 
+describe('Authentication', () => {
+  const originalApiKey = process.env.AGENT_API_KEY
+  let originalNodeEnv: string | undefined
+
+  beforeAll(() => {
+    process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
+    originalNodeEnv = process.env.NODE_ENV
+    process.env.NODE_ENV = 'test'
+  })
+
+  afterAll(() => {
+    if (originalApiKey) {
+      process.env.AGENT_API_KEY = originalApiKey
+    } else {
+      delete process.env.AGENT_API_KEY
+    }
+    process.env.NODE_ENV = originalNodeEnv
+  })
+
+  it('POST should return 401 without API key', async () => {
+    const response = await POST(createMockRequest())
+    const data = await response.json()
+    expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
+  })
+})
+
 function createMockRequest(): any {
   return {
     headers: { get: () => '1.2.3.4' },

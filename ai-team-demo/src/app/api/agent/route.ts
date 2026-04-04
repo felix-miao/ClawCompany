@@ -15,7 +15,7 @@ const fsManager = new FileSystemManager(process.cwd())
 const storageManager = new StorageManager()
 const gitManager = new GitManager(process.cwd())
 
-export const POST = withRateLimit(async (request: NextRequest) => {
+export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json()
   const parsed = parseRequestBody(AgentPostRequestSchema, body)
   if ('error' in parsed) return parsed.error
@@ -101,7 +101,7 @@ export const POST = withRateLimit(async (request: NextRequest) => {
     agentId: agentConfig.id,
     agentName: agentConfig.name,
   }, request)
-}, 'Agent API')
+}, 'Agent API'))
 
 function parseCodeBlocks(markdown: string): Array<{ path: string; content: string }> {
   const files: Array<{ path: string; content: string }> = []
@@ -242,7 +242,7 @@ export default function LoginPage() {
   return 'Agent response'
 }
 
-export const GET = withErrorHandling(async (request: NextRequest) => {
+export const GET = withAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const agentId = searchParams.get('agentId')
 

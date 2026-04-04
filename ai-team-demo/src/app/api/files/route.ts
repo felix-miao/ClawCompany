@@ -2,11 +2,11 @@ import { NextRequest } from 'next/server'
 
 import { FileSystemManager } from '@/lib/filesystem/manager'
 import { InputValidator } from '@/lib/security/utils'
-import { withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withAuth, withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
 
 const fsManager = new FileSystemManager(process.cwd())
 
-export const POST = withRateLimit(async (request: NextRequest) => {
+export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json()
   const { path, content } = body
 
@@ -28,9 +28,9 @@ export const POST = withRateLimit(async (request: NextRequest) => {
     path: result.path,
     overwritten: result.overwritten
   }, request)
-}, 'Files API')
+}, 'Files API'))
 
-export const GET = withErrorHandling(async (request: NextRequest) => {
+export const GET = withAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const path = searchParams.get('path')
   const list = searchParams.get('list')
@@ -60,7 +60,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   })
 }, 'Files API')
 
-export const PUT = withErrorHandling(async (request: NextRequest) => {
+export const PUT = withAuth(async (request: NextRequest) => {
   const body = await request.json()
   const { path, content } = body
 
@@ -77,7 +77,7 @@ export const PUT = withErrorHandling(async (request: NextRequest) => {
   return successResponse({ path: result.path })
 }, 'Files API')
 
-export const DELETE = withErrorHandling(async (request: NextRequest) => {
+export const DELETE = withAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const path = searchParams.get('path')
 

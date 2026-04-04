@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server'
 
 import { GLMProvider } from '@/lib/llm/glm'
-import { withRateLimit, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withAuth, withRateLimit, successResponse, errorResponse } from '@/lib/api/route-utils'
 
-export const POST = withRateLimit(async () => {
+export const POST = withAuth(withRateLimit(async () => {
   if (process.env.NODE_ENV === 'production') {
     return errorResponse('This endpoint is not available in production', 403)
   }
@@ -37,4 +37,4 @@ export const POST = withRateLimit(async () => {
     message: 'GLM integration test passed!',
     response,
   })
-}, 'GLM Test API')
+  }, 'GLM Test API'))

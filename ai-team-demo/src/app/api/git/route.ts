@@ -2,11 +2,11 @@ import { NextRequest } from 'next/server'
 
 import { GitManager } from '@/lib/git/manager'
 import { InputValidator } from '@/lib/security/utils'
-import { withRateLimit, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withAuth, withRateLimit, successResponse, errorResponse } from '@/lib/api/route-utils'
 
 const gitManager = new GitManager(process.cwd())
 
-export const POST = withRateLimit(async (request: NextRequest) => {
+export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json()
   const { message, autoPush = false } = body
 
@@ -28,9 +28,9 @@ export const POST = withRateLimit(async (request: NextRequest) => {
     commitHash: result.commitHash,
     message: result.message,
   }, request)
-}, 'Git API')
+}, 'Git API'))
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action') || 'status'
@@ -50,9 +50,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     return errorResponse(error, 500, 'Git API')
   }
-}
+}, 'Git API')
 
-export async function PUT(request: NextRequest) {
+export const PUT = withAuth(async (request: NextRequest) => {
   try {
     const body = await request.json()
     const { action, branchName } = body
@@ -79,4 +79,4 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     return errorResponse(error, 500, 'Git API')
   }
-}
+}, 'Git API')

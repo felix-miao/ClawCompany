@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { StorageManager } from '@/lib/storage/manager'
 import { InputValidator } from '@/lib/security/utils'
-import { withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withAuth, withRateLimit, withErrorHandling, successResponse, errorResponse } from '@/lib/api/route-utils'
 
 const storageManager = new StorageManager()
 
-export const POST = withRateLimit(async (request: NextRequest) => {
+export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json()
   const { title } = body
 
@@ -19,9 +19,9 @@ export const POST = withRateLimit(async (request: NextRequest) => {
   await storageManager.saveConversation(conversation)
 
   return successResponse({ conversation }, request)
-}, 'Conversations API')
+}, 'Conversations API'))
 
-export const GET = withErrorHandling(async (request: NextRequest) => {
+export const GET = withAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const conversationId = searchParams.get('id')
 
@@ -40,7 +40,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   return successResponse({ conversations, total: conversations.length })
 }, 'Conversations API')
 
-export const PUT = withErrorHandling(async (request: NextRequest) => {
+export const PUT = withAuth(async (request: NextRequest) => {
   const body = await request.json()
   const { conversationId, title } = body
 
@@ -64,7 +64,7 @@ export const PUT = withErrorHandling(async (request: NextRequest) => {
   return successResponse({ conversation })
 }, 'Conversations API')
 
-export const DELETE = withErrorHandling(async (request: NextRequest) => {
+export const DELETE = withAuth(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url)
   const conversationId = searchParams.get('id')
 
