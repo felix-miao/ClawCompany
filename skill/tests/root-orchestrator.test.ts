@@ -56,6 +56,7 @@ describe('test-orchestrator - Orchestrator 集成测试', () => {
         description: '实现一个计数器',
         assignedTo: 'dev',
         dependencies: [],
+        files: [],
         status: 'pending',
       }]
 
@@ -75,6 +76,7 @@ describe('test-orchestrator - Orchestrator 集成测试', () => {
         description: '计数器',
         assignedTo: 'dev',
         dependencies: [],
+        files: [],
         status: 'pending',
       }]
 
@@ -132,6 +134,7 @@ describe('test-orchestrator - Orchestrator 集成测试', () => {
         description: '功能描述',
         assignedTo: 'dev',
         dependencies: [],
+        files: [],
         status: 'pending',
       }]
 

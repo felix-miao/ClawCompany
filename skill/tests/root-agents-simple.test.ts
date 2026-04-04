@@ -15,6 +15,7 @@ const sampleTask: Task = {
   description: '实现一个具有增加和减少功能的计数器',
   assignedTo: 'dev',
   dependencies: [],
+  files: [],
   status: 'pending',
 }
 
@@ -44,6 +45,7 @@ describe('test-agents-simple - Agent 独立测试', () => {
                 description: '实现计数器核心逻辑和UI',
                 assignedTo: 'dev',
                 dependencies: [],
+                files: [],
                 status: 'pending',
               },
             ],

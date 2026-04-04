@@ -7,6 +7,7 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   description: 'A test task',
   assignedTo: 'dev',
   dependencies: [],
+  files: [],
   status: 'pending',
   ...overrides,
 })

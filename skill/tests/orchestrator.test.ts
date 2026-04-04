@@ -49,6 +49,7 @@ const defaultPMTasks: Partial<Task>[] = [
     description: '实现测试功能',
     assignedTo: 'dev',
     dependencies: [],
+    files: [],
     status: 'pending',
   },
 ]
@@ -174,6 +175,7 @@ describe('ClawCompanyOrchestrator', () => {
           description: '第一个任务',
           assignedTo: 'dev',
           dependencies: [],
+          files: [],
           status: 'pending',
         },
         {
@@ -182,6 +184,7 @@ describe('ClawCompanyOrchestrator', () => {
           description: '第二个任务',
           assignedTo: 'dev',
           dependencies: ['task-1'],
+          files: [],
           status: 'pending',
         },
       ]

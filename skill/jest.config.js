@@ -7,6 +7,7 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js', 'json'],
   moduleNameMapper: {
     '^@ai-team-demo/lib/(.*)$': '<rootDir>/../ai-team-demo/src/lib/$1',
+    '^@/(.*)$': '<rootDir>/../ai-team-demo/src/$1',
   },
   collectCoverageFrom: [
     'src/**/*.ts',

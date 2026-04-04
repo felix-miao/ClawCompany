@@ -13,6 +13,7 @@ const mockTask: Task = {
   description: '实现测试功能',
   assignedTo: 'dev',
   dependencies: [],
+  files: [],
   status: 'pending',
 }
 

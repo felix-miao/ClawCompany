@@ -18,6 +18,7 @@ describe('Core Types', () => {
         description: 'Test desc',
         assignedTo: 'dev',
         dependencies: [],
+        files: [],
         status: 'pending',
       }
       expect(task.id).toBe('task-1')
@@ -84,6 +85,7 @@ describe('Core Types', () => {
         description: 'D',
         assignedTo: 'dev',
         dependencies: [],
+        files: [],
         status: 'done',
       }
 

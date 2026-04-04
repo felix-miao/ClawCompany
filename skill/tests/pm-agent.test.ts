@@ -31,6 +31,7 @@ describe('PMAgent', () => {
         description: '实现核心功能',
         assignedTo: 'dev',
         dependencies: [],
+        files: [],
         status: 'pending',
       },
     ]

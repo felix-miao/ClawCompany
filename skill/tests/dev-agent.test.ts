@@ -23,6 +23,7 @@ const mockTask: Task = {
   description: '创建用户登录表单和验证逻辑',
   assignedTo: 'dev',
   dependencies: [],
+  files: [],
   status: 'pending',
 }
 
