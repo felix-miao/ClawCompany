@@ -174,7 +174,7 @@ export function PerformanceMetricsPanel({ metricsAggregator }: PerformanceMetric
       
       {/* 性能指标 */}
       <div className="p-3 rounded-lg bg-dark/50 border border-dark-100">
-        <h4 className="text-sm font-medium text-gray-300 mb-3">性能指标</h4>
+        <h4 className="text-sm font-medium text-gray-300 mb-3">响应时间</h4>
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-400">平均响应时间</span>
