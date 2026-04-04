@@ -4,7 +4,9 @@ import type { NextResponse } from 'next/server'
 import { errorResponse } from './route-utils'
 
 export const ChatRequestSchema = z.object({
-  message: z.string().min(1, '消息不能为空').max(10000, '消息不能超过 10000 字符'),
+  message: z.string()
+    .refine(val => val.trim().length > 0, '消息不能为空')
+    .max(10000, '消息不能超过 10000 字符'),
 })
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>
