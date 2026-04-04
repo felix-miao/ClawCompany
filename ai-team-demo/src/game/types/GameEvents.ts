@@ -9,7 +9,12 @@ export type GameEventType =
   | 'session:progress'
   | 'connection:open'
   | 'connection:close'
-  | 'connection:error';
+  | 'connection:error'
+  | 'task:assigned'
+  | 'task:progress'
+  | 'task:completed'
+  | 'task:failed'
+  | 'task:handover';
 
 export type AgentStatus = 'idle' | 'busy' | 'working' | 'offline';
 
@@ -87,6 +92,48 @@ export interface ConnectionEvent extends BaseGameEvent {
   error?: string;
 }
 
+export interface TaskVisualizationAssignedEvent extends BaseGameEvent {
+  type: 'task:assigned';
+  agentId: string;
+  task: {
+    id: string;
+    description: string;
+    taskType: string;
+    metadata?: Record<string, unknown>;
+  };
+}
+
+export interface TaskVisualizationProgressEvent extends BaseGameEvent {
+  type: 'task:progress';
+  agentId: string;
+  taskId: string;
+  progress: number;
+  currentAction: string;
+}
+
+export interface TaskVisualizationCompletedEvent extends BaseGameEvent {
+  type: 'task:completed';
+  agentId: string;
+  taskId: string;
+  result: 'success' | 'failure' | 'partial';
+  duration: number;
+}
+
+export interface TaskVisualizationFailedEvent extends BaseGameEvent {
+  type: 'task:failed';
+  agentId: string;
+  taskId: string;
+  error: string;
+}
+
+export interface TaskVisualizationHandoverEvent extends BaseGameEvent {
+  type: 'task:handover';
+  fromAgentId: string;
+  toAgentId: string;
+  taskId: string;
+  description: string;
+}
+
 export type GameEvent =
   | AgentStatusEvent
   | TaskAssignedEvent
@@ -96,7 +143,12 @@ export type GameEvent =
   | SessionStartedEvent
   | SessionCompletedEvent
   | SessionProgressEvent
-  | ConnectionEvent;
+  | ConnectionEvent
+  | TaskVisualizationAssignedEvent
+  | TaskVisualizationProgressEvent
+  | TaskVisualizationCompletedEvent
+  | TaskVisualizationFailedEvent
+  | TaskVisualizationHandoverEvent;
 
 export type GameEventHandler<T extends GameEvent = GameEvent> = (event: T) => void;
 

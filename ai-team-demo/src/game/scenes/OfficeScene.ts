@@ -19,6 +19,9 @@ import { ThrottleSystem } from '../systems/ThrottleSystem';
 import { SoundSystem } from '../systems/SoundSystem';
 import { TargetMarker } from '../ui/TargetMarker';
 import { OfficeDecorator } from '../ui/OfficeDecorator';
+import { TaskManager } from '../systems/TaskManager';
+import { TaskVisualizer } from '../ui/TaskVisualizer';
+import { EventBus } from '../systems/EventBus';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
 import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
@@ -70,6 +73,9 @@ export class OfficeScene extends Phaser.Scene {
   private decorationGraphics: Phaser.GameObjects.Graphics[] = [];
   private taskTimer: Phaser.Time.TimerEvent | null = null;
   private workstationTimer: Phaser.Time.TimerEvent | null = null;
+  private eventBus!: EventBus;
+  private taskManager!: TaskManager;
+  private taskVisualizer!: TaskVisualizer;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -173,6 +179,9 @@ export class OfficeScene extends Phaser.Scene {
     this.roleVisuals = new RoleVisuals();
     this.officeDecorator = new OfficeDecorator();
     this.targetMarker = new TargetMarker(this);
+    this.eventBus = new EventBus();
+    this.taskManager = new TaskManager(this.eventBus);
+    this.taskVisualizer = new TaskVisualizer(this, this.taskManager);
     this.particles = this.add.particles(0, 0, 'particle', {
       speed: { min: 20, max: 50 },
       scale: { start: 0.4, end: 0 },
@@ -589,6 +598,8 @@ export class OfficeScene extends Phaser.Scene {
 
     this.syncNameLabels();
     this.syncShadows();
+    this.syncTaskVisualizer();
+    this.taskVisualizer.update();
     this.movementSystem.update();
     this.debugOverlay.update(this.agents);
     this.checkTaskCompletion();
@@ -621,6 +632,20 @@ export class OfficeScene extends Phaser.Scene {
         gfx.setPosition(agent.x, agent.y + offsetY);
       }
     });
+  }
+
+  private syncTaskVisualizer(): void {
+    this.agents.forEach((agent) => {
+      this.taskVisualizer.updateAgentPosition(agent.agentId, agent.x, agent.y);
+    });
+  }
+
+  getTaskManager(): TaskManager {
+    return this.taskManager;
+  }
+
+  getTaskVisualizer(): TaskVisualizer {
+    return this.taskVisualizer;
   }
 
   private createDecorations(): void {
@@ -761,6 +786,7 @@ export class OfficeScene extends Phaser.Scene {
     this.soundSystem.stopAll();
     this.soundSystem.destroy();
     this.officeDecorator.destroy();
+    this.taskVisualizer.destroy();
     this.particleSystem.clearAllEffects();
     this.eventBridge?.disconnect();
     this.particleEmitters.forEach(e => e.destroy());

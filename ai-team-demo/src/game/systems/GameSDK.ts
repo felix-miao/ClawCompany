@@ -1,5 +1,6 @@
 import { ConfigValidator, GameConfig, ValidationResult, AgentConfigInput } from './ConfigValidator';
 import { GameStateManager, GameState, AgentState } from './GameStateManager';
+import { Task, TaskCreateInput, TaskType } from '../types/Task';
 
 export type GameSDKState = 'idle' | 'configured' | 'running' | 'stopped' | 'error' | 'destroyed';
 
@@ -163,6 +164,53 @@ export class GameSDK {
     this.emit('agent:task-assigned', {
       agentId,
       task,
+      timestamp: Date.now(),
+    });
+  }
+
+  createTask(agentId: string, input: TaskCreateInput): Task {
+    const task: Task = {
+      id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      agentId,
+      description: input.description,
+      status: 'pending',
+      progress: 0,
+      currentAction: input.currentAction ?? input.description,
+      taskType: input.taskType,
+      assignedAt: Date.now(),
+      completedAt: null,
+      parentTaskId: input.parentTaskId ?? null,
+      metadata: input.metadata,
+    };
+
+    this.emit('task:created', { agentId, task, timestamp: Date.now() });
+    return task;
+  }
+
+  updateTaskProgress(agentId: string, progress: number, currentAction?: string): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) return;
+
+    this.emit('task:progress-update', {
+      agentId,
+      progress,
+      currentAction,
+      timestamp: Date.now(),
+    });
+  }
+
+  completeTask(agentId: string, result: 'success' | 'failure'): void {
+    const agent = this.agents.get(agentId);
+    if (!agent) return;
+
+    if (result === 'success') {
+      agent.currentTask = null;
+      agent.status = 'idle';
+    }
+
+    this.emit('task:completed', {
+      agentId,
+      result,
       timestamp: Date.now(),
     });
   }

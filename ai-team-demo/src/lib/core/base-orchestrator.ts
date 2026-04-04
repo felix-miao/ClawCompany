@@ -8,11 +8,12 @@ import {
   WorkflowStats,
   RetryConfig,
   AgentResponse,
+  FileChange,
 } from './types'
 import { Logger, LogEntry } from './logger'
 import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
-import { OrchestratorError, AppError, isAppError } from './errors'
+import { OrchestratorError, AppError, isAppError, FileSystemError } from './errors'
 import { AgentEventBus, AgentEventType } from './agent-event-bus'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
@@ -257,6 +258,125 @@ export abstract class BaseOrchestrator {
 
   protected sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  protected async executeSingleTask(
+    task: Task,
+    cb: OrchestratorCallbacks,
+    subTaskIds: string[],
+    completedTaskIds: Set<string>,
+    allFiles: FileChange[],
+  ): Promise<void> {
+    const unresolvedDep = task.dependencies.find(
+      (dep) => subTaskIds.includes(dep) && !completedTaskIds.has(dep),
+    )
+    if (unresolvedDep) {
+      this.logWarn('Skipping task: dependency not completed', { taskId: task.id, dependency: unresolvedDep })
+      this.obs.perf.increment('orchestrator.tasks.failed')
+      this.getEventBus().emit({
+        type: 'task:skipped',
+        taskId: task.id,
+        data: { dependency: unresolvedDep, reason: 'Dependency not completed' },
+      })
+      return
+    }
+
+    try {
+      cb.updateTaskStatus(task.id, 'in_progress')
+
+      if (task.assignedTo === 'dev') {
+        this.logInfo('Task execution started', { taskId: task.id, role: 'dev' })
+        this.getEventBus().emit({
+          type: 'task:started',
+          agentRole: 'dev',
+          taskId: task.id,
+        })
+
+        const devResponse = await this.executeAgentWithRetry('dev', task, cb)
+
+        if (!devResponse) {
+          this.recordFailedTask(task, 'Dev task failed after all retries')
+          this.obs.perf.increment('orchestrator.tasks.failed')
+          this.logError('Task execution completed', { taskId: task.id, success: false, reason: 'Dev task failed' })
+          this.getEventBus().emit({
+            type: 'task:failed',
+            agentRole: 'dev',
+            taskId: task.id,
+            data: { reason: 'Dev task failed after all retries' },
+          })
+          return
+        }
+
+        cb.broadcast('dev', devResponse.message)
+
+        if (devResponse.files) {
+          for (const file of devResponse.files) {
+            try {
+              await cb.saveFile?.(file.path, file.content)
+              this.logInfo('File saved', { path: file.path })
+            } catch (error) {
+              this.logError('File save failed', { path: file.path, error: error instanceof Error ? error.message : String(error) })
+              const fsErr = error instanceof Error
+                ? new FileSystemError(error.message, file.path)
+                : new FileSystemError(String(error), file.path)
+              this.obs.errors.track(fsErr)
+              this.getEventBus().emit({
+                type: 'error:tracked',
+                agentRole: 'dev',
+                taskId: task.id,
+                data: { level: 'error', message: 'File save failed', path: file.path, error: error instanceof Error ? error.message : String(error) },
+              })
+            }
+          }
+          allFiles.push(...devResponse.files)
+        }
+
+        cb.updateTaskStatus(task.id, 'review')
+
+        const reviewResponse = await this.executeAgentWithRetry('review', task, cb)
+
+        if (!reviewResponse) {
+          this.recordFailedTask(task, 'Review task failed after all retries')
+          this.obs.perf.increment('orchestrator.tasks.failed')
+          this.logError('Task execution completed', { taskId: task.id, success: false, reason: 'Review task failed' })
+          this.getEventBus().emit({
+            type: 'task:failed',
+            agentRole: 'review',
+            taskId: task.id,
+            data: { reason: 'Review task failed after all retries' },
+          })
+          return
+        }
+
+        cb.broadcast('review', reviewResponse.message)
+
+        if (reviewResponse.status === 'success') {
+          cb.updateTaskStatus(task.id, 'done')
+          completedTaskIds.add(task.id)
+          this.obs.perf.increment('orchestrator.tasks.completed')
+          this.logInfo('Task execution completed', { taskId: task.id, success: true })
+          this.getEventBus().emit({
+            type: 'task:completed',
+            agentRole: 'review',
+            taskId: task.id,
+          })
+        } else {
+          cb.updateTaskStatus(task.id, 'pending')
+          this.logInfo('Task execution completed', { taskId: task.id, success: false, reason: 'Review not approved' })
+        }
+      }
+    } catch (error) {
+      this.logError('Unexpected error in task', { taskId: task.id, error: error instanceof Error ? error.message : 'Unknown error' })
+      this.recordFailedTask(task, error instanceof Error ? error.message : 'Unknown error')
+      this.obs.perf.increment('orchestrator.tasks.failed')
+      this.obs.errors.track(error instanceof Error ? error : new Error(String(error)))
+      this.logError('Task execution completed', { taskId: task.id, success: false, error: error instanceof Error ? error.message : 'Unknown error' })
+      this.getEventBus().emit({
+        type: 'task:failed',
+        taskId: task.id,
+        data: { error: error instanceof Error ? error.message : 'Unknown error' },
+      })
+    }
   }
 
   reset(): void {
