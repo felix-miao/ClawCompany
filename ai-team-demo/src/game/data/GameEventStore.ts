@@ -1,4 +1,4 @@
-import { GameEvent, GameEventType } from './GameEvents';
+import { GameEvent, GameEventType } from '../types/GameEvents';
 
 type EventCallback = (event: GameEvent) => void;
 

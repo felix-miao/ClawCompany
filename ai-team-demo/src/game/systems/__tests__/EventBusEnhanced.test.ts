@@ -1,5 +1,5 @@
 import { EventBusEnhanced } from '../EventBusEnhanced';
-import { GameEvent, GameEventType } from '../types/GameEvents';
+import { GameEvent, GameEventType } from '../../types/GameEvents';
 
 describe('EventBusEnhanced', () => {
   let eventBus: EventBusEnhanced;
@@ -23,9 +23,8 @@ describe('EventBusEnhanced', () => {
     it('should validate required fields for agent:status-change events', () => {
       const invalidEvent = {
         type: 'agent:status-change' as GameEventType,
-        timestamp: Date.now()
-        // Missing required agentId
-      };
+        timestamp: Date.now(),
+      } as GameEvent;
 
       const handler = jest.fn();
       eventBus.on('agent:status-change', handler);
@@ -48,8 +47,9 @@ describe('EventBusEnhanced', () => {
       const eventWithInvalidTimestamp = {
         type: 'agent:status-change' as GameEventType,
         timestamp: -1,
-        agentId: 'test-agent'
-      };
+        agentId: 'test-agent',
+        status: 'busy' as const,
+      } as GameEvent;
 
       const handler = jest.fn();
       eventBus.on('agent:status-change', handler);
@@ -65,9 +65,8 @@ describe('EventBusEnhanced', () => {
       const invalidEvent = {
         type: 'agent:task-assigned' as GameEventType,
         timestamp: Date.now(),
-        agentId: 'test-agent'
-        // Missing required taskId
-      };
+        agentId: 'test-agent',
+      } as GameEvent;
 
       const handler = jest.fn();
       eventBus.on('agent:task-assigned', handler);
@@ -89,7 +88,8 @@ describe('EventBusEnhanced', () => {
       const event: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
 
       eventBus.emit(event);
@@ -113,7 +113,8 @@ describe('EventBusEnhanced', () => {
       const event: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
 
       eventBus.emit(event);
@@ -134,7 +135,8 @@ describe('EventBusEnhanced', () => {
       const event: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
 
       // Emit multiple events to build up error stats
@@ -171,7 +173,8 @@ describe('EventBusEnhanced', () => {
       const event: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
       eventBus.emit(event);
 
@@ -197,30 +200,34 @@ describe('EventBusEnhanced', () => {
       eventBus.on('agent:status-change', handler);
 
       for (let i = 0; i < 5; i++) {
-        eventBus.emit({
-          type: 'agent:status-change',
-          timestamp: Date.now() + i,
-          agentId: `agent-${i}`
-        });
-      }
+        const event: GameEvent = {
+        type: 'agent:status-change',
+        timestamp: Date.now() + i,
+        agentId: `agent-${i}`,
+        status: 'busy',
+      };
 
-      const history = eventBus.getHistory();
-      expect(history.length).toBe(3);
-      expect(history[0].agentId).toBe('agent-2'); // Should keep most recent 3
+      eventBus.emit(event);
+    }
+
+    const history = eventBus.getHistory();
+    expect(history.length).toBe(3);
+    expect(history[0].agentId).toBe('agent-2');
+  });
+
+  it('should reset error stats independently', () => {
+    const handler = jest.fn(() => {
+      throw new Error('Test error');
     });
 
-    it('should reset error stats independently', () => {
-      const handler = jest.fn(() => {
-        throw new Error('Test error');
-      });
-
-      eventBus.on('agent:status-change', handler);
-      
-      const event: GameEvent = {
-        type: 'agent:status-change',
-        timestamp: Date.now(),
-        agentId: 'test-agent'
-      };
+    eventBus.on('agent:status-change', handler);
+    
+    const event: GameEvent = {
+      type: 'agent:status-change',
+      timestamp: Date.now(),
+      agentId: 'test-agent',
+      status: 'busy',
+    };
       eventBus.emit(event);
 
       let stats = eventBus.getErrorStats();
@@ -242,7 +249,8 @@ describe('EventBusEnhanced', () => {
         eventBus.emit({
           type: 'agent:status-change',
           timestamp: Date.now(),
-          agentId: 'test-agent'
+          agentId: 'test-agent',
+          status: 'busy',
         });
         eventBus.clear();
         eventBus.listenerCount('agent:status-change');

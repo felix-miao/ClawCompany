@@ -1,4 +1,9 @@
-import { GameEvent, GameEventType, GameEventHandler } from '../types/GameEvents';
+import {
+  GameEvent,
+  GameEventType,
+  GameEventHandler,
+  EventTypeMap,
+} from '../types/GameEvents';
 
 export interface EventBusConfig {
   maxHistorySize?: number;
@@ -18,6 +23,11 @@ export class EventBus {
     this.maxHistorySize = config?.maxHistorySize ?? 100;
   }
 
+  on<K extends GameEventType>(
+    eventType: K,
+    handler: GameEventHandler<EventTypeMap[K]>
+  ): void;
+  on(eventType: '*', handler: TypedHandler): void;
   on(eventType: GameEventType | '*', handler: TypedHandler): void {
     if (eventType === '*') {
       this.wildcardHandlers.add(handler);
@@ -30,6 +40,11 @@ export class EventBus {
     this.handlers.get(eventType)!.add(handler);
   }
 
+  off<K extends GameEventType>(
+    eventType: K,
+    handler: GameEventHandler<EventTypeMap[K]>
+  ): void;
+  off(eventType: '*', handler: TypedHandler): void;
   off(eventType: GameEventType | '*', handler: TypedHandler): void {
     if (eventType === '*') {
       this.wildcardHandlers.delete(handler);
@@ -42,12 +57,15 @@ export class EventBus {
     }
   }
 
-  once(eventType: GameEventType, handler: TypedHandler): void {
+  once<K extends GameEventType>(
+    eventType: K,
+    handler: GameEventHandler<EventTypeMap[K]>
+  ): void {
     const wrapper: TypedHandler = (event) => {
-      this.off(eventType, wrapper);
-      handler(event);
+      this.off(eventType, wrapper as GameEventHandler<EventTypeMap[K]>);
+      handler(event as EventTypeMap[K]);
     };
-    this.on(eventType, wrapper);
+    this.on(eventType, wrapper as GameEventHandler<EventTypeMap[K]>);
   }
 
   emit(event: GameEvent): void {

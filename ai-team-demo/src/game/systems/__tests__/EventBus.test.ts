@@ -119,7 +119,7 @@ describe('EventBus', () => {
 
     it('should handle off for non-existent event type', () => {
       const handler = jest.fn();
-      expect(() => eventBus.off('non-existent', handler)).not.toThrow();
+      expect(() => eventBus.off('agent:status-change', handler)).not.toThrow();
     });
   });
 

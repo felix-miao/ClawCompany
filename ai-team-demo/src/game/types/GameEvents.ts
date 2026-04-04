@@ -152,6 +152,25 @@ export type GameEvent =
 
 export type GameEventHandler<T extends GameEvent = GameEvent> = (event: T) => void;
 
+export interface EventTypeMap {
+  'agent:status-change': AgentStatusEvent;
+  'agent:task-assigned': TaskAssignedEvent;
+  'agent:task-completed': TaskCompletedEvent;
+  'agent:navigation-request': NavigationRequestEvent;
+  'agent:emotion-change': EmotionChangeEvent;
+  'session:started': SessionStartedEvent;
+  'session:completed': SessionCompletedEvent;
+  'session:progress': SessionProgressEvent;
+  'connection:open': ConnectionEvent;
+  'connection:close': ConnectionEvent;
+  'connection:error': ConnectionEvent;
+  'task:assigned': TaskVisualizationAssignedEvent;
+  'task:progress': TaskVisualizationProgressEvent;
+  'task:completed': TaskVisualizationCompletedEvent;
+  'task:failed': TaskVisualizationFailedEvent;
+  'task:handover': TaskVisualizationHandoverEvent;
+}
+
 export interface SSEMessage {
   event: string;
   data: string;

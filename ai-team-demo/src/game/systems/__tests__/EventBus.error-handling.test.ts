@@ -1,5 +1,5 @@
 import { EventBus } from '../EventBus';
-import { GameEvent, GameEventType } from '../types/GameEvents';
+import { GameEvent, GameEventType } from '../../types/GameEvents';
 
 describe('EventBus Error Handling', () => {
   let eventBus: EventBus;
@@ -29,7 +29,8 @@ describe('EventBus Error Handling', () => {
       const event: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
 
       expect(() => eventBus.emit(event)).not.toThrow();
@@ -50,7 +51,8 @@ describe('EventBus Error Handling', () => {
       const event: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
 
       expect(() => eventBus.emit(event)).not.toThrow();
@@ -67,7 +69,8 @@ describe('EventBus Error Handling', () => {
       const validEvent: GameEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'test-agent'
+        agentId: 'test-agent',
+        status: 'busy',
       };
 
       expect(() => eventBus.emit(validEvent)).not.toThrow();

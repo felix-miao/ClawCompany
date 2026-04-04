@@ -125,7 +125,7 @@ export class EventBusEnhanced extends EventBus {
 
       case 'agent:task-assigned':
       case 'agent:task-completed':
-        if (!correctedEvent.agentId || !(correctedEvent as Record<string, unknown>).taskId) {
+        if (!correctedEvent.agentId || !('taskId' in correctedEvent) || !correctedEvent.taskId) {
           return { valid: false, event };
         }
         break;
@@ -179,13 +179,13 @@ export class EventBusEnhanced extends EventBus {
     }
   }
 
-  private sanitizeEventForLogging(event: GameEvent): Partial<GameEvent> {
-    const { agentId, taskId, ...safeEvent } = event;
-    return {
-      ...safeEvent,
-      agentId: agentId ? '[REDACTED]' : undefined,
-      taskId: taskId ? '[REDACTED]' : undefined
-    };
+  private sanitizeEventForLogging(event: GameEvent): Record<string, unknown> {
+    const { timestamp, type, ...rest } = event;
+    const safe: Record<string, unknown> = { type, timestamp };
+    for (const [key, value] of Object.entries(rest)) {
+      safe[key] = typeof value === 'string' ? '[REDACTED]' : value;
+    }
+    return safe;
   }
 
   getErrorStats(): ErrorStats {

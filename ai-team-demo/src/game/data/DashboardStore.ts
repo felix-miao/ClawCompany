@@ -1,4 +1,11 @@
-import { GameEvent, GameEventType } from '../types/GameEvents';
+import {
+  GameEvent,
+  GameEventType,
+  AgentStatusEvent,
+  TaskAssignedEvent,
+  TaskCompletedEvent,
+  EmotionChangeEvent,
+} from '../types/GameEvents';
 
 export interface AgentInfo {
   id: string;
@@ -172,13 +179,13 @@ export class DashboardStore {
     this.notify();
   }
 
-  private handleStatusChange(event: GameEvent): void {
+  private handleStatusChange(event: AgentStatusEvent): void {
     const agent = this.agents.get(event.agentId);
     if (!agent) return;
     agent.status = event.status;
   }
 
-  private handleTaskAssigned(event: GameEvent): void {
+  private handleTaskAssigned(event: TaskAssignedEvent): void {
     const agent = this.agents.get(event.agentId);
     if (agent) {
       agent.status = 'working';
@@ -194,7 +201,7 @@ export class DashboardStore {
     });
   }
 
-  private handleTaskCompleted(event: GameEvent): void {
+  private handleTaskCompleted(event: TaskCompletedEvent): void {
     const agent = this.agents.get(event.agentId);
     if (agent) {
       agent.status = 'idle';
@@ -207,7 +214,7 @@ export class DashboardStore {
     }
   }
 
-  private handleEmotionChange(event: GameEvent): void {
+  private handleEmotionChange(event: EmotionChangeEvent): void {
     const agent = this.agents.get(event.agentId);
     if (agent) {
       agent.emotion = event.emotion;
