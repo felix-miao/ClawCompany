@@ -161,6 +161,51 @@ Please proceed with implementation.`
     expect(result!.approved).toBe(true)
     expect(result!.checks).toHaveLength(1)
   })
+
+  it('should handle deeply nested objects', () => {
+    const result = extractJSONObject('{"a": {"b": {"c": {"d": {"e": 1}}}}}')
+    expect(result).toEqual({ a: { b: { c: { d: { e: 1 } } } } })
+  })
+
+  it('should handle JSON with escaped quotes in values', () => {
+    const result = extractJSONObject('{"msg": "He said \\"hello\\""}')
+    expect(result).toEqual({ msg: 'He said "hello"' })
+  })
+
+  it('should handle JSON with backslashes in values', () => {
+    const result = extractJSONObject('{"path": "C:\\\\Users\\\\test"}')
+    expect(result).toEqual({ path: 'C:\\Users\\test' })
+  })
+
+  it('should handle object with empty string value', () => {
+    const result = extractJSONObject('{"key": ""}')
+    expect(result).toEqual({ key: '' })
+  })
+
+  it('should skip unmatched opening braces until valid JSON found', () => {
+    const result = extractJSONObject('{invalid} but {"valid": true}')
+    expect(result).toEqual({ valid: true })
+  })
+
+  it('should handle object containing array with objects', () => {
+    const result = extractJSONObject('{"items": [{"id": 1}, {"id": 2}]}')
+    expect(result).toEqual({ items: [{ id: 1 }, { id: 2 }] })
+  })
+
+  it('should handle JSON with boolean and null values', () => {
+    const result = extractJSONObject('{"a": true, "b": false, "c": null}')
+    expect(result).toEqual({ a: true, b: false, c: null })
+  })
+
+  it('should handle JSON with numeric values including negative and float', () => {
+    const result = extractJSONObject('{"a": -1, "b": 3.14, "c": 0}')
+    expect(result).toEqual({ a: -1, b: 3.14, c: 0 })
+  })
+
+  it('should handle brace inside a string value', () => {
+    const result = extractJSONObject('{"template": "${name} is {age}"}')
+    expect(result).toEqual({ template: '${name} is {age}' })
+  })
 })
 
 describe('safeJsonParse', () => {
@@ -267,6 +312,32 @@ describe('extractJSONArray', () => {
 
   it('should skip non-array brackets before the actual array', () => {
     const response = 'Use items[0] to get first. Result: [1, 2, 3]'
+    const result = extractJSONArray(response)
+    expect(result).toEqual([1, 2, 3])
+  })
+
+  it('should handle array with objects containing nested arrays', () => {
+    const result = extractJSONArray('[{"items": [1, 2]}, {"items": [3, 4]}]')
+    expect(result).toEqual([{ items: [1, 2] }, { items: [3, 4] }])
+  })
+
+  it('should handle deeply nested arrays', () => {
+    const result = extractJSONArray('[[[[1]]]]')
+    expect(result).toEqual([[[[1]]]])
+  })
+
+  it('should handle array with escaped quotes in string values', () => {
+    const result = extractJSONArray('["He said \\"hello\\""]')
+    expect(result).toEqual(['He said "hello"'])
+  })
+
+  it('should handle array with mixed types', () => {
+    const result = extractJSONArray('[1, "two", true, null, {"key": "val"}]')
+    expect(result).toEqual([1, 'two', true, null, { key: 'val' }])
+  })
+
+  it('should extract array from response with bracket in code example', () => {
+    const response = 'Access items[0] for first.\n[1, 2, 3]'
     const result = extractJSONArray(response)
     expect(result).toEqual([1, 2, 3])
   })
