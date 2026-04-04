@@ -149,7 +149,7 @@ export async function orchestrate(
         timestamp: new Date().toISOString(),
       })
 
-      task.status = reviewResult.approved ? 'done' : 'pending'
+      task.status = reviewResult.approved ? 'completed' : 'pending'
     }
 
     return { success: true, tasks: pmResult.tasks, messages }

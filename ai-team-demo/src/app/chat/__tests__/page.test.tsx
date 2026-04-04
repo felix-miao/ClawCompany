@@ -228,7 +228,7 @@ describe('Chat Page (/chat)', () => {
 
     it('应该显示任务状态', async () => {
       const mockTasks = [
-        { id: '1', title: 'Task 1', status: 'done', assignedTo: 'dev', description: 'Test task' }
+        { id: '1', title: 'Task 1', status: 'completed', assignedTo: 'dev', description: 'Test task' }
       ]
       ;(sendMessage as jest.Mock).mockResolvedValue({
         success: true,

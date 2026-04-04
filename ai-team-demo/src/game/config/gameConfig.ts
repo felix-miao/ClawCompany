@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 export const gameConfig = {
   type: Phaser.AUTO,

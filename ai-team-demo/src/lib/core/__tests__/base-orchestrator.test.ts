@@ -372,7 +372,7 @@ describe('BaseOrchestrator - executeSingleTask', () => {
       expect.any(Object),
     )
     expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('review-task-1', 'in_progress')
-    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('review-task-1', 'done')
+    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('review-task-1', 'completed')
     expect(completedTaskIds.has('review-task-1')).toBe(true)
     expect(callbacks.broadcast).toHaveBeenCalledWith('review', 'Review approved')
   })
@@ -617,7 +617,7 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     expect(allFiles).toEqual([{ path: 'src/feature.ts', content: 'export const feature = 1', action: 'create' }])
     expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-1', 'in_progress')
     expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-1', 'review')
-    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-1', 'done')
+    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-1', 'completed')
     expect(completedTaskIds.has('dev-task-1')).toBe(true)
   })
 

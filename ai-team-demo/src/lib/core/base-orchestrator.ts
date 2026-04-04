@@ -401,7 +401,7 @@ export abstract class BaseOrchestrator {
     completedTaskIds: Set<string>,
     role: AgentRole,
   ): void {
-    cb.updateTaskStatus(task.id, 'done')
+    cb.updateTaskStatus(task.id, 'completed')
     completedTaskIds.add(task.id)
     this.obs.perf.increment('orchestrator.tasks.completed')
     this.logInfo('Task execution completed', { taskId: task.id, success: true })

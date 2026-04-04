@@ -29,7 +29,7 @@ export class TaskManager {
   }
 
   private isCompleted(status: Task['status']): boolean {
-    return status === 'completed' || status === 'done'
+    return status === 'completed'
   }
 
   getNextTask(): Task | undefined {
@@ -80,11 +80,13 @@ export class TaskManager {
     total: number
     pending: number
     inProgress: number
+    review: number
     completed: number
     failed: number
   } {
     let pending = 0
     let inProgress = 0
+    let review = 0
     let completed = 0
     let failed = 0
 
@@ -95,6 +97,9 @@ export class TaskManager {
           break
         case 'in_progress':
           inProgress++
+          break
+        case 'review':
+          review++
           break
         case 'completed':
           completed++
@@ -109,6 +114,7 @@ export class TaskManager {
       total: this.tasks.size,
       pending,
       inProgress,
+      review,
       completed,
       failed
     }

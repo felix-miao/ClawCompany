@@ -205,9 +205,9 @@ describe('PendingCall type', () => {
 describe('Type narrowings', () => {
   it('TaskStatus covers all expected statuses', () => {
     const statuses: TaskStatus[] = [
-      'pending', 'in_progress', 'review', 'done', 'completed', 'failed',
+      'pending', 'in_progress', 'review', 'completed', 'failed',
     ]
-    expect(statuses).toHaveLength(6)
+    expect(statuses).toHaveLength(5)
   })
 
   it('AgentRole covers all expected roles', () => {

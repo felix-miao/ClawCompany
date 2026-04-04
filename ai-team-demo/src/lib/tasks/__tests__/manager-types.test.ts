@@ -54,7 +54,7 @@ describe('TaskManager - typed fromJSON with id handling', () => {
     })
 
     it('should handle deserialization of tasks in all valid statuses', () => {
-      const statuses = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed'] as const
+      const statuses = ['pending', 'in_progress', 'review', 'completed', 'failed'] as const
 
       for (const status of statuses) {
         const localTm = new TaskManager('test')
@@ -65,10 +65,6 @@ describe('TaskManager - typed fromJSON with id handling', () => {
         } else if (status === 'review') {
           localTm.updateTaskStatus(task.id, 'in_progress')
           localTm.updateTaskStatus(task.id, 'review')
-        } else if (status === 'done') {
-          localTm.updateTaskStatus(task.id, 'in_progress')
-          localTm.updateTaskStatus(task.id, 'review')
-          localTm.updateTaskStatus(task.id, 'done')
         } else if (status === 'completed') {
           localTm.updateTaskStatus(task.id, 'in_progress')
           localTm.updateTaskStatus(task.id, 'review')
@@ -122,7 +118,7 @@ describe('TaskManager - typed fromJSON with id handling', () => {
         expect(typeof task.id).toBe('string')
         expect(typeof task.title).toBe('string')
         expect(typeof task.description).toBe('string')
-        expect(['pending', 'in_progress', 'review', 'done', 'completed', 'failed']).toContain(task.status)
+        expect(['pending', 'in_progress', 'review', 'completed', 'failed']).toContain(task.status)
         expect(['pm', 'dev', 'review']).toContain(task.assignedTo)
         expect(Array.isArray(task.dependencies)).toBe(true)
         expect(Array.isArray(task.files)).toBe(true)

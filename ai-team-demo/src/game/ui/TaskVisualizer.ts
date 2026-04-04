@@ -2,8 +2,9 @@ import { TaskManager } from '../systems/TaskManager';
 import { TaskBubble } from './TaskBubble';
 import { ProgressBar } from './ProgressBar';
 import { TaskDetailPanel } from './TaskDetailPanel';
+import { TaskQueueIndicator } from './TaskQueueIndicator';
 import { Task, TaskStatus } from '../types/Task';
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 const BUBBLE_OFFSET_Y = -60;
 const PROGRESS_BAR_OFFSET_Y = -48;
@@ -22,10 +23,17 @@ export class TaskVisualizer {
   private detailPanel: TaskDetailPanel | null = null;
   private detailPanelAgentId: string | null = null;
   private lastPanelUpdate: number = 0;
+  private queueIndicator: TaskQueueIndicator;
 
   constructor(scene: Phaser.Scene, taskManager: TaskManager) {
     this.scene = scene;
     this.taskManager = taskManager;
+    this.queueIndicator = new TaskQueueIndicator(scene, taskManager);
+    this.queueIndicator.setOnTaskClick((task) => {
+      if (task.agentId) {
+        this.showTaskDetailPanel(task.agentId, task);
+      }
+    });
   }
 
   update(): void {
@@ -71,6 +79,8 @@ export class TaskVisualizer {
         this.lastPanelUpdate = now;
       }
     }
+
+    this.queueIndicator.update();
   }
 
   showTask(agentId: string, task: Task): void {
@@ -178,6 +188,7 @@ export class TaskVisualizer {
     this.agentPositions.clear();
 
     this.hideTaskDetailPanel();
+    this.queueIndicator.destroy();
   }
 
   getTaskBubble(agentId: string): TaskBubble | undefined {
@@ -186,6 +197,10 @@ export class TaskVisualizer {
 
   getProgressBar(agentId: string): ProgressBar | undefined {
     return this.progressBars.get(agentId);
+  }
+
+  getQueueIndicator(): TaskQueueIndicator {
+    return this.queueIndicator;
   }
 
   private cleanupCompletedAgents(activeTasks: Task[]): void {

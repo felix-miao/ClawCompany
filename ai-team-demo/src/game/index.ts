@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { gameConfig } from './config/gameConfig';
 import { OfficeScene } from './scenes/OfficeScene';

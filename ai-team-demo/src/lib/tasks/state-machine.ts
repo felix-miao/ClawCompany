@@ -3,9 +3,8 @@ import { TaskStatus } from '../core/types'
 const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
   pending: ['pending', 'in_progress', 'failed'],
   in_progress: ['in_progress', 'pending', 'review', 'failed'],
-  review: ['review', 'pending', 'in_progress', 'done', 'completed', 'failed'],
-  done: ['done', 'in_progress'],
-  completed: ['completed'],
+  review: ['review', 'pending', 'in_progress', 'completed', 'failed'],
+  completed: ['completed', 'in_progress'],
   failed: ['failed', 'pending', 'in_progress'],
 }
 

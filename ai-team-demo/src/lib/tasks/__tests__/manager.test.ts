@@ -101,7 +101,7 @@ describe('TaskManager', () => {
     })
 
     it('returns empty for status with no tasks', () => {
-      expect(tm.getTasksByStatus('done')).toHaveLength(0)
+      expect(tm.getTasksByStatus('completed')).toHaveLength(0)
     })
   })
 
@@ -149,30 +149,30 @@ describe('TaskManager', () => {
       tm.updateTaskStatus(task.id, 'review')
       expect(tm.getTask(task.id)!.status).toBe('review')
 
-      tm.updateTaskStatus(task.id, 'done')
-      expect(tm.getTask(task.id)!.status).toBe('done')
+      tm.updateTaskStatus(task.id, 'completed')
+      expect(tm.getTask(task.id)!.status).toBe('completed')
 
       tm.updateTaskStatus(task.id, 'in_progress')
       expect(tm.getTask(task.id)!.status).toBe('in_progress')
     })
 
     it('returns undefined for non-existent task', () => {
-      expect(tm.updateTaskStatus('nope', 'done')).toBeUndefined()
+      expect(tm.updateTaskStatus('nope', 'completed')).toBeUndefined()
     })
 
     it('throws InvalidTransitionError for invalid transition', () => {
       const task = tm.createTask('T', 'd', 'dev')
       tm.updateTaskStatus(task.id, 'in_progress')
       tm.updateTaskStatus(task.id, 'review')
-      tm.updateTaskStatus(task.id, 'done')
+      tm.updateTaskStatus(task.id, 'completed')
 
       expect(() => tm.updateTaskStatus(task.id, 'pending')).toThrow(InvalidTransitionError)
     })
 
-    it('throws InvalidTransitionError for pending → done', () => {
+    it('throws InvalidTransitionError for pending → completed', () => {
       const task = tm.createTask('T', 'd', 'dev')
 
-      expect(() => tm.updateTaskStatus(task.id, 'done')).toThrow(InvalidTransitionError)
+      expect(() => tm.updateTaskStatus(task.id, 'completed')).toThrow(InvalidTransitionError)
     })
 
     it('allows idempotent status update', () => {
@@ -197,13 +197,13 @@ describe('TaskManager', () => {
   })
 
   describe('completeTask', () => {
-    it('marks task as done', () => {
+    it('marks task as completed', () => {
       const task = tm.createTask('T', 'd', 'dev')
       tm.updateTaskStatus(task.id, 'in_progress')
       tm.updateTaskStatus(task.id, 'review')
       const completed = tm.completeTask(task.id)
 
-      expect(completed!.status).toBe('done')
+      expect(completed!.status).toBe('completed')
     })
 
     it('returns undefined for non-existent task', () => {
@@ -218,7 +218,6 @@ describe('TaskManager', () => {
         pending: 0,
         inProgress: 0,
         review: 0,
-        done: 0,
         completed: 0,
         failed: 0
       })
@@ -233,7 +232,7 @@ describe('TaskManager', () => {
       tm.updateTaskStatus(t1.id, 'in_progress')
       tm.updateTaskStatus(t2.id, 'in_progress')
       tm.updateTaskStatus(t2.id, 'review')
-      tm.updateTaskStatus(t2.id, 'done')
+      tm.updateTaskStatus(t2.id, 'completed')
       tm.updateTaskStatus(t3.id, 'in_progress')
       tm.updateTaskStatus(t3.id, 'review')
 
@@ -243,8 +242,7 @@ describe('TaskManager', () => {
         pending: 1,
         inProgress: 1,
         review: 1,
-        done: 1,
-        completed: 0,
+        completed: 1,
         failed: 0
       })
     })
@@ -294,11 +292,11 @@ describe('TaskManager', () => {
       tm.updateTaskStatus(t1.id, 'in_progress')
       tm.updateTaskStatus(t2.id, 'in_progress')
       tm.updateTaskStatus(t2.id, 'review')
-      tm.updateTaskStatus(t2.id, 'done')
+      tm.updateTaskStatus(t2.id, 'completed')
 
       const restored = TaskManager.fromJSON(tm.toJSON())
       expect(restored.getTask(t1.id)!.status).toBe('in_progress')
-      expect(restored.getTask(t2.id)!.status).toBe('done')
+      expect(restored.getTask(t2.id)!.status).toBe('completed')
     })
 
     it('preserves assignments and dependencies', () => {
@@ -359,7 +357,7 @@ describe('TaskManager', () => {
       tm.updateTaskStatus(t4.id, 'failed')
       tm.updateTaskStatus(t5.id, 'in_progress')
       tm.updateTaskStatus(t5.id, 'review')
-      tm.updateTaskStatus(t5.id, 'done')
+      tm.updateTaskStatus(t5.id, 'completed')
 
       const stats = tm.getStats()
       expect(stats).toEqual({
@@ -367,8 +365,7 @@ describe('TaskManager', () => {
         pending: 1,
         inProgress: 1,
         review: 1,
-        done: 1,
-        completed: 1,
+        completed: 2,
         failed: 1,
       })
     })
@@ -488,7 +485,7 @@ describe('TaskManager', () => {
       tm.completeTask(task.id)
 
       const final = tm.getTask(task.id)!
-      expect(final.status).toBe('done')
+      expect(final.status).toBe('completed')
       expect(final.assignedTo).toBe('pm')
     })
 

@@ -86,7 +86,6 @@ describe('assertTaskStatus', () => {
     expect(assertTaskStatus('pending')).toBe(true)
     expect(assertTaskStatus('in_progress')).toBe(true)
     expect(assertTaskStatus('review')).toBe(true)
-    expect(assertTaskStatus('done')).toBe(true)
     expect(assertTaskStatus('completed')).toBe(true)
     expect(assertTaskStatus('failed')).toBe(true)
   })

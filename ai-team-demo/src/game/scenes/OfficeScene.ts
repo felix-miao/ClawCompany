@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import * as Phaser from 'phaser';
 
 import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
 import { TILE_SIZE } from '../config/gameConfig';

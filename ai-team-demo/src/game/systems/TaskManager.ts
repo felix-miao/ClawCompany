@@ -182,6 +182,10 @@ export class TaskManager {
     return this.taskQueue.shift();
   }
 
+  getQueue(): Task[] {
+    return [...this.taskQueue];
+  }
+
   private moveToHistory(task: Task): void {
     this.taskHistory.set(task.id, { ...task });
     this.cleanupHistory();

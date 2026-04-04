@@ -26,10 +26,6 @@ describe('TaskStateMachine', () => {
       expect(TaskStateMachine.isValidTransition('in_progress', 'pending')).toBe(true)
     })
 
-    it('allows review → done', () => {
-      expect(TaskStateMachine.isValidTransition('review', 'done')).toBe(true)
-    })
-
     it('allows review → completed', () => {
       expect(TaskStateMachine.isValidTransition('review', 'completed')).toBe(true)
     })
@@ -46,8 +42,8 @@ describe('TaskStateMachine', () => {
       expect(TaskStateMachine.isValidTransition('review', 'pending')).toBe(true)
     })
 
-    it('allows done → in_progress', () => {
-      expect(TaskStateMachine.isValidTransition('done', 'in_progress')).toBe(true)
+    it('allows completed → in_progress', () => {
+      expect(TaskStateMachine.isValidTransition('completed', 'in_progress')).toBe(true)
     })
 
     it('allows failed → pending', () => {
@@ -59,7 +55,7 @@ describe('TaskStateMachine', () => {
     })
 
     it('allows same status (idempotent)', () => {
-      const statuses: TaskStatus[] = ['pending', 'in_progress', 'review', 'done', 'completed', 'failed']
+      const statuses: TaskStatus[] = ['pending', 'in_progress', 'review', 'completed', 'failed']
       for (const status of statuses) {
         expect(TaskStateMachine.isValidTransition(status, status)).toBe(true)
       }
@@ -67,63 +63,36 @@ describe('TaskStateMachine', () => {
   })
 
   describe('invalid transitions', () => {
-    it('rejects pending → done', () => {
-      expect(TaskStateMachine.isValidTransition('pending', 'done')).toBe(false)
+    it('rejects pending → completed', () => {
+      expect(TaskStateMachine.isValidTransition('pending', 'completed')).toBe(false)
     })
 
     it('rejects pending → review', () => {
       expect(TaskStateMachine.isValidTransition('pending', 'review')).toBe(false)
     })
 
-    it('rejects pending → completed', () => {
-      expect(TaskStateMachine.isValidTransition('pending', 'completed')).toBe(false)
+    it('rejects completed → pending', () => {
+      expect(TaskStateMachine.isValidTransition('completed', 'pending')).toBe(false)
     })
 
-    it('rejects done → pending', () => {
-      expect(TaskStateMachine.isValidTransition('done', 'pending')).toBe(false)
+    it('rejects completed → review', () => {
+      expect(TaskStateMachine.isValidTransition('completed', 'review')).toBe(false)
     })
 
-    it('rejects done → review', () => {
-      expect(TaskStateMachine.isValidTransition('done', 'review')).toBe(false)
-    })
-
-    it('rejects done → failed', () => {
-      expect(TaskStateMachine.isValidTransition('done', 'failed')).toBe(false)
-    })
-
-    it('rejects done → completed', () => {
-      expect(TaskStateMachine.isValidTransition('done', 'completed')).toBe(false)
-    })
-
-    it('rejects completed → anything except completed', () => {
-      const statuses: TaskStatus[] = ['pending', 'in_progress', 'review', 'done', 'failed']
-      for (const status of statuses) {
-        expect(TaskStateMachine.isValidTransition('completed', status)).toBe(false)
-      }
-    })
-
-    it('rejects failed → done', () => {
-      expect(TaskStateMachine.isValidTransition('failed', 'done')).toBe(false)
-    })
-
-    it('rejects failed → review', () => {
-      expect(TaskStateMachine.isValidTransition('failed', 'review')).toBe(false)
-    })
-
-    it('rejects failed → completed', () => {
-      expect(TaskStateMachine.isValidTransition('failed', 'completed')).toBe(false)
-    })
-
-    it('rejects in_progress → done', () => {
-      expect(TaskStateMachine.isValidTransition('in_progress', 'done')).toBe(false)
+    it('rejects completed → failed', () => {
+      expect(TaskStateMachine.isValidTransition('completed', 'failed')).toBe(false)
     })
 
     it('rejects in_progress → completed', () => {
       expect(TaskStateMachine.isValidTransition('in_progress', 'completed')).toBe(false)
     })
 
-    it('rejects review → done when status is review (only via approved)', () => {
-      expect(TaskStateMachine.isValidTransition('review', 'done')).toBe(true)
+    it('rejects failed → completed', () => {
+      expect(TaskStateMachine.isValidTransition('failed', 'completed')).toBe(false)
+    })
+
+    it('rejects failed → review', () => {
+      expect(TaskStateMachine.isValidTransition('failed', 'review')).toBe(false)
     })
   })
 
@@ -135,9 +104,9 @@ describe('TaskStateMachine', () => {
     })
 
     it('returns error for invalid transition', () => {
-      const result = TaskStateMachine.validateTransition('done', 'pending')
+      const result = TaskStateMachine.validateTransition('completed', 'pending')
       expect(result.valid).toBe(false)
-      expect(result.error).toContain('done')
+      expect(result.error).toContain('completed')
       expect(result.error).toContain('pending')
     })
   })
@@ -162,25 +131,19 @@ describe('TaskStateMachine', () => {
 
     it('returns correct transitions from review', () => {
       const transitions = TaskStateMachine.getValidTransitions('review')
-      expect(transitions).toContain('done')
       expect(transitions).toContain('completed')
       expect(transitions).toContain('failed')
       expect(transitions).toContain('in_progress')
       expect(transitions).toContain('pending')
       expect(transitions).toContain('review')
-      expect(transitions).toHaveLength(6)
+      expect(transitions).toHaveLength(5)
     })
 
-    it('returns correct transitions from done', () => {
-      const transitions = TaskStateMachine.getValidTransitions('done')
-      expect(transitions).toContain('in_progress')
-      expect(transitions).toContain('done')
-      expect(transitions).toHaveLength(2)
-    })
-
-    it('returns only itself for completed', () => {
+    it('returns correct transitions from completed', () => {
       const transitions = TaskStateMachine.getValidTransitions('completed')
-      expect(transitions).toEqual(['completed'])
+      expect(transitions).toContain('in_progress')
+      expect(transitions).toContain('completed')
+      expect(transitions).toHaveLength(2)
     })
 
     it('returns correct transitions from failed', () => {
@@ -194,61 +157,56 @@ describe('TaskStateMachine', () => {
 
   describe('InvalidTransitionError', () => {
     it('creates error with from and to status', () => {
-      const error = new InvalidTransitionError('done', 'pending')
-      expect(error.message).toContain('done')
+      const error = new InvalidTransitionError('completed', 'pending')
+      expect(error.message).toContain('completed')
       expect(error.message).toContain('pending')
-      expect(error.from).toBe('done')
+      expect(error.from).toBe('completed')
       expect(error.to).toBe('pending')
       expect(error.name).toBe('InvalidTransitionError')
     })
 
     it('lists valid transitions in error message', () => {
-      const error = new InvalidTransitionError('done', 'pending')
+      const error = new InvalidTransitionError('completed', 'pending')
       expect(error.message).toContain('in_progress')
     })
 
     it('is instanceof Error', () => {
-      const error = new InvalidTransitionError('pending', 'done')
+      const error = new InvalidTransitionError('pending', 'completed')
       expect(error).toBeInstanceOf(Error)
     })
   })
 
   describe('typical workflow', () => {
-    it('supports happy path: pending → in_progress → review → done', () => {
-      const path: TaskStatus[] = ['pending', 'in_progress', 'review', 'done']
+    it('supports happy path: pending → in_progress → review → completed', () => {
+      const path: TaskStatus[] = ['pending', 'in_progress', 'review', 'completed']
       for (let i = 0; i < path.length - 1; i++) {
         expect(TaskStateMachine.isValidTransition(path[i], path[i + 1])).toBe(true)
       }
     })
 
-    it('supports review failure path: pending → in_progress → review → in_progress → review → done', () => {
-      const path: TaskStatus[] = ['pending', 'in_progress', 'review', 'in_progress', 'review', 'done']
+    it('supports review failure path: pending → in_progress → review → in_progress → review → completed', () => {
+      const path: TaskStatus[] = ['pending', 'in_progress', 'review', 'in_progress', 'review', 'completed']
       for (let i = 0; i < path.length - 1; i++) {
         expect(TaskStateMachine.isValidTransition(path[i], path[i + 1])).toBe(true)
       }
     })
 
-    it('supports failure path: pending → in_progress → failed → pending → in_progress → review → done', () => {
-      const path: TaskStatus[] = ['pending', 'in_progress', 'failed', 'pending', 'in_progress', 'review', 'done']
+    it('supports failure path: pending → in_progress → failed → pending → in_progress → review → completed', () => {
+      const path: TaskStatus[] = ['pending', 'in_progress', 'failed', 'pending', 'in_progress', 'review', 'completed']
       for (let i = 0; i < path.length - 1; i++) {
         expect(TaskStateMachine.isValidTransition(path[i], path[i + 1])).toBe(true)
       }
     })
 
-    it('supports reopen path: pending → in_progress → review → done → in_progress', () => {
-      const path: TaskStatus[] = ['pending', 'in_progress', 'review', 'done', 'in_progress']
+    it('supports reopen path: pending → in_progress → review → completed → in_progress', () => {
+      const path: TaskStatus[] = ['pending', 'in_progress', 'review', 'completed', 'in_progress']
       for (let i = 0; i < path.length - 1; i++) {
         expect(TaskStateMachine.isValidTransition(path[i], path[i + 1])).toBe(true)
       }
     })
 
-    it('blocks skipping steps: pending → done is invalid', () => {
-      expect(TaskStateMachine.isValidTransition('pending', 'done')).toBe(false)
-    })
-
-    it('blocks reversing completed: completed → anything is invalid', () => {
-      expect(TaskStateMachine.isValidTransition('completed', 'pending')).toBe(false)
-      expect(TaskStateMachine.isValidTransition('completed', 'in_progress')).toBe(false)
+    it('blocks skipping steps: pending → completed is invalid', () => {
+      expect(TaskStateMachine.isValidTransition('pending', 'completed')).toBe(false)
     })
   })
 
@@ -258,7 +216,6 @@ describe('TaskStateMachine', () => {
       expect(statuses).toContain('pending')
       expect(statuses).toContain('in_progress')
       expect(statuses).toContain('review')
-      expect(statuses).toContain('done')
       expect(statuses).toContain('completed')
       expect(statuses).toContain('failed')
     })

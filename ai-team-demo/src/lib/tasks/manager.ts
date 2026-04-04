@@ -92,7 +92,7 @@ export class TaskManager {
   }
 
   completeTask(taskId: string): Task | undefined {
-    return this.updateTaskStatus(taskId, 'done')
+    return this.updateTaskStatus(taskId, 'completed')
   }
 
   getStats(): {
@@ -100,7 +100,6 @@ export class TaskManager {
     pending: number
     inProgress: number
     review: number
-    done: number
     completed: number
     failed: number
   } {
@@ -110,7 +109,6 @@ export class TaskManager {
       pending: tasks.filter(t => t.status === 'pending').length,
       inProgress: tasks.filter(t => t.status === 'in_progress').length,
       review: tasks.filter(t => t.status === 'review').length,
-      done: tasks.filter(t => t.status === 'done').length,
       completed: tasks.filter(t => t.status === 'completed').length,
       failed: tasks.filter(t => t.status === 'failed').length
     }

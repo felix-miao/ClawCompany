@@ -123,37 +123,6 @@ describe('TaskManager', () => {
       manager.updateTaskStatus('task-3', 'completed')
       expect(manager.isAllCompleted()).toBe(false)
     })
-
-    test('应该将 done 视为已完成状态', () => {
-      manager.updateTaskStatus('task-1', 'done')
-      manager.updateTaskStatus('task-2', 'done')
-      manager.updateTaskStatus('task-3', 'done')
-      expect(manager.isAllCompleted()).toBe(true)
-    })
-
-    test('应该将 done 和 completed 混合视为全部完成', () => {
-      manager.updateTaskStatus('task-1', 'completed')
-      manager.updateTaskStatus('task-2', 'done')
-      manager.updateTaskStatus('task-3', 'completed')
-      expect(manager.isAllCompleted()).toBe(true)
-    })
-  })
-
-  describe('getNextTask - done 状态依赖', () => {
-    test('应该在依赖为 done 时返回下一个任务', () => {
-      manager.updateTaskStatus('task-1', 'done')
-      const next = manager.getNextTask()
-      expect(next!.id).toBe('task-2')
-    })
-  })
-
-  describe('getExecutableTasks - done 状态依赖', () => {
-    test('应该在依赖为 done 时返回可执行任务', () => {
-      manager.updateTaskStatus('task-1', 'done')
-      const executable = manager.getExecutableTasks()
-      expect(executable).toHaveLength(1)
-      expect(executable[0].id).toBe('task-2')
-    })
   })
 
   describe('getStats', () => {
@@ -163,6 +132,7 @@ describe('TaskManager', () => {
         total: 3,
         pending: 3,
         inProgress: 0,
+        review: 0,
         completed: 0,
         failed: 0,
       })
@@ -178,6 +148,7 @@ describe('TaskManager', () => {
         total: 3,
         pending: 0,
         inProgress: 1,
+        review: 0,
         completed: 1,
         failed: 1,
       })
