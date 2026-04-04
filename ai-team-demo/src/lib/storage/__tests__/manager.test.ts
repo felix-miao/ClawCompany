@@ -179,4 +179,196 @@ describe('StorageManager', () => {
       expect(conv.updatedAt).toBeDefined()
     })
   })
+
+  describe('Input Validation & Security', () => {
+    it('should reject conversation IDs with path traversal', async () => {
+      await expect(
+        storageManager.loadConversation('../../etc/passwd')
+      ).rejects.toThrow(/invalid/i)
+    })
+
+    it('should reject conversation IDs with path traversal (encoded)', async () => {
+      await expect(
+        storageManager.loadConversation('..%2F..%2Fetc%2Fpasswd')
+      ).rejects.toThrow(/invalid/i)
+    })
+
+    it('should reject agent IDs with path traversal', async () => {
+      await expect(
+        storageManager.loadAgent('../../../etc/shadow')
+      ).rejects.toThrow(/invalid/i)
+    })
+
+    it('should reject deleteConversation with path traversal ID', async () => {
+      await expect(
+        storageManager.deleteConversation('../../config.json')
+      ).rejects.toThrow(/invalid/i)
+    })
+
+    it('should reject deleteAgent with path traversal ID', async () => {
+      await expect(
+        storageManager.deleteAgent('../config.json')
+      ).rejects.toThrow(/invalid/i)
+    })
+
+    it('should reject IDs containing null bytes', async () => {
+      await expect(
+        storageManager.loadConversation('test\x00.json')
+      ).rejects.toThrow(/invalid/i)
+    })
+
+    it('should reject empty IDs', async () => {
+      await expect(
+        storageManager.loadConversation('')
+      ).rejects.toThrow(/invalid/i)
+    })
+  })
+
+  describe('Corrupted Data Handling', () => {
+    it('should return null when loading a conversation with corrupted JSON', async () => {
+      await fs.writeFile(
+        path.join(testDir, 'conversations', 'corrupted.json'),
+        '{not valid json!!!}',
+        'utf-8'
+      )
+
+      const result = await storageManager.loadConversation('corrupted')
+      expect(result).toBeNull()
+    })
+
+    it('should return null when loading an agent with corrupted JSON', async () => {
+      await fs.writeFile(
+        path.join(testDir, 'agents', 'corrupted.json'),
+        '{broken json',
+        'utf-8'
+      )
+
+      const result = await storageManager.loadAgent('corrupted')
+      expect(result).toBeNull()
+    })
+
+    it('should skip non-JSON files when listing conversations', async () => {
+      const conv = storageManager.createConversation('Valid Conv')
+      await storageManager.saveConversation(conv)
+      await fs.writeFile(
+        path.join(testDir, 'conversations', 'readme.txt'),
+        'not a conversation',
+        'utf-8'
+      )
+
+      const conversations = await storageManager.listConversations()
+      expect(conversations).toHaveLength(1)
+      expect(conversations[0].title).toBe('Valid Conv')
+    })
+
+    it('should skip non-JSON files when listing agents', async () => {
+      const agent: AgentConfig = {
+        id: 'valid-agent',
+        name: 'Valid Agent',
+        role: 'custom',
+        emoji: '🤖',
+        color: '#FF5733',
+        systemPrompt: 'Valid agent',
+        runtime: 'subagent',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      await storageManager.saveAgent(agent)
+      await fs.writeFile(
+        path.join(testDir, 'agents', 'notes.md'),
+        'not an agent config',
+        'utf-8'
+      )
+
+      const agents = await storageManager.listAgents()
+      expect(agents).toHaveLength(1)
+      expect(agents[0].name).toBe('Valid Agent')
+    })
+
+    it('should return null when loading a conversation with valid JSON but missing required fields', async () => {
+      await fs.writeFile(
+        path.join(testDir, 'conversations', 'incomplete.json'),
+        JSON.stringify({ id: 'incomplete' }),
+        'utf-8'
+      )
+
+      const result = await storageManager.loadConversation('incomplete')
+      expect(result).toBeNull()
+    })
+
+    it('should return null when loading an agent with valid JSON but schema-invalid data', async () => {
+      await fs.writeFile(
+        path.join(testDir, 'agents', 'invalid-schema.json'),
+        JSON.stringify({ id: 'x', name: 123, role: '' }),
+        'utf-8'
+      )
+
+      const result = await storageManager.loadAgent('invalid-schema')
+      expect(result).toBeNull()
+    })
+
+    it('should return null when loading a non-existent conversation', async () => {
+      const result = await storageManager.loadConversation('does-not-exist')
+      expect(result).toBeNull()
+    })
+
+    it('should return null when loading a non-existent agent', async () => {
+      const result = await storageManager.loadAgent('does-not-exist')
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('Single-Parse Correctness', () => {
+    it('should preserve special characters in conversation content through save/load cycle', async () => {
+      const conv: Conversation = {
+        id: 'special-chars',
+        title: 'Test "quotes" & <brackets> and /slashes/',
+        messages: [
+          {
+            id: 'msg-1',
+            agentId: 'dev',
+            agentName: 'Dev Agent',
+            content: 'Unicode: 你好世界 🌍 emoji=\u{1F600}',
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      await storageManager.saveConversation(conv)
+      const loaded = await storageManager.loadConversation('special-chars')
+
+      expect(loaded).not.toBeNull()
+      expect(loaded?.title).toBe(conv.title)
+      expect(loaded?.messages[0].content).toBe(conv.messages[0].content)
+    })
+
+    it('should preserve all agent config fields through save/load cycle', async () => {
+      const agent: AgentConfig = {
+        id: 'full-agent',
+        name: 'Full Agent "with quotes"',
+        role: 'custom',
+        emoji: '🔧',
+        color: '#00FF00',
+        systemPrompt: 'You are a "special" agent\nwith newlines & <tags>',
+        runtime: 'acp',
+        agentId: 'custom-123',
+        thinking: 'high',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+
+      await storageManager.saveAgent(agent)
+      const loaded = await storageManager.loadAgent('full-agent')
+
+      expect(loaded).not.toBeNull()
+      expect(loaded?.name).toBe(agent.name)
+      expect(loaded?.systemPrompt).toBe(agent.systemPrompt)
+      expect(loaded?.emoji).toBe('🔧')
+      expect(loaded?.runtime).toBe('acp')
+      expect(loaded?.thinking).toBe('high')
+      expect(loaded?.agentId).toBe('custom-123')
+    })
+  })
 })

@@ -1,5 +1,6 @@
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { z } from 'zod'
 
 import { FileSystemManager } from '../filesystem/manager'
 import { generateId } from '../utils/id'
@@ -45,6 +46,31 @@ export type AgentConfig = PersistedAgentConfig
 
 export { PersistedAgentConfigSchema as AgentConfigSchema } from '@/types/agent-config'
 
+const ConversationSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  messages: z.array(z.object({
+    id: z.string(),
+    agentId: z.string(),
+    agentName: z.string(),
+    content: z.string(),
+    timestamp: z.string(),
+  })),
+  createdAt: z.string().min(1),
+  updatedAt: z.string().min(1),
+})
+
+const INVALID_ID_PATTERN = /(\.\.|\/|\\|\x00)/
+
+function validateId(id: string, context: string): void {
+  if (!id || id.trim().length === 0) {
+    throw new Error(`${context}: invalid ID - must not be empty`)
+  }
+  if (INVALID_ID_PATTERN.test(id)) {
+    throw new Error(`${context}: invalid ID "${id}"`)
+  }
+}
+
 export class StorageManager {
   private dataDir: string
   private fsManager: FileSystemManager
@@ -73,6 +99,7 @@ export class StorageManager {
    * 保存对话
    */
   async saveConversation(conversation: Conversation): Promise<void> {
+    validateId(conversation.id, 'StorageManager.saveConversation')
     const filePath = `conversations/${conversation.id}.json`
     await this.fsManager.createFile(
       filePath,
@@ -84,6 +111,7 @@ export class StorageManager {
    * 加载对话
    */
   async loadConversation(id: string): Promise<Conversation | null> {
+    validateId(id, 'StorageManager.loadConversation')
     const filePath = `conversations/${id}.json`
     const result = await this.fsManager.readFile(filePath)
     
@@ -91,9 +119,11 @@ export class StorageManager {
       return null
     }
 
-    return safeJsonParse<Conversation>(result.content, 'StorageManager.loadConversation').success
-      ? (JSON.parse(result.content) as Conversation)
-      : null
+    const parsed = safeJsonParse<Conversation>(result.content, 'StorageManager.loadConversation')
+    if (!parsed.success) return null
+
+    const validated = ConversationSchema.safeParse(parsed.data)
+    return validated.success ? validated.data : null
   }
 
   /**
@@ -128,6 +158,7 @@ export class StorageManager {
    * 删除对话
    */
   async deleteConversation(id: string): Promise<void> {
+    validateId(id, 'StorageManager.deleteConversation')
     const filePath = `conversations/${id}.json`
     await this.fsManager.deleteFile(filePath)
   }
@@ -139,6 +170,7 @@ export class StorageManager {
    */
   async saveAgent(agent: AgentConfig): Promise<void> {
     const validated = PersistedAgentConfigSchema.parse(agent)
+    validateId(validated.id, 'StorageManager.saveAgent')
     const filePath = `agents/${validated.id}.json`
     await this.fsManager.createFile(
       filePath,
@@ -150,6 +182,7 @@ export class StorageManager {
    * 加载 Agent 配置
    */
   async loadAgent(id: string): Promise<AgentConfig | null> {
+    validateId(id, 'StorageManager.loadAgent')
     const filePath = `agents/${id}.json`
     const result = await this.fsManager.readFile(filePath)
     
@@ -160,9 +193,7 @@ export class StorageManager {
     const parsed = safeJsonParse<AgentConfig>(result.content, 'StorageManager.loadAgent')
     if (!parsed.success) return null
 
-    const validated = PersistedAgentConfigSchema.safeParse(
-      JSON.parse(result.content)
-    )
+    const validated = PersistedAgentConfigSchema.safeParse(parsed.data)
     return validated.success ? validated.data : null
   }
 
@@ -195,6 +226,7 @@ export class StorageManager {
    * 删除 Agent 配置
    */
   async deleteAgent(id: string): Promise<void> {
+    validateId(id, 'StorageManager.deleteAgent')
     const filePath = `agents/${id}.json`
     await this.fsManager.deleteFile(filePath)
   }
