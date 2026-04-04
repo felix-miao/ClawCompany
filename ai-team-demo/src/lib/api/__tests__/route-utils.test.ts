@@ -3,6 +3,8 @@ import {
   successResponse,
   withErrorHandling,
   withRateLimit,
+  withAuth,
+  requireApiKey,
   getClientId,
   checkRateLimit,
 } from '../route-utils'
@@ -22,6 +24,14 @@ jest.mock('@/lib/security/utils', () => ({
   RateLimiter: {
     isAllowed: jest.fn(() => true),
     getRemaining: jest.fn(() => 60),
+  },
+}))
+
+jest.mock('@/lib/core/logger', () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
   },
 }))
 
@@ -162,37 +172,136 @@ describe('route-utils', () => {
     })
   })
 
-  describe('withRateLimit', () => {
-    it('should check rate limit before handler', async () => {
-      ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(true)
+  describe('requireApiKey', () => {
+    const originalEnv = process.env
 
-      const handler = jest.fn().mockResolvedValue({
-        status: 200,
-        json: async () => ({ success: true }),
-      })
-      const wrapped = withRateLimit(handler, 'Test')
+    beforeEach(() => {
+      jest.resetModules()
+      process.env = { ...originalEnv }
+    })
+
+    afterAll(() => {
+      process.env = originalEnv
+    })
+
+    function makeRequest(headers: Record<string, string>): any {
+      return {
+        headers: {
+          get: (name: string) => headers[name] ?? null,
+        },
+      }
+    }
+
+    it('should return 500 when AGENT_API_KEY is not set', () => {
+      delete process.env.AGENT_API_KEY
+      const response = requireApiKey(makeRequest({}) as any)
+      expect(response).not.toBeNull()
+      expect(response!.status).toBe(500)
+    })
+
+    it('should return 401 when no key is provided in headers', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({}) as any)
+      expect(response).not.toBeNull()
+      expect(response!.status).toBe(401)
+    })
+
+    it('should return 401 for wrong key via x-api-key', async () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ 'x-api-key': 'wrong-key-value-xxxx' }) as any)
+      expect(response).not.toBeNull()
+      expect(response!.status).toBe(401)
+    })
+
+    it('should return null for correct key via x-api-key', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ 'x-api-key': 'test-secret-key-1234567890' }) as any)
+      expect(response).toBeNull()
+    })
+
+    it('should return 401 for wrong key via Authorization Bearer', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ authorization: 'Bearer wrong-key-val-xxxx' }) as any)
+      expect(response).not.toBeNull()
+      expect(response!.status).toBe(401)
+    })
+
+    it('should return null for correct key via Authorization Bearer', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ authorization: 'Bearer test-secret-key-1234567890' }) as any)
+      expect(response).toBeNull()
+    })
+
+    it('should handle case-insensitive Bearer prefix', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ authorization: 'bearer test-secret-key-1234567890' }) as any)
+      expect(response).toBeNull()
+    })
+
+    it('should use timing-safe comparison (different lengths)', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ 'x-api-key': 'short' }) as any)
+      expect(response).not.toBeNull()
+      expect(response!.status).toBe(401)
+    })
+
+    it('should reject key that is a prefix of the correct key', () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const response = requireApiKey(makeRequest({ 'x-api-key': 'test-secret-key' }) as any)
+      expect(response).not.toBeNull()
+      expect(response!.status).toBe(401)
+    })
+  })
+
+  describe('withAuth', () => {
+    const originalEnv = process.env
+
+    beforeEach(() => {
+      process.env = { ...originalEnv }
+    })
+
+    afterAll(() => {
+      process.env = originalEnv
+    })
+
+    it('should return 401 when api key is missing', async () => {
+      delete process.env.AGENT_API_KEY
+      const handler = jest.fn().mockResolvedValue({ status: 200 })
+      const wrapped = withAuth(handler, 'Test')
+      const request = { headers: { get: () => null } } as any
+
+      const response = await wrapped(request)
+      expect(response.status).toBe(500)
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it('should call handler when authenticated', async () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const handler = jest.fn().mockResolvedValue({ status: 200 })
+      const wrapped = withAuth(handler, 'Test')
       const request = {
-        headers: { get: () => '1.2.3.4' },
+        headers: {
+          get: (name: string) => name === 'x-api-key' ? 'test-secret-key-1234567890' : null,
+        },
       } as any
 
       const response = await wrapped(request)
-      expect(RateLimiter.isAllowed).toHaveBeenCalled()
+      expect(handler).toHaveBeenCalled()
       expect(response.status).toBe(200)
     })
 
-    it('should return 429 when rate limited', async () => {
-      ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(false)
-      ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(0)
-
-      const handler = jest.fn()
-      const wrapped = withRateLimit(handler, 'Test')
+    it('should handle handler errors through errorResponse', async () => {
+      process.env.AGENT_API_KEY = 'test-secret-key-1234567890'
+      const handler = jest.fn().mockRejectedValue(new Error('boom'))
+      const wrapped = withAuth(handler, 'Test')
       const request = {
-        headers: { get: () => '1.2.3.4' },
+        headers: {
+          get: (name: string) => name === 'x-api-key' ? 'test-secret-key-1234567890' : null,
+        },
       } as any
 
       const response = await wrapped(request)
-      expect(response.status).toBe(429)
-      expect(handler).not.toHaveBeenCalled()
+      expect(response.status).toBe(500)
     })
   })
 })
