@@ -1,42 +1,44 @@
 import { TaskStatisticsPanel } from '../TaskStatisticsPanel';
 import { TaskStatisticsStore, TaskStatistics } from '../../data/TaskStatisticsStore';
 
-// 简化的Scene mock
+jest.mock('../TaskHistoryPanel', () => ({
+  TaskHistoryPanel: {
+    formatDuration: (ms: number) => {
+      const seconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(seconds / 60);
+      if (minutes > 0) {
+        return `${minutes}分${seconds % 60}秒`;
+      }
+      return `${seconds}秒`;
+    },
+  },
+}));
+
 const mockScene = {
   add: {
-    text: jest.fn(() => ({ 
+    text: jest.fn(() => ({
       destroy: jest.fn(),
-      setText: jest.fn()
+      setText: jest.fn(),
     })),
-    graphics: jest.fn(() => {
-      const g: any = {
-        clear: jest.fn(),
-        destroy: jest.fn()
-      };
-      // 链式调用方法
-      g.fillStyle = jest.fn(() => g);
-      g.beginPath = jest.fn(() => g);
-      g.moveTo = jest.fn(() => g);
-      g.lineTo = jest.fn(() => g);
-      g.arc = jest.fn(() => g);
-      g.closePath = jest.fn(() => g);
-      g.fillPath = jest.fn(() => g);
-      return g;
-    }),
-    container: jest.fn(() => ({ 
-      setDepth: jest.fn(), 
+    graphics: jest.fn(() => ({
+      clear: jest.fn(),
+      fillStyle: jest.fn(),
+      fillRoundedRect: jest.fn(),
+      destroy: jest.fn(),
+    })),
+    container: jest.fn(() => ({
+      setDepth: jest.fn(),
       setVisible: jest.fn(),
       setPosition: jest.fn(),
       add: jest.fn(),
       remove: jest.fn(),
       destroy: jest.fn(),
       getAll: jest.fn(() => []),
-      length: 0
     })),
   },
   tweens: {
-    add: jest.fn()
-  }
+    add: jest.fn(),
+  },
 } as any;
 
 describe('TaskStatisticsPanel', () => {
@@ -46,31 +48,30 @@ describe('TaskStatisticsPanel', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // 设置默认的mock返回值
+
     mockStatistics = {
       totalTasks: 0,
       completedTasks: 0,
       failedTasks: 0,
       averageDuration: 0,
       successRate: 0,
-      agentDistribution: new Map()
+      agentDistribution: new Map(),
     };
-    
+
     mockStore = {
       getStatistics: jest.fn(() => mockStatistics),
-      update: jest.fn()
+      update: jest.fn(),
     } as any;
 
     panel = new TaskStatisticsPanel(mockScene, mockStore);
   });
 
-  describe('基本功能', () => {
-    it('初始状态应该是隐藏的', () => {
+  describe('show and hide', () => {
+    it('should be hidden initially', () => {
       expect(panel.isVisible()).toBe(false);
     });
 
-    it('应该能够显示和隐藏面板', () => {
+    it('should show and hide panel', () => {
       panel.show();
       expect(panel.isVisible()).toBe(true);
 
@@ -79,87 +80,75 @@ describe('TaskStatisticsPanel', () => {
     });
   });
 
-  describe('更新功能', () => {
-    it('在隐藏状态下不应该调用统计更新', () => {
+  describe('update', () => {
+    it('should not call store update when hidden', () => {
       panel.update();
-      
       expect(mockStore.update).not.toHaveBeenCalled();
     });
 
-    it('在显示状态下应该调用统计更新', () => {
+    it('should call store update when visible', () => {
       panel.show();
       panel.update();
-      
       expect(mockStore.update).toHaveBeenCalled();
     });
   });
 
-  describe('销毁功能', () => {
-    it('应该能够销毁面板', () => {
+  describe('destroy', () => {
+    it('should destroy panel', () => {
       panel.show();
-      
       panel.destroy();
-      
       expect(panel.isDestroyed()).toBe(true);
     });
 
-    it('销毁后不应该响应show/hide', () => {
+    it('should not respond to show/hide after destroy', () => {
       panel.destroy();
-      
       expect(() => panel.show()).not.toThrow();
       expect(() => panel.hide()).not.toThrow();
-      
       expect(panel.isVisible()).toBe(false);
     });
 
-    it('重复销毁不应该报错', () => {
+    it('should handle double destroy', () => {
       panel.destroy();
       expect(() => panel.destroy()).not.toThrow();
     });
   });
 
-  describe('统计数据显示', () => {
-    it('显示时应该获取统计数据', () => {
+  describe('statistics display', () => {
+    it('should get statistics on show', () => {
       mockStatistics = {
         totalTasks: 5,
         completedTasks: 3,
         failedTasks: 1,
         averageDuration: 45000,
         successRate: 75.5,
-        agentDistribution: new Map([
-          ['pm', 2],
-          ['dev', 3]
-        ])
+        agentDistribution: new Map([['pm', 2], ['dev', 3]]),
       };
-      mockStore.getStatistics.mockReturnValue(mockStatistics);
-      
+      (mockStore.getStatistics as jest.Mock).mockReturnValue(mockStatistics);
+
       panel.show();
-      
+
       expect(mockStore.getStatistics).toHaveBeenCalled();
       expect(mockStore.update).toHaveBeenCalled();
     });
 
-    it('应该正确处理空统计信息', () => {
-      mockStatistics = {
+    it('should handle empty statistics', () => {
+      (mockStore.getStatistics as jest.Mock).mockReturnValue({
         totalTasks: 0,
         completedTasks: 0,
         failedTasks: 0,
         averageDuration: 0,
         successRate: 0,
-        agentDistribution: new Map()
-      };
-      mockStore.getStatistics.mockReturnValue(mockStatistics);
-      
+        agentDistribution: new Map(),
+      });
+
       panel.show();
-      
       expect(panel.isVisible()).toBe(true);
     });
   });
 
-  describe('位置设置', () => {
-    it('应该能够设置位置', () => {
+  describe('setPosition', () => {
+    it('should set position', () => {
       panel.setPosition(100, 200);
-      
       expect(mockScene.add.container).toHaveBeenCalled();
     });
   });
