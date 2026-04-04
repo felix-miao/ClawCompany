@@ -4,6 +4,7 @@ import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
 import { fileSystemManager } from '../filesystem/manager'
+import { SandboxedFileWriter } from '../security/sandbox'
 import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError, FileSystemError } from '../core/errors'
@@ -57,10 +58,12 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
 
 export class Orchestrator extends BaseOrchestrator {
   private projectId: string
+  private sandboxedWriter: SandboxedFileWriter
 
   constructor(projectId: string = 'default', retryConfig?: Partial<RetryConfig>, observability?: ObservabilityConfig) {
     super(retryConfig, observability)
     this.projectId = projectId
+    this.sandboxedWriter = new SandboxedFileWriter(process.cwd())
   }
 
   getObservability() {
@@ -82,8 +85,14 @@ export class Orchestrator extends BaseOrchestrator {
       getAllTasks: () => taskManager.getAllTasks(),
       getChatHistory: () => chatManager.getHistory(),
       executeAgent: (role, task, context) => agentManager.executeAgent(role, task, context),
-      saveFile: async (path, content) => {
-        await fileSystemManager.createFile(path, content)
+      saveFile: async (filePath, content) => {
+        const result = await this.sandboxedWriter.writeFile(filePath, content)
+        if (!result.success) {
+          throw new Error(`Sandbox blocked file write: ${result.error}`)
+        }
+        if (result.warnings && result.warnings.length > 0) {
+          console.warn('[Sandbox] Warnings for', filePath, ':', result.warnings)
+        }
       },
       clearAll: () => {
         taskManager.clearTasks()

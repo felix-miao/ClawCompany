@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { InputValidator } from '@/lib/security/utils'
+import { SandboxedFileWriter } from '@/lib/security/sandbox'
 import { FileSystemManager } from '@/lib/filesystem/manager'
 import { StorageManager } from '@/lib/storage/manager'
 import { GitManager } from '@/lib/git/manager'
@@ -12,6 +13,7 @@ import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 
 const fsManager = new FileSystemManager(process.cwd())
+const sandboxedWriter = new SandboxedFileWriter(process.cwd())
 const storageManager = new StorageManager()
 const gitManager = new GitManager(process.cwd())
 
@@ -83,15 +85,24 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
 
   if (agentId === 'dev-agent' && agentMessage.includes('```')) {
     const files = parseCodeBlocks(agentMessage)
+    const savedFiles: string[] = []
 
     for (const file of files) {
-      if (InputValidator.validatePath(file.path)) {
-        await fsManager.createFile(file.path, file.content)
+      if (!InputValidator.validatePath(file.path)) continue
+
+      const result = await sandboxedWriter.writeFile(file.path, file.content)
+      if (result.success) {
+        savedFiles.push(result.path || file.path)
+        if (result.warnings && result.warnings.length > 0) {
+          console.warn('[Sandbox] Warnings for', file.path, ':', result.warnings)
+        }
+      } else {
+        console.error('[Sandbox] Blocked write to', file.path, ':', result.error)
       }
     }
 
-    if (files.length > 0) {
-      await gitManager.commit(`feat: ${agentConfig.name} 生成代码\n\n文件：${files.map(f => f.path).join(', ')}`)
+    if (savedFiles.length > 0) {
+      await gitManager.commit(`feat: ${agentConfig.name} 生成代码\n\n文件：${savedFiles.join(', ')}`)
     }
   }
 
