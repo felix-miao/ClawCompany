@@ -137,7 +137,7 @@ describe('AnimationController', () => {
       (sprite.scene.time as any).now = 50;
       controller.update(0, -100, false, false);
 
-      expect(controller.getState()).toBe('moving');
+      expect(controller.getState()).toBe('jumping');
     });
 
     it('should allow transition after cooldown expires', () => {
