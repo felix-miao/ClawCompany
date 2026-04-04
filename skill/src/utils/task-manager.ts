@@ -1,5 +1,8 @@
 import type { Task } from '../core/types'
 import { resolveTaskOrder } from '@ai-team-demo/lib/utils/task-resolver'
+import { TaskStateMachine, InvalidTransitionError } from '@ai-team-demo/lib/tasks/state-machine'
+
+export { TaskStateMachine, InvalidTransitionError }
 
 export interface TaskManagerConfig {
   tasks: Task[]
@@ -20,12 +23,17 @@ export class TaskManager {
     return this.tasks.get(id)
   }
 
-  updateTaskStatus(id: string, status: Task['status']): void {
+  updateTaskStatus(id: string, status: Task['status']): Task | undefined {
     const task = this.tasks.get(id)
-    if (task) {
-      task.status = status
-      this.tasks.set(id, task)
+    if (!task) return undefined
+
+    if (!TaskStateMachine.isValidTransition(task.status, status)) {
+      throw new InvalidTransitionError(task.status, status)
     }
+
+    task.status = status
+    this.tasks.set(id, task)
+    return task
   }
 
   private isCompleted(status: Task['status']): boolean {
@@ -39,7 +47,7 @@ export class TaskManager {
           const dep = this.tasks.get(depId)
           return dep ? this.isCompleted(dep.status) : false
         })
-        
+
         if (dependenciesMet) {
           return task
         }
@@ -50,20 +58,20 @@ export class TaskManager {
 
   getExecutableTasks(): Task[] {
     const executable: Task[] = []
-    
+
     for (const task of this.tasks.values()) {
       if (task.status === 'pending') {
         const dependenciesMet = task.dependencies.every(depId => {
           const dep = this.tasks.get(depId)
           return dep ? this.isCompleted(dep.status) : false
         })
-        
+
         if (dependenciesMet) {
           executable.push(task)
         }
       }
     }
-    
+
     return executable
   }
 
@@ -116,7 +124,7 @@ export class TaskManager {
       inProgress,
       review,
       completed,
-      failed
+      failed,
     }
   }
 

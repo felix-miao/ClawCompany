@@ -350,6 +350,7 @@ export abstract class BaseOrchestrator {
     if (!response) return
 
     if (response.status === 'success') {
+      cb.updateTaskStatus(task.id, 'review')
       this.markTaskCompleted(task, cb, completedTaskIds, role)
     } else {
       cb.updateTaskStatus(task.id, 'pending')

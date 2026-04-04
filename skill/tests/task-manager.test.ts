@@ -1,4 +1,4 @@
-import { TaskManager, createTaskManager } from '../src/utils/task-manager'
+import { TaskManager, createTaskManager, InvalidTransitionError } from '../src/utils/task-manager'
 import type { Task } from '../src/core/types'
 
 const createTask = (overrides: Partial<Task> = {}): Task => ({
@@ -11,6 +11,17 @@ const createTask = (overrides: Partial<Task> = {}): Task => ({
   status: 'pending',
   ...overrides,
 })
+
+function completeTask(manager: TaskManager, taskId: string): void {
+  manager.updateTaskStatus(taskId, 'in_progress')
+  manager.updateTaskStatus(taskId, 'review')
+  manager.updateTaskStatus(taskId, 'completed')
+}
+
+function failTask(manager: TaskManager, taskId: string): void {
+  manager.updateTaskStatus(taskId, 'in_progress')
+  manager.updateTaskStatus(taskId, 'failed')
+}
 
 describe('TaskManager', () => {
   let manager: TaskManager
@@ -54,8 +65,32 @@ describe('TaskManager', () => {
     })
 
     test('不应该影响不存在的任务', () => {
-      manager.updateTaskStatus('nonexistent', 'completed')
+      manager.updateTaskStatus('nonexistent', 'in_progress')
       expect(manager.getAllTasks()).toHaveLength(3)
+    })
+
+    test('应该拒绝无效的状态转换', () => {
+      expect(() => {
+        manager.updateTaskStatus('task-1', 'completed')
+      }).toThrow(InvalidTransitionError)
+    })
+
+    test('应该允许有效的状态路径 pending -> in_progress -> review -> completed', () => {
+      manager.updateTaskStatus('task-1', 'in_progress')
+      manager.updateTaskStatus('task-1', 'review')
+      manager.updateTaskStatus('task-1', 'completed')
+      expect(manager.getTask('task-1')!.status).toBe('completed')
+    })
+
+    test('应该允许 pending -> failed', () => {
+      manager.updateTaskStatus('task-1', 'failed')
+      expect(manager.getTask('task-1')!.status).toBe('failed')
+    })
+
+    test('应该允许 failed -> pending 重试', () => {
+      manager.updateTaskStatus('task-1', 'failed')
+      manager.updateTaskStatus('task-1', 'pending')
+      expect(manager.getTask('task-1')!.status).toBe('pending')
     })
   })
 
@@ -72,7 +107,7 @@ describe('TaskManager', () => {
     })
 
     test('应该在依赖完成后返回下一个任务', () => {
-      manager.updateTaskStatus('task-1', 'completed')
+      completeTask(manager, 'task-1')
       const next = manager.getNextTask()
       expect(next!.id).toBe('task-2')
     })
@@ -93,7 +128,7 @@ describe('TaskManager', () => {
     })
 
     test('应该在第一个任务完成后返回依赖的任务', () => {
-      manager.updateTaskStatus('task-1', 'completed')
+      completeTask(manager, 'task-1')
       const executable = manager.getExecutableTasks()
       expect(executable).toHaveLength(1)
       expect(executable[0].id).toBe('task-2')
@@ -111,16 +146,16 @@ describe('TaskManager', () => {
     })
 
     test('应该返回 true 当所有任务完成时', () => {
-      manager.updateTaskStatus('task-1', 'completed')
-      manager.updateTaskStatus('task-2', 'completed')
-      manager.updateTaskStatus('task-3', 'completed')
+      completeTask(manager, 'task-1')
+      completeTask(manager, 'task-2')
+      completeTask(manager, 'task-3')
       expect(manager.isAllCompleted()).toBe(true)
     })
 
     test('应该忽略 failed 状态', () => {
-      manager.updateTaskStatus('task-1', 'completed')
-      manager.updateTaskStatus('task-2', 'failed')
-      manager.updateTaskStatus('task-3', 'completed')
+      completeTask(manager, 'task-1')
+      failTask(manager, 'task-2')
+      completeTask(manager, 'task-3')
       expect(manager.isAllCompleted()).toBe(false)
     })
   })
@@ -140,8 +175,8 @@ describe('TaskManager', () => {
 
     test('应该正确统计各状态', () => {
       manager.updateTaskStatus('task-1', 'in_progress')
-      manager.updateTaskStatus('task-2', 'completed')
-      manager.updateTaskStatus('task-3', 'failed')
+      completeTask(manager, 'task-2')
+      failTask(manager, 'task-3')
 
       const stats = manager.getStats()
       expect(stats).toEqual({

@@ -9,6 +9,7 @@ import {
   ExecutionResult,
   OrchestratorConfig,
 } from './core/types'
+import { TaskManager } from './utils/task-manager'
 
 export type { Task, PMResult, DevResult, ReviewResult, ReviewResult as ReviewAgentResult, ExecutionResult, OrchestratorConfig }
 
@@ -131,10 +132,11 @@ export async function orchestrate(
       return { success: false, tasks: [], messages }
     }
 
+    const taskManager = new TaskManager({ tasks: pmResult.tasks })
     const cwd = projectPath || process.cwd()
 
     for (const task of pmResult.tasks) {
-      task.status = 'in_progress'
+      taskManager.updateTaskStatus(task.id, 'in_progress')
       const devResult = await orchestrator.runDev(task, cwd)
       messages.push({
         agent: 'dev',
@@ -142,6 +144,7 @@ export async function orchestrate(
         timestamp: new Date().toISOString(),
       })
 
+      taskManager.updateTaskStatus(task.id, 'review')
       const reviewResult = await orchestrator.runReview(task, devResult)
       messages.push({
         agent: 'review',
@@ -149,10 +152,14 @@ export async function orchestrate(
         timestamp: new Date().toISOString(),
       })
 
-      task.status = reviewResult.approved ? 'completed' : 'pending'
+      if (reviewResult.approved) {
+        taskManager.updateTaskStatus(task.id, 'completed')
+      } else {
+        taskManager.updateTaskStatus(task.id, 'pending')
+      }
     }
 
-    return { success: true, tasks: pmResult.tasks, messages }
+    return { success: true, tasks: taskManager.getAllTasks(), messages }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error'
     messages.push({
