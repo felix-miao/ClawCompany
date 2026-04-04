@@ -173,11 +173,19 @@ export abstract class BaseOrchestrator {
   }
 
   protected buildContext(callbacks: OrchestratorCallbacks): AgentContext {
+    const tasks = callbacks.getAllTasks()
+    const files: Record<string, string> = {}
+    for (const task of tasks) {
+      for (const filePath of task.files) {
+        files[filePath] = ''
+      }
+    }
+
     return {
       projectId: 'default',
-      tasks: callbacks.getAllTasks(),
-      files: {},
-      chatHistory: [],
+      tasks,
+      files,
+      chatHistory: callbacks.getChatHistory(),
     }
   }
 
