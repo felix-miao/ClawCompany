@@ -32,6 +32,7 @@ export interface OrchestratorCallbacks {
   getAllTasks: () => Task[]
   getChatHistory: () => Array<{ agent: AgentRole | 'user'; content: string; timestamp?: Date }>
   executeAgent: (role: AgentRole, task: Task, context: AgentContext) => Promise<AgentResponse>
+  readFile?: (path: string) => Promise<string | null>
   saveFile?: (path: string, content: string) => Promise<void>
   clearAll?: () => void
 }
@@ -125,7 +126,7 @@ export abstract class BaseOrchestrator {
     for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
       const timerId = this.obs.perf.startTimer(`agent.${role}`)
       try {
-        const context = this.buildContext(callbacks)
+        const context = await this.buildContext(callbacks)
         const result = await callbacks.executeAgent(role, task, context)
         this.obs.perf.stopTimer(timerId)
         this.obs.perf.recordValue(`orchestrator.agent.${role}.duration`, this.obs.perf.getMetricEntries(`agent.${role}`).length > 0 ? Date.now() - this.startTime : 0)
@@ -188,12 +189,22 @@ export abstract class BaseOrchestrator {
     return null
   }
 
-  protected buildContext(callbacks: OrchestratorCallbacks): AgentContext {
+  protected async buildContext(callbacks: OrchestratorCallbacks): Promise<AgentContext> {
     const tasks = callbacks.getAllTasks()
     const files: Record<string, string> = {}
     for (const task of tasks) {
       for (const filePath of task.files) {
-        files[filePath] = ''
+        if (files[filePath] !== undefined) continue
+        if (callbacks.readFile) {
+          try {
+            const content = await callbacks.readFile(filePath)
+            files[filePath] = content ?? ''
+          } catch {
+            files[filePath] = ''
+          }
+        } else {
+          files[filePath] = ''
+        }
       }
     }
 

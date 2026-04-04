@@ -21,7 +21,7 @@ class TestOrchestrator extends BaseOrchestrator {
     }
   }
 
-  exposeBuildContext(callbacks: OrchestratorCallbacks): AgentContext {
+  async exposeBuildContext(callbacks: OrchestratorCallbacks): Promise<AgentContext> {
     return this.buildContext(callbacks)
   }
 
@@ -61,7 +61,7 @@ function makeMockCallbacks(overrides?: Partial<OrchestratorCallbacks>): Orchestr
 }
 
 describe('BaseOrchestrator - buildContext', () => {
-  it('should populate files from task file references', () => {
+  it('should populate files from task file references', async () => {
     const mockTasks: Task[] = [
       {
         id: 'task-1',
@@ -81,7 +81,7 @@ describe('BaseOrchestrator - buildContext', () => {
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
-    const context = orchestrator.exposeBuildContext(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
 
     expect(context.tasks).toEqual(mockTasks)
     expect(context.files).toBeDefined()
@@ -90,7 +90,7 @@ describe('BaseOrchestrator - buildContext', () => {
     )
   })
 
-  it('should populate chatHistory from getChatHistory callback', () => {
+  it('should populate chatHistory from getChatHistory callback', async () => {
     const chatHistory = [
       { agent: 'user' as const, content: 'Build a feature', timestamp: new Date() },
       { agent: 'pm' as const, content: 'Here is my analysis', timestamp: new Date() },
@@ -101,7 +101,7 @@ describe('BaseOrchestrator - buildContext', () => {
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
-    const context = orchestrator.exposeBuildContext(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
 
     expect(context.chatHistory).toHaveLength(2)
     expect(context.chatHistory[0].agent).toBe('user')
@@ -110,7 +110,7 @@ describe('BaseOrchestrator - buildContext', () => {
     expect(context.chatHistory[1].content).toBe('Here is my analysis')
   })
 
-  it('should return empty files when tasks have no file references', () => {
+  it('should return empty files when tasks have no file references', async () => {
     const mockTasks: Task[] = [
       {
         id: 'task-1',
@@ -131,13 +131,13 @@ describe('BaseOrchestrator - buildContext', () => {
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
-    const context = orchestrator.exposeBuildContext(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
 
     expect(context.files).toEqual({})
     expect(context.chatHistory).toEqual([])
   })
 
-  it('should aggregate files from multiple tasks without duplicates', () => {
+  it('should aggregate files from multiple tasks without duplicates', async () => {
     const mockTasks: Task[] = [
       {
         id: 'task-1',
@@ -168,7 +168,7 @@ describe('BaseOrchestrator - buildContext', () => {
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
-    const context = orchestrator.exposeBuildContext(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
 
     const fileKeys = Object.keys(context.files)
     expect(fileKeys).toContain('src/index.ts')
@@ -177,15 +177,15 @@ describe('BaseOrchestrator - buildContext', () => {
     expect(fileKeys.length).toBe(3)
   })
 
-  it('should set projectId to default', () => {
+  it('should set projectId to default', async () => {
     const callbacks = makeMockCallbacks()
     const orchestrator = new TestOrchestrator(callbacks)
-    const context = orchestrator.exposeBuildContext(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
 
     expect(context.projectId).toBe('default')
   })
 
-  it('should NOT pass empty files and chatHistory to executeAgent (the bug)', () => {
+  it('should NOT pass empty files and chatHistory to executeAgent (the bug)', async () => {
     const chatHistory = [
       { agent: 'user' as const, content: 'Build feature X' },
       { agent: 'pm' as const, content: 'I analyzed it' },
@@ -216,10 +216,118 @@ describe('BaseOrchestrator - buildContext', () => {
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
-    const context = orchestrator.exposeBuildContext(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
 
     expect(Object.keys(context.files).length).toBeGreaterThan(0)
     expect(context.chatHistory.length).toBeGreaterThan(0)
+  })
+
+  it('should populate file contents using readFile callback', async () => {
+    const mockTasks: Task[] = [
+      {
+        id: 'task-1',
+        title: 'Build X',
+        description: 'Build feature X',
+        status: 'pending',
+        assignedTo: 'dev',
+        dependencies: [],
+        files: ['src/feature-x.ts', 'src/utils.ts'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    const callbacks = makeMockCallbacks({
+      getAllTasks: jest.fn().mockReturnValue(mockTasks),
+      readFile: jest.fn()
+        .mockResolvedValueOnce('export const featureX = () => {}')
+        .mockResolvedValueOnce('export const utils = () => {}'),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
+
+    expect(context.files['src/feature-x.ts']).toBe('export const featureX = () => {}')
+    expect(context.files['src/utils.ts']).toBe('export const utils = () => {}')
+    expect(callbacks.readFile).toHaveBeenCalledWith('src/feature-x.ts')
+    expect(callbacks.readFile).toHaveBeenCalledWith('src/utils.ts')
+  })
+
+  it('should fallback to empty string when readFile returns null', async () => {
+    const mockTasks: Task[] = [
+      {
+        id: 'task-1',
+        title: 'Build',
+        description: 'Build something',
+        status: 'pending',
+        assignedTo: 'dev',
+        dependencies: [],
+        files: ['src/new-file.ts'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    const callbacks = makeMockCallbacks({
+      getAllTasks: jest.fn().mockReturnValue(mockTasks),
+      readFile: jest.fn().mockResolvedValue(null),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
+
+    expect(context.files['src/new-file.ts']).toBe('')
+  })
+
+  it('should handle readFile errors gracefully', async () => {
+    const mockTasks: Task[] = [
+      {
+        id: 'task-1',
+        title: 'Build',
+        description: 'Build something',
+        status: 'pending',
+        assignedTo: 'dev',
+        dependencies: [],
+        files: ['src/error-file.ts'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    const callbacks = makeMockCallbacks({
+      getAllTasks: jest.fn().mockReturnValue(mockTasks),
+      readFile: jest.fn().mockRejectedValue(new Error('Read error')),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
+
+    expect(context.files['src/error-file.ts']).toBe('')
+  })
+
+  it('should work without readFile callback (backward compatible)', async () => {
+    const mockTasks: Task[] = [
+      {
+        id: 'task-1',
+        title: 'Build',
+        description: 'Build something',
+        status: 'pending',
+        assignedTo: 'dev',
+        dependencies: [],
+        files: ['src/file.ts'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    const callbacks = makeMockCallbacks({
+      getAllTasks: jest.fn().mockReturnValue(mockTasks),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks)
+    const context = await orchestrator.exposeBuildContext(callbacks)
+
+    expect(context.files['src/file.ts']).toBe('')
   })
 })
 
