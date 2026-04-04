@@ -39,6 +39,25 @@ export interface ErrorRecoveryOptions {
   circuitCooldown?: number
 }
 
+export interface RetryOptions {
+  circuitKey: string
+  fn: () => Promise<unknown>
+  fallback?: () => Promise<unknown>
+  maxRetries?: number
+  initialDelay?: number
+  maxDelay?: number
+  backoffMultiplier?: number
+}
+
+export interface RetryResult {
+  success: boolean
+  result?: unknown
+  error?: AppError
+  attempts: number
+  usedFallback?: boolean
+  circuitOpen?: boolean
+}
+
 interface RecoveryStats {
   totalErrors: number
   errorsByCategory: Record<string, number>
@@ -181,5 +200,59 @@ export class ErrorRecovery {
 
   getStats(): RecoveryStats {
     return { ...this.stats }
+  }
+
+  async retryWithCircuitBreaker(options: RetryOptions): Promise<RetryResult> {
+    const {
+      circuitKey,
+      fn,
+      fallback,
+      maxRetries = 3,
+      initialDelay = 1000,
+      maxDelay = 10000,
+      backoffMultiplier = 2,
+    } = options
+
+    const circuitState = this.getCircuitState(circuitKey)
+    if (circuitState === CircuitState.OPEN) {
+      return { success: false, attempts: 0, circuitOpen: true }
+    }
+
+    let lastError: AppError | undefined
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await fn()
+        this.recordSuccess(circuitKey)
+        return { success: true, result, attempts: attempt + 1 }
+      } catch (error) {
+        const appError = toAppError(error)
+        lastError = appError
+        this.stats.totalErrors++
+        this.stats.errorsByCategory[appError.category] = (this.stats.errorsByCategory[appError.category] ?? 0) + 1
+        this.recordFailure(circuitKey)
+
+        if (appError.severity === ErrorSeverity.CRITICAL) {
+          return { success: false, error: appError, attempts: attempt + 1 }
+        }
+
+        if (attempt < maxRetries) {
+          const delay = Math.min(initialDelay * Math.pow(backoffMultiplier, attempt), maxDelay)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    }
+
+    if (fallback) {
+      try {
+        const result = await fallback()
+        this.recordSuccess(circuitKey)
+        return { success: true, result, attempts: maxRetries + 1, usedFallback: true }
+      } catch (fallbackError) {
+        return { success: false, error: toAppError(fallbackError), attempts: maxRetries + 1, usedFallback: true }
+      }
+    }
+
+    return { success: false, error: lastError, attempts: maxRetries + 1 }
   }
 }
