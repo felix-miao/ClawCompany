@@ -166,48 +166,53 @@ describe('Orchestrator - 错误处理和重试机制', () => {
         })
       
       ;(agentManager.executeAgent as jest.Mock)
-        .mockImplementationOnce(async () => {
-          executedTasks.push('pm')
-          return {
-            message: 'PM Analysis',
-            tasks: [
-              { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: [], files: [] },
-              { title: 'Task 2', description: 'Task 2', assignedTo: 'dev', dependencies: [], files: [] },
-            ],
+        .mockImplementation(async (role: string, task: { id: string }, context: unknown) => {
+          if (role === 'pm') {
+            executedTasks.push('pm')
+            return {
+              message: 'PM Analysis',
+              tasks: [
+                { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: [], files: [] },
+                { title: 'Task 2', description: 'Task 2', assignedTo: 'dev', dependencies: [], files: [] },
+              ],
+            }
           }
-        })
-        // Dev Task 1 - initial + 3 retries all fail (4 attempts total)
-        .mockImplementationOnce(async () => {
-          executedTasks.push('dev-1-attempt-1')
-          throw new Error('Dev Task 1 failed')
-        })
-        .mockImplementationOnce(async () => {
-          executedTasks.push('dev-1-attempt-2')
-          throw new Error('Dev Task 1 failed again')
-        })
-        .mockImplementationOnce(async () => {
-          executedTasks.push('dev-1-attempt-3')
-          throw new Error('Dev Task 1 failed third time')
-        })
-        .mockImplementationOnce(async () => {
-          executedTasks.push('dev-1-attempt-4')
-          throw new Error('Dev Task 1 failed fourth time')
-        })
-        // Dev Task 2 - succeeds
-        .mockImplementationOnce(async () => {
-          executedTasks.push('dev-2')
-          return {
-            message: 'Dev Task 2 Success',
-            files: [],
+
+          if (role === 'dev') {
+            // Dev Task 1 - all attempts fail
+            if (task.id === 'dev-task-1') {
+              const attemptCount = executedTasks.filter(t => t.startsWith('dev-1-attempt')).length + 1
+              executedTasks.push(`dev-1-attempt-${attemptCount}`)
+              throw new Error(`Dev Task 1 failed attempt ${attemptCount}`)
+            }
+
+            // Dev Task 2 - succeeds
+            if (task.id === 'dev-task-2') {
+              executedTasks.push('dev-2')
+              return {
+                message: 'Dev Task 2 Success',
+                files: [],
+              }
+            }
           }
-        })
-        // Review for Task 2
-        .mockImplementationOnce(async () => {
-          executedTasks.push('review-2')
-          return {
-            message: 'Review OK',
-            status: 'success',
+
+          if (role === 'review') {
+            // Review for Task 2 - succeeds
+            if (task.id === 'dev-task-2') {
+              executedTasks.push('review-2')
+              return {
+                message: 'Review OK',
+                status: 'success',
+              }
+            }
+            // Review for Task 1 - should not be called since dev task failed
+            if (task.id === 'dev-task-1') {
+              executedTasks.push('review-1-unexpected')
+              throw new Error('Review should not be called for failed task')
+            }
           }
+
+          throw new Error(`Unexpected agent call: ${role}, ${task.id}`)
         })
       
       ;(taskManager.getTask as jest.Mock)
