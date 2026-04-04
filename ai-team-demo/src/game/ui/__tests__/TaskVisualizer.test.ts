@@ -39,6 +39,7 @@ jest.mock('phaser', () => {
         c.x = x;
         c.y = y;
       }),
+      getBounds: jest.fn().mockReturnValue({ contains: () => false }),
     };
     return c;
   };
@@ -60,6 +61,10 @@ jest.mock('phaser', () => {
       add: jest.fn((config: any) => {
         if (config.onComplete) config.onComplete();
       }),
+    },
+    input: {
+      on: jest.fn(),
+      off: jest.fn(),
     },
   };
 

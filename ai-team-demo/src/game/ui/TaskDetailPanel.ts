@@ -47,6 +47,7 @@ export class TaskDetailPanel {
   private destroyed: boolean = false;
   private x: number = 0;
   private y: number = 0;
+  private clickHandler: (pointer: Phaser.Input.Pointer) => void;
 
   constructor(scene: Phaser.Scene, config: TaskDetailPanelConfig) {
     this.scene = scene;
@@ -149,6 +150,14 @@ export class TaskDetailPanel {
       duration: FADE_DURATION,
       ease: 'Power2',
     });
+
+    this.clickHandler = (pointer: Phaser.Input.Pointer) => {
+      const containerBounds = this.container.getBounds();
+      if (!containerBounds.contains(pointer.worldX, pointer.worldY)) {
+        this.close();
+      }
+    };
+    scene.input.on('pointerdown', this.clickHandler);
   }
 
   update(task: Task): void {
@@ -195,6 +204,8 @@ export class TaskDetailPanel {
   close(): void {
     if (this.destroyed) return;
 
+    this.scene.input.off('pointerdown', this.clickHandler);
+
     this.scene.tweens.add({
       targets: this.container,
       alpha: 0,
@@ -209,6 +220,8 @@ export class TaskDetailPanel {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+
+    this.scene.input.off('pointerdown', this.clickHandler);
 
     this.background.destroy();
     this.borderGraphics.destroy();

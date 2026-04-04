@@ -15,7 +15,12 @@ describe('Orchestrator - Parallel Task Execution', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    orchestrator = new Orchestrator('test-parallel')
+    orchestrator = new Orchestrator('test-parallel', {
+      maxRetries: 1,
+      initialDelay: 1,
+      maxDelay: 10,
+      backoffMultiplier: 1,
+    })
 
     ;(chatManager.sendUserMessage as jest.Mock).mockImplementation(() => {})
     ;(chatManager.broadcast as jest.Mock).mockImplementation(() => {})
@@ -23,6 +28,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
     ;(chatManager.clearHistory as jest.Mock).mockImplementation(() => {})
     ;(taskManager.updateTaskStatus as jest.Mock).mockImplementation(() => {})
     ;(taskManager.clearTasks as jest.Mock).mockImplementation(() => {})
+    ;(taskManager.getAllTasks as jest.Mock).mockReturnValue([])
     ;(taskManager.getStats as jest.Mock).mockReturnValue({
       total: 0, pending: 0, in_progress: 0, review: 0, done: 0,
     })

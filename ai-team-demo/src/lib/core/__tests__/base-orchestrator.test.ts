@@ -1,11 +1,12 @@
-import { BaseOrchestrator, OrchestratorCallbacks } from '../base-orchestrator'
+import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../base-orchestrator'
 import { AgentContext, AgentResponse, AgentRole, Task, FileChange, RetryConfig } from '../types'
+import { Logger, LogLevel, LogEntry } from '../logger'
 
 class TestOrchestrator extends BaseOrchestrator {
   private callbacks: OrchestratorCallbacks
 
-  constructor(callbacks: OrchestratorCallbacks, retryConfig?: Partial<RetryConfig>) {
-    super(retryConfig)
+  constructor(callbacks: OrchestratorCallbacks, retryConfig?: Partial<RetryConfig>, observability?: ObservabilityConfig) {
+    super(retryConfig, observability)
     this.callbacks = callbacks
   }
 
@@ -982,5 +983,89 @@ describe('BaseOrchestrator - executeSingleTask', () => {
 
     const obs = orchestrator.getObservability()
     expect(obs.performance.counters['orchestrator.tasks.failed']).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('BaseOrchestrator - logging', () => {
+  class LogCapturingOrchestrator extends BaseOrchestrator {
+    protected getCallbacks(): OrchestratorCallbacks {
+      return makeMockCallbacks()
+    }
+    async executeUserRequest() {
+      return { success: false, messages: [], tasks: [] }
+    }
+    testLogInfo(msg: string, ctx?: Record<string, unknown>) { this.logInfo(msg, ctx) }
+    testLogWarn(msg: string, ctx?: Record<string, unknown>) { this.logWarn(msg, ctx) }
+    testLogError(msg: string, ctx?: Record<string, unknown>) { this.logError(msg, ctx) }
+  }
+
+  it('should not call console.log/warn/error directly (no double output)', () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    const captured: LogEntry[] = []
+    const logger = new Logger({
+      minLevel: LogLevel.DEBUG,
+      transports: [{ log: (entry) => captured.push(entry) }],
+    })
+
+    const orch = new LogCapturingOrchestrator({}, { logger })
+    orch.testLogInfo('info msg', { key: 'val' })
+    orch.testLogWarn('warn msg', { key: 'val' })
+    orch.testLogError('error msg', { key: 'val' })
+
+    expect(logSpy).not.toHaveBeenCalled()
+    expect(warnSpy).not.toHaveBeenCalled()
+    expect(errorSpy).not.toHaveBeenCalled()
+    expect(captured).toHaveLength(3)
+    expect(captured[0].level).toBe(LogLevel.INFO)
+    expect(captured[1].level).toBe(LogLevel.WARN)
+    expect(captured[2].level).toBe(LogLevel.ERROR)
+
+    logSpy.mockRestore()
+    warnSpy.mockRestore()
+    errorSpy.mockRestore()
+  })
+
+  it('should respect minLevel filtering', () => {
+    const captured: LogEntry[] = []
+    const logger = new Logger({
+      minLevel: LogLevel.WARN,
+      transports: [{ log: (entry) => captured.push(entry) }],
+    })
+
+    const orch = new LogCapturingOrchestrator({}, { logger })
+    orch.testLogInfo('should be filtered')
+    orch.testLogWarn('should pass')
+    orch.testLogError('should also pass')
+
+    expect(captured).toHaveLength(2)
+    expect(captured[0].levelName).toBe('WARN')
+    expect(captured[0].message).toBe('should pass')
+    expect(captured[1].levelName).toBe('ERROR')
+    expect(captured[1].message).toBe('should also pass')
+  })
+
+  it('should not throw when no logger is provided', () => {
+    const orch = new LogCapturingOrchestrator()
+    expect(() => {
+      orch.testLogInfo('no logger')
+      orch.testLogWarn('no logger')
+      orch.testLogError('no logger')
+    }).not.toThrow()
+  })
+
+  it('should emit error:tracked events for warn and error but not info', () => {
+    const orch = new LogCapturingOrchestrator()
+    orch.testLogInfo('info msg')
+    orch.testLogWarn('warn msg')
+    orch.testLogError('error msg')
+
+    const events = orch.getEventBus().getHistory()
+    const trackedEvents = events.filter(e => e.type === 'error:tracked')
+    expect(trackedEvents).toHaveLength(2)
+    expect(trackedEvents[0].data.level).toBe('warn')
+    expect(trackedEvents[1].data.level).toBe('error')
   })
 })

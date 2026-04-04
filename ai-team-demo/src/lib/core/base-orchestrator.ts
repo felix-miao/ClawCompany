@@ -80,21 +80,11 @@ export abstract class BaseOrchestrator {
 
   protected logInfo(message: string, context?: Record<string, unknown>): void {
     this.logCount++
-    if (context) {
-      console.log(message, context)
-    } else {
-      console.log(message)
-    }
     this.obs.logger?.info(message, context)
   }
 
   protected logWarn(message: string, context?: Record<string, unknown>): void {
     this.logCount++
-    if (context && Object.keys(context).length > 0) {
-      console.warn(`${message} ${JSON.stringify(context)}`)
-    } else {
-      console.warn(message)
-    }
     this.obs.logger?.warn(message, context)
     this.obs.eventBus.emit({
       type: 'error:tracked',
@@ -104,11 +94,6 @@ export abstract class BaseOrchestrator {
 
   protected logError(message: string, context?: Record<string, unknown>): void {
     this.logCount++
-    if (context && Object.keys(context).length > 0) {
-      console.error(`${message} ${JSON.stringify(context)}`)
-    } else {
-      console.error(message)
-    }
     this.obs.logger?.error(message, context)
     this.obs.eventBus.emit({
       type: 'error:tracked',
