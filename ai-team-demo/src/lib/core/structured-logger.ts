@@ -1,12 +1,15 @@
-export {
-  LogLevel as StructuredLogLevel,
+export type {
   LogEntry as StructuredLogEntry,
   LogTransport as StructuredLogTransport,
   LogFormatter as StructuredLogFormatter,
+  LoggerOptions as StructuredLoggerOptions,
+} from './logger'
+
+export {
+  LogLevel as StructuredLogLevel,
   JsonLogFormatter,
   TextLogFormatter,
   ConsoleTransport as ConsoleLogTransport,
   Logger as StructuredLogger,
-  LoggerOptions as StructuredLoggerOptions,
   createLogger as createStructuredLogger,
 } from './logger'
