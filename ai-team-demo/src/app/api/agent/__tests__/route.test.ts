@@ -1,6 +1,6 @@
 jest.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, options?: any) => {
+    json: (data: Record<string, unknown>, options?: { status?: number }) => {
       const response = {
         json: async () => data,
         status: options?.status || 200,
