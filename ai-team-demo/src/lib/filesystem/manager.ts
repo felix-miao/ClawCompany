@@ -47,21 +47,36 @@ export class FileSystemManager {
    * 防止路径遍历攻击
    */
   private validatePath(filePath: string): { valid: boolean; error?: string } {
-    // 检查是否包含 ..
+    if (!filePath || typeof filePath !== 'string' || filePath.trim().length === 0) {
+      return { valid: false, error: 'Invalid path: empty path' }
+    }
+
+    if (filePath.includes('\0')) {
+      return { valid: false, error: 'Invalid path: null byte detected' }
+    }
+
     if (filePath.includes('..')) {
       return { valid: false, error: 'Invalid path: path traversal detected' }
     }
 
-    // 检查是否是绝对路径
+    const normalizedPath = filePath.replace(/\\/g, '/')
+    const segments = normalizedPath.split('/')
+    if (segments.some(s => s === '.')) {
+      return { valid: false, error: 'Invalid path: "." segment not allowed' }
+    }
+
+    if (/^[A-Za-z]:\//.test(normalizedPath)) {
+      return { valid: false, error: 'Invalid path: absolute paths not allowed' }
+    }
+
     if (path.isAbsolute(filePath)) {
       return { valid: false, error: 'Invalid path: absolute paths not allowed' }
     }
 
-    // 解析完整路径
     const fullPath = path.resolve(this.rootDir, filePath)
+    const safeRoot = this.rootDir.endsWith(path.sep) ? this.rootDir : this.rootDir + path.sep
 
-    // 检查是否在根目录内
-    if (!fullPath.startsWith(this.rootDir)) {
+    if (fullPath !== this.rootDir && !fullPath.startsWith(safeRoot)) {
       return { valid: false, error: 'Invalid path: path outside project directory' }
     }
 
@@ -267,10 +282,11 @@ export class FileSystemManager {
    * @returns 文件列表
    */
   async listFiles(dirPath: string = ''): Promise<FileResult> {
-    // 1. 验证路径
-    const validation = this.validatePath(dirPath)
-    if (!validation.valid) {
-      return { success: false, error: validation.error }
+    if (dirPath) {
+      const validation = this.validatePath(dirPath)
+      if (!validation.valid) {
+        return { success: false, error: validation.error }
+      }
     }
 
     const fullPath = this.getFullPath(dirPath)

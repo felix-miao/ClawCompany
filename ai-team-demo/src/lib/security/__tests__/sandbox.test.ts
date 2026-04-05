@@ -92,10 +92,10 @@ describe('SandboxedFileWriter', () => {
       expect(result.reason).toContain('Absolute')
     })
 
-    it('should normalize Windows-style backslashes on Unix', () => {
+    it('should reject Windows-style absolute paths with backslashes', () => {
       const result = writer.validatePath('C:\\Windows\\System32')
-      expect(result.allowed).toBe(true)
-      expect(result.sanitizedPath).toBe('output/C:/Windows/System32')
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('Windows')
     })
 
     it('should reject "." segment', () => {
