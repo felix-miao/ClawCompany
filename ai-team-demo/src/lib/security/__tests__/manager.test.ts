@@ -265,7 +265,7 @@ describe('InputValidator', () => {
     })
 
     it('should handle empty string', () => {
-      expect(InputValidator.validatePath('')).toBe(true)
+      expect(InputValidator.validatePath('')).toBe(false)
     })
   })
 

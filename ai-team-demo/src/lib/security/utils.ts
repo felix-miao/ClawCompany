@@ -152,11 +152,37 @@ export class InputValidator {
   /**
    * 验证路径（防路径遍历）
    */
-  static validatePath(path: string): boolean {
-    // 拒绝 .. 和绝对路径（Unix 和 Windows）
-    if (path.includes('..') || path.startsWith('/') || path.match(/^[A-Z]:\\/)) {
+  static validatePath(inputPath: string): boolean {
+    if (!inputPath || typeof inputPath !== 'string' || inputPath.trim().length === 0) {
       return false
     }
+
+    if (inputPath.includes('\0')) {
+      return false
+    }
+
+    if (/%2e|%252e|%2f|%5c/i.test(inputPath)) {
+      return false
+    }
+
+    const normalized = inputPath.replace(/\\/g, '/')
+
+    if (normalized.includes('..')) {
+      return false
+    }
+
+    if (normalized.startsWith('/')) {
+      return false
+    }
+
+    if (/^[A-Za-z]:\//.test(normalized)) {
+      return false
+    }
+
+    if (normalized.startsWith('//')) {
+      return false
+    }
+
     return true
   }
 

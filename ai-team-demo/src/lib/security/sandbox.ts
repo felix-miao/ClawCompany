@@ -93,7 +93,19 @@ export class SandboxedFileWriter {
       return { allowed: false, reason: 'File path is required' }
     }
 
+    if (filePath.includes('\0')) {
+      return { allowed: false, reason: 'Null byte in path is not allowed' }
+    }
+
     const normalized = normalizePath(filePath)
+
+    if (/^[A-Za-z]:\//.test(normalized)) {
+      return { allowed: false, reason: 'Windows-style absolute paths are not allowed' }
+    }
+
+    if (normalized.startsWith('//')) {
+      return { allowed: false, reason: 'UNC paths are not allowed' }
+    }
 
     if (normalized.includes('..')) {
       return { allowed: false, reason: 'Path traversal detected: ".." is not allowed' }
@@ -124,7 +136,11 @@ export class SandboxedFileWriter {
       : `${SANDBOX_DIR}/${normalized}`
 
     const fullPath = path.resolve(this.rootDir, relativeToSandbox)
-    if (!fullPath.startsWith(this.sandboxDir)) {
+    const safeSandbox = this.sandboxDir.endsWith(path.sep)
+      ? this.sandboxDir
+      : this.sandboxDir + path.sep
+
+    if (fullPath !== this.sandboxDir && !fullPath.startsWith(safeSandbox)) {
       return { allowed: false, reason: 'Path must resolve within the sandbox directory' }
     }
 
@@ -211,11 +227,19 @@ export class SandboxedFileWriter {
   }
 
   async listFiles(subdir?: string): Promise<{ success: boolean; files?: string[]; error?: string }> {
+    if (subdir && subdir.includes('..')) {
+      return { success: false, error: 'Path must be within sandbox directory' }
+    }
+
     const targetDir = subdir
       ? path.resolve(this.sandboxDir, subdir)
       : this.sandboxDir
 
-    if (!targetDir.startsWith(this.sandboxDir)) {
+    const safeSandbox = this.sandboxDir.endsWith(path.sep)
+      ? this.sandboxDir
+      : this.sandboxDir + path.sep
+
+    if (targetDir !== this.sandboxDir && !targetDir.startsWith(safeSandbox)) {
       return { success: false, error: 'Path must be within sandbox directory' }
     }
 
