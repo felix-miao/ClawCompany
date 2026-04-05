@@ -10,8 +10,10 @@ import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
+import { UnifiedRetry, UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
+export { UnifiedRetry, UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
 
 interface ValidatedSubTask {
   title: string

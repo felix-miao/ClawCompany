@@ -15,6 +15,7 @@ import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
 import { OrchestratorError, AppError, isAppError, FileSystemError } from './errors'
 import { AgentEventBus, AgentEventType } from './agent-event-bus'
+import { UnifiedRetry } from './unified-retry'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -51,7 +52,7 @@ export interface ObservabilitySnapshot {
 }
 
 export abstract class BaseOrchestrator {
-  protected retryConfig: RetryConfig
+  protected retry: UnifiedRetry
   protected totalRetries: number = 0
   protected failedTasks: FailedTask[] = []
   protected startTime: number = 0
@@ -65,7 +66,12 @@ export abstract class BaseOrchestrator {
   private capturedLogs: LogEntry[] = []
 
   constructor(retryConfig?: Partial<RetryConfig>, observability?: ObservabilityConfig) {
-    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retryConfig }
+    this.retry = new UnifiedRetry({
+      maxRetries: retryConfig?.maxRetries ?? DEFAULT_RETRY_CONFIG.maxRetries,
+      initialDelay: retryConfig?.initialDelay ?? DEFAULT_RETRY_CONFIG.initialDelay,
+      maxDelay: retryConfig?.maxDelay ?? DEFAULT_RETRY_CONFIG.maxDelay,
+      backoffMultiplier: retryConfig?.backoffMultiplier ?? DEFAULT_RETRY_CONFIG.backoffMultiplier,
+    })
     this.obs = {
       logger: observability?.logger ?? null,
       perf: observability?.performanceMonitor ?? new PerformanceMonitor(),
@@ -106,31 +112,23 @@ export abstract class BaseOrchestrator {
     task: Task,
     callbacks: OrchestratorCallbacks
   ): Promise<AgentResponse | null> {
-    let lastError: Error | null = null
-
-    for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
-      const timerId = this.obs.perf.startTimer(`agent.${role}`)
-      try {
-        const context = await this.buildContext(callbacks)
-        const result = await callbacks.executeAgent(role, task, context)
-        this.obs.perf.stopTimer(timerId)
-        return result
-      } catch (error) {
-        this.obs.perf.stopTimer(timerId)
-        lastError = error instanceof Error ? error : new Error(String(error))
-
-        if (attempt < this.retryConfig.maxRetries) {
-          const delay = Math.min(
-            this.retryConfig.initialDelay * Math.pow(this.retryConfig.backoffMultiplier, attempt),
-            this.retryConfig.maxDelay
-          )
-
+    const result = await this.retry.execute(
+      async () => {
+        const timerId = this.obs.perf.startTimer(`agent.${role}`)
+        try {
+          const context = await this.buildContext(callbacks)
+          return await callbacks.executeAgent(role, task, context)
+        } finally {
+          this.obs.perf.stopTimer(timerId)
+        }
+      },
+      {
+        onRetry: (error, attempt, delay) => {
           this.logWarn('Agent execution retry', {
             role,
-            attempt: attempt + 1,
-            maxRetries: this.retryConfig.maxRetries,
+            attempt,
             delay,
-            error: lastError.message,
+            error: error.message,
           })
 
           this.obs.eventBus.emit({
@@ -138,21 +136,19 @@ export abstract class BaseOrchestrator {
             agentRole: role,
             taskId: task.id,
             data: {
-              attempt: attempt + 1,
-              maxRetries: this.retryConfig.maxRetries,
+              attempt,
               delay,
-              error: lastError.message,
+              error: error.message,
             },
           })
 
           this.obs.perf.increment('orchestrator.retries')
           this.totalRetries++
-          await this.sleep(delay)
-        } else {
+        },
+        onExhausted: (error) => {
           this.logError('Agent retries exhausted', {
             role,
-            maxRetries: this.retryConfig.maxRetries,
-            error: lastError.message,
+            error: error.message,
           })
 
           this.obs.eventBus.emit({
@@ -160,14 +156,17 @@ export abstract class BaseOrchestrator {
             agentRole: role,
             taskId: task.id,
             data: {
-              maxRetries: this.retryConfig.maxRetries,
-              error: lastError.message,
+              error: error.message,
             },
           })
 
-          this.obs.errors.track(isAppError(lastError) ? lastError : new OrchestratorError(lastError.message, { cause: lastError }))
-        }
+          this.obs.errors.track(error instanceof OrchestratorError ? error : new OrchestratorError(error.message, { cause: error }))
+        },
       }
+    )
+
+    if (result.success) {
+      return result.result as AgentResponse
     }
 
     return null
@@ -205,7 +204,7 @@ export abstract class BaseOrchestrator {
       taskId: task.id,
       taskTitle: task.title,
       error: errorMessage,
-      retryCount: this.retryConfig.maxRetries,
+      retryCount: 0,
       timestamp: new Date(),
     })
   }
@@ -264,10 +263,6 @@ export abstract class BaseOrchestrator {
       totalRetries: this.totalRetries,
       executionTime: Date.now() - this.startTime,
     }
-  }
-
-  protected sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
   }
 
   protected buildMessages(callbacks: OrchestratorCallbacks): Array<{ agent: AgentRole | 'user'; content: string; timestamp?: Date }> {

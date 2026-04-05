@@ -2,10 +2,10 @@ import {
   AppError,
   ErrorCategory,
   ErrorSeverity,
-  isAppError,
   toAppError,
 } from './errors'
 import { logger } from './logger'
+import { UnifiedRetry } from './unified-retry'
 
 export enum RecoveryStrategy {
   RETRY = 'retry',
@@ -26,12 +26,6 @@ export enum CircuitState {
   CLOSED = 'closed',
   OPEN = 'open',
   HALF_OPEN = 'half_open',
-}
-
-interface CircuitBreaker {
-  state: CircuitState
-  failureCount: number
-  lastFailureTime: number
 }
 
 export interface ErrorRecoveryOptions {
@@ -65,14 +59,14 @@ interface RecoveryStats {
 }
 
 export class ErrorRecovery {
-  private circuits = new Map<string, CircuitBreaker>()
-  private readonly circuitThreshold: number
-  private readonly circuitCooldown: number
+  private readonly retry: UnifiedRetry
   private stats: RecoveryStats
 
   constructor(options?: ErrorRecoveryOptions) {
-    this.circuitThreshold = options?.circuitThreshold ?? 5
-    this.circuitCooldown = options?.circuitCooldown ?? 30000
+    this.retry = new UnifiedRetry(undefined, {
+      threshold: options?.circuitThreshold ?? 5,
+      cooldown: options?.circuitCooldown ?? 30000,
+    })
     this.stats = { totalErrors: 0, errorsByCategory: {}, recoveriesByStrategy: {} }
   }
 
@@ -85,9 +79,7 @@ export class ErrorRecovery {
   ): Promise<RecoveryResult> {
     const appError = toAppError(error)
 
-    this.stats.totalErrors++
-    const cat = appError.category
-    this.stats.errorsByCategory[cat] = (this.stats.errorsByCategory[cat] ?? 0) + 1
+    this.trackError(appError)
 
     logger.error(`Error handled: ${appError.message}`, {
       code: appError.code,
@@ -97,8 +89,8 @@ export class ErrorRecovery {
 
     const circuitKey = options?.circuitKey
     if (circuitKey) {
-      this.recordFailure(circuitKey)
-      const circuitState = this.getCircuitState(circuitKey)
+      this.retry.recordFailure(circuitKey)
+      const circuitState = this.retry.getCircuitState(circuitKey)
       if (circuitState === CircuitState.OPEN) {
         this.recordStrategy(RecoveryStrategy.CIRCUIT_BREAKER)
         return { strategy: RecoveryStrategy.CIRCUIT_BREAKER, recovered: false, error: appError }
@@ -113,7 +105,7 @@ export class ErrorRecovery {
         if (options?.fallback) {
           try {
             const result = await options.fallback()
-            if (circuitKey) this.recordSuccess(circuitKey)
+            if (circuitKey) this.retry.recordSuccess(circuitKey)
             return { strategy, recovered: true, result }
           } catch (fallbackError) {
             return { strategy, recovered: false, error: toAppError(fallbackError) }
@@ -163,39 +155,21 @@ export class ErrorRecovery {
     return RecoveryStrategy.RETRY
   }
 
-  private recordFailure(key: string): void {
-    const circuit = this.circuits.get(key) ?? { state: CircuitState.CLOSED, failureCount: 0, lastFailureTime: 0 }
-    circuit.failureCount++
-    circuit.lastFailureTime = Date.now()
-    if (circuit.failureCount >= this.circuitThreshold) {
-      circuit.state = CircuitState.OPEN
-    }
-    this.circuits.set(key, circuit)
-  }
-
   recordSuccess(key: string): void {
-    this.circuits.set(key, {
-      state: CircuitState.CLOSED,
-      failureCount: 0,
-      lastFailureTime: 0,
-    })
+    this.retry.recordSuccess(key)
   }
 
   getCircuitState(key: string): CircuitState {
-    const circuit = this.circuits.get(key)
-    if (!circuit) return CircuitState.CLOSED
-    if (circuit.state === CircuitState.OPEN) {
-      const elapsed = Date.now() - circuit.lastFailureTime
-      if (elapsed >= this.circuitCooldown) {
-        circuit.state = CircuitState.HALF_OPEN
-        this.circuits.set(key, circuit)
-      }
-    }
-    return circuit.state
+    return this.retry.getCircuitState(key)
   }
 
   private recordStrategy(strategy: RecoveryStrategy): void {
     this.stats.recoveriesByStrategy[strategy] = (this.stats.recoveriesByStrategy[strategy] ?? 0) + 1
+  }
+
+  private trackError(appError: AppError): void {
+    this.stats.totalErrors++
+    this.stats.errorsByCategory[appError.category] = (this.stats.errorsByCategory[appError.category] ?? 0) + 1
   }
 
   getStats(): RecoveryStats {
@@ -203,56 +177,33 @@ export class ErrorRecovery {
   }
 
   async retryWithCircuitBreaker(options: RetryOptions): Promise<RetryResult> {
-    const {
-      circuitKey,
-      fn,
-      fallback,
-      maxRetries = 3,
-      initialDelay = 1000,
-      maxDelay = 10000,
-      backoffMultiplier = 2,
-    } = options
+    const { circuitKey, fn, fallback, maxRetries, initialDelay, maxDelay, backoffMultiplier } = options
 
-    const circuitState = this.getCircuitState(circuitKey)
-    if (circuitState === CircuitState.OPEN) {
-      return { success: false, attempts: 0, circuitOpen: true }
-    }
-
-    let lastError: AppError | undefined
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const wrappedFn = async () => {
       try {
-        const result = await fn()
-        this.recordSuccess(circuitKey)
-        return { success: true, result, attempts: attempt + 1 }
+        return await fn()
       } catch (error) {
-        const appError = toAppError(error)
-        lastError = appError
-        this.stats.totalErrors++
-        this.stats.errorsByCategory[appError.category] = (this.stats.errorsByCategory[appError.category] ?? 0) + 1
-        this.recordFailure(circuitKey)
-
-        if (appError.severity === ErrorSeverity.CRITICAL) {
-          return { success: false, error: appError, attempts: attempt + 1 }
-        }
-
-        if (attempt < maxRetries) {
-          const delay = Math.min(initialDelay * Math.pow(backoffMultiplier, attempt), maxDelay)
-          await new Promise(resolve => setTimeout(resolve, delay))
-        }
+        this.trackError(toAppError(error))
+        throw error
       }
     }
 
-    if (fallback) {
-      try {
-        const result = await fallback()
-        this.recordSuccess(circuitKey)
-        return { success: true, result, attempts: maxRetries + 1, usedFallback: true }
-      } catch (fallbackError) {
-        return { success: false, error: toAppError(fallbackError), attempts: maxRetries + 1, usedFallback: true }
-      }
-    }
+    const result = await this.retry.execute(wrappedFn, {
+      circuitKey,
+      fallback,
+      maxRetries,
+      initialDelay,
+      maxDelay,
+      backoffMultiplier,
+    })
 
-    return { success: false, error: lastError, attempts: maxRetries + 1 }
+    return {
+      success: result.success,
+      result: result.result,
+      error: result.error,
+      attempts: result.attempts,
+      usedFallback: result.usedFallback,
+      circuitOpen: result.circuitOpen,
+    }
   }
 }
