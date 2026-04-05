@@ -122,6 +122,16 @@ export class GatewayError extends AppError {
   }
 }
 
+export class NetworkError extends AppError {
+  constructor(message: string, context?: Record<string, unknown>) {
+    super('NETWORK_ERROR', message, ErrorCategory.NETWORK, {
+      severity: ErrorSeverity.HIGH,
+      context,
+    })
+    this.name = 'NetworkError'
+  }
+}
+
 export function isAppError(error: unknown): error is AppError {
   return error instanceof AppError
 }

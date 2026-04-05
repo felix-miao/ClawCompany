@@ -147,7 +147,8 @@ export class ErrorRecovery {
     if (
       error.category === ErrorCategory.AGENT ||
       error.category === ErrorCategory.LLM ||
-      error.category === ErrorCategory.NETWORK
+      error.category === ErrorCategory.NETWORK ||
+      error.category === ErrorCategory.GATEWAY
     ) {
       return RecoveryStrategy.RETRY
     }
