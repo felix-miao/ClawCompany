@@ -1,11 +1,43 @@
 import { MovementSystem } from '../MovementSystem';
 import { PHYSICS_CONFIG } from '../../config/gameConfig';
 
-function createMockKey(isDown: boolean = false) {
+interface MockKey { isDown: boolean; }
+interface MockBody {
+  velocity: { x: number; y: number };
+  blocked: { down: boolean; up: boolean; left: boolean; right: boolean };
+  touching: { down: boolean };
+  setAccelerationX: jest.Mock;
+  setVelocityY: jest.Mock;
+}
+interface MockAgent {
+  x: number;
+  y: number;
+  body: MockBody;
+  flipX: boolean;
+  setVelocityY: jest.Mock;
+}
+interface MockCursors {
+  left: MockKey;
+  right: MockKey;
+  up: MockKey;
+  down: MockKey;
+}
+interface MockScene {
+  input: {
+    keyboard: {
+      createCursorKeys: jest.Mock;
+      addKeys: jest.Mock;
+    };
+  };
+  cursors: MockCursors;
+  wasd: MockCursors;
+}
+
+function createMockKey(isDown: boolean = false): MockKey {
   return { isDown };
 }
 
-function createMockAgent() {
+function createMockAgent(): MockAgent {
   return {
     x: 100,
     y: 200,
@@ -21,14 +53,14 @@ function createMockAgent() {
   };
 }
 
-function createMockScene() {
-  const cursors = {
+function createMockScene(): MockScene {
+  const cursors: MockCursors = {
     left: createMockKey(),
     right: createMockKey(),
     up: createMockKey(),
     down: createMockKey(),
   };
-  const wasd = {
+  const wasd: MockCursors = {
     left: createMockKey(),
     right: createMockKey(),
     up: createMockKey(),
@@ -48,12 +80,12 @@ function createMockScene() {
 }
 
 describe('MovementSystem', () => {
-  let scene: any;
+  let scene: MockScene;
   let system: MovementSystem;
 
   beforeEach(() => {
     scene = createMockScene();
-    system = new MovementSystem(scene as any);
+    system = new MovementSystem(scene as unknown as Phaser.Scene);
   });
 
   describe('constructor', () => {
@@ -66,7 +98,7 @@ describe('MovementSystem', () => {
   describe('setActiveAgent', () => {
     it('should set the active agent', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       expect(() => system.update()).not.toThrow();
     });
   });
@@ -78,7 +110,7 @@ describe('MovementSystem', () => {
 
     it('should move left when left key pressed', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.cursors.left.isDown = true;
       system.update();
       expect(agent.body.setAccelerationX).toHaveBeenCalledWith(-PHYSICS_CONFIG.moveSpeed * 2);
@@ -87,7 +119,7 @@ describe('MovementSystem', () => {
 
     it('should move right when right key pressed', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.cursors.right.isDown = true;
       system.update();
       expect(agent.body.setAccelerationX).toHaveBeenCalledWith(PHYSICS_CONFIG.moveSpeed * 2);
@@ -96,7 +128,7 @@ describe('MovementSystem', () => {
 
     it('should respond to WASD keys', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.wasd.left.isDown = true;
       system.update();
       expect(agent.body.setAccelerationX).toHaveBeenCalledWith(-PHYSICS_CONFIG.moveSpeed * 2);
@@ -104,7 +136,7 @@ describe('MovementSystem', () => {
 
     it('should jump when up key pressed and on floor', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.cursors.up.isDown = true;
       agent.body.blocked.down = true;
       system.update();
@@ -113,7 +145,7 @@ describe('MovementSystem', () => {
 
     it('should not jump when not on floor', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.cursors.up.isDown = true;
       agent.body.blocked.down = false;
       agent.body.touching.down = false;
@@ -123,7 +155,7 @@ describe('MovementSystem', () => {
 
     it('should set zero acceleration when no keys pressed', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       system.update();
       expect(agent.body.setAccelerationX).toHaveBeenCalledWith(0);
     });
@@ -131,7 +163,7 @@ describe('MovementSystem', () => {
     it('should respect max velocity for left movement', () => {
       const agent = createMockAgent();
       agent.body.velocity.x = -PHYSICS_CONFIG.maxVelocity - 10;
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.cursors.left.isDown = true;
       system.update();
       expect(agent.body.setAccelerationX).not.toHaveBeenCalled();
@@ -140,7 +172,7 @@ describe('MovementSystem', () => {
     it('should respect max velocity for right movement', () => {
       const agent = createMockAgent();
       agent.body.velocity.x = PHYSICS_CONFIG.maxVelocity + 10;
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.cursors.right.isDown = true;
       system.update();
       expect(agent.body.setAccelerationX).not.toHaveBeenCalled();
@@ -148,7 +180,7 @@ describe('MovementSystem', () => {
 
     it('should jump with touching.down as well', () => {
       const agent = createMockAgent();
-      system.setActiveAgent(agent as any);
+      system.setActiveAgent(agent as unknown as Phaser.Physics.Arcade.Sprite);
       scene.wasd.up.isDown = true;
       agent.body.blocked.down = false;
       agent.body.touching.down = true;
