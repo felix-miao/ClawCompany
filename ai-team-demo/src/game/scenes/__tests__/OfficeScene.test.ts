@@ -295,6 +295,7 @@ describe('OfficeScene logic', () => {
       shadowGraphics.forEach(g => g.destroy());
       shadowGraphics.clear();
       decorationGraphics.forEach(g => g.destroy());
+      decorationGraphics.length = 0;
       particleEmitters.forEach(e => e.destroy());
       particleEmitters.clear();
 

@@ -30,13 +30,15 @@ function createMockScene() {
 
 function createMockPathfinding() {
   let currentPath: any[] = [];
+  let nextAction: 'move' | 'jump' = 'move';
   return {
     findPath: jest.fn((sx: number, sy: number, ex: number, ey: number) => {
-      currentPath = [{ x: ex, y: ey, action: 'move' }];
+      currentPath = [{ x: ex, y: ey, action: nextAction }];
       return currentPath;
     }),
     getCurrentPath: jest.fn(() => currentPath),
     setCurrentPath: (path: any[]) => { currentPath = path; },
+    setNextAction: (action: 'move' | 'jump') => { nextAction = action; },
   };
 }
 
@@ -112,8 +114,8 @@ describe('NavigationController', () => {
     });
 
     it('should trigger jump when action is jump and on floor', () => {
-      pathfinding.setCurrentPath([{ x: 100, y: 100, action: 'jump' }]);
-      controller.setTarget(100, 100);
+      pathfinding.setNextAction('jump');
+      controller.setTarget(110, 180);
       agent.body.blocked.down = true;
       controller.update();
       expect(agent.body.setVelocityY).toHaveBeenCalled();
