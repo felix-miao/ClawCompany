@@ -89,7 +89,7 @@ describe('ReviewAgent', () => {
       expect(result.issues).toHaveLength(2)
     })
 
-    test('应该在解析失败时返回默认通过', async () => {
+    test('应该在解析失败时返回不通过（安全修复）', async () => {
       mockSessionsSpawn.mockResolvedValueOnce({
         sessionKey: 'review-session-3',
         status: 'completed',
@@ -101,16 +101,18 @@ describe('ReviewAgent', () => {
 
       const result = await agent.review(mockTask, mockDevResult)
 
-      expect(result.approved).toBe(true)
-      expect(result.issues).toHaveLength(0)
+      expect(result.approved).toBe(false)  // 解析失败时应拒绝通过审查
+      expect(result.issues).toContain('无法解析审查结果')
+      expect(result.summary).toContain('审查失败')
     })
 
-    test('应该在 session 为空时返回默认值', async () => {
+    test('应该在 session 为空时返回不通过（安全修复）', async () => {
       mockSessionsSpawn.mockResolvedValueOnce(null)
 
       const result = await agent.review(mockTask, mockDevResult)
 
-      expect(result.approved).toBe(true)
+      expect(result.approved).toBe(false)  // session 为空时无法进行审查，应拒绝
+      expect(result.issues).toContain('无法解析审查结果')
     })
 
     test('应该在 sessions_spawn 不可用时抛出异常', async () => {

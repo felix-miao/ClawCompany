@@ -33,10 +33,10 @@ export class ReviewAgent extends BaseOpenClawAgent<ReviewAgentConfig> {
     const session = await this.spawnAgent(prompt)
 
     return await this.parseJSONFromSession<ReviewResult>(session as SessionLike, {
-      approved: true,
-      issues: [],
+      approved: false,  // 安全修复：解析失败时拒绝通过审查
+      issues: ['无法解析审查结果'],
       suggestions: [],
-      summary: '审查通过',
+      summary: '审查失败：无法解析审查结果',
     })
   }
 
