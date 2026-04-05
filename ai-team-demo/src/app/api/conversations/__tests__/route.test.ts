@@ -1,6 +1,6 @@
 jest.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, options?: any) => ({
+    json: (data: unknown, options?: { status?: number }) => ({
       json: async () => data,
       status: options?.status || 200,
     }),
@@ -8,15 +8,16 @@ jest.mock('next/server', () => ({
 }))
 
 jest.mock('@/lib/storage/manager', () => {
-  ;(global as any).__mockConvStorageManager__ = {
+  const mockStorageManager = {
     createConversation: jest.fn(),
     loadConversation: jest.fn(),
     saveConversation: jest.fn(),
     listConversations: jest.fn(),
     deleteConversation: jest.fn(),
   }
+  ;(global as Record<string, unknown>).__mockConvStorageManager__ = mockStorageManager
   return {
-    StorageManager: jest.fn().mockImplementation(() => (global as any).__mockConvStorageManager__),
+    StorageManager: jest.fn().mockImplementation(() => mockStorageManager),
   }
 })
 
@@ -40,7 +41,13 @@ import { RateLimiter } from '@/lib/security/utils'
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
-function createMockRequest(options?: any): any {
+interface MockRequestOptions {
+  url?: string
+  noAuth?: boolean
+  headers?: Record<string, string>
+}
+
+function createMockRequest(options?: MockRequestOptions): { json: () => Promise<unknown>; headers: { get: (name: string) => string | null } } {
   const url = options?.url || 'http://localhost/api/conversations'
   const headers: Record<string, string> = {
     'x-forwarded-for': '1.2.3.4',
@@ -102,7 +109,7 @@ describe('Authentication', () => {
   })
 })
 
-const getMockStorage = () => (global as any).__mockConvStorageManager__
+const getMockStorage = () => (global as Record<string, unknown>).__mockConvStorageManager__ as any
 
 describe('/api/conversations', () => {
   const originalApiKey = process.env.AGENT_API_KEY
