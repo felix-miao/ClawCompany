@@ -165,7 +165,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
         .mockReturnValueOnce(makeTask('dev-1'))
         .mockReturnValueOnce(makeTask('dev-2'))
 
-      let _devCallCount = 0
+      let devCallCount = 0
       ;(agentManager.executeAgent as jest.Mock)
         .mockImplementationOnce(async () => ({
           message: 'PM done',

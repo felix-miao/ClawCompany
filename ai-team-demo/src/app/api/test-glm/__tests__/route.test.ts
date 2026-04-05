@@ -42,7 +42,11 @@ describe('Authentication', () => {
   beforeAll(() => {
     process.env.AGENT_API_KEY = API_KEY
     originalNodeEnv = process.env.NODE_ENV
-    process.env.NODE_ENV = 'test'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'test',
+      writable: true,
+      configurable: true,
+    })
   })
 
   afterAll(() => {
@@ -51,7 +55,11 @@ describe('Authentication', () => {
     } else {
       delete process.env.AGENT_API_KEY
     }
-    process.env.NODE_ENV = originalNodeEnv
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalNodeEnv,
+      writable: true,
+      configurable: true,
+    })
   })
 
   it('POST should return 401 without API key', async () => {
@@ -72,7 +80,11 @@ describe('/api/test-glm', () => {
   })
 
   afterAll(() => {
-    process.env.NODE_ENV = originalNodeEnv
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: originalNodeEnv,
+      writable: true,
+      configurable: true,
+    })
     if (originalApiKey) {
       process.env.AGENT_API_KEY = originalApiKey
     } else {
@@ -82,7 +94,11 @@ describe('/api/test-glm', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(process as any).env.NODE_ENV = 'test'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'test',
+      writable: true,
+      configurable: true,
+    })
     ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(true)
     ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(60)
   })

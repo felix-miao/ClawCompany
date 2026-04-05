@@ -19,14 +19,14 @@ describe('GameEventStore', () => {
 
   describe('push', () => {
     it('should add events', () => {
-      store.push(createMockEvent('task-assigned'));
-      store.push(createMockEvent('task-completed'));
+      store.push(createMockEvent('agent:task-assigned'));
+      store.push(createMockEvent('agent:task-completed'));
       expect(store.getEvents()).toHaveLength(2);
     });
 
     it('should enforce maxEvents limit', () => {
       for (let i = 0; i < 8; i++) {
-        store.push(createMockEvent('task-assigned'));
+        store.push(createMockEvent('agent:task-assigned'));
       }
       expect(store.getEvents()).toHaveLength(5);
     });
@@ -34,7 +34,7 @@ describe('GameEventStore', () => {
     it('should notify subscribers on push', () => {
       const cb = jest.fn();
       store.subscribe(cb);
-      const event = createMockEvent('task-assigned');
+      const event = createMockEvent('agent:task-assigned');
       store.push(event);
       expect(cb).toHaveBeenCalledWith(event);
     });
@@ -44,7 +44,7 @@ describe('GameEventStore', () => {
       const cb2 = jest.fn();
       store.subscribe(cb1);
       store.subscribe(cb2);
-      store.push(createMockEvent('task-assigned'));
+      store.push(createMockEvent('agent:task-assigned'));
       expect(cb1).toHaveBeenCalledTimes(1);
       expect(cb2).toHaveBeenCalledTimes(1);
     });
@@ -54,7 +54,7 @@ describe('GameEventStore', () => {
       const goodCb = jest.fn();
       store.subscribe(badCb);
       store.subscribe(goodCb);
-      store.push(createMockEvent('task-assigned'));
+      store.push(createMockEvent('agent:task-assigned'));
       expect(badCb).toHaveBeenCalledTimes(1);
       expect(goodCb).toHaveBeenCalledTimes(1);
     });
@@ -64,18 +64,18 @@ describe('GameEventStore', () => {
     it('should return an unsubscribe function', () => {
       const cb = jest.fn();
       const unsub = store.subscribe(cb);
-      store.push(createMockEvent('task-assigned'));
+      store.push(createMockEvent('agent:task-assigned'));
       expect(cb).toHaveBeenCalledTimes(1);
 
       unsub();
-      store.push(createMockEvent('task-completed'));
+      store.push(createMockEvent('agent:task-completed'));
       expect(cb).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('getEvents', () => {
     it('should return copy of events', () => {
-      store.push(createMockEvent('task-assigned'));
+      store.push(createMockEvent('agent:task-assigned'));
       const events = store.getEvents();
       expect(events).toHaveLength(1);
       events.pop();
@@ -83,45 +83,45 @@ describe('GameEventStore', () => {
     });
 
     it('should filter by since timestamp', () => {
-      const e1 = createMockEvent('task-assigned');
+      const e1 = createMockEvent('agent:task-assigned');
       e1.timestamp = 100;
-      const e2 = createMockEvent('task-completed');
+      const e2 = createMockEvent('agent:task-completed');
       e2.timestamp = 200;
       store.push(e1);
       store.push(e2);
 
       expect(store.getEvents(150)).toHaveLength(1);
-      expect(store.getEvents(150)[0].type).toBe('task-completed');
+      expect(store.getEvents(150)[0].type).toBe('agent:task-completed');
     });
 
     it('should return all events when since is undefined', () => {
-      store.push(createMockEvent('task-assigned'));
-      store.push(createMockEvent('task-completed'));
+      store.push(createMockEvent('agent:task-assigned'));
+      store.push(createMockEvent('agent:task-completed'));
       expect(store.getEvents()).toHaveLength(2);
     });
   });
 
   describe('getEventsByType', () => {
     it('should filter events by type', () => {
-      store.push(createMockEvent('task-assigned'));
-      store.push(createMockEvent('task-completed'));
-      store.push(createMockEvent('task-assigned'));
+      store.push(createMockEvent('agent:task-assigned'));
+      store.push(createMockEvent('agent:task-completed'));
+      store.push(createMockEvent('agent:task-assigned'));
 
-      expect(store.getEventsByType('task-assigned')).toHaveLength(2);
-      expect(store.getEventsByType('task-completed')).toHaveLength(1);
+      expect(store.getEventsByType('agent:task-assigned')).toHaveLength(2);
+      expect(store.getEventsByType('agent:task-completed')).toHaveLength(1);
     });
 
     it('should return empty for no matches', () => {
-      store.push(createMockEvent('task-assigned'));
-      expect(store.getEventsByType('agent-idle')).toHaveLength(0);
+      store.push(createMockEvent('agent:task-assigned'));
+      expect(store.getEventsByType('agent:status-change')).toHaveLength(0);
     });
   });
 
   describe('getEventsByAgent', () => {
     it('should filter events by agent', () => {
-      store.push(createMockEvent('task-assigned', 'a1'));
-      store.push(createMockEvent('task-assigned', 'a2'));
-      store.push(createMockEvent('task-completed', 'a1'));
+      store.push(createMockEvent('agent:task-assigned', 'a1'));
+      store.push(createMockEvent('agent:task-assigned', 'a2'));
+      store.push(createMockEvent('agent:task-completed', 'a1'));
 
       expect(store.getEventsByAgent('a1')).toHaveLength(2);
       expect(store.getEventsByAgent('a2')).toHaveLength(1);
@@ -130,9 +130,9 @@ describe('GameEventStore', () => {
 
   describe('getLatestEvent', () => {
     it('should return the last event', () => {
-      store.push(createMockEvent('task-assigned'));
-      store.push(createMockEvent('task-completed'));
-      expect(store.getLatestEvent()?.type).toBe('task-completed');
+      store.push(createMockEvent('agent:task-assigned'));
+      store.push(createMockEvent('agent:task-completed'));
+      expect(store.getLatestEvent()?.type).toBe('agent:task-completed');
     });
 
     it('should return undefined when empty', () => {
@@ -154,8 +154,8 @@ describe('GameEventStore', () => {
 
   describe('clear', () => {
     it('should remove all events', () => {
-      store.push(createMockEvent('task-assigned'));
-      store.push(createMockEvent('task-completed'));
+      store.push(createMockEvent('agent:task-assigned'));
+      store.push(createMockEvent('agent:task-completed'));
       store.clear();
       expect(store.getEvents()).toHaveLength(0);
     });

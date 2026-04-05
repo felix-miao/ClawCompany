@@ -946,7 +946,7 @@ describe('Orchestrator - 错误处理和重试机制', () => {
           updatedAt: new Date(),
         })
 
-      let _callCount = 0
+      let callCount = 0
       ;(agentManager.executeAgent as jest.Mock)
         .mockImplementationOnce(async () => {
           return {
