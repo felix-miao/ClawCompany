@@ -25,12 +25,15 @@ type EventHandler = (event: AgentEvent) => void
 const DEFAULT_MAX_HISTORY = 1000
 
 export class AgentEventBus {
-  private history: AgentEvent[] = []
+  private historyBuffer: (AgentEvent | undefined)[];
+  private historyHead = 0;
+  private historyCount = 0;
+  private readonly maxHistory: number;
   private handlers: Set<EventHandler> = new Set()
-  private maxHistory: number
 
   constructor(maxHistory = DEFAULT_MAX_HISTORY) {
     this.maxHistory = maxHistory
+    this.historyBuffer = new Array(maxHistory);
   }
 
   emit(event: Omit<AgentEvent, 'timestamp'>): void {
@@ -38,9 +41,10 @@ export class AgentEventBus {
       ...event,
       timestamp: new Date(),
     }
-    this.history.push(fullEvent)
-    if (this.history.length > this.maxHistory) {
-      this.history = this.history.slice(-this.maxHistory)
+    this.historyBuffer[this.historyHead] = fullEvent;
+    this.historyHead = (this.historyHead + 1) % this.maxHistory;
+    if (this.historyCount < this.maxHistory) {
+      this.historyCount++;
     }
 
     for (const handler of this.handlers) {
@@ -60,24 +64,35 @@ export class AgentEventBus {
   }
 
   getHistory(): AgentEvent[] {
-    return [...this.history]
+    if (this.historyCount === 0) return [];
+    const result: AgentEvent[] = [];
+    for (let i = 0; i < this.historyCount; i++) {
+      const idx = (this.historyHead - this.historyCount + i + this.maxHistory) % this.maxHistory;
+      const item = this.historyBuffer[idx];
+      if (item !== undefined) {
+        result.push(item);
+      }
+    }
+    return result;
   }
 
   getHistoryByType(type: AgentEventType): AgentEvent[] {
-    return this.history.filter((e) => e.type === type)
+    return this.getHistory().filter((e) => e.type === type)
   }
 
   getHistoryByAgent(role: string): AgentEvent[] {
-    return this.history.filter((e) => e.agentRole === role)
+    return this.getHistory().filter((e) => e.agentRole === role)
   }
 
   getLatestByAgent(role: string): AgentEvent | undefined {
-    const events = this.history.filter((e) => e.agentRole === role)
-    return events.length > 0 ? events[events.length - 1] : undefined
+    const events = this.getHistoryByAgent(role);
+    return events.length > 0 ? events[events.length - 1] : undefined;
   }
 
   clear(): void {
-    this.history = []
+    this.historyHead = 0;
+    this.historyCount = 0;
+    this.historyBuffer = new Array(this.maxHistory);
   }
 
   listenerCount(): number {
