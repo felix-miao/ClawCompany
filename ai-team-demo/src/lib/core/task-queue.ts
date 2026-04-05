@@ -50,7 +50,7 @@ export class TaskQueue {
 
   add<T>(fn: () => Promise<T>, options?: TaskOptions): Promise<T> {
     if (this.aborted) {
-      return Promise.reject(new Error('Queue aborted'))
+      return Promise.reject(new Error('aborted'))
     }
 
     return new Promise<T>((resolve, reject) => {
@@ -90,10 +90,18 @@ export class TaskQueue {
 
   abort(): void {
     this.aborted = true
-    while (this.pending.length > 0) {
-      const task = this.pending.shift()!
-      task.reject(new Error('Queue aborted'))
-    }
+    const pendingTasks = [...this.pending]
+    this.pending = []
+    // Reject tasks asynchronously to avoid synchronous rejection
+    setTimeout(() => {
+      pendingTasks.forEach(task => {
+        task.reject(new Error('aborted'))
+      })
+    }, 0)
+    // Don't set this.running = 0 here, let running tasks complete naturally
+    const resolvers = this.idleResolvers
+    this.idleResolvers = []
+    resolvers.forEach(r => r())
   }
 
   isAborted(): boolean {
@@ -114,6 +122,9 @@ export class TaskQueue {
   }
 
   private processNext(): void {
+    if (this.aborted) {
+      return
+    }
     while (this.running < this.concurrency && this.pending.length > 0) {
       const task = this.pending.shift()!
       this.running++
@@ -124,6 +135,18 @@ export class TaskQueue {
   private async executeTask(task: InternalTask): Promise<void> {
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     let settled = false
+    let slotReleased = false
+
+    const releaseSlot = () => {
+      if (slotReleased) return
+      slotReleased = true
+      this.running--
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId)
+      }
+      this.checkIdle()
+      this.processNext()
+    }
 
     const taskPromise = (async () => {
       try {
@@ -141,12 +164,7 @@ export class TaskQueue {
           this.failed++
         }
       } finally {
-        this.running--
-        if (timeoutId !== undefined) {
-          clearTimeout(timeoutId)
-        }
-        this.checkIdle()
-        this.processNext()
+        releaseSlot()
       }
     })()
 
@@ -156,6 +174,7 @@ export class TaskQueue {
           settled = true
           task.reject(new Error(`Task timeout after ${task.timeout}ms`))
           this.failed++
+          releaseSlot()
         }
       }, task.timeout)
     }
