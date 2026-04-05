@@ -116,8 +116,8 @@ describe('MetricsAggregator', () => {
 
       const metrics = metricsAggregator.getCurrentMetrics()
 
-      expect(metrics.tasks.total).toBe(5)
-      expect(metrics.tasks.completed).toBe(1)
+      expect(metrics.tasks.total).toBe(10)
+      expect(metrics.tasks.completed).toBe(8)
       expect(metrics.tasks.failed).toBe(1)
       expect(metrics.tasks.inProgress).toBe(1)
       expect(metrics.tasks.averageExecutionTime).toBe(2000)

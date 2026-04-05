@@ -110,19 +110,12 @@ export class MetricsAggregator {
   private calculateTaskMetrics(): PerformanceMetrics['tasks'] {
     const metricEntries = this.getAllMetricEntries()
 
-    // 获取各个任务指标的值
-    const taskTotalEntry = metricEntries.find((e: MetricEntry) => e.name === 'task.total')
-    const taskCompletedEntry = metricEntries.find((e: MetricEntry) => e.name === 'task.completed')
-    const taskFailedEntry = metricEntries.find((e: MetricEntry) => e.name === 'task.failed')
-    const taskPendingEntry = metricEntries.find((e: MetricEntry) => e.name === 'task.pending')
-    const taskInProgressEntry = metricEntries.find((e: MetricEntry) => e.name === 'task.in_progress')
-
     const taskMetrics = {
-      total: taskTotalEntry ? taskTotalEntry.value : 0,
-      completed: taskCompletedEntry ? taskCompletedEntry.value : 0,
-      failed: taskFailedEntry ? taskFailedEntry.value : 0,
-      pending: taskPendingEntry ? taskPendingEntry.value : 0,
-      inProgress: taskInProgressEntry ? taskInProgressEntry.value : 0,
+      total: metricEntries.filter((e: MetricEntry) => e.name.startsWith('task')).length,
+      completed: metricEntries.filter((e: MetricEntry) => e.name === 'task.completed').length,
+      failed: metricEntries.filter((e: MetricEntry) => e.name === 'task.failed').length,
+      pending: metricEntries.filter((e: MetricEntry) => e.name === 'task.pending').length,
+      inProgress: metricEntries.filter((e: MetricEntry) => e.name === 'task.in_progress').length,
     }
 
     const executionTimes = metricEntries
