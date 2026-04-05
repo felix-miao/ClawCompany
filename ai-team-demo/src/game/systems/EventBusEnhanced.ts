@@ -43,7 +43,7 @@ export class EventBusEnhanced extends EventBus {
     this.enableEventValidation = config.enableEventValidation ?? true;
   }
 
-  emit(event: GameEvent): void {
+  emit(eventTypeOrEvent: string | GameEvent, event?: GameEvent): Error[] {
     let processedEvent = event;
     if (this.enableEventValidation) {
       const result = this.validateEvent(event);
@@ -64,11 +64,11 @@ export class EventBusEnhanced extends EventBus {
   }
 
   private executeHandlers(
-    handlers: Set<GameEventHandler<GameEvent>> | undefined,
+    handlers: Array<(event: GameEvent) => void> | undefined,
     event: GameEvent,
     isWildcard: boolean
   ): void {
-    if (!handlers || handlers.size === 0) return;
+    if (!handlers || handlers.length === 0) return;
 
     for (const handler of handlers) {
       try {
@@ -189,10 +189,10 @@ export class EventBusEnhanced extends EventBus {
       handlerCounts: Object.fromEntries(
         this.getEventTypes().map(type => [
           type,
-          this.handlers.get(type)?.size ?? 0
+          this.handlers.get(type)?.length ?? 0
         ])
       ),
-      wildcardHandlerCount: this.wildcardHandlers.size,
+      wildcardHandlerCount: this.wildcardHandlers.length,
       errorRate: this.errorStats.totalErrors > 0
         ? (this.errorStats.totalErrors / (this.getHistory().length + this.errorStats.totalErrors)) * 100
         : 0
