@@ -251,12 +251,9 @@ export interface RPCError {
   data?: unknown
 }
 
-export interface RPCResponse {
-  jsonrpc: '2.0'
-  id: number
-  result?: unknown
-  error?: RPCError
-}
+export type RPCResponse =
+  | { jsonrpc: '2.0'; id: number; result: unknown; error?: undefined }
+  | { jsonrpc: '2.0'; id: number; result?: undefined; error: RPCError }
 
 export interface PendingCall {
   resolve: (value: unknown) => void
