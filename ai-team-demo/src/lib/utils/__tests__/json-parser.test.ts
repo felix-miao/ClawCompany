@@ -1,4 +1,4 @@
-import { extractJSONObject, extractJSONArray, extractJSON, safeJsonParse } from '../json-parser'
+import { extractJSONObject, extractJSONArray, extractJSON, safeJsonParse, sanitizeJSON } from '../json-parser'
 
 describe('extractJSONObject', () => {
   it('should extract JSON from plain JSON string', () => {
@@ -378,5 +378,240 @@ describe('extractJSON', () => {
   it('should handle object-only input', () => {
     const result = extractJSON('{"only": "object"}')
     expect(result).toEqual({ only: 'object' })
+  })
+})
+
+describe('sanitizeJSON - LLM edge cases', () => {
+  describe('trailing commas', () => {
+    it('should handle trailing comma in object', () => {
+      const result = sanitizeJSON('{"a": 1, "b": 2,}')
+      expect(JSON.parse(result)).toEqual({ a: 1, b: 2 })
+    })
+
+    it('should handle trailing comma in array', () => {
+      const result = sanitizeJSON('[1, 2, 3,]')
+      expect(JSON.parse(result)).toEqual([1, 2, 3])
+    })
+
+    it('should handle trailing comma in nested object', () => {
+      const result = sanitizeJSON('{"outer": {"inner": 42,},}')
+      expect(JSON.parse(result)).toEqual({ outer: { inner: 42 } })
+    })
+
+    it('should handle trailing comma in nested array', () => {
+      const result = sanitizeJSON('[[1, 2,], [3,],]')
+      expect(JSON.parse(result)).toEqual([[1, 2], [3]])
+    })
+
+    it('should handle trailing comma after object in array', () => {
+      const result = sanitizeJSON('[{"a": 1}, {"b": 2},]')
+      expect(JSON.parse(result)).toEqual([{ a: 1 }, { b: 2 }])
+    })
+
+    it('should NOT remove commas that are not trailing', () => {
+      const result = sanitizeJSON('{"a": 1, "b": 2}')
+      expect(JSON.parse(result)).toEqual({ a: 1, b: 2 })
+    })
+  })
+
+  describe('single quotes', () => {
+    it('should convert single-quoted keys', () => {
+      const result = sanitizeJSON("{'a': 1}")
+      expect(JSON.parse(result)).toEqual({ a: 1 })
+    })
+
+    it('should convert single-quoted values', () => {
+      const result = sanitizeJSON('{"a": \'hello\'}')
+      expect(JSON.parse(result)).toEqual({ a: 'hello' })
+    })
+
+    it('should convert all single quotes in nested structures', () => {
+      const result = sanitizeJSON("{'a': 'hello', 'b': {'c': 'world'}}")
+      expect(JSON.parse(result)).toEqual({ a: 'hello', b: { c: 'world' } })
+    })
+
+    it('should handle single quotes in arrays', () => {
+      const result = sanitizeJSON("['a', 'b', 'c']")
+      expect(JSON.parse(result)).toEqual(['a', 'b', 'c'])
+    })
+
+    it('should handle mixed single and double quotes', () => {
+      const result = sanitizeJSON("{'a': \"hello\", 'b': 'world'}")
+      expect(JSON.parse(result)).toEqual({ a: 'hello', b: 'world' })
+    })
+
+    it('should not affect double-quoted strings', () => {
+      const result = sanitizeJSON('{"key": "value"}')
+      expect(JSON.parse(result)).toEqual({ key: 'value' })
+    })
+
+    it('should handle escaped single quotes inside single-quoted strings', () => {
+      const result = sanitizeJSON("{'key': 'it\\'s fine'}")
+      expect(JSON.parse(result)).toEqual({ key: "it's fine" })
+    })
+  })
+
+  describe('comments', () => {
+    it('should remove single-line comments', () => {
+      const result = sanitizeJSON('{"a": 1 // this is a comment\n}')
+      expect(JSON.parse(result)).toEqual({ a: 1 })
+    })
+
+    it('should remove multi-line comments', () => {
+      const result = sanitizeJSON('{"a": 1 /* this is a comment */}')
+      expect(JSON.parse(result)).toEqual({ a: 1 })
+    })
+
+    it('should remove multi-line comments spanning lines', () => {
+      const result = sanitizeJSON('{"a": 1, /* comment\nacross\nlines */ "b": 2}')
+      expect(JSON.parse(result)).toEqual({ a: 1, b: 2 })
+    })
+
+    it('should NOT remove // or /* inside strings', () => {
+      const result = sanitizeJSON('{"url": "https://example.com", "regex": "/a*/"}')
+      expect(JSON.parse(result)).toEqual({ url: 'https://example.com', regex: '/a*/' })
+    })
+
+    it('should handle comment at end of array element', () => {
+      const result = sanitizeJSON('[1, // first\n2, // second\n3 // third\n]')
+      expect(JSON.parse(result)).toEqual([1, 2, 3])
+    })
+
+    it('should handle comment-only lines in object', () => {
+      const result = sanitizeJSON('{\n// config section\n"a": 1\n}')
+      expect(JSON.parse(result)).toEqual({ a: 1 })
+    })
+  })
+
+  describe('undefined values', () => {
+    it('should convert undefined to null', () => {
+      const result = sanitizeJSON('{"a": undefined}')
+      expect(JSON.parse(result)).toEqual({ a: null })
+    })
+
+    it('should convert undefined in array to null', () => {
+      const result = sanitizeJSON('[1, undefined, 3]')
+      expect(JSON.parse(result)).toEqual([1, null, 3])
+    })
+
+    it('should handle undefined value in nested object', () => {
+      const result = sanitizeJSON('{"a": {"b": undefined}}')
+      expect(JSON.parse(result)).toEqual({ a: { b: null } })
+    })
+
+    it('should NOT convert "undefined" string to null', () => {
+      const result = sanitizeJSON('{"a": "undefined"}')
+      expect(JSON.parse(result)).toEqual({ a: 'undefined' })
+    })
+  })
+
+  describe('unquoted keys', () => {
+    it('should add quotes to unquoted keys', () => {
+      const result = sanitizeJSON('{a: 1, b: 2}')
+      expect(JSON.parse(result)).toEqual({ a: 1, b: 2 })
+    })
+
+    it('should handle mixed quoted and unquoted keys', () => {
+      const result = sanitizeJSON('{a: 1, "b": 2, c: "three"}')
+      expect(JSON.parse(result)).toEqual({ a: 1, b: 2, c: 'three' })
+    })
+
+    it('should handle unquoted keys with underscore', () => {
+      const result = sanitizeJSON('{my_key: "value"}')
+      expect(JSON.parse(result)).toEqual({ my_key: 'value' })
+    })
+  })
+
+  describe('combined edge cases', () => {
+    it('should handle trailing comma + single quotes + comments', () => {
+      const result = sanitizeJSON("{'a': 1, // comment\n'b': 2,}")
+      expect(JSON.parse(result)).toEqual({ a: 1, b: 2 })
+    })
+
+    it('should handle unquoted keys + trailing comma + undefined', () => {
+      const result = sanitizeJSON('{a: 1, b: undefined,}')
+      expect(JSON.parse(result)).toEqual({ a: 1, b: null })
+    })
+
+    it('should handle single quotes + comments + trailing comma in real LLM output', () => {
+      const input = `{
+  // Task configuration
+  'name': 'my-task',
+  'items': [1, 2, 3,], /* trailing items */
+  'config': undefined,
+}`
+      const result = sanitizeJSON(input)
+      expect(JSON.parse(result)).toEqual({
+        name: 'my-task',
+        items: [1, 2, 3],
+        config: null
+      })
+    })
+  })
+})
+
+describe('extractJSONObject - LLM edge cases (sanitized)', () => {
+  it('should handle trailing comma in LLM response', () => {
+    const response = 'Here is the result:\n{"tasks": [], "status": "ok",}\nDone.'
+    const result = extractJSONObject(response)
+    expect(result).toEqual({ tasks: [], status: 'ok' })
+  })
+
+  it('should handle single quotes in LLM response', () => {
+    const response = "Result: {'name': 'test', 'value': 42}"
+    const result = extractJSONObject(response)
+    expect(result).toEqual({ name: 'test', value: 42 })
+  })
+
+  it('should handle comments in LLM response', () => {
+    const response = 'Result: {"a": 1, /* important */ "b": 2}'
+    const result = extractJSONObject(response)
+    expect(result).toEqual({ a: 1, b: 2 })
+  })
+
+  it('should handle undefined values in LLM response', () => {
+    const response = 'Result: {"a": 1, "b": undefined}'
+    const result = extractJSONObject(response)
+    expect(result).toEqual({ a: 1, b: null })
+  })
+
+  it('should handle combined edge cases in real-world LLM output', () => {
+    const response = `Analysis complete.
+{
+  // analysis section
+  'analysis': 'User wants login',
+  'tasks': [
+    {'title': 'Create form', 'done': false,},
+    {'title': 'Add auth', 'done': undefined,},
+  ],
+  'notes': null,
+}
+Proceed with implementation.`
+
+    const result = extractJSONObject(response)
+    expect(result).not.toBeNull()
+    expect(result!.analysis).toBe('User wants login')
+    expect(result!.tasks).toHaveLength(2)
+    expect(result!.tasks[1].done).toBeNull()
+  })
+})
+
+describe('extractJSONArray - LLM edge cases (sanitized)', () => {
+  it('should handle trailing comma in array from LLM', () => {
+    const response = 'Items: [1, 2, 3,]'
+    const result = extractJSONArray(response)
+    expect(result).toEqual([1, 2, 3])
+  })
+
+  it('should handle single quotes in array from LLM', () => {
+    const response = "Names: ['alice', 'bob']"
+    const result = extractJSONArray(response)
+    expect(result).toEqual(['alice', 'bob'])
+  })
+
+  it('should handle comments in array from LLM', () => {
+    const response = 'Values: [1, /* first */ 2, // second\n3]'
+    const result = extractJSONArray(response)
+    expect(result).toEqual([1, 2, 3])
   })
 })
