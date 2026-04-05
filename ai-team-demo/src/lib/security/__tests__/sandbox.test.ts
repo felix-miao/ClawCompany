@@ -598,6 +598,54 @@ describe('SandboxedFileWriter', () => {
       const listed = await writer.listFiles()
       expect(listed.files?.length).toBe(10)
     })
+
+    it('should not lose warnings across concurrent writeFile calls', async () => {
+      const dangerousContent = 'eval("code")'
+      const safeContent = 'const x = 1'
+
+      const promises = Array.from({ length: 20 }, (_, i) => {
+        const content = i % 2 === 0 ? dangerousContent : safeContent
+        return writer.writeFile(`warn-${i}.txt`, content)
+      })
+      const results = await Promise.all(promises)
+
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i]
+        expect(result.success).toBe(true)
+        if (i % 2 === 0) {
+          expect(result.warnings).toBeDefined()
+          expect(result.warnings!.length).toBeGreaterThan(0)
+        } else {
+          expect(result.warnings).toBeUndefined()
+        }
+      }
+    })
+
+    it('should not leak warnings from one writeFile call to another', async () => {
+      const result1 = writer.writeFile('leak-safe.txt', 'const x = 1')
+      const result2 = writer.writeFile('leak-danger.txt', 'eval("test")')
+      const [r1, r2] = await Promise.all([result1, result2])
+
+      expect(r1.success).toBe(true)
+      expect(r2.success).toBe(true)
+      expect(r1.warnings).toBeUndefined()
+      expect(r2.warnings).toBeDefined()
+      expect(r2.warnings!.length).toBeGreaterThan(0)
+    })
+
+    it('should preserve correct warning count per file when concurrent', async () => {
+      const multiDangerContent = 'eval("x") + process.env.Y + exec("cmd")'
+      const promises = Array.from({ length: 10 }, (_, i) =>
+        writer.writeFile(`multi-${i}.txt`, multiDangerContent)
+      )
+      const results = await Promise.all(promises)
+
+      for (const result of results) {
+        expect(result.success).toBe(true)
+        expect(result.warnings).toBeDefined()
+        expect(result.warnings!.length).toBeGreaterThanOrEqual(3)
+      }
+    })
   })
 
   describe('custom extensions', () => {
