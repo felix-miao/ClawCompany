@@ -3,18 +3,22 @@ import { GameEvent, GameEventType } from '../types/GameEvents';
 type EventCallback = (event: GameEvent) => void;
 
 export class GameEventStore {
-  private events: GameEvent[] = [];
-  private subscribers = new Set<EventCallback>();
+  private buffer: (GameEvent | undefined)[];
+  private head = 0;
+  private count = 0;
   private readonly maxEvents: number;
+  private subscribers = new Set<EventCallback>();
 
   constructor(maxEvents: number = 200) {
     this.maxEvents = maxEvents;
+    this.buffer = new Array(maxEvents);
   }
 
   push(event: GameEvent): void {
-    this.events.push(event);
-    while (this.events.length > this.maxEvents) {
-      this.events.shift();
+    this.buffer[this.head] = event;
+    this.head = (this.head + 1) % this.maxEvents;
+    if (this.count < this.maxEvents) {
+      this.count++;
     }
     this.notify(event);
   }
@@ -26,21 +30,36 @@ export class GameEventStore {
     };
   }
 
+  private getEventsArray(): GameEvent[] {
+    if (this.count === 0) return [];
+    const result: GameEvent[] = [];
+    for (let i = 0; i < this.count; i++) {
+      const idx = (this.head - this.count + i + this.maxEvents) % this.maxEvents;
+      const item = this.buffer[idx];
+      if (item !== undefined) {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+
   getEvents(since?: number): GameEvent[] {
-    if (!since) return [...this.events];
-    return this.events.filter(e => e.timestamp > since);
+    if (!since) return this.getEventsArray();
+    return this.getEventsArray().filter(e => e.timestamp > since);
   }
 
   getEventsByType(type: GameEventType): GameEvent[] {
-    return this.events.filter(e => e.type === type);
+    return this.getEventsArray().filter(e => e.type === type);
   }
 
   getEventsByAgent(agentId: string): GameEvent[] {
-    return this.events.filter(e => e.agentId === agentId);
+    return this.getEventsArray().filter(e => e.agentId === agentId);
   }
 
   getLatestEvent(): GameEvent | undefined {
-    return this.events[this.events.length - 1];
+    if (this.count === 0) return undefined;
+    const idx = (this.head - 1 + this.maxEvents) % this.maxEvents;
+    return this.buffer[idx];
   }
 
   getSubscriberCount(): number {
@@ -48,7 +67,9 @@ export class GameEventStore {
   }
 
   clear(): void {
-    this.events = [];
+    this.head = 0;
+    this.count = 0;
+    this.buffer = new Array(this.maxEvents);
   }
 
   private notify(event: GameEvent): void {

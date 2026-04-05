@@ -1,11 +1,9 @@
-import { GameEvent, GameEventType, GameEventHandler } from '../types/GameEvents';
-import { EventBus } from './EventBus';
+import { GameEvent, GameEventHandler } from '../types/GameEvents';
+import { EventBus, EventBusConfig } from './EventBus';
 
-export interface EventBusEnhancedConfig {
-  maxHistorySize?: number;
+export interface EventBusEnhancedConfig extends EventBusConfig {
   enableErrorLogging?: boolean;
   enableEventValidation?: boolean;
-  maxErrorHandlerRetries?: number;
 }
 
 export interface ErrorEvent {
@@ -16,7 +14,6 @@ export interface ErrorEvent {
     eventType: string;
     handlerCount: number;
     isWildcard: boolean;
-    retryCount?: number;
   };
 }
 
@@ -36,7 +33,6 @@ export class EventBusEnhanced extends EventBus {
   };
   private readonly enableErrorLogging: boolean;
   private readonly enableEventValidation: boolean;
-  private readonly maxErrorHandlerRetries: number;
   private readonly maxErrorHistory = 100;
   private errorHead = 0;
   private errorCount = 0;
@@ -45,7 +41,6 @@ export class EventBusEnhanced extends EventBus {
     super({ maxHistorySize: config.maxHistorySize });
     this.enableErrorLogging = config.enableErrorLogging ?? true;
     this.enableEventValidation = config.enableEventValidation ?? true;
-    this.maxErrorHandlerRetries = config.maxErrorHandlerRetries ?? 3;
   }
 
   emit(event: GameEvent): void {
@@ -54,7 +49,7 @@ export class EventBusEnhanced extends EventBus {
       const result = this.validateEvent(event);
       if (!result.valid) {
         const validationError = new Error(`Event validation failed for type: ${event.type}`);
-        this.handleError(validationError, event, false, 0);
+        this.handleError(validationError, event, false);
         return;
       }
       processedEvent = result.event;
@@ -63,43 +58,26 @@ export class EventBusEnhanced extends EventBus {
     this.addToHistory(processedEvent);
 
     const specificHandlers = this.handlers.get(processedEvent.type);
-    this.executeHandlersWithRetry(specificHandlers, processedEvent, false);
+    this.executeHandlers(specificHandlers, processedEvent, false);
 
-    this.executeHandlersWithRetry(this.wildcardHandlers, processedEvent, true);
+    this.executeHandlers(this.wildcardHandlers, processedEvent, true);
   }
 
-  private executeHandlersWithRetry(
+  private executeHandlers(
     handlers: Set<GameEventHandler<GameEvent>> | undefined,
     event: GameEvent,
     isWildcard: boolean
   ): void {
     if (!handlers || handlers.size === 0) return;
 
-    handlers.forEach(handler => {
-      let retryCount = 0;
-      let lastError: Error | null = null;
-
-      while (retryCount <= this.maxErrorHandlerRetries) {
-        try {
-          handler(event);
-          if (this.enableErrorLogging && retryCount > 0) {
-            console.log(`[EventBus] Handler succeeded after ${retryCount} retries for ${event.type}`);
-          }
-          break;
-        } catch (error: unknown) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          retryCount++;
-
-          if (retryCount <= this.maxErrorHandlerRetries) {
-            console.warn(`[EventBus] Handler failed ${retryCount}/${this.maxErrorHandlerRetries} for ${event.type}:`, error);
-          }
-        }
+    for (const handler of handlers) {
+      try {
+        handler(event);
+      } catch (error: unknown) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.handleError(err, event, isWildcard);
       }
-
-      if (retryCount > this.maxErrorHandlerRetries && lastError) {
-        this.handleError(lastError, event, isWildcard, retryCount);
-      }
-    });
+    }
   }
 
   private validateEvent(event: GameEvent): { valid: boolean; event: GameEvent } {
@@ -139,7 +117,7 @@ export class EventBusEnhanced extends EventBus {
     return { valid: true, event: correctedEvent };
   }
 
-  private handleError(error: Error, event: GameEvent, isWildcard: boolean, retryCount: number): void {
+  private handleError(error: Error, event: GameEvent, isWildcard: boolean): void {
     const errorEvent: ErrorEvent = {
       type: 'eventbus:error',
       timestamp: Date.now(),
@@ -148,7 +126,6 @@ export class EventBusEnhanced extends EventBus {
         eventType: event.type,
         handlerCount: this.listenerCount(event.type),
         isWildcard,
-        retryCount
       }
     };
 

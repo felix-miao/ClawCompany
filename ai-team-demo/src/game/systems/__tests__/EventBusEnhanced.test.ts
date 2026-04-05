@@ -8,7 +8,6 @@ describe('EventBusEnhanced', () => {
     eventBus = new EventBusEnhanced({
       enableErrorLogging: true,
       enableEventValidation: true,
-      maxErrorHandlerRetries: 2
     });
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -78,7 +77,7 @@ describe('EventBusEnhanced', () => {
   });
 
   describe('Enhanced Error Handling', () => {
-    it('should retry failed handlers up to configured max times', () => {
+    it('should log error and continue when handler throws', () => {
       const handler = jest.fn(() => {
         throw new Error('Test error');
       });
@@ -94,12 +93,19 @@ describe('EventBusEnhanced', () => {
 
       eventBus.emit(event);
 
-      // Handler should be called maxErrorHandlerRetries + 1 times (1 initial + 2 retries)
-      expect(handler).toHaveBeenCalledTimes(3);
-      expect(console.warn).toHaveBeenCalledTimes(2); // 2 warnings for retries
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(console.error).toHaveBeenCalledWith(
+        '[EventBus] Error processing event agent:status-change:',
+        expect.objectContaining({
+          error: 'Test error',
+          context: expect.objectContaining({
+            eventType: 'agent:status-change'
+          })
+        })
+      );
     });
 
-    it('should succeed after retry and log success', () => {
+    it('should call handler once and log error if it throws', () => {
       let callCount = 0;
       const handler = jest.fn(() => {
         callCount++;
@@ -119,10 +125,8 @@ describe('EventBusEnhanced', () => {
 
       eventBus.emit(event);
 
-      expect(handler).toHaveBeenCalledTimes(2);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Handler succeeded after 1 retries for agent:status-change')
-      );
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(console.error).toHaveBeenCalled();
     });
 
     it('should capture error statistics', () => {
