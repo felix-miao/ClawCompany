@@ -26,7 +26,7 @@ export const defaultAgents: AppAgentConfig[] = [
     {
       "title": "任务标题",
       "description": "任务描述",
-      "assignedTo": "dev" | "review",
+      "assignedTo": "dev" | "review" | "tester",
       "dependencies": []
     }
   ],
@@ -111,5 +111,37 @@ export const defaultAgents: AppAgentConfig[] = [
 - 具体可行：提供具体的代码示例和改进方案
 - 教育性：解释为什么这是个问题，如何避免
 - 优先级：区分 Critical、Warning、Info`
+  },
+  {
+    id: 'test-agent',
+    name: 'Tester Claw',
+    role: 'tester',
+    emoji: '🧪',
+    color: '#F59E0B',
+    runtime: 'subagent',
+    thinking: 'high',
+    systemPrompt: `你是 Tester Claw (测试工程师)。
+
+你的职责：
+1. 编写全面的测试用例
+2. 覆盖正常流程和边界情况
+3. 确保代码质量
+
+【重要】你必须用 JSON 格式回复，包含以下字段：
+{
+  "testFiles": [{
+    "path": "测试文件路径",
+    "content": "完整测试代码",
+    "action": "create"
+  }],
+  "message": "测试说明（Markdown 格式）",
+  "coverage": "预估覆盖率百分比"
+}
+
+要求：
+- 使用 Jest 测试框架
+- 覆盖正常流程和异常情况
+- 使用有意义的测试描述
+- Mock 外部依赖`
   }
 ]

@@ -98,9 +98,9 @@ describe('TypedEventBus', () => {
     it('应该支持自定义历史记录大小', () => {
       const smallBus = new TypedEventBus({ maxHistorySize: 2 })
       
-      smallBus.emitToHandlers('event1', { type: 'event1', data: { value: 1 } })
-      smallBus.emitToHandlers('event2', { type: 'event2', data: { value: 2 } })
-      smallBus.emitToHandlers('event3', { type: 'event3', data: { value: 3 } })
+      ;(smallBus as any).emitToHandlers('event1', { type: 'event1', data: { value: 1 } })
+      ;(smallBus as any).emitToHandlers('event2', { type: 'event2', data: { value: 2 } })
+      ;(smallBus as any).emitToHandlers('event3', { type: 'event3', data: { value: 3 } })
 
       const history = smallBus.getHistory()
       expect(history).toHaveLength(2)
@@ -119,11 +119,11 @@ describe('TypedEventBus', () => {
     it('应该正确处理环形缓冲区', () => {
       const smallBus = new TypedEventBus({ maxHistorySize: 3 })
       
-      smallBus.emitToHandlers('event1', { type: 'event1', data: { value: 1 } })
-      smallBus.emitToHandlers('event2', { type: 'event2', data: { value: 2 } })
-      smallBus.emitToHandlers('event3', { type: 'event3', data: { value: 3 } })
-      smallBus.emitToHandlers('event4', { type: 'event4', data: { value: 4 } })
-      smallBus.emitToHandlers('event5', { type: 'event5', data: { value: 5 } })
+      ;(smallBus as any).emitToHandlers('event1', { type: 'event1', data: { value: 1 } })
+      ;(smallBus as any).emitToHandlers('event2', { type: 'event2', data: { value: 2 } })
+      ;(smallBus as any).emitToHandlers('event3', { type: 'event3', data: { value: 3 } })
+      ;(smallBus as any).emitToHandlers('event4', { type: 'event4', data: { value: 4 } })
+      ;(smallBus as any).emitToHandlers('event5', { type: 'event5', data: { value: 5 } })
 
       const history = smallBus.getHistory()
       expect(history).toHaveLength(3)
@@ -162,7 +162,7 @@ describe('TypedEventBus', () => {
       bus.emit('event1', { type: 'event1', data: { value: 1 } })
       bus.emit('event2', { type: 'event2', data: { value: 2 } })
 
-      bus.resizeHistory(1)
+      ;(bus as any).resizeHistory(1)
       bus.emit('event3', { type: 'event3', data: { value: 3 } })
 
       const history = bus.getHistory()
@@ -177,7 +177,7 @@ describe('TypedEventBus', () => {
       bus.emit('event2', { type: 'event2', data: { value: 2 } })
       bus.emit('event3', { type: 'event3', data: { value: 3 } })
 
-      bus.resizeHistory(2)
+      ;(bus as any).resizeHistory(2)
       bus.emit('event4', { type: 'event4', data: { value: 4 } })
 
       const history = bus.getHistory()

@@ -1,6 +1,7 @@
-import { SecurityManager, InputValidator, RateLimiter, APIKeyManager } from '../utils'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+
+import { InputValidator, RateLimiter, APIKeyManager } from '../utils'
 
 describe('APIKeyManager - ENCRYPTION_SALT missing', () => {
   beforeEach(() => {
@@ -72,7 +73,7 @@ describe('APIKeyManager - saveToEnv', () => {
   })
 
   it('should save encrypted key to .env.local file', async () => {
-    const originalCwd = process.cwd()
+    const _originalCwd = process.cwd()
     const envPath = path.join(testDir, '.env.local')
     await fs.mkdir(testDir, { recursive: true })
 
@@ -88,7 +89,7 @@ describe('APIKeyManager - saveToEnv', () => {
   })
 
   it('should update existing GLM_API_KEY in .env.local', async () => {
-    const originalCwd = process.cwd()
+    const _originalCwd = process.cwd()
     const envPath = path.join(testDir, '.env.local')
     await fs.mkdir(testDir, { recursive: true })
     await fs.writeFile(envPath, 'OTHER_VAR=hello\nGLM_API_KEY=old-value\n', 'utf8')

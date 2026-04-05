@@ -62,7 +62,7 @@ export class TaskManager {
       try {
         handler(event)
       } catch (error) {
-        // Log error but continue execution - improved error handling
+        // eslint-disable-next-line no-console
         console.error('[TaskManager] Handler error:', error instanceof Error ? error.message : String(error));
       }
     })

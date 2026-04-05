@@ -87,11 +87,11 @@ describe('PerformanceMonitor Memory Management', () => {
     it('should handle circular references properly', () => {
       // 创建带有循环引用的对象
       const circularRef = { data: 'test' }
-      circularRef.self = circularRef
+      ;(circularRef as any).self = circularRef
       
       // 应该能够处理带有循环引用的标签而不会崩溃
       expect(() => {
-        monitor.increment('test', 1, { circular: circularRef })
+        monitor.increment('test', 1, { circular: circularRef } as any)
       }).not.toThrow()
       
       // 验证操作仍然正常

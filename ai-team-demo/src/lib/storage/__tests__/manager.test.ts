@@ -3,8 +3,6 @@ import * as path from 'path'
 
 import { StorageManager, Conversation, AgentConfig } from '../manager'
 
-import type { PersistedAgentConfig } from '@/types/agent-config'
-
 describe('StorageManager', () => {
   let storageManager: StorageManager
   const testDir = '/tmp/clawcompany-storage-test'
@@ -18,7 +16,7 @@ describe('StorageManager', () => {
     // 清理测试数据
     try {
       await fs.rm(testDir, { recursive: true, force: true })
-    } catch (error) {
+    } catch (_error) {
       // 忽略清理错误
     }
   })

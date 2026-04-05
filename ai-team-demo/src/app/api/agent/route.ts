@@ -241,9 +241,19 @@ export const GET = withAuth(async (request: NextRequest) => {
     return successResponse({ agents })
   }
 
-  const agent = await storageManager.loadAgent(agentId)
+  let agent = await storageManager.loadAgent(agentId)
+
   if (!agent) {
-    return errorResponse('Agent not found', 404)
+    const defaultAgent = defaultAgents.find(a => a.id === agentId)
+    if (!defaultAgent) {
+      return errorResponse('Agent not found', 404)
+    }
+
+    agent = PersistedAgentConfigSchema.parse({
+      ...defaultAgent,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    })
   }
 
   return successResponse({ agent })
@@ -256,9 +266,19 @@ export const PUT = withAuth(async (request: NextRequest) => {
 
   const { agentId, ...updates } = parsed.data
 
-  const agent = await storageManager.loadAgent(agentId)
+  let agent = await storageManager.loadAgent(agentId)
+
   if (!agent) {
-    return errorResponse('Agent not found', 404)
+    const defaultAgent = defaultAgents.find(a => a.id === agentId)
+    if (!defaultAgent) {
+      return errorResponse('Agent not found', 404)
+    }
+
+    agent = PersistedAgentConfigSchema.parse({
+      ...defaultAgent,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    })
   }
 
   const updated = PersistedAgentConfigSchema.parse({

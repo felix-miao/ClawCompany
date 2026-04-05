@@ -3,6 +3,7 @@
 import { PMAgent } from './pm-agent'
 import { DevAgent } from './dev-agent'
 import { ReviewAgent } from './review-agent'
+import { TestAgent } from './test-agent'
 import { BaseAgent } from '../core/base-agent'
 import { AgentRole, Task, AgentResponse, AgentContext } from './types'
 
@@ -13,7 +14,8 @@ export class AgentManager {
     this.agents = new Map<AgentRole, BaseAgent>([
       ['pm' as AgentRole, new PMAgent()],
       ['dev' as AgentRole, new DevAgent()],
-      ['review' as AgentRole, new ReviewAgent()]
+      ['review' as AgentRole, new ReviewAgent()],
+      ['tester' as AgentRole, new TestAgent()]
     ])
   }
 

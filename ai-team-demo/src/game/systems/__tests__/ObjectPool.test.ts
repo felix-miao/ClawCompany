@@ -58,7 +58,7 @@ describe('ObjectPool', () => {
     it('should return an object from the pool', () => {
       const obj = pool.acquire();
       expect(obj).toBeDefined();
-      expect(obj.active).toBe(true);
+      expect(obj!.active).toBe(true);
     });
 
     it('should reduce available count', () => {
@@ -72,16 +72,16 @@ describe('ObjectPool', () => {
 
       const obj = pool.acquire();
       expect(obj).toBeDefined();
-      expect(obj.active).toBe(true);
+      expect(obj!.active).toBe(true);
       expect(pool.totalSize()).toBe(6);
     });
 
     it('should reset object state when acquiring', () => {
-      const obj = pool.acquire();
+      const obj = pool.acquire()!;
       obj.value = 42;
       pool.release(obj);
 
-      const reacquired = pool.acquire();
+      const reacquired = pool.acquire()!;
       expect(reacquired.value).toBe(0);
     });
 
@@ -102,19 +102,19 @@ describe('ObjectPool', () => {
 
   describe('release', () => {
     it('should return object to pool', () => {
-      const obj = pool.acquire();
+      const obj = pool.acquire()!;
       pool.release(obj);
       expect(pool.available()).toBe(5);
     });
 
     it('should mark object as inactive', () => {
-      const obj = pool.acquire();
+      const obj = pool.acquire()!;
       pool.release(obj);
       expect(obj.active).toBe(false);
     });
 
     it('should reset object on release', () => {
-      const obj = pool.acquire();
+      const obj = pool.acquire()!;
       obj.value = 99;
       pool.release(obj);
       expect(obj.value).toBe(0);
@@ -128,13 +128,13 @@ describe('ObjectPool', () => {
         maxSize: 2,
       });
 
-      const obj1 = limitedPool.acquire();
-      const obj2 = limitedPool.acquire();
-      const obj3 = { active: true, value: 0, reset() { this.value = 0; } };
+      const obj1 = limitedPool.acquire()!;
+      const obj2 = limitedPool.acquire()!;
+      const obj3: TestObject = { active: true, value: 0, reset() { this.value = 0; } };
 
       limitedPool.release(obj1);
       limitedPool.release(obj2);
-      limitedPool.release(obj3);
+      limitedPool.release(obj3 as TestObject);
 
       expect(limitedPool.available()).toBe(2);
     });
@@ -186,7 +186,7 @@ describe('ObjectPool', () => {
     });
 
     it('should track release count', () => {
-      const obj = pool.acquire();
+      const obj = pool.acquire()!;
       pool.release(obj);
       expect(pool.getStats().releaseCount).toBe(1);
     });
@@ -199,8 +199,8 @@ describe('ObjectPool', () => {
     });
 
     it('should track peak in-use count', () => {
-      const objs = [];
-      for (let i = 0; i < 3; i++) objs.push(pool.acquire());
+      const objs: TestObject[] = [];
+      for (let i = 0; i < 3; i++) objs.push(pool.acquire()!);
       expect(pool.getStats().peakInUse).toBe(3);
       pool.release(objs[0]);
       expect(pool.getStats().peakInUse).toBe(3);

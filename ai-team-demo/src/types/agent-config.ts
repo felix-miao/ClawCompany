@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const APP_AGENT_ROLES = ['pm', 'dev', 'review', 'custom'] as const
+export const APP_AGENT_ROLES = ['pm', 'dev', 'review', 'tester', 'custom'] as const
 export type AppAgentRole = (typeof APP_AGENT_ROLES)[number]
 
 const DEFAULT_AGENT_EMOJI = '🤖'

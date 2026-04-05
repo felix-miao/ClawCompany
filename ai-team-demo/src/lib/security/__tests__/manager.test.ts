@@ -2,7 +2,6 @@
 import { SecurityManager, InputValidator, RateLimiter } from '../utils'
 
 describe('SecurityManager', () => {
-  const testKey = 'GLM_API_KEY'
 
   beforeEach(() => {
     process.env.ENCRYPTION_KEY = 'test-encryption-key'
@@ -143,8 +142,8 @@ describe('SecurityManager', () => {
     })
 
     it('should handle null and undefined', () => {
-      expect(SecurityManager.validate(null as any)).toBe(false)
-      expect(SecurityManager.validate(undefined as any)).toBe(false)
+      expect(SecurityManager.validate(null as unknown as string)).toBe(false)
+      expect(SecurityManager.validate(undefined as unknown as string)).toBe(false)
     })
   })
 

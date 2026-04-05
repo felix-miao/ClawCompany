@@ -224,13 +224,13 @@ describe('SceneEventBridge', () => {
         type: 'session:started',
         timestamp: Date.now(),
         sessionKey: 'sess-1',
-        role: 'dev1',
+        role: 'dev',
         task: 'Implement feature',
       });
 
-      expect(mockActions.setAgentWorking).toHaveBeenCalledWith('dev1', true);
-      expect(mockActions.setAgentEmotion).toHaveBeenCalledWith('dev1', 'thinking');
-      expect(mockActions.moveAgentToRoom).toHaveBeenCalledWith('dev1', 'dev-studio');
+      expect(mockActions.setAgentWorking).toHaveBeenCalledWith('dev', true);
+      expect(mockActions.setAgentEmotion).toHaveBeenCalledWith('dev', 'thinking');
+      expect(mockActions.moveAgentToRoom).toHaveBeenCalledWith('dev', 'dev-studio');
     });
   });
 

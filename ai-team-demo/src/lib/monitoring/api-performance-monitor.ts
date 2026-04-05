@@ -1,4 +1,4 @@
-import { PerformanceMonitor, ApiCallRecord } from './performance-monitor';
+import { PerformanceMonitor } from './performance-monitor';
 
 export class ApiPerformanceMonitor {
   private performanceMonitor: PerformanceMonitor;
@@ -152,8 +152,7 @@ export class ApiPerformanceMonitor {
         const wrappedCall = this.monitorApiCall(`${batchName}-${i}`, calls[i]);
         const result = await wrappedCall();
         results.push(result);
-      } catch (error) {
-        // 单个调用失败不影响其他调用
+      } catch (_error) {
         results.push(undefined);
       }
     }
@@ -215,7 +214,7 @@ export class ApiPerformanceMonitor {
    * 获取所有API性能统计
    */
   getAllApiStats() {
-    const stats: Record<string, any> = {};
+    const stats: Record<string, unknown> = {};
     for (const api of this.performanceMonitor.getMonitoredApis()) {
       stats[api] = this.performanceMonitor.getApiStats(api);
     }

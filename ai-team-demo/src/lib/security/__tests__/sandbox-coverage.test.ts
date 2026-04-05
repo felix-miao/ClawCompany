@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises'
 import * as os from 'os'
 import * as path from 'path'
+
 import { SandboxedFileWriter } from '../sandbox'
 
 describe('SandboxedFileWriter - UNC path rejection (lines 107-108)', () => {
@@ -18,7 +19,6 @@ describe('SandboxedFileWriter - UNC path rejection (lines 107-108)', () => {
 
   it('should reject UNC paths starting with //', () => {
     const result = writer.validatePath('//server/share/file.txt')
-    console.log('UNC path validation result:', result)
     expect(result.allowed).toBe(false)
     // 修改期望，因为代码可能返回 "UNC paths are not allowed" 或其他相关消息
     expect(result.reason).toMatch(/UNC|Absolute paths/)
@@ -26,7 +26,6 @@ describe('SandboxedFileWriter - UNC path rejection (lines 107-108)', () => {
 
   it('should reject UNC paths //192.168.1.1', () => {
     const result = writer.validatePath('//192.168.1.1/c$/secret')
-    console.log('UNC IP path validation result:', result)
     expect(result.allowed).toBe(false)
     // 修改期望，因为代码可能返回 "UNC paths are not allowed" 或其他相关消息
     expect(result.reason).toMatch(/UNC|Absolute paths/)
@@ -56,7 +55,6 @@ describe('SandboxedFileWriter - writeFile filesystem error (lines 206-210)', () 
     )
 
     const result = await writer.writeFile('error.txt', 'content')
-    console.log('WriteFile result:', result)
     
     // 根据实际行为调整期望
     // 如果writeFile失败，应该返回 success: false
@@ -93,7 +91,6 @@ describe('SandboxedFileWriter - listFiles errors (lines 250-251)', () => {
     )
 
     const result = await writer.listFiles()
-    console.log('ListFiles result:', result)
     
     // 根据实际行为调整期望
     expect([true, false]).toContain(result.success)

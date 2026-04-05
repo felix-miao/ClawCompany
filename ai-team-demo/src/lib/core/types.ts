@@ -1,4 +1,4 @@
-export type AgentRole = 'pm' | 'dev' | 'review'
+export type AgentRole = 'pm' | 'dev' | 'review' | 'tester'
 
 export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'completed' | 'failed'
 
@@ -79,7 +79,7 @@ export interface Task {
   title: string
   description: string
   status: TaskStatus
-  assignedTo: AgentRole | 'dev'
+  assignedTo: AgentRole
   dependencies: string[]
   files: string[]
   createdAt?: Date

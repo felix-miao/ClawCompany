@@ -1,4 +1,5 @@
 import { Orchestrator, validateSubTasks } from '../index'
+import type { Task } from '@/lib/core/types'
 
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
@@ -33,7 +34,7 @@ describe('Orchestrator - Edge Cases', () => {
     id,
     title: `Task ${id}`,
     description: `Task ${id}`,
-    assignedTo: assignedTo as const,
+    assignedTo,
     dependencies: deps,
     files: [] as string[],
     status: 'pending' as const,
@@ -178,7 +179,7 @@ describe('Orchestrator - Edge Cases', () => {
       await new Promise(r => setTimeout(r, 50))
       orchestrator.abortWorkflow()
 
-      const result = await workflowPromise
+      const _result = await workflowPromise
       const queueStats = orchestrator.getTaskQueueStats()
       expect(queueStats).toBeDefined()
     })
@@ -320,7 +321,7 @@ describe('Orchestrator - Edge Cases', () => {
             title: `T${i}`, description: `T${i}`, assignedTo: 'dev', dependencies: [], files: [],
           })),
         }))
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           if (_role === 'dev') return { message: `${task.id} done`, files: [] }
           return { message: `${task.id} review done`, status: 'success' }
         })

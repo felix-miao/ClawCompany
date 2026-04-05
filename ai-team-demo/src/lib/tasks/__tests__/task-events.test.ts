@@ -1,5 +1,4 @@
-import { TaskManager, TaskEventHandler, TaskLifecycleEvent, TaskTransitionRecord } from '../manager'
-import { TaskStatus, AgentRole } from '../../core/types'
+import { TaskManager, TaskEventHandler, TaskLifecycleEvent } from '../manager'
 
 describe('Task Lifecycle Events', () => {
   let tm: TaskManager
@@ -56,9 +55,9 @@ describe('Task Lifecycle Events', () => {
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('task:created')
       expect(events[0].taskId).toBe(task.id)
-      expect(events[0].data.title).toBe('New Task')
-      expect(events[0].data.status).toBe('pending')
-      expect(events[0].data.assignedTo).toBe('dev')
+      expect((events[0].data as any).title).toBe('New Task')
+      expect((events[0].data as any).status).toBe('pending')
+      expect((events[0].data as any).assignedTo).toBe('dev')
       expect(events[0].timestamp).toBeInstanceOf(Date)
     })
   })
@@ -74,8 +73,8 @@ describe('Task Lifecycle Events', () => {
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('task:status_changed')
       expect(events[0].taskId).toBe(task.id)
-      expect(events[0].data.from).toBe('pending')
-      expect(events[0].data.to).toBe('in_progress')
+      expect((events[0].data as any).from).toBe('pending')
+      expect((events[0].data as any).to).toBe('in_progress')
     })
 
     it('emits for each step in a multi-step transition', () => {
@@ -88,12 +87,12 @@ describe('Task Lifecycle Events', () => {
       tm.updateTaskStatus(task.id, 'completed')
 
       expect(events).toHaveLength(3)
-      expect(events[0].data.from).toBe('pending')
-      expect(events[0].data.to).toBe('in_progress')
-      expect(events[1].data.from).toBe('in_progress')
-      expect(events[1].data.to).toBe('review')
-      expect(events[2].data.from).toBe('review')
-      expect(events[2].data.to).toBe('completed')
+      expect((events[0].data as any).from).toBe('pending')
+      expect((events[0].data as any).to).toBe('in_progress')
+      expect((events[1].data as any).from).toBe('in_progress')
+      expect((events[1].data as any).to).toBe('review')
+      expect((events[2].data as any).from).toBe('review')
+      expect((events[2].data as any).to).toBe('completed')
     })
 
     it('does NOT emit for idempotent status updates (same status)', () => {
@@ -127,8 +126,8 @@ describe('Task Lifecycle Events', () => {
       expect(events).toHaveLength(1)
       expect(events[0].type).toBe('task:assigned')
       expect(events[0].taskId).toBe(task.id)
-      expect(events[0].data.from).toBe('dev')
-      expect(events[0].data.to).toBe('pm')
+      expect((events[0].data as any).from).toBe('dev')
+      expect((events[0].data as any).to).toBe('pm')
     })
 
     it('does NOT emit when assigning to same agent', () => {
@@ -154,8 +153,8 @@ describe('Task Lifecycle Events', () => {
 
       const statusEvents = events.filter(e => e.type === 'task:status_changed')
       expect(statusEvents).toHaveLength(1)
-      expect(statusEvents[0].data.from).toBe('review')
-      expect(statusEvents[0].data.to).toBe('completed')
+      expect((statusEvents[0].data as any).from).toBe('review')
+      expect((statusEvents[0].data as any).to).toBe('completed')
     })
   })
 

@@ -53,7 +53,7 @@ describe('ErrorRecovery - 未覆盖的错误处理分支', () => {
     })
 
     it('应该对 UNKNOWN 类别错误使用 RETRY（默认分支）', async () => {
-      const error = new AppError('UNKNOWN', 'unknown error', ErrorCategory.UNKNOWN, {
+      const error = new AppError('UNKNOWN', 'unknown error', 'unknown' as any, {
         severity: ErrorSeverity.LOW,
       })
       const result = await recovery.handleError(error)

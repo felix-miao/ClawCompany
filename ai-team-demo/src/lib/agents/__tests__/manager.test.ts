@@ -10,9 +10,9 @@ describe('AgentManager', () => {
     manager = new AgentManager()
   })
 
-  it('应该初始化三个 Agent', () => {
+  it('应该初始化四个 Agent', () => {
     const agents = manager.getAllAgents()
-    expect(agents).toHaveLength(3)
+    expect(agents).toHaveLength(4)
   })
 
   it('应该能获取 PM Claw', () => {
@@ -38,7 +38,7 @@ describe('AgentManager', () => {
 
   it('应该返回所有 Agent 信息', () => {
     const info = manager.getAgentInfo()
-    expect(info).toHaveLength(3)
+    expect(info).toHaveLength(4)
     expect(info[0]).toHaveProperty('id')
     expect(info[0]).toHaveProperty('name')
     expect(info[0]).toHaveProperty('role')

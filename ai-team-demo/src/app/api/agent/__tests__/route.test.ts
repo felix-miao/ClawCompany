@@ -769,6 +769,74 @@ describe('/api/agent', () => {
     })
   })
 
+  describe('GET - default agent fallback', () => {
+    it('should return default agent when not in storage', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue(null)
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost/api/agent?agentId=pm-agent'
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agent).toBeDefined()
+      expect(data.agent.id).toBe('pm-agent')
+      expect(data.agent.name).toBe('PM Claw')
+    })
+
+    it('should return default dev-agent when not in storage', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue(null)
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost/api/agent?agentId=dev-agent'
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agent.id).toBe('dev-agent')
+    })
+
+    it('should return default review-agent when not in storage', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue(null)
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost/api/agent?agentId=review-agent'
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agent.id).toBe('review-agent')
+    })
+
+    it('should still return 404 for truly unknown agent', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue(null)
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost/api/agent?agentId=totally-unknown'
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(data.error).toContain('not found')
+    })
+  })
+
   describe('PUT - agent not found', () => {
     it('should return 404 when updating non-existent agent', async () => {
       const storage = getMockStorageManager()
@@ -779,6 +847,49 @@ describe('/api/agent', () => {
         body: {
           agentId: 'non-existent-agent',
           name: 'Updated Name'
+        }
+      })
+
+      const response = await PUT(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(data.error).toContain('not found')
+    })
+  })
+
+  describe('PUT - default agent fallback', () => {
+    it('should initialize from defaults and update default agent', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue(null)
+      storage.saveAgent.mockResolvedValue(undefined)
+
+      const request = createMockRequest({
+        method: 'PUT',
+        body: {
+          agentId: 'pm-agent',
+          name: 'Updated PM Claw'
+        }
+      })
+
+      const response = await PUT(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.agent.name).toBe('Updated PM Claw')
+      expect(storage.saveAgent).toHaveBeenCalled()
+    })
+
+    it('should still return 404 for truly unknown agent on PUT', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue(null)
+
+      const request = createMockRequest({
+        method: 'PUT',
+        body: {
+          agentId: 'ghost-agent',
+          name: 'Ghost'
         }
       })
 
