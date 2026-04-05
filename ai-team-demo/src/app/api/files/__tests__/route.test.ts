@@ -1,6 +1,14 @@
+// Type definitions for mock file system manager
+interface MockFsManager {
+  writeFile: jest.Mock;
+  readAllowed: jest.Mock;
+  listFiles: jest.Mock;
+  deleteFile: jest.Mock;
+}
+
 jest.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, options?: any) => {
+    json: <T = unknown>(data: T, options?: { status?: number }) => {
       const response = {
         json: async () => data,
         status: options?.status || 200,
@@ -11,14 +19,14 @@ jest.mock('next/server', () => ({
 }))
 
 jest.mock('@/lib/security/sandbox', () => {
-  ;(global as any).__mockFsManager__ = {
+  (global as Record<string, unknown>).__mockFsManager__ = {
     writeFile: jest.fn(),
     readAllowed: jest.fn(),
     listFiles: jest.fn(),
     deleteFile: jest.fn(),
   }
   return {
-    SandboxedFileWriter: jest.fn().mockImplementation(() => (global as any).__mockFsManager__)
+    SandboxedFileWriter: jest.fn().mockImplementation(() => (global as Record<string, unknown>).__mockFsManager__)
   }
 })
 
@@ -43,11 +51,28 @@ import { POST, GET, PUT, DELETE } from '../route'
 import { RateLimiter } from '@/lib/security/utils'
 
 const API_KEY = 'test-api-key-12345678901234567890'
-const getMockFsManager = () => (global as any).__mockFsManager__
+const getMockFsManager = (): MockFsManager => (global as Record<string, unknown>).__mockFsManager__ as MockFsManager
 
-function createMockRequest(options?: any): any {
+interface MockRequestOptions {
+  method?: string;
+  url?: string;
+  body?: Record<string, unknown>;
+  noAuth?: boolean;
+  headers?: Record<string, string>;
+}
+
+interface MockRequest {
+  url: string;
+  method: string;
+  headers: {
+    get: (name: string) => string | null;
+  };
+  json: () => Promise<Record<string, unknown>>;
+}
+
+function createMockRequest(options?: MockRequestOptions): MockRequest {
   const url = options?.url || 'http://localhost/api/files'
-  const headers = {
+  const headers: Record<string, string | undefined> = {
     'x-api-key': options?.noAuth ? undefined : API_KEY,
     ...(options?.headers || {})
   }
@@ -82,7 +107,7 @@ describe('Authentication', () => {
       noAuth: true,
       body: { path: 'test.ts', content: 'test' },
     })
-    const response = await POST(request as any)
+    const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)
     expect(data.error).toContain('Unauthorized')
@@ -168,7 +193,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -185,7 +210,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -202,7 +227,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -224,7 +249,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -242,7 +267,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(429)
@@ -265,7 +290,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -517,7 +542,7 @@ describe('/api/files', () => {
         json: async () => { throw new SyntaxError('Unexpected token') }
       }
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
@@ -536,7 +561,7 @@ describe('/api/files', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
