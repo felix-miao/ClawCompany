@@ -134,10 +134,18 @@ jest.mock('@/lib/security/utils', () => ({
 import { POST, GET, PUT, DELETE } from '../route'
 
 import { RateLimiter, SecurityManager } from '@/lib/security/utils'
-import { getLLMProvider, setLLMProvider } from '@/lib/llm/factory'
+import { setLLMProvider } from '@/lib/llm/factory'
+import type { LLMProvider } from '@/lib/llm/types'
+
+type MockGitManager = { commit: jest.Mock }
 
 const getMockStorageManager = () => (global as Record<string, unknown>).__mockStorageManager__ as ReturnType<typeof import('@/lib/storage/manager').StorageManager['prototype']>
 const getMockSandboxedWriter = () => (global as Record<string, unknown>).__mockSandboxedWriter__ as { writeFile: jest.Mock }
+const getMockGitManager = () => (global as Record<string, unknown>).__mockGitManager__ as MockGitManager
+
+function createMockLLMProvider(chatFn: jest.Mock): LLMProvider {
+  return { chat: chatFn, stream: jest.fn() }
+}
 
 describe('Authentication', () => {
   it('POST should return 401 without API key', async () => {
@@ -213,7 +221,7 @@ describe('/api/agent', () => {
     writer.writeFile.mockReset()
     writer.writeFile.mockResolvedValue({ success: true, path: 'output/test.tsx' })
 
-    const git = (global as Record<string, unknown>).__mockGitManager__ as { commit: jest.Mock }
+    const git = getMockGitManager()
     git.commit.mockReset()
     git.commit.mockResolvedValue({ success: true, commitHash: 'abc123' })
   })
@@ -228,7 +236,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -245,7 +253,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -262,7 +270,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -279,7 +287,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -299,7 +307,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(429)
@@ -317,7 +325,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -500,7 +508,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -521,7 +529,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -542,7 +550,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -563,7 +571,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(404)
@@ -586,7 +594,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -596,7 +604,7 @@ describe('/api/agent', () => {
       if (mockResponse.includes('// file:')) {
         const writer = getMockSandboxedWriter()
         expect(writer.writeFile).toHaveBeenCalled()
-        const git = (global as any).__mockGitManager__
+        const git = getMockGitManager()
         expect(git.commit).toHaveBeenCalled()
       }
     })
@@ -613,7 +621,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -644,7 +652,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -658,10 +666,7 @@ describe('/api/agent', () => {
       const originalMock = process.env.USE_MOCK_LLM
       delete process.env.USE_MOCK_LLM
 
-      setLLMProvider({
-        chat: jest.fn().mockResolvedValue('LLM generated response'),
-        stream: jest.fn(),
-      } as any)
+      setLLMProvider(createMockLLMProvider(jest.fn().mockResolvedValue('LLM generated response')))
 
       const request = createMockRequest({
         method: 'POST',
@@ -671,21 +676,21 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.message).toBe('LLM generated response')
 
-      setLLMProvider(null as any)
+      setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
     })
 
     it('should fallback to mock when LLM provider returns null', async () => {
       const originalMock = process.env.USE_MOCK_LLM
       delete process.env.USE_MOCK_LLM
-      setLLMProvider(null as any)
+      setLLMProvider(null)
 
       const request = createMockRequest({
         method: 'POST',
@@ -695,7 +700,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -710,10 +715,7 @@ describe('/api/agent', () => {
       const originalMock = process.env.USE_MOCK_LLM
       delete process.env.USE_MOCK_LLM
 
-      setLLMProvider({
-        chat: jest.fn().mockResolvedValue(`## Implementation\n\n\`\`\`tsx\n// file: src/components/Test.tsx\nexport function Test() { return <div>test</div> }\n\`\`\`\n`),
-        stream: jest.fn(),
-      } as any)
+      setLLMProvider(createMockLLMProvider(jest.fn().mockResolvedValue(`## Implementation\n\n\`\`\`tsx\n// file: src/components/Test.tsx\nexport function Test() { return <div>test</div> }\n\`\`\`\n`)))
 
       const request = createMockRequest({
         method: 'POST',
@@ -723,18 +725,18 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
 
       const writer = getMockSandboxedWriter()
-      const git = (global as any).__mockGitManager__
+      const git = getMockGitManager()
       expect(writer.writeFile).toHaveBeenCalled()
       expect(git.commit).toHaveBeenCalled()
 
-      setLLMProvider(null as any)
+      setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
     })
 
@@ -742,10 +744,7 @@ describe('/api/agent', () => {
       const originalMock = process.env.USE_MOCK_LLM
       delete process.env.USE_MOCK_LLM
 
-      setLLMProvider({
-        chat: jest.fn().mockResolvedValue(`## Implementation\n\n\`\`\`tsx\n// file: ../etc/passwd\nmalicious code\n\`\`\`\n`),
-        stream: jest.fn(),
-      } as any)
+      setLLMProvider(createMockLLMProvider(jest.fn().mockResolvedValue(`## Implementation\n\n\`\`\`tsx\n// file: ../etc/passwd\nmalicious code\n\`\`\`\n`)))
 
       const request = createMockRequest({
         method: 'POST',
@@ -755,7 +754,7 @@ describe('/api/agent', () => {
         }
       })
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -764,7 +763,7 @@ describe('/api/agent', () => {
       const writer = getMockSandboxedWriter()
       expect(writer.writeFile).not.toHaveBeenCalled()
 
-      setLLMProvider(null as any)
+      setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
     })
   })
@@ -912,7 +911,7 @@ describe('/api/agent', () => {
         json: async () => { throw new SyntaxError('Unexpected token') }
       }
 
-      const response = await POST(request as any)
+      const response = await POST(request as unknown as NextRequest)
       const data = await response.json()
 
       expect(response.status).toBe(500)
