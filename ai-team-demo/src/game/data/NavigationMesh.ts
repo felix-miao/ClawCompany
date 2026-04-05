@@ -67,7 +67,7 @@ export class NavigationMesh {
   }
 
   private calculateJumpTargets(platform: PlatformNode): void {
-    const jumpHeight = 3;
+    const jumpHeight = 7;
     const jumpDistance = 4;
 
     this.platformNodes.forEach((target) => {
@@ -78,6 +78,11 @@ export class NavigationMesh {
 
       if (dy > 0 && dy <= jumpHeight * TILE_SIZE && dx <= jumpDistance * TILE_SIZE) {
         platform.jumpTargets.push(target);
+      }
+
+      const reverseDy = target.y - platform.y;
+      if (reverseDy > 0 && reverseDy <= jumpHeight * TILE_SIZE && dx <= jumpDistance * TILE_SIZE) {
+        target.jumpTargets.push(platform);
       }
     });
   }
@@ -120,7 +125,7 @@ export class NavigationMesh {
     height: number;
     platforms: { x: number; y: number; width: number; height: number }[];
   }): NavigationMesh {
-    const mesh = new NavigationMesh(tilemap.width, tilemap.height);
+    const mesh = new NavigationMesh(tilemap.width * TILE_SIZE, tilemap.height * TILE_SIZE);
 
     tilemap.platforms.forEach((platform) => {
       if (platform.height > 0.5) {

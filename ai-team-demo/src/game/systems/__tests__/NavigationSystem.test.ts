@@ -93,7 +93,18 @@ describe('NavigationSystem', () => {
   describe('setDebugVisible', () => {
     it('should call drawDebug on pathfinding system', () => {
       const navMesh = new NavigationMesh(320, 320);
-      const system = new NavigationSystem({ drawDebug: jest.fn() } as any, navMesh);
+      const mockGraphics = {
+        clear: jest.fn(),
+        setVisible: jest.fn(),
+        lineStyle: jest.fn(),
+        lineBetween: jest.fn(),
+        fillStyle: jest.fn(),
+        fillCircle: jest.fn(),
+      };
+      const scene = {
+        add: { graphics: jest.fn().mockReturnValue(mockGraphics) },
+      } as any;
+      const system = new NavigationSystem(scene, navMesh);
       expect(() => system.setDebugVisible(true)).not.toThrow();
     });
   });
