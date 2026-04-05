@@ -13,7 +13,7 @@ import {
 import { Logger, LogEntry } from './logger'
 import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
-import { OrchestratorError, AppError, isAppError, FileSystemError } from './errors'
+import { OrchestratorError, AppError, isAppError, FileSystemError, ErrorCategory } from './errors'
 import { AgentEventBus, AgentEventType } from './agent-event-bus'
 import { UnifiedRetry } from './unified-retry'
 
@@ -160,7 +160,7 @@ export abstract class BaseOrchestrator {
             },
           })
 
-          this.obs.errors.track(error instanceof OrchestratorError ? error : new OrchestratorError(error.message, { cause: error }))
+          this.obs.errors.track(isAppError(error) && error.category !== ErrorCategory.SYSTEM ? error : new OrchestratorError(error.message, { cause: error }))
         },
       }
     )

@@ -129,7 +129,7 @@ export class UnifiedRetry {
         const result = await options.fallback()
         if (circuitKey) this.recordSuccess(circuitKey)
         this.stats.successfulExecutions++
-        return { success: true, result, attempts: maxRetries + 1, usedFallback: true }
+        return { success: true, result: result as T, attempts: maxRetries + 1, usedFallback: true }
       } catch (fallbackError) {
         return { success: false, error: toAppError(fallbackError), attempts: maxRetries + 1, usedFallback: true }
       }
