@@ -3,8 +3,8 @@ export interface TypedEventBusConfig {
 }
 
 export class TypedEventBus<TEvent> {
-  protected handlers = new Map<string, Set<(event: TEvent) => void>>();
-  protected wildcardHandlers = new Set<(event: TEvent) => void>();
+  protected handlers = new Map<string, Array<(event: TEvent) => void>>();
+  protected wildcardHandlers = Array<(event: TEvent) => void>();
   protected historyBuffer: (TEvent | undefined)[];
   protected readonly maxHistorySize: number;
   private historyHead = 0;
@@ -17,25 +17,25 @@ export class TypedEventBus<TEvent> {
 
   on(eventType: string, handler: (event: TEvent) => void): void {
     if (eventType === '*') {
-      this.wildcardHandlers.add(handler);
+      this.wildcardHandlers.push(handler);
       return;
     }
 
     if (!this.handlers.has(eventType)) {
-      this.handlers.set(eventType, new Set());
+      this.handlers.set(eventType, []);
     }
-    this.handlers.get(eventType)!.add(handler);
+    this.handlers.get(eventType)!.push(handler);
   }
 
   off(eventType: string, handler: (event: TEvent) => void): void {
     if (eventType === '*') {
-      this.wildcardHandlers.delete(handler);
+      this.wildcardHandlers = this.wildcardHandlers.filter(h => h !== handler);
       return;
     }
 
     const handlers = this.handlers.get(eventType);
     if (handlers) {
-      handlers.delete(handler);
+      this.handlers.set(eventType, handlers.filter(h => h !== handler));
     }
   }
 
@@ -47,14 +47,20 @@ export class TypedEventBus<TEvent> {
     this.on(eventType, wrapper);
   }
 
-  protected emitToHandlers(eventType: string, event: TEvent): void {
+  public emit(eventType: string, event: TEvent): Error[] {
+    return this.emitToHandlers(eventType, event);
+  }
+
+  protected emitToHandlers(eventType: string, event: TEvent): Error[] {
+    const errors: Error[] = [];
+    
     const specificHandlers = this.handlers.get(eventType);
     if (specificHandlers) {
       for (const handler of specificHandlers) {
         try {
           handler(event);
-        } catch {
-          // continue to next handler
+        } catch (error) {
+          errors.push(error instanceof Error ? error : new Error(String(error)));
         }
       }
     }
@@ -62,10 +68,13 @@ export class TypedEventBus<TEvent> {
     for (const handler of this.wildcardHandlers) {
       try {
         handler(event);
-      } catch {
-        // continue to next handler
+      } catch (error) {
+        errors.push(error instanceof Error ? error : new Error(String(error)));
       }
     }
+
+    this.addToHistory(event);
+    return errors;
   }
 
   protected addToHistory(event: TEvent): void {
@@ -97,12 +106,12 @@ export class TypedEventBus<TEvent> {
 
   clear(): void {
     this.handlers.clear();
-    this.wildcardHandlers.clear();
+    this.wildcardHandlers = [];
   }
 
   listenerCount(eventType: string): number {
-    const specific = this.handlers.get(eventType)?.size ?? 0;
-    return specific + this.wildcardHandlers.size;
+    const specific = this.handlers.get(eventType)?.length ?? 0;
+    return specific + this.wildcardHandlers.length;
   }
 
   getEventTypes(): string[] {

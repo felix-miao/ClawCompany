@@ -50,8 +50,9 @@ export class AgentEventBus {
     for (const handler of this.handlers) {
       try {
         handler(fullEvent)
-      } catch {
-        // continue calling remaining handlers
+      } catch (error) {
+        // Log error but continue execution - improved error handling
+        console.error('[AgentEventBus] Handler error:', error instanceof Error ? error.message : String(error));
       }
     }
   }

@@ -240,8 +240,9 @@ export class GameSDK {
       for (const h of specificHandlers) {
         try {
           h(data);
-        } catch {
-          // continue to next handler
+        } catch (error) {
+          // Log error but continue execution - improved error handling
+          console.error('[GameSDK] Handler error for event', event, error instanceof Error ? error.message : String(error));
         }
       }
     }
@@ -251,8 +252,9 @@ export class GameSDK {
       for (const h of wildcardHandlers) {
         try {
           h({ event, data });
-        } catch {
-          // continue to next handler
+        } catch (error) {
+          // Log error but continue execution - improved error handling
+          console.error('[GameSDK] Wildcard handler error for event', event, error instanceof Error ? error.message : String(error));
         }
       }
     }

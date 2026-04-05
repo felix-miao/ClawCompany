@@ -61,7 +61,10 @@ export class TaskManager {
     Array.from(this.handlers).forEach(handler => {
       try {
         handler(event)
-      } catch {}
+      } catch (error) {
+        // Log error but continue execution - improved error handling
+        console.error('[TaskManager] Handler error:', error instanceof Error ? error.message : String(error));
+      }
     })
   }
 
