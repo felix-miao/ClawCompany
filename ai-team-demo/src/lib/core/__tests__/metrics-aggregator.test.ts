@@ -34,9 +34,7 @@ describe('MetricsAggregator', () => {
       setGauge: jest.fn(),
       startTimer: jest.fn().mockReturnValue('timer-1'),
       stopTimer: jest.fn(),
-    } as any
-
-    mockErrorTracker = {
+    } as unknown as PerformanceMonitor = {
       getSummary: jest.fn().mockReturnValue({
         total: 0,
         byCategory: {},

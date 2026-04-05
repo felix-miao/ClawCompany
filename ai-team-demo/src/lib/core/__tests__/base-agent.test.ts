@@ -31,13 +31,13 @@ describe('BaseOpenClawAgent - global declarations', () => {
   })
 
   it('should throw if sessions_spawn is not available', async () => {
-    delete (globalThis as any).sessions_spawn
+    delete (globalThis as Record<string, unknown>).sessions_spawn
     await expect(agent.testSpawnAgent('test')).rejects.toThrow('sessions_spawn not available')
   })
 
   it('should call sessions_spawn when available', async () => {
     const mockSpawn = jest.fn().mockResolvedValue({ sessionKey: 'test-key' })
-    ;(globalThis as any).sessions_spawn = mockSpawn
+    ;(globalThis as Record<string, unknown>).sessions_spawn = mockSpawn
 
     await agent.testSpawnAgent('implement feature')
 
@@ -50,11 +50,11 @@ describe('BaseOpenClawAgent - global declarations', () => {
       })
     )
 
-    delete (globalThis as any).sessions_spawn
+    delete (globalThis as Record<string, unknown>).sessions_spawn
   })
 
   it('should return default when sessions_history is not available', async () => {
-    delete (globalThis as any).sessions_history
+    delete (globalThis as Record<string, unknown>).sessions_history
     const result = await agent.testParseJSONFromSession(null, { default: true })
     expect(result).toEqual({ default: true })
   })
@@ -63,7 +63,7 @@ describe('BaseOpenClawAgent - global declarations', () => {
     const mockHistory = jest.fn().mockResolvedValue({
       messages: [{ content: 'Here is the result: {"status": "ok", "value": 42}' }],
     })
-    ;(globalThis as any).sessions_history = mockHistory
+    ;(globalThis as Record<string, unknown>).sessions_history = mockHistory
 
     const result = await agent.testParseJSONFromSession(
       { sessionKey: 'test-key' },
@@ -71,7 +71,7 @@ describe('BaseOpenClawAgent - global declarations', () => {
     )
 
     expect(result).toEqual({ status: 'ok', value: 42 })
-    delete (globalThis as any).sessions_history
+    delete (globalThis as Record<string, unknown>).sessions_history
   })
 
   it('should have correct role', () => {

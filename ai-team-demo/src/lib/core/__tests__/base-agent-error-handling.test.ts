@@ -62,8 +62,10 @@ const mockTask: Task = {
 }
 
 const mockContext: AgentContext = {
+  projectId: 'test',
+  tasks: [],
+  files: {},
   chatHistory: [],
-  existingFiles: [],
 }
 
 jest.mock('../../llm/factory', () => {
@@ -80,7 +82,7 @@ describe('BaseAgent - 错误处理和 LLM 回退', () => {
 
   beforeEach(() => {
     agent = new TestBaseAgent()
-    setLLMProvider(null as any)
+    setLLMProvider(null as unknown as LLMProvider)
   })
 
   describe('executeWithLLMFallback', () => {
@@ -107,7 +109,7 @@ describe('BaseAgent - 错误处理和 LLM 回退', () => {
     it('应该在 LLM 抛出异常时回退到 fallback', async () => {
       setLLMProvider({
         chat: jest.fn().mockRejectedValue(new Error('LLM unavailable')),
-      } as any)
+      } as unknown as LLMProvider)
 
       const fallbackHandler = jest.fn().mockResolvedValue({
         agent: 'dev' as const,
@@ -131,7 +133,7 @@ describe('BaseAgent - 错误处理和 LLM 回退', () => {
     it('应该在 LLM 返回 null 时回退到 fallback', async () => {
       setLLMProvider({
         chat: jest.fn().mockResolvedValue(null),
-      } as any)
+      } as unknown as LLMProvider)
 
       const fallbackHandler = jest.fn().mockResolvedValue({
         agent: 'dev' as const,
@@ -154,7 +156,7 @@ describe('BaseAgent - 错误处理和 LLM 回退', () => {
 
     it('应该在 LLM 成功时使用 llmHandler', async () => {
       const mockChat = jest.fn().mockResolvedValue('LLM response content')
-      setLLMProvider({ chat: mockChat } as any)
+      setLLMProvider({ chat: mockChat } as unknown as LLMProvider)
 
       const llmHandler = jest.fn((r: string) => ({
         agent: 'dev' as const,
@@ -248,7 +250,7 @@ describe('BaseOpenClawAgent - 错误处理', () => {
       return this.parseJSONFromSession(session, def)
     }
 
-    async testSpawn(task: string, opts?: any) {
+    async testSpawn(task: string, opts?: Parameters<BaseOpenClawAgent['spawnAgent']>[1]) {
       return this.spawnAgent(task, opts)
     }
   }
@@ -260,36 +262,36 @@ describe('BaseOpenClawAgent - 错误处理', () => {
   })
 
   afterEach(() => {
-    delete (globalThis as any).sessions_spawn
-    delete (globalThis as any).sessions_history
+    delete (globalThis as Record<string, unknown>).sessions_spawn
+    delete (globalThis as Record<string, unknown>).sessions_history
   })
 
   it('应该在 session 为 null 时返回默认值', async () => {
-    delete (globalThis as any).sessions_history
+    delete (globalThis as Record<string, unknown>).sessions_history
     const result = await agent.testParseJSON(null, { default: true })
     expect(result).toEqual({ default: true })
   })
 
   it('应该在 session 无 sessionKey 时返回默认值', async () => {
-    ;(globalThis as any).sessions_history = jest.fn()
+    ;(globalThis as Record<string, unknown>).sessions_history = jest.fn()
     const result = await agent.testParseJSON({}, { default: true })
     expect(result).toEqual({ default: true })
   })
 
   it('应该在 sessions_history 抛出异常时返回默认值', async () => {
-    ;(globalThis as any).sessions_history = jest.fn().mockRejectedValue(new Error('history error'))
+    ;(globalThis as Record<string, unknown>).sessions_history = jest.fn().mockRejectedValue(new Error('history error'))
     const result = await agent.testParseJSON({ sessionKey: 'key' }, { safe: true })
     expect(result).toEqual({ safe: true })
   })
 
   it('应该在 session 消息为空时返回默认值', async () => {
-    ;(globalThis as any).sessions_history = jest.fn().mockResolvedValue({ messages: [] })
+    ;(globalThis as Record<string, unknown>).sessions_history = jest.fn().mockResolvedValue({ messages: [] })
     const result = await agent.testParseJSON({ sessionKey: 'key' }, { default: 'yes' })
     expect(result).toEqual({ default: 'yes' })
   })
 
   it('应该在消息无 JSON 时返回默认值', async () => {
-    ;(globalThis as any).sessions_history = jest.fn().mockResolvedValue({
+    ;(globalThis as Record<string, unknown>).sessions_history = jest.fn().mockResolvedValue({
       messages: [{ content: 'plain text without json' }],
     })
     const result = await agent.testParseJSON({ sessionKey: 'key' }, 'default')
@@ -298,7 +300,7 @@ describe('BaseOpenClawAgent - 错误处理', () => {
 
   it('应该在 spawn 时传递自定义选项', async () => {
     const mockSpawn = jest.fn().mockResolvedValue({ sessionKey: 'custom-key' })
-    ;(globalThis as any).sessions_spawn = mockSpawn
+    ;(globalThis as Record<string, unknown>).sessions_spawn = mockSpawn
 
     await agent.testSpawn('custom task', {
       runtime: 'acp',

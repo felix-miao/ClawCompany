@@ -170,7 +170,7 @@ describe('GitManager', () => {
 
     it('should reject log with invalid limit', async () => {
       await expect(gitManager.log(-1)).rejects.toThrow()
-      await expect(gitManager.log(1.5 as any)).rejects.toThrow()
+      await expect(gitManager.log(1.5 as unknown as number)).rejects.toThrow()
     })
 
     it('should safely handle valid branch names', async () => {

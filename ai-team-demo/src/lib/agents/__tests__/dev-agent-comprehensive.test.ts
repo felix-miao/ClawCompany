@@ -40,104 +40,104 @@ describe('DevAgent - Comprehensive', () => {
 
   describe('toPascalCase', () => {
     it('should convert space-separated words', () => {
-      const result = (devAgent as any).toPascalCase('create login form')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('create login form')
       expect(result).toBe('CreateLoginForm')
     })
 
     it('should convert hyphen-separated words', () => {
-      const result = (devAgent as any).toPascalCase('user-auth-component')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('user-auth-component')
       expect(result).toBe('UserAuthComponent')
     })
 
     it('should convert underscore-separated words', () => {
-      const result = (devAgent as any).toPascalCase('user_auth_component')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('user_auth_component')
       expect(result).toBe('UserAuthComponent')
     })
 
     it('should handle already PascalCase', () => {
-      const result = (devAgent as any).toPascalCase('LoginForm')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('LoginForm')
       expect(result).toBe('LoginForm')
     })
 
     it('should strip non-alphanumeric characters', () => {
-      const result = (devAgent as any).toPascalCase('create @#$ form!!!')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('create @#$ form!!!')
       expect(result).toBe('CreateForm')
     })
 
     it('should handle single character', () => {
-      const result = (devAgent as any).toPascalCase('a')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('a')
       expect(result).toBe('A')
     })
 
     it('should handle Chinese characters (stripped)', () => {
-      const result = (devAgent as any).toPascalCase('创建登录表单')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('创建登录表单')
       expect(result).toBe('')
     })
 
     it('should handle mixed alphanumeric', () => {
-      const result = (devAgent as any).toPascalCase('create v2 form')
+      const result = (devAgent as unknown as { toPascalCase: (s: string) => string }).toPascalCase('create v2 form')
       expect(result).toBe('CreateV2Form')
     })
   })
 
   describe('toKebabCase', () => {
     it('should convert spaces to hyphens', () => {
-      const result = (devAgent as any).toKebabCase('Create Login API')
+      const result = (devAgent as unknown as { toKebabCase: (s: string) => string }).toKebabCase('Create Login API')
       expect(result).toBe('create-login-api')
     })
 
     it('should lowercase everything', () => {
-      const result = (devAgent as any).toKebabCase('UPPER CASE')
+      const result = (devAgent as unknown as { toKebabCase: (s: string) => string }).toKebabCase('UPPER CASE')
       expect(result).toBe('upper-case')
     })
 
     it('should remove non-alphanumeric except hyphens', () => {
-      const result = (devAgent as any).toKebabCase('API @#$ Route!!!')
+      const result = (devAgent as unknown as { toKebabCase: (s: string) => string }).toKebabCase('API @#$ Route!!!')
       expect(result).toBe('api--route')
     })
 
     it('should handle already kebab-case', () => {
-      const result = (devAgent as any).toKebabCase('user-login-api')
+      const result = (devAgent as unknown as { toKebabCase: (s: string) => string }).toKebabCase('user-login-api')
       expect(result).toBe('user-login-api')
     })
   })
 
   describe('getExtensionFromLang', () => {
     it('should map typescript to ts', () => {
-      expect((devAgent as any).getExtensionFromLang('typescript')).toBe('ts')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('typescript')).toBe('ts')
     })
 
     it('should map typescriptreact to tsx', () => {
-      expect((devAgent as any).getExtensionFromLang('typescriptreact')).toBe('tsx')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('typescriptreact')).toBe('tsx')
     })
 
     it('should map javascript to js', () => {
-      expect((devAgent as any).getExtensionFromLang('javascript')).toBe('js')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('javascript')).toBe('js')
     })
 
     it('should map jsx to jsx', () => {
-      expect((devAgent as any).getExtensionFromLang('jsx')).toBe('jsx')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('jsx')).toBe('jsx')
     })
 
     it('should map css to css', () => {
-      expect((devAgent as any).getExtensionFromLang('css')).toBe('css')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('css')).toBe('css')
     })
 
     it('should map json to json', () => {
-      expect((devAgent as any).getExtensionFromLang('json')).toBe('json')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('json')).toBe('json')
     })
 
     it('should map markdown to md', () => {
-      expect((devAgent as any).getExtensionFromLang('markdown')).toBe('md')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('markdown')).toBe('md')
     })
 
     it('should default to ts for unknown language', () => {
-      expect((devAgent as any).getExtensionFromLang('python')).toBe('ts')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('python')).toBe('ts')
     })
 
     it('should handle case-insensitive matching', () => {
-      expect((devAgent as any).getExtensionFromLang('TypeScript')).toBe('ts')
-      expect((devAgent as any).getExtensionFromLang('CSS')).toBe('css')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('TypeScript')).toBe('ts')
+      expect((devAgent as unknown as { getExtensionFromLang: (s: string) => string }).getExtensionFromLang('CSS')).toBe('css')
     })
   })
 
@@ -317,7 +317,7 @@ describe('DevAgent - Comprehensive', () => {
 
     it('should work when code is null', async () => {
       const task = makeTask({ title: 'Empty task' })
-      const genMsg = (devAgent as any).generateImplementationMessage(task, null)
+      const genMsg = (devAgent as unknown as { generateImplementationMessage: (t: Task, c: { path: string; content: string; action: 'create' | 'modify' | 'delete' } | null) => string }).generateImplementationMessage(task, null)
       expect(genMsg).toContain('Empty task')
     })
   })

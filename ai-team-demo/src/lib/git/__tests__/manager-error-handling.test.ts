@@ -168,7 +168,7 @@ describe('GitManager - 错误处理和边界情况', () => {
     })
 
     it('应该拒绝非整数 limit', async () => {
-      await expect(gitManager.log(1.5 as any)).rejects.toThrow('must be a positive integer')
+      await expect(gitManager.log(1.5 as unknown as number)).rejects.toThrow('must be a positive integer')
     })
 
     it('应该在空仓库中返回空数组', async () => {
