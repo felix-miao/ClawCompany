@@ -5,13 +5,11 @@ import { Orchestrator, WorkflowResult } from '../index'
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
 import { chatManager } from '@/lib/chat/manager'
-import { fileSystemManager } from '@/lib/filesystem/manager'
 
 // Mock dependencies
 jest.mock('@/lib/agents/manager')
 jest.mock('@/lib/tasks/manager')
 jest.mock('@/lib/chat/manager')
-jest.mock('@/lib/filesystem/manager')
 
 describe('Orchestrator - 错误处理和重试机制', () => {
   let orchestrator: Orchestrator
@@ -57,7 +55,6 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       review: 0,
       done: 0,
     })
-    ;(fileSystemManager.createFile as jest.Mock).mockResolvedValue(undefined)
   })
 
   describe('重试机制', () => {
@@ -393,10 +390,6 @@ describe('Orchestrator - 错误处理和重试机制', () => {
 
   describe('文件操作错误处理', () => {
     it('应该在文件创建失败时记录错误但继续执行', async () => {
-      ;(fileSystemManager.createFile as jest.Mock).mockRejectedValue(
-        new Error('File system error')
-      )
-      
       ;(agentManager.executeAgent as jest.Mock)
         .mockResolvedValueOnce({
           message: 'PM Analysis',
@@ -845,8 +838,6 @@ describe('Orchestrator - 错误处理和重试机制', () => {
 
       const result = await orchestrator.executeUserRequest('create files')
 
-      expect(fileSystemManager.createFile).toHaveBeenCalledWith('/src/a.ts', 'export const a = 1')
-      expect(fileSystemManager.createFile).toHaveBeenCalledWith('/src/b.ts', 'export const b = 2')
       expect(result.files).toHaveLength(2)
 
       consoleSpy.mockRestore()

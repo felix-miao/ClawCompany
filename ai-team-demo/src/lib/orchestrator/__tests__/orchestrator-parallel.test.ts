@@ -3,12 +3,10 @@ import { Orchestrator } from '../index'
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
 import { chatManager } from '@/lib/chat/manager'
-import { fileSystemManager } from '@/lib/filesystem/manager'
 
 jest.mock('@/lib/agents/manager')
 jest.mock('@/lib/tasks/manager')
 jest.mock('@/lib/chat/manager')
-jest.mock('@/lib/filesystem/manager')
 
 describe('Orchestrator - Parallel Task Execution', () => {
   let orchestrator: Orchestrator
@@ -32,7 +30,6 @@ describe('Orchestrator - Parallel Task Execution', () => {
     ;(taskManager.getStats as jest.Mock).mockReturnValue({
       total: 0, pending: 0, in_progress: 0, review: 0, done: 0,
     })
-    ;(fileSystemManager.createFile as jest.Mock).mockResolvedValue(undefined)
   })
 
   describe('independent tasks execute in parallel', () => {

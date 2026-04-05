@@ -4,11 +4,10 @@ import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
 import { agentManager } from '../agents/manager'
 import { taskManager } from '../tasks/manager'
 import { chatManager } from '../chat/manager'
-import { fileSystemManager } from '../filesystem/manager'
 import { SandboxedFileWriter } from '../security/sandbox'
 import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
-import { OrchestratorError } from '../core/errors'
+import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
 import { UnifiedRetry, UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
 
@@ -103,13 +102,15 @@ export class Orchestrator extends BaseOrchestrator {
       executeAgent: (role, task, context) => agentManager.executeAgent(role, task, context),
       saveFile: async (filePath, content) => {
         const result = await this.sandboxedWriter.writeFile(filePath, content)
-        if (result.success) {
-          if (result.warnings && result.warnings.length > 0) {
-            console.warn('[Sandbox] Warnings for', filePath, ':', result.warnings)
-          }
-          return
+        if (!result.success) {
+          throw new FileSystemError(
+            result.error ?? 'Sandbox blocked file write',
+            filePath,
+          )
         }
-        await fileSystemManager.createFile(filePath, content)
+        if (result.warnings && result.warnings.length > 0) {
+          console.warn('[Sandbox] Warnings for', filePath, ':', result.warnings)
+        }
       },
       clearAll: () => {
         taskManager.clearTasks()

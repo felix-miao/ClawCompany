@@ -3,7 +3,6 @@ import { Orchestrator } from '../index'
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
 import { chatManager } from '@/lib/chat/manager'
-import { fileSystemManager } from '@/lib/filesystem/manager'
 import {
   StructuredLogger,
   StructuredLogLevel,
@@ -17,7 +16,6 @@ import { AppError, ErrorCategory, ErrorSeverity } from '@/lib/core/errors'
 jest.mock('@/lib/agents/manager')
 jest.mock('@/lib/tasks/manager')
 jest.mock('@/lib/chat/manager')
-jest.mock('@/lib/filesystem/manager')
 
 describe('Orchestrator Observability Integration', () => {
   let orchestrator: Orchestrator
@@ -72,7 +70,6 @@ describe('Orchestrator Observability Integration', () => {
     ;(taskManager.getStats as jest.Mock).mockReturnValue({
       total: 0, pending: 0, in_progress: 0, review: 0, done: 0,
     })
-    ;(fileSystemManager.createFile as jest.Mock).mockResolvedValue(undefined)
   })
 
   describe('Structured Logging Integration', () => {
@@ -154,7 +151,7 @@ describe('Orchestrator Observability Integration', () => {
         })
         .mockResolvedValueOnce({
           message: 'Dev done',
-          files: [{ path: '/src/a.ts', content: 'code', action: 'create' }],
+          files: [{ path: 'output/src/a.ts', content: 'code', action: 'create' }],
         })
         .mockResolvedValueOnce({
           message: 'Review OK', status: 'success',
@@ -165,11 +162,10 @@ describe('Orchestrator Observability Integration', () => {
 
       const saveLog = capturedLogs.find(l => l.message === 'File saved' && l.level === StructuredLogLevel.INFO)
       expect(saveLog).toBeDefined()
-      expect(saveLog!.context).toHaveProperty('path', '/src/a.ts')
+      expect(saveLog!.context).toHaveProperty('path', 'output/src/a.ts')
     })
 
     it('should log file save errors at ERROR level', async () => {
-      ;(fileSystemManager.createFile as jest.Mock).mockRejectedValue(new Error('Disk full'))
       ;(taskManager.createTask as jest.Mock)
         .mockReturnValueOnce({
           id: 'pm-task', title: 'PM', description: 'PM', assignedTo: 'pm',
@@ -490,7 +486,6 @@ describe('Orchestrator Observability Integration', () => {
     })
 
     it('should track file save errors with FILESYSTEM category', async () => {
-      ;(fileSystemManager.createFile as jest.Mock).mockRejectedValue(new Error('Disk full'))
       ;(taskManager.createTask as jest.Mock)
         .mockReturnValueOnce({
           id: 'pm-task', title: 'PM', description: 'PM', assignedTo: 'pm',
@@ -519,7 +514,6 @@ describe('Orchestrator Observability Integration', () => {
 
       const fsErrors = errTracker.getByCategory(ErrorCategory.FILESYSTEM)
       expect(fsErrors.length).toBeGreaterThanOrEqual(1)
-      expect(fsErrors[0].message).toContain('Disk full')
     })
 
     it('should provide error summary via getObservability', async () => {
