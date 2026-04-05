@@ -85,7 +85,7 @@ function createMockRequest(body: unknown, options?: { noAuth?: boolean }): { jso
     headers: {
       get: (name: string) => headers[name] || null,
     },
-  } as any
+  }
 }
 
 describe('Authentication', () => {
