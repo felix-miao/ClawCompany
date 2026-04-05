@@ -33,6 +33,12 @@ const agentConfig = {
     color: 'bg-purple-600',
     borderColor: 'border-purple-500',
   },
+  tester: {
+    name: 'Tester Claw',
+    avatar: '🧪',
+    color: 'bg-orange-600',
+    borderColor: 'border-orange-500',
+  },
 }
 
 export default function ChatPage() {
