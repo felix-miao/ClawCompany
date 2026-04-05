@@ -45,8 +45,11 @@ export class EventBus extends TypedEventBus<GameEvent> {
     this.on(eventType, wrapper as GameEventHandler<EventTypeMap[K]>);
   }
 
-  emit(event: GameEvent): void {
-    this.addToHistory(event);
-    this.emitToHandlers(event.type, event);
+  emit(eventTypeOrEvent: string | GameEvent, event?: GameEvent): Error[] {
+    if (typeof eventTypeOrEvent === 'string') {
+      return super.emit(eventTypeOrEvent, event as GameEvent);
+    }
+    const e = eventTypeOrEvent as GameEvent;
+    return super.emit(e.type, e);
   }
 }
