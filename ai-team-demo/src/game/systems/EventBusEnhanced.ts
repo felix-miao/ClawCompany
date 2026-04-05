@@ -44,13 +44,20 @@ export class EventBusEnhanced extends EventBus {
   }
 
   emit(eventTypeOrEvent: string | GameEvent, event?: GameEvent): Error[] {
-    let processedEvent = event;
+    let processedEvent: GameEvent;
+    if (typeof eventTypeOrEvent === 'string') {
+      if (!event) return [];
+      processedEvent = event;
+    } else {
+      processedEvent = eventTypeOrEvent;
+    }
+
     if (this.enableEventValidation) {
-      const result = this.validateEvent(event);
+      const result = this.validateEvent(processedEvent);
       if (!result.valid) {
-        const validationError = new Error(`Event validation failed for type: ${event.type}`);
-        this.handleError(validationError, event, false);
-        return;
+        const validationError = new Error(`Event validation failed for type: ${processedEvent.type}`);
+        this.handleError(validationError, processedEvent, false);
+        return [];
       }
       processedEvent = result.event;
     }
@@ -61,6 +68,7 @@ export class EventBusEnhanced extends EventBus {
     this.executeHandlers(specificHandlers, processedEvent, false);
 
     this.executeHandlers(this.wildcardHandlers, processedEvent, true);
+    return [];
   }
 
   private executeHandlers(

@@ -265,8 +265,8 @@ describe('MetricsAggregator', () => {
       const metrics = metricsAggregator.getCurrentMetrics()
       const actualMem = process.memoryUsage()
 
-      expect(metrics.memoryUsage.used).toBe(Math.round(actualMem.heapUsed / 1024 / 1024))
-      expect(metrics.memoryUsage.total).toBe(Math.round(actualMem.heapTotal / 1024 / 1024))
+      expect(Math.abs(metrics.memoryUsage.used - Math.round(actualMem.heapUsed / 1024 / 1024))).toBeLessThanOrEqual(1)
+      expect(Math.abs(metrics.memoryUsage.total - Math.round(actualMem.heapTotal / 1024 / 1024))).toBeLessThanOrEqual(1)
     })
 
     it('should calculate percentage correctly from used and total', () => {

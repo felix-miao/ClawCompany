@@ -34,5 +34,7 @@ export function useDashboardStore(store: DashboardStore): DashboardState {
     return snapshot;
   };
 
-  return useSyncExternalStore(subscribe, getSnapshot);
+  const emptyState: DashboardState = { agents: [], events: [], stats: { totalEvents: 0, activeTasks: 0, sessionCount: 0, completedSessionCount: 0, connected: false } };
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => emptyState);
 }

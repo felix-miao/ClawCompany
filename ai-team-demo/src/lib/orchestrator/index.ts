@@ -13,7 +13,8 @@ import { SubTaskSchema } from '../agents/schemas'
 import { UnifiedRetry, UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
-export { UnifiedRetry, UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
+export { UnifiedRetry } from '../core/unified-retry'
+export type { UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
 
 interface ValidatedSubTask {
   title: string

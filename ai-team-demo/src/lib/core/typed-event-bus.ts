@@ -6,7 +6,7 @@ export class TypedEventBus<TEvent> {
   protected handlers = new Map<string, Array<(event: TEvent) => void>>();
   protected wildcardHandlers = Array<(event: TEvent) => void>();
   protected historyBuffer: (TEvent | undefined)[];
-  protected readonly maxHistorySize: number;
+  protected maxHistorySize: number;
   private historyHead = 0;
   private historyCount = 0;
 
