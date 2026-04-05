@@ -114,7 +114,6 @@ export abstract class BaseOrchestrator {
         const context = await this.buildContext(callbacks)
         const result = await callbacks.executeAgent(role, task, context)
         this.obs.perf.stopTimer(timerId)
-        this.obs.perf.recordValue(`orchestrator.agent.${role}.duration`, this.obs.perf.getMetricEntries(`agent.${role}`).length > 0 ? Date.now() - this.startTime : 0)
         return result
       } catch (error) {
         this.obs.perf.stopTimer(timerId)
@@ -271,6 +270,35 @@ export abstract class BaseOrchestrator {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
+  protected buildMessages(callbacks: OrchestratorCallbacks): Array<{ agent: AgentRole | 'user'; content: string; timestamp?: Date }> {
+    return callbacks.getChatHistory().map(m => ({
+      agent: m.agent,
+      content: m.content,
+      timestamp: m.timestamp,
+    }))
+  }
+
+  protected emitWorkflowStarted(data: Record<string, unknown>): void {
+    this.getEventBus().emit({
+      type: 'workflow:started',
+      data,
+    })
+  }
+
+  protected emitWorkflowCompleted(data: Record<string, unknown>): void {
+    this.getEventBus().emit({
+      type: 'workflow:completed',
+      data,
+    })
+  }
+
+  protected emitWorkflowFailed(data: Record<string, unknown>): void {
+    this.getEventBus().emit({
+      type: 'workflow:failed',
+      data,
+    })
+  }
+
   protected async executeSingleTask(
     task: Task,
     cb: OrchestratorCallbacks,
@@ -358,7 +386,7 @@ export abstract class BaseOrchestrator {
     }
   }
 
-  private async runAgentForTask(
+  protected async runAgentForTask(
     task: Task,
     cb: OrchestratorCallbacks,
     role: AgentRole,
@@ -375,7 +403,7 @@ export abstract class BaseOrchestrator {
     return response
   }
 
-  private emitTaskStarted(task: Task, role: AgentRole): void {
+  protected emitTaskStarted(task: Task, role: AgentRole): void {
     this.logInfo('Task execution started', { taskId: task.id, role })
     this.getEventBus().emit({
       type: 'task:started',
@@ -384,7 +412,7 @@ export abstract class BaseOrchestrator {
     })
   }
 
-  private emitTaskFailed(task: Task, role: AgentRole, reason: string): void {
+  protected emitTaskFailed(task: Task, role: AgentRole, reason: string): void {
     this.recordFailedTask(task, reason)
     this.obs.perf.increment('orchestrator.tasks.failed')
     this.logError('Task execution completed', { taskId: task.id, success: false, reason: `${role} task failed` })
@@ -396,7 +424,7 @@ export abstract class BaseOrchestrator {
     })
   }
 
-  private markTaskCompleted(
+  protected markTaskCompleted(
     task: Task,
     cb: OrchestratorCallbacks,
     completedTaskIds: Set<string>,

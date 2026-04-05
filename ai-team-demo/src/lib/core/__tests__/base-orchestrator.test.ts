@@ -1069,3 +1069,108 @@ describe('BaseOrchestrator - logging', () => {
     expect(trackedEvents[1].data.level).toBe('error')
   })
 })
+
+describe('BaseOrchestrator - agent execution metrics correctness', () => {
+  it('should not record a separate orchestrator.agent.${role}.duration metric (redundant with stopTimer)', async () => {
+    const task: Task = {
+      id: 'metric-task',
+      title: 'Test',
+      description: 'Test',
+      status: 'pending',
+      assignedTo: 'review',
+      dependencies: [],
+      files: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const callbacks = makeMockCallbacks({
+      executeAgent: jest.fn().mockResolvedValue({
+        agent: 'review' as AgentRole,
+        message: 'done',
+        status: 'success' as const,
+      }),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks)
+    ;(orchestrator as any).startTime = Date.now() - 5000
+
+    await orchestrator.exposeExecuteSingleTask(task, callbacks, ['metric-task'], new Set(), [])
+
+    const obs = orchestrator.getObservability()
+    expect(obs.performance.histograms['orchestrator.agent.review.duration']).toBeUndefined()
+  })
+
+  it('should record agent duration via stopTimer into agent.${role} histogram', async () => {
+    const task: Task = {
+      id: 'timer-task',
+      title: 'Test',
+      description: 'Test',
+      status: 'pending',
+      assignedTo: 'review',
+      dependencies: [],
+      files: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    const callbacks = makeMockCallbacks({
+      executeAgent: jest.fn().mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 10))
+        return { agent: 'review' as AgentRole, message: 'done', status: 'success' as const }
+      }),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks)
+    ;(orchestrator as any).startTime = Date.now()
+
+    await orchestrator.exposeExecuteSingleTask(task, callbacks, ['timer-task'], new Set(), [])
+
+    const obs = orchestrator.getObservability()
+    const agentStats = obs.performance.histograms['agent.review']
+    expect(agentStats).toBeDefined()
+    expect(agentStats!.count).toBe(1)
+    expect(agentStats!.avg).toBeGreaterThan(0)
+    expect(agentStats!.avg).toBeLessThan(5000)
+  })
+
+  it('should record correct agent duration on retry failure too', async () => {
+    const task: Task = {
+      id: 'retry-metric-task',
+      title: 'Test',
+      description: 'Test',
+      status: 'pending',
+      assignedTo: 'review',
+      dependencies: [],
+      files: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    let attempt = 0
+    const callbacks = makeMockCallbacks({
+      executeAgent: jest.fn().mockImplementation(async () => {
+        attempt++
+        if (attempt < 2) throw new Error('fail')
+        return { agent: 'review' as AgentRole, message: 'done', status: 'success' as const }
+      }),
+    })
+
+    const orchestrator = new TestOrchestrator(callbacks, {
+      maxRetries: 2,
+      initialDelay: 1,
+      maxDelay: 10,
+      backoffMultiplier: 1,
+    })
+    ;(orchestrator as any).startTime = Date.now() - 10000
+
+    await orchestrator.exposeExecuteSingleTask(task, callbacks, ['retry-metric-task'], new Set(), [])
+
+    const obs = orchestrator.getObservability()
+    expect(obs.performance.histograms['orchestrator.agent.review.duration']).toBeUndefined()
+
+    const agentStats = obs.performance.histograms['agent.review']
+    expect(agentStats).toBeDefined()
+    expect(agentStats!.count).toBe(2)
+  })
+})

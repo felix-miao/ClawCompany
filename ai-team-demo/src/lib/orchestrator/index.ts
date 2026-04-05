@@ -8,7 +8,7 @@ import { fileSystemManager } from '../filesystem/manager'
 import { SandboxedFileWriter } from '../security/sandbox'
 import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
-import { OrchestratorError, FileSystemError } from '../core/errors'
+import { OrchestratorError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
@@ -123,42 +123,20 @@ export class Orchestrator extends BaseOrchestrator {
     const cb = this.getCallbacks()
 
     this.logInfo('Workflow started', { userMessage })
-    this.getEventBus().emit({
-      type: 'workflow:started',
-      data: { userMessage },
-    })
+    this.emitWorkflowStarted({ userMessage })
 
     try {
       cb.sendUserMessage(userMessage)
 
       const initialTask = cb.createTask(userMessage, userMessage, 'pm', [], [])
 
-      this.getEventBus().emit({
-        type: 'task:started',
-        agentRole: 'pm',
-        taskId: initialTask.id,
-      })
-      const pmResponse = await this.executeAgentWithRetry('pm', initialTask, cb)
+      const pmResponse = await this.runAgentForTask(initialTask, cb, 'pm')
       if (!pmResponse) {
-        this.logError('Workflow completed', { success: false, reason: 'PM task failed after all retries' })
-        this.getEventBus().emit({
-          type: 'task:failed',
-          agentRole: 'pm',
-          taskId: initialTask.id,
-          data: { reason: 'PM task failed after all retries' },
-        })
-        this.getEventBus().emit({
-          type: 'workflow:failed',
-          data: { reason: 'PM task failed after all retries' },
-        })
+        this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
-      cb.broadcast('pm', pmResponse.message)
-      this.getEventBus().emit({
-        type: 'task:completed',
-        agentRole: 'pm',
-        taskId: initialTask.id,
-      })
+      const pmCompletedIds = new Set<string>()
+      this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
 
       const validatedTasks = validateSubTasks(pmResponse.tasks)
       const subTasks: Task[] = []
@@ -191,24 +169,8 @@ export class Orchestrator extends BaseOrchestrator {
           this.logError('Dependency resolution failed', { error: depError.message })
           this.obs.errors.track(new OrchestratorError(depError.message))
           this.logError('Workflow completed', { success: false, reason: 'Dependency resolution failed' })
-          this.getEventBus().emit({
-            type: 'workflow:failed',
-            data: { reason: 'Dependency resolution failed', error: depError.message },
-          })
-          return {
-            success: false,
-            messages: cb.getChatHistory().map(m => ({
-              agent: m.agent,
-              content: m.content,
-              timestamp: m.timestamp,
-            })),
-            tasks: cb.getAllTasks(),
-            error: {
-              message: depError.message,
-              timestamp: new Date(),
-            },
-        stats: this.buildWorkflowStats(subTaskIds.length, cb, completedTaskIds.size),
-          }
+          this.emitWorkflowFailed({ reason: 'Dependency resolution failed', error: depError.message })
+          return this.createErrorResponse(depError.message, cb)
         }
         throw depError
       }
@@ -243,43 +205,21 @@ export class Orchestrator extends BaseOrchestrator {
 
       const hasSuccess = subTaskIds.length === 0 || completedTaskIds.size === subTaskIds.length
       this.logInfo('Workflow completed', { success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
-      this.getEventBus().emit({
-        type: 'workflow:completed',
-        data: { success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length },
-      })
+      this.emitWorkflowCompleted({ success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
       return {
         success: hasSuccess,
-        messages: cb.getChatHistory().map(m => ({
-          agent: m.agent,
-          content: m.content,
-          timestamp: m.timestamp,
-        })),
+        messages: this.buildMessages(cb),
         tasks: cb.getAllTasks(),
         files: allFiles,
         failedTasks: this.failedTasks.length > 0 ? this.failedTasks : undefined,
         stats: this.buildWorkflowStats(subTaskIds.length, cb, completedTaskIds.size),
       }
     } catch (error) {
-      this.logError('Fatal error in executeUserRequest', { error: error instanceof Error ? error.message : 'Unknown error' })
+      const errMsg = error instanceof Error ? error.message : 'Unknown error'
+      this.logError('Fatal error in executeUserRequest', { error: errMsg })
       this.obs.errors.track(error instanceof Error ? error : new Error(String(error)))
-      this.getEventBus().emit({
-        type: 'workflow:failed',
-        data: { error: error instanceof Error ? error.message : 'Unknown error' },
-      })
-      return {
-        success: false,
-        messages: cb.getChatHistory().map(m => ({
-          agent: m.agent,
-          content: m.content,
-          timestamp: m.timestamp,
-        })),
-        tasks: cb.getAllTasks(),
-        error: {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          timestamp: new Date(),
-        },
-        stats: this.buildWorkflowStats(0, cb),
-      }
+      this.emitWorkflowFailed({ error: errMsg })
+      return this.createErrorResponse(errMsg, cb)
     }
   }
 
