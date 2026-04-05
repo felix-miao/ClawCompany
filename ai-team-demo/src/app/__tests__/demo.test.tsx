@@ -1,15 +1,16 @@
 import { render, screen } from '@testing-library/react'
+import { ReactNode } from 'react'
 
 import DemoPage from '../demo/page'
 
 // Mock framer-motion
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, whileHover, whileTap, initial, animate, exit, ...props }: any) => <div {...props}>{children}</div>,
-    button: ({ children, whileHover, whileTap, initial, animate, exit, ...props }: any) => <button {...props}>{children}</button>,
-    span: ({ children, whileHover, whileTap, initial, animate, exit, ...props }: any) => <span {...props}>{children}</span>,
+    div: ({ children, ...props }: { children?: ReactNode }) => <div {...props}>{children}</div>,
+    button: ({ children, ...props }: { children?: ReactNode }) => <button {...props}>{children}</button>,
+    span: ({ children, ...props }: { children?: ReactNode }) => <span {...props}>{children}</span>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }))
 
 // Mock scrollIntoView

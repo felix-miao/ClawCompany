@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { ReactNode } from 'react'
 
 import ChatPage from '../page'
 
@@ -9,7 +10,7 @@ jest.mock('@/lib/api/client', () => ({
 }))
 
 jest.mock('react-markdown', () => {
-  const MockMarkdown = ({ children }: any) => <div>{children}</div>
+  const MockMarkdown = ({ children }: { children?: ReactNode }) => <div>{children}</div>
   MockMarkdown.displayName = 'MockMarkdown'
   return MockMarkdown
 })

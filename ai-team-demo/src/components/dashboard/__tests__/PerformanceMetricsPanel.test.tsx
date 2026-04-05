@@ -65,11 +65,16 @@ describe('PerformanceMetricsPanel', () => {
     const mockPerfMonitor = {
       snapshot: jest.fn(),
       getMetricEntries: jest.fn(),
-    } as any
+    } as jest.Mocked<{
+      snapshot: () => void
+      getMetricEntries: () => void
+    }>
     
     const mockErrorTracker = {
       getSummary: jest.fn(),
-    } as any
+    } as jest.Mocked<{
+      getSummary: () => void
+    }>
     
     const mockLogger = {
       info: jest.fn(),
