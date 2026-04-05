@@ -1,24 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 
 import { InputValidator } from '@/lib/security/utils'
 import { SandboxedFileWriter } from '@/lib/security/sandbox'
-import { FileSystemManager } from '@/lib/filesystem/manager'
 import { StorageManager } from '@/lib/storage/manager'
 import { GitManager } from '@/lib/git/manager'
 import { defaultAgents } from '@/lib/agents/config'
 import { PersistedAgentConfigSchema } from '@/types/agent-config'
 import type { PersistedAgentConfig } from '@/types/agent-config'
-import { withRateLimit, withErrorHandling, withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withRateLimit, withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
 import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
+import { logger } from '@/lib/core/logger'
+import { parseCodeBlocks } from './parse-code-blocks'
 
-const fsManager = new FileSystemManager(process.cwd())
 const sandboxedWriter = new SandboxedFileWriter(process.cwd())
 const storageManager = new StorageManager()
 const gitManager = new GitManager(process.cwd())
 
 export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
-  const body = await request.json()
+  const body: unknown = await request.json()
   const parsed = parseRequestBody(AgentPostRequestSchema, body)
   if ('error' in parsed) return parsed.error
 
@@ -113,27 +113,6 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
     agentName: agentConfig.name,
   }, request)
 }, 'Agent API'))
-
-function parseCodeBlocks(markdown: string): Array<{ path: string; content: string }> {
-  const files: Array<{ path: string; content: string }> = []
-  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
-  let match
-
-  while ((match = codeBlockRegex.exec(markdown)) !== null) {
-    const language = match[1] || 'text'
-    const code = match[2]
-
-    const pathMatch = code.match(/\/\/\s*file:\s*(.+)/i)
-    if (pathMatch) {
-      files.push({
-        path: pathMatch[1].trim(),
-        content: code
-      })
-    }
-  }
-
-  return files
-}
 
 function generateMockResponse(agentId: string, userMessage: string): string {
   if (agentId === 'pm-agent') {
