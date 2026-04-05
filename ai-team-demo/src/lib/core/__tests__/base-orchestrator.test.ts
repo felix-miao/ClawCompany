@@ -751,7 +751,7 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     expect(failedEvents[0].agentRole).toBe('review')
   })
 
-  it('should revert dev task to pending when review returns non-success', async () => {
+  it('should mark dev task as failed when review returns non-success', async () => {
     const devTask: Task = {
       id: 'dev-task-5',
       title: 'Implement',
@@ -791,7 +791,16 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     )
 
     expect(completedTaskIds.has('dev-task-5')).toBe(false)
-    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-5', 'pending')
+    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-5', 'failed')
+    expect(callbacks.updateTaskStatus).not.toHaveBeenCalledWith('dev-task-5', 'pending')
+
+    const events = orchestrator.getEventBus().getHistory()
+    const failedEvents = events.filter(e => e.type === 'task:failed' && e.taskId === 'dev-task-5')
+    expect(failedEvents.length).toBe(1)
+    expect(failedEvents[0].agentRole).toBe('review')
+
+    const obs = orchestrator.getObservability()
+    expect(obs.errorSummary.total).toBeGreaterThan(0)
   })
 
   it('should handle unexpected errors in task execution', async () => {
@@ -832,7 +841,7 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     expect(failedEvents[0].data?.error).toBe('Unexpected DB error')
   })
 
-  it('should revert non-dev task to pending when agent returns non-success', async () => {
+  it('should mark non-dev task as failed when agent returns non-success', async () => {
     const pmTask: Task = {
       id: 'pm-task-2',
       title: 'Analysis',
@@ -866,7 +875,15 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     )
 
     expect(completedTaskIds.has('pm-task-2')).toBe(false)
-    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('pm-task-2', 'pending')
+    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('pm-task-2', 'failed')
+    expect(callbacks.updateTaskStatus).not.toHaveBeenCalledWith('pm-task-2', 'pending')
+
+    const events = orchestrator.getEventBus().getHistory()
+    const failedEvents = events.filter(e => e.type === 'task:failed' && e.taskId === 'pm-task-2')
+    expect(failedEvents.length).toBe(1)
+
+    const obs = orchestrator.getObservability()
+    expect(obs.performance.counters['orchestrator.tasks.failed']).toBeGreaterThanOrEqual(1)
   })
 
   it('should emit task:started event for dev task', async () => {

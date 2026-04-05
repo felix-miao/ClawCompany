@@ -656,7 +656,7 @@ describe('Orchestrator - 错误处理和重试机制', () => {
   })
 
   describe('Review 拒绝处理', () => {
-    it('应该在 review 返回非 success 时将任务状态设为 pending', async () => {
+    it('应该在 review 返回非 success 时将任务状态设为 failed', async () => {
       ;(taskManager.createTask as jest.Mock)
         .mockReturnValueOnce({
           id: 'pm-task',
@@ -701,9 +701,13 @@ describe('Orchestrator - 错误处理和重试机制', () => {
 
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'in_progress')
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'review')
-      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'pending')
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'failed')
+      expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'pending')
       expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'completed')
       expect(result.success).toBe(false)
+      expect(result.failedTasks).toBeDefined()
+      expect(result.failedTasks!.length).toBeGreaterThanOrEqual(1)
+      expect(result.failedTasks!.some(ft => ft.taskId === 'dev-1')).toBe(true)
     })
   })
 

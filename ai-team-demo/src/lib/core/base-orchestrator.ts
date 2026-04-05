@@ -358,8 +358,7 @@ export abstract class BaseOrchestrator {
     if (reviewResponse.status === 'success') {
       this.markTaskCompleted(task, cb, completedTaskIds, 'review')
     } else {
-      cb.updateTaskStatus(task.id, 'pending')
-      this.logInfo('Task execution completed', { taskId: task.id, success: false, reason: 'Review not approved' })
+      this.markTaskFailed(task, cb, 'review', 'Review not approved')
     }
   }
 
@@ -376,9 +375,27 @@ export abstract class BaseOrchestrator {
       cb.updateTaskStatus(task.id, 'review')
       this.markTaskCompleted(task, cb, completedTaskIds, role)
     } else {
-      cb.updateTaskStatus(task.id, 'pending')
-      this.logInfo('Task execution completed', { taskId: task.id, success: false, reason: `${role} returned non-success` })
+      this.markTaskFailed(task, cb, role, `${role} returned non-success`)
     }
+  }
+
+  private markTaskFailed(
+    task: Task,
+    cb: OrchestratorCallbacks,
+    role: AgentRole,
+    reason: string,
+  ): void {
+    cb.updateTaskStatus(task.id, 'failed')
+    this.recordFailedTask(task, reason)
+    this.obs.perf.increment('orchestrator.tasks.failed')
+    this.obs.errors.track(new OrchestratorError(reason, { taskId: task.id, role }))
+    this.logWarn('Task execution failed', { taskId: task.id, success: false, reason })
+    this.getEventBus().emit({
+      type: 'task:failed',
+      agentRole: role,
+      taskId: task.id,
+      data: { reason },
+    })
   }
 
   protected async runAgentForTask(
