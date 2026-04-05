@@ -3,8 +3,10 @@ import { TaskQueue } from '../task-queue'
 describe('TaskQueue - Edge Cases', () => {
   let queue: TaskQueue
 
-  afterEach(() => {
+  afterEach(async () => {
     queue?.abort()
+    // Wait for any pending setTimeout in abort() to complete
+    await new Promise(r => setTimeout(r, 10))
   })
 
   describe('invalid concurrency', () => {
@@ -55,12 +57,15 @@ describe('TaskQueue - Edge Cases', () => {
     it('should resolve onIdle after abort', async () => {
       queue = new TaskQueue({ concurrency: 1 })
 
-      queue.add(async () => {
+      const t1 = queue.add(async () => {
         await new Promise(r => setTimeout(r, 100))
       })
-      queue.add(async () => {
+      t1.catch(() => {}) // Handle rejection from abort
+
+      const t2 = queue.add(async () => {
         await new Promise(r => setTimeout(r, 100))
       })
+      t2.catch(() => {}) // Handle rejection from abort
 
       const idlePromise = queue.onIdle()
 
@@ -68,6 +73,8 @@ describe('TaskQueue - Edge Cases', () => {
       queue.abort()
 
       await expect(idlePromise).resolves.toBeUndefined()
+      // Wait for any pending setTimeout in abort() to complete
+      await new Promise(r => setTimeout(r, 10))
     })
 
     it('should reject new tasks immediately after abort even if running tasks exist', async () => {
@@ -83,6 +90,8 @@ describe('TaskQueue - Edge Cases', () => {
 
       await expect(queue.add(async () => 'nope')).rejects.toThrow('aborted')
       await t1Promise.catch(() => {}) // Catch again to avoid unhandled rejection
+      // Wait for any pending setTimeout in abort() to complete
+      await new Promise(r => setTimeout(r, 10))
     })
   })
 
