@@ -241,9 +241,20 @@ export function getGatewayClient(): OpenClawGatewayClient {
   return defaultClient
 }
 
+export function setGatewayClient(client: OpenClawGatewayClient | null): void {
+  defaultClient = client
+}
+
 export function resetGatewayClient(): void {
   if (defaultClient) {
     defaultClient.disconnect().catch(console.error)
     defaultClient = null
   }
+}
+
+export function createGatewayClient(url?: string, options?: GatewayOptions): OpenClawGatewayClient {
+  return new OpenClawGatewayClient(
+    url || process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789',
+    { token: process.env.OPENCLAW_GATEWAY_TOKEN, ...options },
+  )
 }

@@ -92,6 +92,14 @@ export function getGameEventStore(): GameEventStore {
   return store;
 }
 
+export function setGameEventStore(s: GameEventStore | null): void {
+  store = s;
+}
+
 export function resetGameEventStore(): void {
   store = null;
+}
+
+export function createGameEventStore(maxEvents?: number): GameEventStore {
+  return new GameEventStore(maxEvents);
 }

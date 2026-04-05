@@ -102,4 +102,9 @@ export class ChatManager {
   }
 }
 
+export function createChatManager(sessionId?: string): ChatManager {
+  return new ChatManager(sessionId)
+}
+
+/** @deprecated Use DI container or createChatManager() instead */
 export const chatManager = new ChatManager()

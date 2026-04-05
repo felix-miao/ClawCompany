@@ -76,7 +76,6 @@ export class LLMFactory {
   }
 }
 
-// 单例实例
 let llmProvider: LLMProvider | null = null
 
 export function getLLMProvider(): LLMProvider | null {
@@ -86,6 +85,10 @@ export function getLLMProvider(): LLMProvider | null {
   return llmProvider
 }
 
-export function setLLMProvider(provider: LLMProvider): void {
+export function setLLMProvider(provider: LLMProvider | null): void {
   llmProvider = provider
+}
+
+export function resetLLMProvider(): void {
+  llmProvider = null
 }

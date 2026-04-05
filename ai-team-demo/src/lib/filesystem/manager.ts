@@ -356,5 +356,9 @@ export class FileSystemManager {
   }
 }
 
-// 默认实例（用于 orchestrator）
+export function createFileSystemManager(rootDir: string = process.cwd(), options?: { sandbox?: boolean | SandboxedFileWriter }): FileSystemManager {
+  return new FileSystemManager(rootDir, options)
+}
+
+/** @deprecated Use DI container or createFileSystemManager() instead */
 export const fileSystemManager = new FileSystemManager(process.cwd())

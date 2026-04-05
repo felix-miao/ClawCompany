@@ -48,5 +48,9 @@ export class AgentManager {
   }
 }
 
-// 单例实例
+export function createAgentManager(): AgentManager {
+  return new AgentManager()
+}
+
+/** @deprecated Use DI container or createAgentManager() instead */
 export const agentManager = new AgentManager()

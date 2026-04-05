@@ -325,4 +325,9 @@ export class TaskManager {
   }
 }
 
+export function createTaskManager(projectId?: string): TaskManager {
+  return new TaskManager(projectId)
+}
+
+/** @deprecated Use DI container or createTaskManager() instead */
 export const taskManager = new TaskManager()

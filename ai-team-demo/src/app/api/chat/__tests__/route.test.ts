@@ -33,8 +33,8 @@ jest.mock('@/lib/security/utils', () => ({
   },
 }))
 
-jest.mock('@/lib/orchestrator', () => ({
-  orchestrator: {
+jest.mock('@/lib/core/services', () => {
+  const orchestratorMock = {
     executeUserRequest: jest.fn(() => Promise.resolve({
       success: true,
       messages: [
@@ -63,8 +63,14 @@ jest.mock('@/lib/orchestrator', () => ({
       stats: { total: 0, pending: 0, in_progress: 0, review: 0, completed: 0 },
     })),
     reset: jest.fn(),
-  },
-}))
+  }
+  return {
+    Services: { Orchestrator: Symbol('Orchestrator') },
+    getDefaultContainer: jest.fn(() => ({
+      resolve: jest.fn(() => orchestratorMock),
+    })),
+  }
+})
 
 import { POST, GET } from '../route'
 

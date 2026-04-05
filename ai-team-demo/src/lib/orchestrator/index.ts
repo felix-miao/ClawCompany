@@ -1,9 +1,9 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
 import { WorkflowResult, Task, RetryConfig, FileChange } from '../core/types'
 import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
-import { agentManager } from '../agents/manager'
-import { taskManager } from '../tasks/manager'
-import { chatManager } from '../chat/manager'
+import { AgentManager } from '../agents/manager'
+import { TaskManager } from '../tasks/manager'
+import { ChatManager } from '../chat/manager'
 import { SandboxedFileWriter } from '../security/sandbox'
 import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
@@ -61,20 +61,39 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
 
 export interface OrchestratorTaskQueueOptions extends TaskQueueOptions {}
 
+export interface OrchestratorDependencies {
+  agentManager: AgentManager
+  taskManager: TaskManager
+  chatManager: ChatManager
+  sandboxedWriter: SandboxedFileWriter
+}
+
+export function createDefaultDependencies(sandboxedWriter: SandboxedFileWriter): OrchestratorDependencies {
+  return {
+    agentManager: new AgentManager(),
+    taskManager: new TaskManager(),
+    chatManager: new ChatManager(),
+    sandboxedWriter,
+  }
+}
+
 export class Orchestrator extends BaseOrchestrator {
   private projectId: string
   private sandboxedWriter: SandboxedFileWriter
   private taskQueue: TaskQueue
+  private deps: OrchestratorDependencies
 
   constructor(
     projectId: string = 'default',
     retryConfig?: Partial<RetryConfig>,
     observability?: ObservabilityConfig,
     taskQueueOptions?: OrchestratorTaskQueueOptions,
+    deps?: OrchestratorDependencies,
   ) {
     super(retryConfig, observability)
     this.projectId = projectId
-    this.sandboxedWriter = new SandboxedFileWriter(process.cwd())
+    this.sandboxedWriter = deps?.sandboxedWriter ?? new SandboxedFileWriter(process.cwd())
+    this.deps = deps ?? createDefaultDependencies(this.sandboxedWriter)
     this.taskQueue = new TaskQueue({
       concurrency: taskQueueOptions?.concurrency ?? 3,
       defaultTimeout: taskQueueOptions?.defaultTimeout,
@@ -90,6 +109,7 @@ export class Orchestrator extends BaseOrchestrator {
   }
 
   protected getCallbacks(): OrchestratorCallbacks {
+    const { agentManager, taskManager, chatManager } = this.deps
     return {
       sendUserMessage: (msg) => chatManager.sendUserMessage(msg),
       broadcast: (agent, msg) => chatManager.broadcast(agent, msg),
@@ -230,9 +250,9 @@ export class Orchestrator extends BaseOrchestrator {
   getStatus() {
     return {
       projectId: this.projectId,
-      tasks: taskManager.getAllTasks(),
-      messages: chatManager.getHistory(),
-      stats: taskManager.getStats(),
+      tasks: this.deps.taskManager.getAllTasks(),
+      messages: this.deps.chatManager.getHistory(),
+      stats: this.deps.taskManager.getStats(),
     }
   }
 
@@ -245,4 +265,20 @@ export class Orchestrator extends BaseOrchestrator {
   }
 }
 
+export function createOrchestrator(deps: OrchestratorDependencies, options?: {
+  projectId?: string
+  retryConfig?: Partial<RetryConfig>
+  observability?: ObservabilityConfig
+  taskQueueOptions?: OrchestratorTaskQueueOptions
+}): Orchestrator {
+  return new Orchestrator(
+    options?.projectId ?? 'default',
+    options?.retryConfig,
+    options?.observability,
+    options?.taskQueueOptions,
+    deps,
+  )
+}
+
+/** @deprecated Use DI container via getDefaultContainer().resolve(Services.Orchestrator) instead */
 export const orchestrator = new Orchestrator()

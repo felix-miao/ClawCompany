@@ -206,9 +206,17 @@ export function getAgentExecutor(): OpenClawAgentExecutor {
   return defaultExecutor
 }
 
+export function setAgentExecutor(executor: OpenClawAgentExecutor | null): void {
+  defaultExecutor = executor
+}
+
 export function resetAgentExecutor(): void {
   if (defaultExecutor) {
     defaultExecutor.disconnect().catch(console.error)
     defaultExecutor = null
   }
+}
+
+export function createAgentExecutor(client?: OpenClawGatewayClient): OpenClawAgentExecutor {
+  return new OpenClawAgentExecutor(client)
 }

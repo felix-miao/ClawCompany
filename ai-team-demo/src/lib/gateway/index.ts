@@ -1,7 +1,9 @@
 export { 
   OpenClawGatewayClient, 
-  getGatewayClient, 
+  getGatewayClient,
+  setGatewayClient,
   resetGatewayClient,
+  createGatewayClient,
   type SpawnOptions,
   type SpawnResult,
   type HistoryMessage,
@@ -10,8 +12,10 @@ export {
 
 export { 
   OpenClawAgentExecutor, 
-  getAgentExecutor, 
+  getAgentExecutor,
+  setAgentExecutor, 
   resetAgentExecutor,
+  createAgentExecutor,
   type AgentSpawnConfig,
   type AgentExecutionResult
 } from './executor'
