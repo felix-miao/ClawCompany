@@ -46,6 +46,7 @@ export interface SandboxValidationResult {
   allowed: boolean
   reason?: string
   sanitizedPath?: string
+  warnings?: string[]
 }
 
 export interface SandboxWriteResult {
@@ -73,7 +74,6 @@ export class SandboxedFileWriter {
   private sandboxDir: string
   private allowedExtensions: Set<string>
   private maxFileSize: number
-  private warnings: string[] = []
 
   constructor(rootDir: string, options?: {
     allowedExtensions?: string[]
@@ -148,16 +148,16 @@ export class SandboxedFileWriter {
       }
     }
 
-    this.warnings = []
+    const warnings: string[] = []
 
     for (const pattern of DANGEROUS_PATTERNS) {
       if (pattern.test(content)) {
-        this.warnings.push(`Content contains potentially dangerous pattern: ${pattern.source}`)
+        warnings.push(`Content contains potentially dangerous pattern: ${pattern.source}`)
       }
       pattern.lastIndex = 0
     }
 
-    return { allowed: true }
+    return { allowed: true, warnings }
   }
 
   async writeFile(filePath: string, content: string): Promise<SandboxWriteResult> {
@@ -182,7 +182,9 @@ export class SandboxedFileWriter {
       return {
         success: true,
         path: pathResult.sanitizedPath,
-        warnings: this.warnings.length > 0 ? [...this.warnings] : undefined,
+        warnings: contentResult.warnings && contentResult.warnings.length > 0
+          ? [...contentResult.warnings]
+          : undefined,
       }
     } catch (error) {
       return {
