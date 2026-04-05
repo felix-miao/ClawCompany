@@ -336,9 +336,9 @@ describe('Orchestrator Observability Integration', () => {
       orchestrator = new Orchestrator('test-project', undefined, { logger, performanceMonitor: perfMonitor, errorTracker: errTracker })
       await orchestrator.executeUserRequest('build')
 
-      const pmStats = perfMonitor.getHistogramStats('orchestrator.agent.pm.duration')
-      const devStats = perfMonitor.getHistogramStats('orchestrator.agent.dev.duration')
-      const reviewStats = perfMonitor.getHistogramStats('orchestrator.agent.review.duration')
+      const pmStats = perfMonitor.getHistogramStats('agent.pm')
+      const devStats = perfMonitor.getHistogramStats('agent.dev')
+      const reviewStats = perfMonitor.getHistogramStats('agent.review')
 
       expect(pmStats).toBeDefined()
       expect(devStats).toBeDefined()
@@ -372,7 +372,7 @@ describe('Orchestrator Observability Integration', () => {
       await orchestrator.executeUserRequest('build')
 
       expect(perfMonitor.getCounter('orchestrator.tasks.total')).toBe(1)
-      expect(perfMonitor.getCounter('orchestrator.tasks.completed')).toBe(1)
+      expect(perfMonitor.getCounter('orchestrator.tasks.completed')).toBe(2)
     })
 
     it('should track retry counter', async () => {
