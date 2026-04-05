@@ -144,7 +144,7 @@ describe('SoundSystem', () => {
       for (const type of types) {
         const config = soundSystem.getSoundConfig(type as SoundType);
         expect(config).toBeDefined();
-        expect(config.duration).toBeGreaterThan(0);
+        expect(config!.duration).toBeGreaterThan(0);
       }
     });
 

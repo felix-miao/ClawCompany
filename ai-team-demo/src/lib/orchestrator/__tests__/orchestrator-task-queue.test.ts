@@ -1,4 +1,5 @@
 import { Orchestrator } from '../index'
+import type { Task } from '@/lib/core/types'
 
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
@@ -69,7 +70,7 @@ describe('Orchestrator - TaskQueue integration', () => {
             { title: 'T5', description: 'T5', assignedTo: 'dev', dependencies: [], files: [] },
           ],
         }))
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           currentConcurrent++
           maxConcurrent = Math.max(maxConcurrent, currentConcurrent)
           await new Promise(r => setTimeout(r, 50))
@@ -109,7 +110,7 @@ describe('Orchestrator - TaskQueue integration', () => {
             title: `T${i}`, description: `T${i}`, assignedTo: 'dev', dependencies: [], files: [],
           })),
         }))
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           currentConcurrent++
           maxConcurrent = Math.max(maxConcurrent, currentConcurrent)
           await new Promise(r => setTimeout(r, 30))
@@ -143,7 +144,7 @@ describe('Orchestrator - TaskQueue integration', () => {
             { title: 'T2', description: 'T2', assignedTo: 'dev', dependencies: [], files: [] },
           ],
         }))
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           if (_role === 'dev') return { message: `${task.id} done`, files: [] }
           return { message: `${task.id} review done`, status: 'success' }
         })
@@ -183,7 +184,7 @@ describe('Orchestrator - TaskQueue integration', () => {
             { title: 'D', description: 'D', assignedTo: 'dev', dependencies: ['B', 'C'], files: [] },
           ],
         }))
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           executionOrder.push(task.id)
           await new Promise(r => setTimeout(r, 20))
           if (_role === 'dev') return { message: `${task.id} done`, files: [] }
@@ -231,7 +232,7 @@ describe('Orchestrator - TaskQueue integration', () => {
             ],
           }
         })
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           if (task.id === 'dev-1') {
             await new Promise(r => setTimeout(r, 500))
           }

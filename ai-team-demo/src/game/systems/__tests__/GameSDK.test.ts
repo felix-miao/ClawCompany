@@ -2,7 +2,6 @@ import {
   GameSDK,
   GameSDKConfig,
   GameSDKState,
-  SDKEventMap,
 } from '../GameSDK';
 
 describe('GameSDK', () => {

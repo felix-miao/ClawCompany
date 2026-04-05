@@ -212,16 +212,16 @@ export function parseGameEvent(data: string): GameEvent | null {
 
 export const AGENT_ROLE_MAP: Record<string, string> = {
   pm: 'pm',
-  developer: 'dev1',
-  tester: 'dev2',
-  reviewer: 'reviewer',
+  developer: 'dev',
+  tester: 'tester',
+  reviewer: 'review',
 };
 
 export const ROLE_TO_ROOM: Record<string, string> = {
   pm: 'pm-office',
-  dev1: 'dev-studio',
-  dev2: 'test-lab',
-  reviewer: 'review-center',
-  developer: 'dev-studio',
+  dev: 'dev-studio',
   tester: 'test-lab',
+  review: 'review-center',
+  developer: 'dev-studio',
+  reviewer: 'review-center',
 };

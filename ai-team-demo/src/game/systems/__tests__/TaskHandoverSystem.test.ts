@@ -142,18 +142,18 @@ describe('TaskHandoverSystem', () => {
     it('should support handover between any two of 4 agents', () => {
       const { system, agents } = createSystemWithAgents([
         { id: 'pm', x: 100, y: 200, role: 'pm' },
-        { id: 'dev1', x: 250, y: 200, role: 'dev' },
-        { id: 'dev2', x: 400, y: 200, role: 'dev' },
-        { id: 'reviewer', x: 550, y: 200, role: 'reviewer' },
+        { id: 'dev', x: 250, y: 200, role: 'dev' },
+        { id: 'tester', x: 400, y: 200, role: 'tester' },
+        { id: 'review', x: 550, y: 200, role: 'review' },
       ]);
 
-      system.handoverTask('pm', 'dev1', 'task_1');
+      system.handoverTask('pm', 'dev', 'task_1');
       expect(agents[1].isWorkingState()).toBe(true);
 
-      system.handoverTask('dev1', 'dev2', 'task_2');
+      system.handoverTask('dev', 'tester', 'task_2');
       expect(agents[2].isWorkingState()).toBe(true);
 
-      system.handoverTask('dev2', 'reviewer', 'task_3');
+      system.handoverTask('tester', 'review', 'task_3');
       expect(agents[3].isWorkingState()).toBe(true);
     });
 
@@ -161,7 +161,7 @@ describe('TaskHandoverSystem', () => {
       const { system, agents } = createSystemWithAgents([
         { id: 'pm', x: 100, y: 200, role: 'pm' },
         { id: 'dev', x: 300, y: 200, role: 'dev' },
-        { id: 'reviewer', x: 500, y: 200, role: 'reviewer' },
+        { id: 'review', x: 500, y: 200, role: 'review' },
         { id: 'tester', x: 700, y: 200, role: 'tester' },
       ]);
 

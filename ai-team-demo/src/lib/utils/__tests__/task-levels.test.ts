@@ -1,4 +1,5 @@
 import { Task } from '@/lib/core/types'
+
 import { groupTasksByLevels } from '../task-levels'
 
 function makeTask(overrides: Partial<Task> & { id: string }): Task {

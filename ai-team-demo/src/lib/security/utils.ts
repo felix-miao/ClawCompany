@@ -99,6 +99,7 @@ export class APIKeyManager {
       try {
         return this.decrypt(encryptedKey)
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error('解密 API Key 失败:', error)
         return null
       }

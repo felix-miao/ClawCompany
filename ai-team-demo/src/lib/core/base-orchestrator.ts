@@ -27,7 +27,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 export interface OrchestratorCallbacks {
   sendUserMessage: (message: string) => void
   broadcast: (agent: AgentRole, message: string) => void
-  createTask: (title: string, description: string, assignedTo: AgentRole | 'dev', deps: string[], files: string[]) => Task
+  createTask: (title: string, description: string, assignedTo: AgentRole, deps: string[], files: string[]) => Task
   getTask: (id: string) => Task | undefined
   updateTaskStatus: (id: string, status: Task['status']) => void
   getAllTasks: () => Task[]
@@ -308,7 +308,10 @@ export abstract class BaseOrchestrator {
 
       if (task.assignedTo === 'dev') {
         await this.executeDevWorkflow(task, cb, completedTaskIds, allFiles)
+      } else if (task.assignedTo === 'pm' || task.assignedTo === 'review' || task.assignedTo === 'tester') {
+        await this.executeAgentWorkflow(task, cb, task.assignedTo, completedTaskIds)
       } else {
+        this.logWarn('Unknown agent role, treating as generic agent', { taskId: task.id, role: task.assignedTo })
         await this.executeAgentWorkflow(task, cb, task.assignedTo as AgentRole, completedTaskIds)
       }
     } catch (error) {

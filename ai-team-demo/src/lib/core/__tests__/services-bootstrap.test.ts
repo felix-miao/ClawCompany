@@ -18,6 +18,7 @@ import { LLMFactory } from '../../llm/factory'
 import { OpenClawGatewayClient } from '../../gateway/client'
 import { OpenClawAgentExecutor } from '../../gateway/executor'
 import { GameEventStore } from '../../../game/data/GameEventStore'
+import type { LLMProvider } from '../../llm/types'
 
 describe('Services Bootstrap', () => {
   let container: Container
@@ -137,7 +138,7 @@ describe('Services Bootstrap', () => {
       const agentExecutor = container.resolve<OpenClawAgentExecutor>(Services.AgentExecutor)
       
       // AgentExecutor 应该使用注入的 client
-      expect(agentExecutor.client).toBe(gatewayClient)
+      expect((agentExecutor as any).client).toBe(gatewayClient)
     })
   })
 
@@ -181,7 +182,7 @@ describe('Services Bootstrap', () => {
     it('GatewayClient 应该使用默认 URL', () => {
       const gatewayClient = container.resolve<OpenClawGatewayClient>(Services.GatewayClient)
       
-      expect(gatewayClient.url).toBe('ws://127.0.0.1:18789')
+      expect((gatewayClient as any).url).toBe('ws://127.0.0.1:18789')
     })
 
     it('GatewayClient 应该支持从环境变量获取配置', () => {
@@ -191,7 +192,7 @@ describe('Services Bootstrap', () => {
       const newContainer = createAppContainer()
       const gatewayClient = newContainer.resolve<OpenClawGatewayClient>(Services.GatewayClient)
       
-      expect(gatewayClient.url).toBe('ws://custom:8080')
+      expect((gatewayClient as any).url).toBe('ws://custom:8080')
       // GatewayClient 没有直接的 options.token 属性，但可以通过构造函数设置
       
       // 清理环境变量

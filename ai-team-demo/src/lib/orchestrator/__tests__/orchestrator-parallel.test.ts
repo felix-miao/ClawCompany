@@ -1,4 +1,5 @@
 import { Orchestrator } from '../index'
+import type { Task } from '@/lib/core/types'
 
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
@@ -64,7 +65,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
           ],
         }))
 
-      const mockDevAndReview = async (_role: string, task: any) => {
+      const mockDevAndReview = async (_role: string, task: Task) => {
         const start = Date.now()
         await new Promise((r) => setTimeout(r, 50))
         const end = Date.now()
@@ -81,7 +82,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
 
       const startTime = Date.now()
       const result = await orchestrator.executeUserRequest('build three independent features')
-      const totalTime = Date.now() - startTime
+      const _totalTime = Date.now() - startTime
 
       const devExecutions = executionTimes.filter((e) => !e.id.startsWith('pm'))
 
@@ -164,7 +165,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
         .mockReturnValueOnce(makeTask('dev-1'))
         .mockReturnValueOnce(makeTask('dev-2'))
 
-      let devCallCount = 0
+      let _devCallCount = 0
       ;(agentManager.executeAgent as jest.Mock)
         .mockImplementationOnce(async () => ({
           message: 'PM done',
@@ -225,7 +226,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
             { title: 'Task D', description: 'D', assignedTo: 'dev', dependencies: ['B', 'C'], files: [] },
           ],
         }))
-        .mockImplementation(async (_role: string, task: any) => {
+        .mockImplementation(async (_role: string, task: Task) => {
           executionTimes.push({ id: task.id, start: Date.now() })
           await new Promise((r) => setTimeout(r, 30))
           if (_role === 'dev') {

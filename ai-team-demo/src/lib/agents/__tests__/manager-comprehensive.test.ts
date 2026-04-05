@@ -30,20 +30,21 @@ describe('AgentManager - Comprehensive', () => {
   })
 
   describe('initialization', () => {
-    it('should initialize exactly three agents', () => {
-      expect(manager.getAllAgents()).toHaveLength(3)
+    it('should initialize exactly four agents', () => {
+      expect(manager.getAllAgents()).toHaveLength(4)
     })
 
-    it('should have PM, Dev, and Review agents', () => {
+    it('should have PM, Dev, Review, and Tester agents', () => {
       const roles = manager.getAllAgents().map(a => a.role)
       expect(roles).toContain('pm')
       expect(roles).toContain('dev')
       expect(roles).toContain('review')
+      expect(roles).toContain('tester')
     })
 
     it('should have unique agent IDs', () => {
       const ids = manager.getAllAgents().map(a => a.id)
-      expect(new Set(ids).size).toBe(3)
+      expect(new Set(ids).size).toBe(4)
     })
   })
 
@@ -73,6 +74,13 @@ describe('AgentManager - Comprehensive', () => {
       expect(agent!.name).toBe('Reviewer Claw')
     })
 
+    it('should return correct agent for tester role', () => {
+      const agent = manager.getAgent('tester')
+      expect(agent).toBeDefined()
+      expect(agent!.role).toBe('tester')
+      expect(agent!.name).toBe('Tester Claw')
+    })
+
     it('should return the same agent instance on repeated calls', () => {
       const agent1 = manager.getAgent('pm')
       const agent2 = manager.getAgent('pm')
@@ -84,7 +92,7 @@ describe('AgentManager - Comprehensive', () => {
     it('should return array of all agents', () => {
       const agents = manager.getAllAgents()
       expect(Array.isArray(agents)).toBe(true)
-      expect(agents.length).toBe(3)
+      expect(agents.length).toBe(4)
     })
 
     it('should return agents with all required properties', () => {
@@ -101,7 +109,7 @@ describe('AgentManager - Comprehensive', () => {
   describe('getAgentInfo', () => {
     it('should return info for all agents', () => {
       const info = manager.getAgentInfo()
-      expect(info).toHaveLength(3)
+      expect(info).toHaveLength(4)
     })
 
     it('should include required fields in each info object', () => {
@@ -162,6 +170,13 @@ describe('AgentManager - Comprehensive', () => {
     it('should execute Review agent and return valid response', async () => {
       const result = await manager.executeAgent('review', task, context)
       expect(result.agent).toBe('review')
+      expect(result.message).toBeTruthy()
+    })
+
+    it('should execute Tester agent and return valid response', async () => {
+      const result = await manager.executeAgent('tester', task, context)
+      expect(result.agent).toBe('tester')
+      expect(result.status).toBe('success')
       expect(result.message).toBeTruthy()
     })
 
@@ -250,12 +265,14 @@ describe('AgentManager - Comprehensive', () => {
         manager.executeAgent('pm', makeTask({ title: 'PM Task' }), context),
         manager.executeAgent('dev', makeTask({ title: 'Dev Task' }), context),
         manager.executeAgent('review', makeTask({ title: 'Review Task' }), context),
+        manager.executeAgent('tester', makeTask({ title: 'Test Task' }), context),
       ]
 
-      const [pmResult, devResult, reviewResult] = await Promise.all(promises)
+      const [pmResult, devResult, reviewResult, testResult] = await Promise.all(promises)
       expect(pmResult.agent).toBe('pm')
       expect(devResult.agent).toBe('dev')
       expect(reviewResult.agent).toBe('review')
+      expect(testResult.agent).toBe('tester')
     })
   })
 
@@ -266,7 +283,7 @@ describe('AgentManager - Comprehensive', () => {
     })
 
     it('should have all agents in the singleton', () => {
-      expect(agentManager.getAllAgents()).toHaveLength(3)
+      expect(agentManager.getAllAgents()).toHaveLength(4)
     })
 
     it('should be the same instance across imports', () => {

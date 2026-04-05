@@ -31,28 +31,28 @@ describe('ParticleSystem', () => {
     it('should return config for celebration effect', () => {
       const config = particleSystem.getEffectConfig('celebration');
       expect(config).toBeDefined();
-      expect(config.lifespan).toBeGreaterThan(0);
-      expect(config.quantity).toBeGreaterThan(0);
-      expect(config.tints.length).toBeGreaterThan(0);
+      expect(config!.lifespan).toBeGreaterThan(0);
+      expect(config!.quantity).toBeGreaterThan(0);
+      expect(config!.tints.length).toBeGreaterThan(0);
     });
 
     it('should return config for error effect', () => {
       const config = particleSystem.getEffectConfig('error');
       expect(config).toBeDefined();
-      expect(config.lifespan).toBeGreaterThan(0);
-      expect(config.tints).toEqual(expect.arrayContaining([expect.any(Number)]));
+      expect(config!.lifespan).toBeGreaterThan(0);
+      expect(config!.tints).toEqual(expect.arrayContaining([expect.any(Number)]));
     });
 
     it('should return config for task-complete effect', () => {
       const config = particleSystem.getEffectConfig('task-complete');
       expect(config).toBeDefined();
-      expect(config.lifespan).toBeGreaterThan(0);
+      expect(config!.lifespan).toBeGreaterThan(0);
     });
 
     it('should return config for work-start effect', () => {
       const config = particleSystem.getEffectConfig('work-start');
       expect(config).toBeDefined();
-      expect(config.lifespan).toBeGreaterThan(0);
+      expect(config!.lifespan).toBeGreaterThan(0);
     });
 
     it('should return config for sparkle effect', () => {
@@ -282,7 +282,7 @@ describe('ParticleSystem', () => {
       };
 
       particleSystem.registerCustomEffect('custom-test', customConfig);
-      const retrieved = particleSystem.getEffectConfig('custom-test');
+      const retrieved = particleSystem.getEffectConfig('custom-test' as ParticleEffectType);
       expect(retrieved).toEqual(customConfig);
     });
 
@@ -343,9 +343,9 @@ describe('ParticleSystem', () => {
     it('should return effect id on successful trigger', () => {
       const result = particleSystem.triggerEffect('celebration', 'dev1', 100, 200);
       expect(result).toBeDefined();
-      expect(result.id).toBeTruthy();
-      expect(result.config).toBeDefined();
-      expect(result.config.tints.length).toBeGreaterThan(0);
+      expect(result!.id).toBeTruthy();
+      expect(result!.config).toBeDefined();
+      expect(result!.config.tints.length).toBeGreaterThan(0);
     });
 
     it('should return null for unknown effect type', () => {

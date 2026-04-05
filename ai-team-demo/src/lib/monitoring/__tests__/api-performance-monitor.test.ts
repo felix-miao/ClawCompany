@@ -1,8 +1,8 @@
 import { ApiPerformanceMonitor } from '../api-performance-monitor';
+import { PerformanceMonitor } from '../performance-monitor';
 
 // Mock the PerformanceMonitor
 jest.mock('../performance-monitor');
-import { PerformanceMonitor } from '../performance-monitor';
 
 describe('ApiPerformanceMonitor', () => {
   let performanceMonitor: jest.Mocked<PerformanceMonitor>;
@@ -17,8 +17,10 @@ describe('ApiPerformanceMonitor', () => {
       getMonitoredApis: jest.fn(),
       generatePerformanceReport: jest.fn(),
       cleanupOldData: jest.fn(),
-      reset: jest.fn()
-    } as jest.Mocked<PerformanceMonitor>;
+      reset: jest.fn(),
+      recordMemoryUsage: jest.fn(),
+      getMemoryStats: jest.fn(),
+    } as unknown as jest.Mocked<PerformanceMonitor>;
     
     apiMonitor = new ApiPerformanceMonitor(performanceMonitor);
   });

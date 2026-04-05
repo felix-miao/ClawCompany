@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const SubTaskSchema = z.object({
   title: z.string().min(1),
   description: z.string(),
-  assignedTo: z.enum(['dev', 'review']),
+  assignedTo: z.enum(['dev', 'review', 'tester']),
   dependencies: z.preprocess(
     (val) => Array.isArray(val) ? val : [],
     z.array(z.string())

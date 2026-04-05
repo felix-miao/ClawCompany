@@ -128,7 +128,7 @@ describe('TaskManager', () => {
       const updated = tm.updateTaskStatus(task.id, 'in_progress')
 
       expect(updated!.status).toBe('in_progress')
-      expect(updated!.updatedAt.getTime()).toBeGreaterThanOrEqual(task.createdAt.getTime())
+      expect(updated!.updatedAt!.getTime()).toBeGreaterThanOrEqual(task.createdAt!.getTime())
     })
 
     it('updates updatedAt timestamp', () => {
@@ -137,7 +137,7 @@ describe('TaskManager', () => {
       tm.updateTaskStatus(task.id, 'in_progress')
 
       const updated = tm.updateTaskStatus(task.id, 'review')
-      expect(updated!.updatedAt.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt.getTime())
+      expect(updated!.updatedAt!.getTime()).toBeGreaterThanOrEqual(originalUpdatedAt!.getTime())
     })
 
     it('cycles through valid statuses', () => {
@@ -188,7 +188,7 @@ describe('TaskManager', () => {
       const updated = tm.assignTask(task.id, 'pm')
 
       expect(updated!.assignedTo).toBe('pm')
-      expect(updated!.updatedAt.getTime()).toBeGreaterThanOrEqual(task.createdAt.getTime())
+      expect(updated!.updatedAt!.getTime()).toBeGreaterThanOrEqual(task.createdAt!.getTime())
     })
 
     it('returns undefined for non-existent task', () => {
@@ -345,7 +345,7 @@ describe('TaskManager', () => {
       const t3 = tm.createTask('C', 'c', 'dev')
       const t4 = tm.createTask('D', 'd', 'dev')
       const t5 = tm.createTask('E', 'e', 'dev')
-      const t6 = tm.createTask('F', 'f', 'dev')
+      const _t6 = tm.createTask('F', 'f', 'dev')
 
       tm.updateTaskStatus(t1.id, 'in_progress')
       tm.updateTaskStatus(t2.id, 'in_progress')
@@ -392,7 +392,7 @@ describe('TaskManager', () => {
     })
 
     it('throws on invalid agent role', () => {
-      expect(() => tm.createTask('Title', 'desc', 'invalid' as any)).toThrow('Invalid agent role')
+      expect(() => tm.createTask('Title', 'desc', 'invalid' as unknown as import('@/lib/core/types').AgentRole)).toThrow('Invalid agent role')
     })
 
     it('throws on self-referencing dependency', () => {

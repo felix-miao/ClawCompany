@@ -1,5 +1,5 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
-import { WorkflowResult, Task, RetryConfig, FileChange } from '../core/types'
+import { WorkflowResult, Task, RetryConfig } from '../core/types'
 import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
 import { AgentManager } from '../agents/manager'
 import { TaskManager } from '../tasks/manager'
@@ -9,7 +9,7 @@ import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
-import { UnifiedRetry, UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
+import { UnifiedRetry } from '../core/unified-retry'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 export { UnifiedRetry } from '../core/unified-retry'
@@ -18,7 +18,7 @@ export type { UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../c
 interface ValidatedSubTask {
   title: string
   description: string
-  assignedTo: 'dev' | 'review'
+  assignedTo: 'dev' | 'review' | 'tester'
   dependencies: string[]
   files?: string[]
 }
@@ -31,6 +31,7 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
   for (let i = 0; i < rawTasks.length; i++) {
     const raw = rawTasks[i]
     if (raw === null || raw === undefined || typeof raw !== 'object') {
+      // eslint-disable-next-line no-console
       console.warn(
         '[Orchestrator]',
         'SubTask validation failed',
@@ -48,6 +49,7 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
       validTasks.push({ ...data, files })
     } else {
       const reason = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
+      // eslint-disable-next-line no-console
       console.warn(
         '[Orchestrator]',
         'SubTask validation failed',
@@ -129,6 +131,7 @@ export class Orchestrator extends BaseOrchestrator {
           )
         }
         if (result.warnings && result.warnings.length > 0) {
+          // eslint-disable-next-line no-console
           console.warn('[Sandbox] Warnings for', filePath, ':', result.warnings)
         }
       },

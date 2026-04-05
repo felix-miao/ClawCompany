@@ -129,7 +129,7 @@ Please proceed with implementation.`
     expect(result).not.toBeNull()
     expect(result!.analysis).toBe('User wants a login feature')
     expect(result!.tasks).toHaveLength(2)
-    expect(result!.tasks[0].title).toBe('Create login form')
+    expect((result!.tasks as any[])[0].title).toBe('Create login form')
   })
 
   it('should extract JSON from real-world Dev agent response', () => {
@@ -144,7 +144,7 @@ Please proceed with implementation.`
     const result = extractJSONObject(response)
     expect(result).not.toBeNull()
     expect(result!.files).toHaveLength(1)
-    expect(result!.files[0].path).toBe('src/Login.tsx')
+    expect((result!.files as any[])[0].path).toBe('src/Login.tsx')
   })
 
   it('should extract JSON from real-world Review agent response', () => {
@@ -592,7 +592,7 @@ Proceed with implementation.`
     expect(result).not.toBeNull()
     expect(result!.analysis).toBe('User wants login')
     expect(result!.tasks).toHaveLength(2)
-    expect(result!.tasks[1].done).toBeNull()
+    expect((result!.tasks as any[])[1].done).toBeNull()
   })
 })
 

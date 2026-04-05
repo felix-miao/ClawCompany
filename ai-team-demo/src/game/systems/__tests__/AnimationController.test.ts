@@ -12,7 +12,7 @@ function createMockSprite(timeNow: number = 0) {
     },
     play: jest.fn(),
     setFlipX: jest.fn(),
-    anims_stop: jest.fn(),
+    anims: { stop: jest.fn() },
     flipX: false,
   };
 }
@@ -119,7 +119,6 @@ describe('AnimationController', () => {
   describe('stop', () => {
     it('should call stop on sprite anims', () => {
       const sprite = createMockSprite(1000);
-      sprite.anims = { stop: jest.fn() };
       const controller = new AnimationController(sprite as any, 0xff6b6b);
       controller.stop();
       expect(sprite.anims.stop).toHaveBeenCalled();

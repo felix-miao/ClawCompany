@@ -31,8 +31,8 @@ describe('OfficeDecorator', () => {
       for (const type of types) {
         const config = decorator.getDecorationConfig(type as DecorationType);
         expect(config).toBeDefined();
-        expect(config.width).toBeGreaterThan(0);
-        expect(config.height).toBeGreaterThan(0);
+        expect(config!.width).toBeGreaterThan(0);
+        expect(config!.height).toBeGreaterThan(0);
       }
     });
 

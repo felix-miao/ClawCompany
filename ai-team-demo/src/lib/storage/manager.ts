@@ -1,4 +1,3 @@
-import * as fs from 'fs/promises'
 import * as path from 'path'
 import { z } from 'zod'
 
@@ -60,6 +59,7 @@ const ConversationSchema = z.object({
   updatedAt: z.string().min(1),
 })
 
+// eslint-disable-next-line no-control-regex
 const INVALID_ID_PATTERN = /(\.\.|\/|\\|\x00)/
 
 function validateId(id: string, context: string): void {

@@ -79,9 +79,10 @@ describe('GameStateManager', () => {
       const original = manager.capture(sampleAgentStates);
       const json = manager.serialize(original);
       const restored = manager.deserialize(json);
-      expect(restored.version).toBe(original.version);
-      expect(restored.agents).toEqual(original.agents);
-      expect(restored.timestamp).toBe(original.timestamp);
+      expect(restored).not.toBeNull();
+      expect(restored!.version).toBe(original.version);
+      expect(restored!.agents).toEqual(original.agents);
+      expect(restored!.timestamp).toBe(original.timestamp);
     });
 
     it('should return null for invalid JSON', () => {

@@ -1082,8 +1082,8 @@ describe('BaseOrchestrator - logging', () => {
     const events = orch.getEventBus().getHistory()
     const trackedEvents = events.filter(e => e.type === 'error:tracked')
     expect(trackedEvents).toHaveLength(2)
-    expect(trackedEvents[0].data.level).toBe('warn')
-    expect(trackedEvents[1].data.level).toBe('error')
+    expect(trackedEvents[0]!.data!.level).toBe('warn')
+    expect(trackedEvents[1]!.data!.level).toBe('error')
   })
 })
 

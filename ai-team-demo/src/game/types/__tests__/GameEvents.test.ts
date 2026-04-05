@@ -97,19 +97,19 @@ describe('parseGameEvent', () => {
 
 describe('AGENT_ROLE_MAP', () => {
   it('should map developer to dev1', () => {
-    expect(AGENT_ROLE_MAP.developer).toBe('dev1');
+    expect(AGENT_ROLE_MAP.developer).toBe('dev');
   });
 
   it('should map pm to pm', () => {
     expect(AGENT_ROLE_MAP.pm).toBe('pm');
   });
 
-  it('should map tester to dev2', () => {
-    expect(AGENT_ROLE_MAP.tester).toBe('dev2');
+  it('should map tester to tester', () => {
+    expect(AGENT_ROLE_MAP.tester).toBe('tester');
   });
 
-  it('should map reviewer to reviewer', () => {
-    expect(AGENT_ROLE_MAP.reviewer).toBe('reviewer');
+  it('should map reviewer to review', () => {
+    expect(AGENT_ROLE_MAP.reviewer).toBe('review');
   });
 });
 
@@ -118,11 +118,11 @@ describe('ROLE_TO_ROOM', () => {
     expect(ROLE_TO_ROOM.pm).toBe('pm-office');
   });
 
-  it('should map dev1 to dev-studio', () => {
-    expect(ROLE_TO_ROOM.dev1).toBe('dev-studio');
+  it('should map dev to dev-studio', () => {
+    expect(ROLE_TO_ROOM.dev).toBe('dev-studio');
   });
 
-  it('should map reviewer to review-center', () => {
-    expect(ROLE_TO_ROOM.reviewer).toBe('review-center');
+  it('should map review to review-center', () => {
+    expect(ROLE_TO_ROOM.review).toBe('review-center');
   });
 });
