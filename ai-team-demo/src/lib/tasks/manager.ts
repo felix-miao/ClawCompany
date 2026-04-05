@@ -8,12 +8,61 @@ export { TaskStateMachine, InvalidTransitionError } from './state-machine'
 const VALID_STATUSES: readonly string[] = [...TASK_STATUS_VALUES]
 const VALID_ROLES: readonly string[] = ['pm', 'dev', 'review']
 
+export interface TaskTransitionRecord {
+  from: TaskStatus
+  to: TaskStatus
+  timestamp: Date
+}
+
+export type TaskLifecycleEvent =
+  | {
+      type: 'task:created'
+      taskId: string
+      timestamp: Date
+      data: { title: string; status: TaskStatus; assignedTo: AgentRole }
+    }
+  | {
+      type: 'task:status_changed'
+      taskId: string
+      timestamp: Date
+      data: { from: TaskStatus; to: TaskStatus }
+    }
+  | {
+      type: 'task:assigned'
+      taskId: string
+      timestamp: Date
+      data: { from: AgentRole; to: AgentRole }
+    }
+
+export type TaskEventHandler = (event: TaskLifecycleEvent) => void
+
+interface TaskWithHistory extends Task {
+  _history: TaskTransitionRecord[]
+}
+
 export class TaskManager {
-  private tasks: Map<string, Task> = new Map()
+  private tasks: Map<string, TaskWithHistory> = new Map()
   private projectId: string
+  private handlers: Set<TaskEventHandler> = new Set()
 
   constructor(projectId: string = 'default') {
     this.projectId = projectId
+  }
+
+  on(handler: TaskEventHandler): void {
+    this.handlers.add(handler)
+  }
+
+  off(handler: TaskEventHandler): void {
+    this.handlers.delete(handler)
+  }
+
+  private emit(event: TaskLifecycleEvent): void {
+    Array.from(this.handlers).forEach(handler => {
+      try {
+        handler(event)
+      } catch {}
+    })
   }
 
   createTask(
@@ -35,7 +84,8 @@ export class TaskManager {
       throw new Error(`Invalid agent role: ${assignedTo}`)
     }
 
-    const task: Task = {
+    const now = new Date(Date.now())
+    const task: TaskWithHistory = {
       id: generateId('task_'),
       title: trimmedTitle,
       description: trimmedDesc,
@@ -43,11 +93,20 @@ export class TaskManager {
       assignedTo,
       dependencies,
       files,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      createdAt: now,
+      updatedAt: now,
+      _history: []
     }
 
     this.tasks.set(task.id, task)
+
+    this.emit({
+      type: 'task:created',
+      taskId: task.id,
+      timestamp: now,
+      data: { title: task.title, status: task.status, assignedTo: task.assignedTo }
+    })
+
     return task
   }
 
@@ -75,9 +134,26 @@ export class TaskManager {
       throw new InvalidTransitionError(task.status, status)
     }
 
+    const previousStatus = task.status
+    if (previousStatus === status) return task
+
+    task._history.push({
+      from: previousStatus,
+      to: status,
+      timestamp: new Date(Date.now())
+    })
+
     task.status = status
-    task.updatedAt = new Date()
+    task.updatedAt = new Date(Date.now())
     this.tasks.set(taskId, task)
+
+    this.emit({
+      type: 'task:status_changed',
+      taskId,
+      timestamp: task.updatedAt,
+      data: { from: previousStatus, to: status }
+    })
+
     return task
   }
 
@@ -85,14 +161,62 @@ export class TaskManager {
     const task = this.tasks.get(taskId)
     if (!task) return undefined
 
+    const previousAgent = task.assignedTo
+    if (previousAgent === agent) return task
+
     task.assignedTo = agent
-    task.updatedAt = new Date()
+    task.updatedAt = new Date(Date.now())
     this.tasks.set(taskId, task)
+
+    this.emit({
+      type: 'task:assigned',
+      taskId,
+      timestamp: task.updatedAt,
+      data: { from: previousAgent, to: agent }
+    })
+
     return task
   }
 
   completeTask(taskId: string): Task | undefined {
     return this.updateTaskStatus(taskId, 'completed')
+  }
+
+  getTaskHistory(taskId: string): TaskTransitionRecord[] {
+    const task = this.tasks.get(taskId)
+    if (!task) return []
+    return [...task._history]
+  }
+
+  getTimeInStatus(taskId: string, status: TaskStatus): number {
+    const task = this.tasks.get(taskId)
+    if (!task) return 0
+
+    const history = task._history
+    let totalMs = 0
+
+    // Handle initial status (pending) - time from creation to first transition
+    if (status === 'pending' && task.createdAt) {
+      const firstTransition = history.find(h => h.from === 'pending')
+      if (firstTransition) {
+        totalMs += firstTransition.timestamp.getTime() - task.createdAt.getTime()
+      } else if (task.status === 'pending') {
+        // Still in pending, no transitions yet
+        totalMs += Date.now() - task.createdAt.getTime()
+      }
+    }
+
+    // Handle other statuses - sum time spent in each visit
+    for (let i = 0; i < history.length; i++) {
+      if (history[i].to !== status) continue
+      const enterTime = history[i].timestamp.getTime()
+      const exitTime = i + 1 < history.length
+        ? history[i + 1].timestamp.getTime()
+        : Date.now()
+      totalMs += exitTime - enterTime
+    }
+
+    return totalMs
   }
 
   getStats(): {
@@ -121,17 +245,37 @@ export class TaskManager {
   toJSON(): string {
     return JSON.stringify({
       projectId: this.projectId,
-      tasks: Array.from(this.tasks.entries())
+      tasks: Array.from(this.tasks.entries()).map(([id, task]) => [
+        id,
+        {
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          assignedTo: task.assignedTo,
+          dependencies: task.dependencies,
+          files: task.files,
+          createdAt: task.createdAt,
+          updatedAt: task.updatedAt,
+          _history: task._history
+        }
+      ])
     })
   }
 
   static fromJSON(json: string): TaskManager {
     const result = safeJsonParse<unknown>(json, 'TaskManager')
     if (!result.success) {
-      throw new Error(result.error)
+      throw new Error((result as { success: false; error: string }).error)
     }
     const data = result.data
-    type TaskManagerData = { projectId: string; tasks: [string, Partial<Task>][] }
+    type SerializedTask = {
+      title: string; description: string; status: string; assignedTo: string
+      dependencies?: string[]; files?: string[]
+      createdAt?: string; updatedAt?: string
+      _history?: Array<{ from: string; to: string; timestamp: string }>
+    }
+    type TaskManagerData = { projectId: string; tasks: [string, SerializedTask][] }
     if (typeof data !== 'object' || data === null || !('projectId' in data) || typeof (data as TaskManagerData).projectId !== 'string') {
       throw new Error('projectId is required')
     }
@@ -142,7 +286,7 @@ export class TaskManager {
     const manager = new TaskManager((data as TaskManagerData).projectId)
     for (const entry of (data as TaskManagerData).tasks) {
       if (!Array.isArray(entry) || entry.length < 2) continue
-      const [id, task] = entry as [string, Partial<Task> & { title: string; description: string; status: string; assignedTo: string }]
+      const [id, task] = entry
       if (typeof task.title !== 'string' || typeof task.description !== 'string') {
         throw new Error('Task missing required fields: title and description')
       }
@@ -152,15 +296,26 @@ export class TaskManager {
       if (!VALID_ROLES.includes(task.assignedTo)) {
         throw new Error(`Invalid agent role: ${task.assignedTo}`)
       }
+
+      const history: TaskTransitionRecord[] = Array.isArray(task._history)
+        ? task._history.map(h => ({
+            from: h.from as TaskStatus,
+            to: h.to as TaskStatus,
+            timestamp: new Date(h.timestamp)
+          }))
+        : []
+
       manager.tasks.set(id, {
         id,
-        ...task,
+        title: task.title,
+        description: task.description,
         status: task.status as TaskStatus,
         assignedTo: task.assignedTo as AgentRole,
         dependencies: Array.isArray(task.dependencies) ? task.dependencies : [],
         files: Array.isArray(task.files) ? task.files : [],
-        createdAt: task.createdAt ? new Date(task.createdAt) : new Date(),
-        updatedAt: task.updatedAt ? new Date(task.updatedAt) : new Date()
+        createdAt: task.createdAt ? new Date(new Date(task.createdAt).getTime()) : new Date(Date.now()),
+        updatedAt: task.updatedAt ? new Date(new Date(task.updatedAt).getTime()) : new Date(Date.now()),
+        _history: history
       })
     }
     return manager
