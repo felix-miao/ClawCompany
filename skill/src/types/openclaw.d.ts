@@ -7,6 +7,7 @@ declare module 'openclaw' {
     model?: string
     agentId?: string
     cwd?: string
+    runTimeoutSeconds?: number
   }
 
   export interface SessionResult {
