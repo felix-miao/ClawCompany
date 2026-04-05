@@ -11,19 +11,29 @@ jest.mock('next/server', () => ({
 }))
 
 jest.mock('@/lib/llm/factory', () => {
-  let _provider: any = null
+  let _provider: import('@/lib/llm/types').LLMProvider | null = null
   return {
     getLLMProvider: () => _provider,
-    setLLMProvider: (p: any) => { _provider = p },
+    setLLMProvider: (p: import('@/lib/llm/types').LLMProvider | null) => { _provider = p },
     LLMFactory: { createFromEnv: () => _provider, createProvider: () => _provider },
   }
 })
 process.env.USE_MOCK_LLM = 'true'
 process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
 
-function createMockRequest(options?: any): any {
+import { NextRequest } from 'next/server'
+
+interface MockRequestOptions {
+  url?: string
+  method?: string
+  headers?: Record<string, string>
+  noAuth?: boolean
+  body?: Record<string, unknown>
+}
+
+function createMockRequest(options?: MockRequestOptions): NextRequest {
   const url = options?.url || 'http://localhost/api/agent'
-  const headers = {
+  const headerEntries: Record<string, string | undefined> = {
     'x-api-key': options?.noAuth ? undefined : process.env.AGENT_API_KEY,
     ...(options?.headers || {})
   }
@@ -31,14 +41,14 @@ function createMockRequest(options?: any): any {
     url,
     method: options?.method || 'GET',
     headers: {
-      get: (name: string) => headers[name] || null
+      get: (name: string) => headerEntries[name] || null
     },
     json: () => Promise.resolve(options?.body || {})
-  }
+  } as unknown as NextRequest
 }
 
 jest.mock('@/lib/storage/manager', () => {
-  ;(global as any).__mockStorageManager__ = {
+  ;(global as Record<string, unknown>).__mockStorageManager__ = {
     createConversation: jest.fn(() => ({
       id: 'conv-123',
       title: 'Test',
@@ -48,7 +58,7 @@ jest.mock('@/lib/storage/manager', () => {
     })),
     loadConversation: jest.fn(),
     saveConversation: jest.fn(),
-    addMessageToConversation: jest.fn((conv: any, msg: any) => ({
+    addMessageToConversation: jest.fn((conv: import('@/lib/storage/manager').Conversation, msg: import('@/lib/storage/manager').Message) => ({
       ...conv,
       messages: [...conv.messages, msg]
     })),
@@ -63,34 +73,34 @@ jest.mock('@/lib/storage/manager', () => {
     listAgents: jest.fn(() => [])
   }
   return {
-    StorageManager: jest.fn().mockImplementation(() => (global as any).__mockStorageManager__)
+    StorageManager: jest.fn().mockImplementation(() => (global as Record<string, unknown>).__mockStorageManager__)
   }
 })
 
 jest.mock('@/lib/security/sandbox', () => {
-  ;(global as any).__mockSandboxedWriter__ = {
+  ;(global as Record<string, unknown>).__mockSandboxedWriter__ = {
     writeFile: jest.fn(),
   }
   return {
-    SandboxedFileWriter: jest.fn().mockImplementation(() => (global as any).__mockSandboxedWriter__)
+    SandboxedFileWriter: jest.fn().mockImplementation(() => (global as Record<string, unknown>).__mockSandboxedWriter__)
   }
 })
 
 jest.mock('@/lib/filesystem/manager', () => {
-  ;(global as any).__mockFsManager__ = {
+  ;(global as Record<string, unknown>).__mockFsManager__ = {
     createFile: jest.fn()
   }
   return {
-    FileSystemManager: jest.fn().mockImplementation(() => (global as any).__mockFsManager__)
+    FileSystemManager: jest.fn().mockImplementation(() => (global as Record<string, unknown>).__mockFsManager__)
   }
 })
 
 jest.mock('@/lib/git/manager', () => {
-  ;(global as any).__mockGitManager__ = {
+  ;(global as Record<string, unknown>).__mockGitManager__ = {
     commit: jest.fn()
   }
   return {
-    GitManager: jest.fn().mockImplementation(() => (global as any).__mockGitManager__)
+    GitManager: jest.fn().mockImplementation(() => (global as Record<string, unknown>).__mockGitManager__)
   }
 })
 
@@ -126,8 +136,8 @@ import { POST, GET, PUT, DELETE } from '../route'
 import { RateLimiter, SecurityManager } from '@/lib/security/utils'
 import { getLLMProvider, setLLMProvider } from '@/lib/llm/factory'
 
-const getMockStorageManager = () => (global as any).__mockStorageManager__
-const getMockSandboxedWriter = () => (global as any).__mockSandboxedWriter__
+const getMockStorageManager = () => (global as Record<string, unknown>).__mockStorageManager__ as ReturnType<typeof import('@/lib/storage/manager').StorageManager['prototype']>
+const getMockSandboxedWriter = () => (global as Record<string, unknown>).__mockSandboxedWriter__ as { writeFile: jest.Mock }
 
 describe('Authentication', () => {
   it('POST should return 401 without API key', async () => {
