@@ -146,8 +146,8 @@ describe('Authentication', () => {
       method: 'POST',
       headers: { get: () => null },
       json: async () => ({ agentId: 'pm-agent', userMessage: 'Hello' }),
-    }
-    const response = await POST(request as any)
+    } as NextRequest
+    const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)
     expect(data.error).toContain('Unauthorized')
@@ -192,7 +192,7 @@ describe('/api/agent', () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }))
-    storage.addMessageToConversation.mockImplementation((conv: any, msg: any) => ({
+    storage.addMessageToConversation.mockImplementation((conv: { messages: Array<unknown> }, msg: { agentId: string; agentName: string; content: string }) => ({
       ...conv,
       messages: [...conv.messages, msg]
     }))
@@ -213,7 +213,7 @@ describe('/api/agent', () => {
     writer.writeFile.mockReset()
     writer.writeFile.mockResolvedValue({ success: true, path: 'output/test.tsx' })
 
-    const git = (global as any).__mockGitManager__
+    const git = (global as Record<string, unknown>).__mockGitManager__ as { commit: jest.Mock }
     git.commit.mockReset()
     git.commit.mockResolvedValue({ success: true, commitHash: 'abc123' })
   })

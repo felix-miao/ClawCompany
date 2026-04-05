@@ -1,12 +1,12 @@
 jest.mock('next/server', () => ({
   NextRequest: class MockNextRequest {
-    json: () => Promise<any>
-    constructor(url: string, options?: any) {
+    json: () => Promise<unknown>
+    constructor(url: string, options?: { body?: string }) {
       this.json = async () => options?.body ? JSON.parse(options.body) : {}
     }
   },
   NextResponse: {
-    json: (data: any, options?: any) => ({
+    json: (data: unknown, options?: { status?: number }) => ({
       json: async () => data,
       status: options?.status || 200,
     }),
@@ -76,7 +76,7 @@ import { POST, GET } from '../route'
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
-function createMockRequest(body: any, options?: { noAuth?: boolean }): any {
+function createMockRequest(body: unknown, options?: { noAuth?: boolean }): { json: () => Promise<unknown>; headers: { get: (name: string) => string | null } } {
   const headers: Record<string, string> = {
     ...(options?.noAuth ? {} : { 'x-api-key': API_KEY }),
   }
@@ -123,7 +123,7 @@ describe('Authentication', () => {
     const request = {
       json: async () => ({ message: 'test' }),
       headers: { get: (name: string) => name === 'x-api-key' ? 'wrong-key' : null },
-    } as any
+    }
     const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)
@@ -190,10 +190,10 @@ describe('Chat API', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      data.chatHistory.forEach((msg: any) => {
+      data.chatHistory.forEach((msg: { timestamp?: string }) => {
         expect(msg).toHaveProperty('timestamp')
         expect(msg.timestamp).toBeDefined()
-        const date = new Date(msg.timestamp)
+        const date = new Date(msg.timestamp!)
         expect(isNaN(date.getTime())).toBe(false)
       })
     })
@@ -204,7 +204,7 @@ describe('Chat API', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      data.chatHistory.forEach((msg: any) => {
+      data.chatHistory.forEach((msg: { agent: string }) => {
         expect(['user', 'pm', 'dev', 'review']).toContain(msg.agent)
       })
     })
@@ -215,7 +215,7 @@ describe('Chat API', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      data.chatHistory.forEach((msg: any) => {
+      data.chatHistory.forEach((msg: { content: string }) => {
         expect(msg).toHaveProperty('content')
         expect(typeof msg.content).toBe('string')
       })
@@ -237,7 +237,7 @@ describe('Chat API', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      data.tasks.forEach((task: any) => {
+      data.tasks.forEach((task: { id: string; title: string; status: string; assignedTo: string }) => {
         expect(task).toHaveProperty('id')
         expect(task).toHaveProperty('title')
         expect(task).toHaveProperty('status')
