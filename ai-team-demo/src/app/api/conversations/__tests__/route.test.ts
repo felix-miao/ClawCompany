@@ -109,7 +109,7 @@ describe('Authentication', () => {
   })
 })
 
-const getMockStorage = () => (global as Record<string, unknown>).__mockConvStorageManager__ as any
+const getMockStorage = () => (global as Record<string, unknown>).__mockConvStorageManager__
 
 describe('/api/conversations', () => {
   const originalApiKey = process.env.AGENT_API_KEY
@@ -403,7 +403,7 @@ describe('/api/conversations', () => {
         json: async () => { throw new SyntaxError('Unexpected token') },
       }
 
-      const response = await POST(request as any)
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
@@ -417,7 +417,7 @@ describe('/api/conversations', () => {
         json: async () => { throw new SyntaxError('Unexpected token') },
       }
 
-      const response = await PUT(request as any)
+      const response = await PUT(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
