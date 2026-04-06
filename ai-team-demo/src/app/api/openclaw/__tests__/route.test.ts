@@ -18,6 +18,7 @@ jest.mock('@/lib/security/utils', () => ({
 }))
 
 import { POST, GET } from '../route'
+import { MockFetchFunction } from '@/types/__mocks__/fetch-mock-types'
 
 import { RateLimiter } from '@/lib/security/utils'
 
@@ -101,7 +102,10 @@ describe('/api/openclaw', () => {
     jest.clearAllMocks()
     ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(true)
     ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(60)
-    globalThis.fetch = jest.fn() as any
+    
+    const mockFetch = jest.fn() as MockFetchFunction
+    ;(global as typeof globalThis & { __mockFetch__: MockFetchFunction }).__mockFetch__ = mockFetch
+    globalThis.fetch = mockFetch
     fetchSpy = jest.spyOn(globalThis, 'fetch')
   })
 

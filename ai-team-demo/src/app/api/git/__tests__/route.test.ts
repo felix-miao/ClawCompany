@@ -7,8 +7,10 @@ jest.mock('next/server', () => ({
   },
 }))
 
+import { MockGitManager, GitCommitResult, GitStatusResult, GitLogEntry } from '@/types/__mocks__/git-mock-types'
+
 jest.mock('@/lib/git/manager', () => {
-  ;(global as any).__mockGitRouteManager__ = {
+  const mockManager: MockGitManager = {
     commit: jest.fn(),
     commitAndPush: jest.fn(),
     status: jest.fn(),
@@ -16,8 +18,11 @@ jest.mock('@/lib/git/manager', () => {
     createBranch: jest.fn(),
     checkout: jest.fn(),
   }
+  
+  ;(global as typeof globalThis & { __mockGitRouteManager__: MockGitManager }).__mockGitRouteManager__ = mockManager
+  
   return {
-    GitManager: jest.fn().mockImplementation(() => (global as any).__mockGitRouteManager__),
+    GitManager: jest.fn().mockImplementation(() => mockManager),
   }
 })
 
@@ -102,7 +107,7 @@ describe('Authentication', () => {
   })
 })
 
-const getMockGit = () => (global as any).__mockGitRouteManager__
+const getMockGit = () => (global as typeof globalThis & { __mockGitRouteManager__: MockGitManager }).__mockGitRouteManager__
 
 describe('/api/git', () => {
   const originalApiKey = process.env.AGENT_API_KEY
@@ -140,7 +145,7 @@ describe('/api/git', () => {
         success: true,
         commitHash: 'abc123',
         message: 'test commit',
-      })
+      } as GitCommitResult)
 
       const request = createMockRequest({
         body: { message: 'feat: add new feature' },
@@ -161,7 +166,7 @@ describe('/api/git', () => {
         success: true,
         commitHash: 'abc123',
         message: 'test commit',
-      })
+      } as GitCommitResult)
 
       const request = createMockRequest({
         body: { message: 'feat: add feature', autoPush: true },
@@ -206,7 +211,7 @@ describe('/api/git', () => {
         success: true,
         commitHash: 'abc123',
         message: 'clean',
-      })
+      } as GitCommitResult)
 
       const request = createMockRequest({
         body: { message: 'feat: `test` $var' },
@@ -221,7 +226,7 @@ describe('/api/git', () => {
       git.commit.mockResolvedValue({
         success: false,
         error: 'Nothing to commit',
-      })
+      } as GitCommitResult)
 
       const request = createMockRequest({
         body: { message: 'empty commit' },
@@ -238,7 +243,7 @@ describe('/api/git', () => {
       const git = getMockGit()
       git.commit.mockResolvedValue({
         success: false,
-      })
+      } as GitCommitResult)
 
       const request = createMockRequest({
         body: { message: 'test' },
@@ -266,7 +271,7 @@ describe('/api/git', () => {
   describe('GET - Status/Log', () => {
     it('should return git status by default', async () => {
       const git = getMockGit()
-      git.status.mockResolvedValue({ branch: 'main', modified: [] })
+      git.status.mockResolvedValue({ branch: 'main', modified: [] } as GitStatusResult)
 
       const request = createMockRequest({
         url: 'http://localhost/api/git',
@@ -282,7 +287,7 @@ describe('/api/git', () => {
 
     it('should return git status with action=status', async () => {
       const git = getMockGit()
-      git.status.mockResolvedValue({ branch: 'main', clean: true })
+      git.status.mockResolvedValue({ branch: 'main', clean: true } as GitStatusResult)
 
       const request = createMockRequest({
         url: 'http://localhost/api/git?action=status',
@@ -300,7 +305,7 @@ describe('/api/git', () => {
       git.log.mockResolvedValue([
         { hash: 'abc123', message: 'first commit' },
         { hash: 'def456', message: 'second commit' },
-      ])
+      ] as GitLogEntry[])
 
       const request = createMockRequest({
         url: 'http://localhost/api/git?action=log',

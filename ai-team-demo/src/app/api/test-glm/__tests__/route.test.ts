@@ -120,11 +120,19 @@ describe('/api/test-glm', () => {
   })
 
   afterEach(() => {
-    ;(process as any).env.NODE_ENV = 'test'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'test',
+      writable: true,
+      configurable: true,
+    })
   })
 
   it('should return error in production', async () => {
-    ;(process as any).env.NODE_ENV = 'production'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'production',
+      writable: true,
+      configurable: true,
+    })
 
     const response = await POST(createMockRequest())
     const data = await response.json()
@@ -132,7 +140,11 @@ describe('/api/test-glm', () => {
     expect(response.status).toBe(403)
     expect(data.error).toContain('not available in production')
 
-    ;(process as any).env.NODE_ENV = 'test'
+    Object.defineProperty(process.env, 'NODE_ENV', {
+      value: 'test',
+      writable: true,
+      configurable: true,
+    })
   })
 
   it('should return error when GLM_API_KEY not configured', async () => {
