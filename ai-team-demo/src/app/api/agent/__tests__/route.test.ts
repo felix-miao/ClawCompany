@@ -31,20 +31,12 @@ interface MockRequestOptions {
   body?: Record<string, unknown>
 }
 
+// 使用类型安全的mock（重命名导入避免与本地函数冲突）
+import { createMockRequest as createMockNextRequest } from '@/test-utils/next-request-mock'
+
+// 保持向后兼容性的包装函数
 function createMockRequest(options?: MockRequestOptions): NextRequest {
-  const url = options?.url || 'http://localhost/api/agent'
-  const headerEntries: Record<string, string | undefined> = {
-    'x-api-key': options?.noAuth ? undefined : process.env.AGENT_API_KEY,
-    ...(options?.headers || {})
-  }
-  return {
-    url,
-    method: options?.method || 'GET',
-    headers: {
-      get: (name: string) => headerEntries[name] || null
-    },
-    json: () => Promise.resolve(options?.body || {})
-  } as unknown as NextRequest
+  return createMockNextRequest(options)
 }
 
 jest.mock('@/lib/storage/manager', () => {
