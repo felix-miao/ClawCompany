@@ -90,6 +90,9 @@ export class ChatManager {
     if (data.sessionId === undefined || data.sessionId === null) {
       throw new Error('ChatManager: sessionId is required')
     }
+    if (!Array.isArray(data.messages)) {
+      throw new Error('ChatManager: messages must be an array')
+    }
     const manager = new ChatManager(data.sessionId)
     manager.messages = data.messages.map((m: ChatMessage): Message => ({
       ...m,

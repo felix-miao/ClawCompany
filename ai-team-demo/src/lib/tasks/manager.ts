@@ -6,7 +6,7 @@ import { TaskStateMachine, InvalidTransitionError } from './state-machine'
 export { TaskStateMachine, InvalidTransitionError } from './state-machine'
 
 const VALID_STATUSES: readonly string[] = [...TASK_STATUS_VALUES]
-const VALID_ROLES: readonly string[] = ['pm', 'dev', 'review']
+const VALID_ROLES: readonly string[] = ['pm', 'dev', 'review', 'tester']
 
 export interface TaskTransitionRecord {
   from: TaskStatus

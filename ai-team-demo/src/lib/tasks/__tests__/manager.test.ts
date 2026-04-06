@@ -395,6 +395,37 @@ describe('TaskManager', () => {
       expect(() => tm.createTask('Title', 'desc', 'invalid' as unknown as import('@/lib/core/types').AgentRole)).toThrow('Invalid agent role')
     })
 
+    it('accepts tester role without throwing', () => {
+      const task = tm.createTask('Test task', 'Write unit tests', 'tester')
+      expect(task.assignedTo).toBe('tester')
+      expect(task.status).toBe('pending')
+    })
+
+    it('can reassign task to tester role', () => {
+      const task = tm.createTask('T', 'd', 'dev')
+      const updated = tm.assignTask(task.id, 'tester')
+      expect(updated!.assignedTo).toBe('tester')
+    })
+
+    it('getTasksByAgent returns tester tasks', () => {
+      tm.createTask('Test A', 'Test feature A', 'tester')
+      tm.createTask('Test B', 'Test feature B', 'tester')
+      tm.createTask('Dev task', 'Implement feature', 'dev')
+
+      expect(tm.getTasksByAgent('tester')).toHaveLength(2)
+      expect(tm.getTasksByAgent('dev')).toHaveLength(1)
+    })
+
+    it('serializes and deserializes tester-assigned tasks', () => {
+      tm.createTask('Test task', 'Test everything', 'tester')
+      const json = tm.toJSON()
+      const restored = TaskManager.fromJSON(json)
+
+      const tasks = restored.getAllTasks()
+      expect(tasks).toHaveLength(1)
+      expect(tasks[0].assignedTo).toBe('tester')
+    })
+
     it('throws on self-referencing dependency', () => {
       const task = tm.createTask('A', 'a', 'dev')
       expect(() => tm.createTask('B', 'b', 'dev', [task.id], [])).not.toThrow()

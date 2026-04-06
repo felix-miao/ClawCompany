@@ -36,8 +36,12 @@ export class GatewayProvider implements LLMProvider {
       throw new Error(result.error || 'Gateway spawn failed')
     }
 
+    if (!result.childSessionKey) {
+      throw new Error('Spawn accepted but no childSessionKey returned')
+    }
+
     const completion = await this.client.waitForCompletion(
-      result.childSessionKey!,
+      result.childSessionKey,
       60000
     )
 

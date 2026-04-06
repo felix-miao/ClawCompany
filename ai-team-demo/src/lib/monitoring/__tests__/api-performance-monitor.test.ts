@@ -1,7 +1,7 @@
 import { ApiPerformanceMonitor } from '../api-performance-monitor';
 import { PerformanceMonitor } from '../performance-monitor';
 
-// Mock the PerformanceMonitor
+// Mock the PerformanceMonitor for unit tests
 jest.mock('../performance-monitor');
 
 describe('ApiPerformanceMonitor', () => {
@@ -14,6 +14,7 @@ describe('ApiPerformanceMonitor', () => {
       recordApiCall: jest.fn(),
       getApiStats: jest.fn(),
       setSlowThreshold: jest.fn(),
+      getSlowThreshold: jest.fn().mockReturnValue(1000),
       getMonitoredApis: jest.fn(),
       generatePerformanceReport: jest.fn(),
       cleanupOldData: jest.fn(),
@@ -253,32 +254,27 @@ describe('ApiPerformanceMonitor', () => {
   describe('性能阈值配置', () => {
     test('应该允许配置LLM调用阈值', () => {
       apiMonitor.setLlmSlowThreshold(2000);
-      
-      expect(performanceMonitor.setSlowThreshold).toHaveBeenCalledWith(2000);
+      expect(apiMonitor.getCategoryThreshold('llm')).toBe(2000);
     });
 
     test('应该允许配置agent调用阈值', () => {
       apiMonitor.setAgentSlowThreshold(3000);
-      
-      expect(performanceMonitor.setSlowThreshold).toHaveBeenCalledWith(3000);
+      expect(apiMonitor.getCategoryThreshold('agent')).toBe(3000);
     });
 
     test('应该允许配置通用API阈值', () => {
       apiMonitor.setApiSlowThreshold(500);
-      
-      expect(performanceMonitor.setSlowThreshold).toHaveBeenCalledWith(500);
+      expect(apiMonitor.getCategoryThreshold('api')).toBe(500);
     });
 
     test('应该允许配置数据库查询阈值', () => {
       apiMonitor.setDbSlowThreshold(1000);
-      
-      expect(performanceMonitor.setSlowThreshold).toHaveBeenCalledWith(1000);
+      expect(apiMonitor.getCategoryThreshold('db')).toBe(1000);
     });
 
     test('应该允许配置文件系统操作阈值', () => {
       apiMonitor.setFsSlowThreshold(200);
-      
-      expect(performanceMonitor.setSlowThreshold).toHaveBeenCalledWith(200);
+      expect(apiMonitor.getCategoryThreshold('fs')).toBe(200);
     });
   });
 

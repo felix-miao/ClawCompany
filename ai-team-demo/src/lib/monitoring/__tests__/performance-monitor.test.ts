@@ -288,4 +288,45 @@ describe('PerformanceMonitor', () => {
       expect(report.successRate).toBe(0.5);
     });
   });
+
+  describe('大数据量安全（避免栈溢出）', () => {
+    test('getApiStats 应安全处理大量记录的 min/max 计算', () => {
+      const largeMonitor = new PerformanceMonitor({ maxRecordsPerApi: 0 });
+
+      for (let i = 0; i < 100000; i++) {
+        largeMonitor.recordApiCall('api', 0, i + 1);
+      }
+
+      const stats = largeMonitor.getApiStats('api');
+      expect(stats.totalCalls).toBe(100000);
+      expect(stats.minResponseTime).toBe(1);
+      expect(stats.maxResponseTime).toBe(100000);
+      expect(stats.averageResponseTime).toBeGreaterThan(0);
+    });
+
+    test('generatePerformanceReport 应安全处理大量 API 和记录', () => {
+      const largeMonitor = new PerformanceMonitor({ maxRecordsPerApi: 0 });
+
+      for (let api = 0; api < 10; api++) {
+        for (let i = 0; i < 10000; i++) {
+          largeMonitor.recordApiCall(`api-${api}`, 0, i + 1);
+        }
+      }
+
+      const report = largeMonitor.generatePerformanceReport();
+      expect(report.totalApiCalls).toBe(100000);
+      expect(report.timeRange.start).toBeLessThan(report.timeRange.end);
+    });
+
+    test('getMemoryStats 应安全处理大量记录的 peakUsage 计算', () => {
+      const largeMonitor = new PerformanceMonitor({ maxMemoryRecords: 0 });
+
+      for (let i = 0; i < 100000; i++) {
+        largeMonitor.recordMemoryUsage({ used: i + 1, total: 200000, percentage: (i + 1) / 2000 });
+      }
+
+      const stats = largeMonitor.getMemoryStats();
+      expect(stats.peakUsage).toBe(100000);
+    });
+  });
 });

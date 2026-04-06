@@ -91,6 +91,10 @@ export class PerformanceMonitor {
     this.slowThreshold = thresholdMs;
   }
 
+  getSlowThreshold(): number {
+    return this.slowThreshold;
+  }
+
   /**
    * 获取特定API的统计信息
    */
@@ -122,8 +126,8 @@ export class PerformanceMonitor {
       successfulCalls,
       failedCalls,
       averageResponseTime: Math.round(durations.reduce((a, b) => a + b, 0) / durations.length),
-      minResponseTime: Math.min(...durations),
-      maxResponseTime: Math.max(...durations),
+      minResponseTime: durations.reduce((a, b) => Math.min(a, b), Infinity),
+      maxResponseTime: durations.reduce((a, b) => Math.max(a, b), -Infinity),
       successRate: Math.round((successfulCalls / records.length) * 100) / 100,
       slowCallCount,
       fastCallCount
@@ -170,7 +174,7 @@ export class PerformanceMonitor {
     return {
       currentUsage,
       averageUsage: Math.round(usages.reduce((a, b) => a + b, 0) / usages.length),
-      peakUsage: Math.max(...usages),
+      peakUsage: usages.reduce((a, b) => Math.max(a, b), -Infinity),
       currentPercentage,
       averagePercentage: Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length)
     };
@@ -213,8 +217,8 @@ export class PerformanceMonitor {
 
     // 获取时间范围
     const timestamps = allRecords.map(r => r.timestamp);
-    const startTime = timestamps.length > 0 ? Math.min(...timestamps) : Date.now();
-    const endTime = timestamps.length > 0 ? Math.max(...timestamps) : Date.now();
+    const startTime = timestamps.length > 0 ? timestamps.reduce((a, b) => Math.min(a, b), Infinity) : Date.now();
+    const endTime = timestamps.length > 0 ? timestamps.reduce((a, b) => Math.max(a, b), -Infinity) : Date.now();
 
     // 生成API性能统计
     const apiPerformance: Record<string, ApiStats> = {};

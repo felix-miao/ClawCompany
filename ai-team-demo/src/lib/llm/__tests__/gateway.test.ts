@@ -203,6 +203,35 @@ describe('GatewayProvider', () => {
     }, 10000)
   })
 
+  describe('childSessionKey 安全检查', () => {
+    it('应该在 childSessionKey 为 undefined 时抛出错误', async () => {
+      mockClient.sessions_spawn.mockResolvedValueOnce({
+        status: 'accepted',
+        runId: 'test-run-id'
+      })
+
+      const messages: ChatMessage[] = [
+        { role: 'user', content: '测试' }
+      ]
+
+      await expect(gatewayProvider.chat(messages)).rejects.toThrow('no childSessionKey')
+    })
+
+    it('应该在 childSessionKey 为空字符串时抛出错误', async () => {
+      mockClient.sessions_spawn.mockResolvedValueOnce({
+        status: 'accepted',
+        runId: 'test-run-id',
+        childSessionKey: ''
+      })
+
+      const messages: ChatMessage[] = [
+        { role: 'user', content: '测试' }
+      ]
+
+      await expect(gatewayProvider.chat(messages)).rejects.toThrow('no childSessionKey')
+    })
+  })
+
   describe('性能', () => {
     it('应该在合理时间内响应', async () => {
       const messages: ChatMessage[] = [

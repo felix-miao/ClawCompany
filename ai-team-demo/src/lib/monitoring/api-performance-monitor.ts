@@ -2,6 +2,7 @@ import { PerformanceMonitor } from './performance-monitor';
 
 export class ApiPerformanceMonitor {
   private performanceMonitor: PerformanceMonitor;
+  private categoryThresholds: Map<string, number> = new Map();
 
   constructor(performanceMonitor: PerformanceMonitor) {
     this.performanceMonitor = performanceMonitor;
@@ -184,53 +185,63 @@ export class ApiPerformanceMonitor {
    * 设置慢速调用阈值
    */
   setApiSlowThreshold(thresholdMs: number): void {
-    this.performanceMonitor.setSlowThreshold(thresholdMs);
+    this.categoryThresholds.set('api', thresholdMs);
   }
 
   setLlmSlowThreshold(thresholdMs: number): void {
-    this.performanceMonitor.setSlowThreshold(thresholdMs);
+    this.categoryThresholds.set('llm', thresholdMs);
   }
 
   setAgentSlowThreshold(thresholdMs: number): void {
-    this.performanceMonitor.setSlowThreshold(thresholdMs);
+    this.categoryThresholds.set('agent', thresholdMs);
   }
 
   setDbSlowThreshold(thresholdMs: number): void {
-    this.performanceMonitor.setSlowThreshold(thresholdMs);
+    this.categoryThresholds.set('db', thresholdMs);
   }
 
   setFsSlowThreshold(thresholdMs: number): void {
-    this.performanceMonitor.setSlowThreshold(thresholdMs);
+    this.categoryThresholds.set('fs', thresholdMs);
   }
 
-  /**
-   * 获取API性能统计
-   */
+  getCategoryThreshold(category: string): number | undefined {
+    return this.categoryThresholds.get(category);
+  }
+
+  private detectCategory(apiName: string): string | undefined {
+    if (apiName.startsWith('llm-')) return 'llm';
+    if (apiName.startsWith('agent-')) return 'agent';
+    if (apiName.startsWith('db-')) return 'db';
+    if (apiName.startsWith('fs-')) return 'fs';
+    return 'api';
+  }
+
   getApiStats(apiName: string) {
+    const category = this.detectCategory(apiName);
+    const categoryThreshold = category ? this.categoryThresholds.get(category) : undefined;
+
+    if (categoryThreshold !== undefined) {
+      const saved = this.performanceMonitor.getSlowThreshold();
+      this.performanceMonitor.setSlowThreshold(categoryThreshold);
+      const stats = this.performanceMonitor.getApiStats(apiName);
+      this.performanceMonitor.setSlowThreshold(saved);
+      return stats;
+    }
     return this.performanceMonitor.getApiStats(apiName);
   }
 
-  /**
-   * 获取所有API性能统计
-   */
   getAllApiStats() {
     const stats: Record<string, unknown> = {};
     for (const api of this.performanceMonitor.getMonitoredApis()) {
-      stats[api] = this.performanceMonitor.getApiStats(api);
+      stats[api] = this.getApiStats(api);
     }
     return stats;
   }
 
-  /**
-   * 获取性能报告
-   */
   getPerformanceReport() {
     return this.performanceMonitor.generatePerformanceReport();
   }
 
-  /**
-   * 获取性能监控实例
-   */
   getPerformanceMonitor(): PerformanceMonitor {
     return this.performanceMonitor;
   }

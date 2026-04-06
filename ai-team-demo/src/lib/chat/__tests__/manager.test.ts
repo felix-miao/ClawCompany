@@ -587,6 +587,22 @@ describe('ChatManager', () => {
       it('fromJSON throws on JSON missing sessionId', () => {
         expect(() => ChatManager.fromJSON('{}')).toThrow()
       })
+
+      it('fromJSON throws when messages is not an array', () => {
+        expect(() => ChatManager.fromJSON('{"sessionId":"s","messages":"not-array"}')).toThrow('messages must be an array')
+      })
+
+      it('fromJSON throws when messages is null', () => {
+        expect(() => ChatManager.fromJSON('{"sessionId":"s","messages":null}')).toThrow('messages must be an array')
+      })
+
+      it('fromJSON throws when messages is a number', () => {
+        expect(() => ChatManager.fromJSON('{"sessionId":"s","messages":123}')).toThrow('messages must be an array')
+      })
+
+      it('fromJSON handles messages being undefined', () => {
+        expect(() => ChatManager.fromJSON('{"sessionId":"s"}')).toThrow('messages must be an array')
+      })
     })
 
     describe('fromJSON messageMap edge cases', () => {
