@@ -83,88 +83,78 @@ interface MockNextURL extends NextURL {
 function createMockNextUrl(urlString: string): MockNextURL {
   const url = new URL(urlString)
   const mockNextUrl = {
-    ...url,
-    buildId: undefined,
-    locale: 'en',
-    defaultLocale: undefined,
-    domainLocale: undefined,
-    searchParams: url.searchParams,
-    host: url.host,
-    hostname: url.hostname,
-    port: url.port,
-    protocol: url.protocol,
-    href: url.href,
-    pathname: url.pathname,
-    hash: url.hash,
-    search: url.search,
+    buildId: undefined as string | undefined,
+    locale: 'en' as string,
+    defaultLocale: undefined as string | undefined,
+    domainLocale: undefined as { domain: string; locale: string } | undefined,
     get searchParams() {
       return url.searchParams
     },
     get buildId() {
-      return undefined
+      return undefined as string | undefined
     },
-    set buildId(_buildId) {},
+    set buildId(_buildId: string | undefined) {},
     get locale() {
       return 'en'
     },
-    set locale(_locale) {},
+    set locale(_locale: string) {},
     get defaultLocale() {
-      return undefined
+      return undefined as string | undefined
     },
     get domainLocale() {
-      return undefined
+      return undefined as { domain: string; locale: string } | undefined
     },
     get host() {
       return url.host
     },
-    set host(_value) {
+    set host(_value: string) {
       url.host = _value
     },
     get hostname() {
       return url.hostname
     },
-    set hostname(_value) {
+    set hostname(_value: string) {
       url.hostname = _value
     },
     get port() {
       return url.port
     },
-    set port(_value) {
+    set port(_value: string) {
       url.port = _value
     },
     get protocol() {
       return url.protocol
     },
-    set protocol(_value) {
+    set protocol(_value: string) {
       url.protocol = _value
     },
     get href() {
       return url.href
     },
-    set href(_value) {
+    set href(_value: string) {
       url.href = _value
     },
     get pathname() {
       return url.pathname
     },
-    set pathname(_value) {
+    set pathname(_value: string) {
       url.pathname = _value
     },
     get hash() {
       return url.hash
     },
-    set hash(_value) {
+    set hash(_value: string) {
       url.hash = _value
     },
     get search() {
       return url.search
     },
-    set search(_value) {
+    set search(_value: string) {
       url.search = _value
     }
   }
-  
-  return mockNextUrl as MockNextURL
+
+  return mockNextUrl as unknown as MockNextURL
 }
 
 // 类型安全的 RequestCookies mock
