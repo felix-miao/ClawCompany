@@ -1,9 +1,11 @@
 import { BaseAgent } from '../core/base-agent'
-import { Task, AgentResponse, AgentContext } from './types'
+import { Task, AgentResponse, AgentContext, DEFAULT_ROLE_DEFINITIONS, AgentRoleDefinition } from '../core/types'
 import { ReviewAgentResponseSchema } from './schemas'
 import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 
 export class ReviewAgent extends BaseAgent {
+  private roleDefinition: AgentRoleDefinition
+
   constructor() {
     super(
       'review-agent-1',
@@ -11,6 +13,11 @@ export class ReviewAgent extends BaseAgent {
       'review',
       '负责代码审查和质量保证'
     )
+    this.roleDefinition = DEFAULT_ROLE_DEFINITIONS['review']
+  }
+
+  getRoleDefinition(): AgentRoleDefinition {
+    return this.roleDefinition
   }
 
   async execute(task: Task, context: AgentContext): Promise<AgentResponse> {

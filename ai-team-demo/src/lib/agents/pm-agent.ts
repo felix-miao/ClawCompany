@@ -1,9 +1,11 @@
 import { BaseAgent } from '../core/base-agent'
-import { Task, AgentResponse, AgentContext, AgentRole } from './types'
+import { Task, AgentResponse, AgentContext, AgentRole, DEFAULT_ROLE_DEFINITIONS, AgentRoleDefinition } from '../core/types'
 import { PMAgentResponseSchema } from './schemas'
 import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 
 export class PMAgent extends BaseAgent {
+  private roleDefinition: AgentRoleDefinition
+
   constructor() {
     super(
       'pm-agent-1',
@@ -11,6 +13,11 @@ export class PMAgent extends BaseAgent {
       'pm',
       '负责需求分析、任务拆分和团队协调'
     )
+    this.roleDefinition = DEFAULT_ROLE_DEFINITIONS['pm']
+  }
+
+  getRoleDefinition(): AgentRoleDefinition {
+    return this.roleDefinition
   }
 
   async execute(task: Task, context: AgentContext): Promise<AgentResponse> {
