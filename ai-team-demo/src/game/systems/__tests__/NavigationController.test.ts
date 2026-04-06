@@ -1,6 +1,40 @@
 import { NavigationController, NavigationTask, NavigationState } from '../NavigationController';
 
-function createMockBody() {
+interface MockBody {
+  velocity: { x: number; y: number };
+  blocked: { down: boolean; up: boolean; left: boolean; right: boolean };
+  touching: { down: boolean };
+  setVelocityX: jest.Mock;
+  setVelocityY: jest.Mock;
+  setAccelerationX: jest.Mock;
+}
+
+interface MockAgent {
+  x: number;
+  y: number;
+  body: MockBody;
+  flipX: boolean;
+}
+
+interface MockScene {
+  add: { graphics: jest.Mock };
+  tweens: { addCounter: jest.Mock };
+}
+
+interface PathfindingNode {
+  x: number;
+  y: number;
+  action: 'move' | 'jump';
+}
+
+interface MockPathfinding {
+  findPath: jest.Mock<(sx: number, sy: number, ex: number, ey: number) => PathfindingNode[]>;
+  getCurrentPath: jest.Mock<() => PathfindingNode[]>;
+  setCurrentPath: (path: PathfindingNode[]) => void;
+  setNextAction: (action: 'move' | 'jump') => void;
+}
+
+function createMockBody(): MockBody {
   return {
     velocity: { x: 0, y: 0 },
     blocked: { down: true, up: false, left: false, right: false },
@@ -11,7 +45,7 @@ function createMockBody() {
   };
 }
 
-function createMockAgent(x: number, y: number) {
+function createMockAgent(x: number, y: number): MockAgent {
   const body = createMockBody();
   return {
     x,
@@ -21,15 +55,15 @@ function createMockAgent(x: number, y: number) {
   };
 }
 
-function createMockScene() {
+function createMockScene(): MockScene {
   return {
     add: { graphics: jest.fn(() => ({ clear: jest.fn(), setVisible: jest.fn(), destroy: jest.fn(), fillStyle: jest.fn(), fillCircle: jest.fn(), lineStyle: jest.fn(), lineBetween: jest.fn() })) },
     tweens: { addCounter: jest.fn() },
   };
 }
 
-function createMockPathfinding() {
-  let currentPath: any[] = [];
+function createMockPathfinding(): MockPathfinding {
+  let currentPath: PathfindingNode[] = [];
   let nextAction: 'move' | 'jump' = 'move';
   return {
     findPath: jest.fn((sx: number, sy: number, ex: number, ey: number) => {
@@ -37,22 +71,22 @@ function createMockPathfinding() {
       return currentPath;
     }),
     getCurrentPath: jest.fn(() => currentPath),
-    setCurrentPath: (path: any[]) => { currentPath = path; },
+    setCurrentPath: (path: PathfindingNode[]) => { currentPath = path; },
     setNextAction: (action: 'move' | 'jump') => { nextAction = action; },
   };
 }
 
 describe('NavigationController', () => {
-  let scene: any;
-  let agent: any;
-  let pathfinding: any;
+  let scene: MockScene;
+  let agent: MockAgent;
+  let pathfinding: MockPathfinding;
   let controller: NavigationController;
 
   beforeEach(() => {
     scene = createMockScene();
     agent = createMockAgent(100, 200);
     pathfinding = createMockPathfinding();
-    controller = new NavigationController(scene, agent, pathfinding);
+    controller = new NavigationController(scene as unknown as Phaser.Scene, agent, pathfinding);
   });
 
   describe('setTarget', () => {
