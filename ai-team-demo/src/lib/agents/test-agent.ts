@@ -1,8 +1,10 @@
 import { BaseAgent } from '../core/base-agent'
-import { Task, AgentResponse, AgentContext } from './types'
+import { Task, AgentResponse, AgentContext, DEFAULT_ROLE_DEFINITIONS, AgentRoleDefinition } from '../core/types'
 import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 
 export class TestAgent extends BaseAgent {
+  private roleDefinition: AgentRoleDefinition
+
   constructor() {
     super(
       'test-agent-1',
@@ -10,6 +12,11 @@ export class TestAgent extends BaseAgent {
       'tester',
       '负责编写和执行测试用例'
     )
+    this.roleDefinition = DEFAULT_ROLE_DEFINITIONS['tester']
+  }
+
+  getRoleDefinition(): AgentRoleDefinition {
+    return this.roleDefinition
   }
 
   async execute(task: Task, context: AgentContext): Promise<AgentResponse> {

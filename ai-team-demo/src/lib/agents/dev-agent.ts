@@ -1,5 +1,5 @@
 import { BaseAgent } from '../core/base-agent'
-import { Task, AgentResponse, AgentContext } from './types'
+import { Task, AgentResponse, AgentContext, DEFAULT_ROLE_DEFINITIONS, AgentRoleDefinition } from '../core/types'
 import { getLLMProvider } from '../llm/factory'
 import { getAgentExecutor, OpenClawAgentExecutor } from '../gateway/executor'
 import { DevAgentResponseSchema } from './schemas'
@@ -15,6 +15,7 @@ export interface DevAgentOptions {
 export class DevAgent extends BaseAgent {
   private mode: DevAgentMode
   private executor: OpenClawAgentExecutor | null = null
+  private roleDefinition: AgentRoleDefinition
 
   constructor(options: DevAgentOptions = {}) {
     super(
@@ -23,10 +24,15 @@ export class DevAgent extends BaseAgent {
       'dev',
       '负责代码实现和功能开发'
     )
+    this.roleDefinition = DEFAULT_ROLE_DEFINITIONS['dev']
     this.mode = options.mode || this.detectMode()
     if (options.executor) {
       this.executor = options.executor
     }
+  }
+
+  getRoleDefinition(): AgentRoleDefinition {
+    return this.roleDefinition
   }
 
   private detectMode(): DevAgentMode {

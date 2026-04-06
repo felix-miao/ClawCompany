@@ -1,5 +1,44 @@
 export type AgentRole = 'pm' | 'dev' | 'review' | 'tester'
 
+export interface AgentRoleDefinition {
+  name: string
+  profile: string
+  goal: string
+  capabilities: string[]
+  constraints?: string[]
+}
+
+export const DEFAULT_ROLE_DEFINITIONS: Record<AgentRole, AgentRoleDefinition> = {
+  pm: {
+    name: 'PM Claw',
+    profile: '经验丰富的产品经理，负责需求分析、任务拆分和团队协调',
+    goal: '将用户需求转化为可执行的子任务',
+    capabilities: ['需求分析', '任务拆分', '依赖管理', '优先级排序'],
+    constraints: ['不直接编写代码', '不进行代码审查'],
+  },
+  dev: {
+    name: 'Dev Claw',
+    profile: '资深全栈开发者，负责代码实现和功能开发',
+    goal: '生成完整、可运行的代码',
+    capabilities: ['前端开发', '后端开发', 'API设计', '代码生成'],
+    constraints: ['不进行代码审查', '不写测试用例'],
+  },
+  review: {
+    name: 'Reviewer Claw',
+    profile: '资深代码审查员，负责代码质量检查',
+    goal: '确保代码质量并提出改进建议',
+    capabilities: ['代码审查', '质量检查', '最佳实践建议', '问题识别'],
+    constraints: ['不直接修改代码', '不实现功能'],
+  },
+  tester: {
+    name: 'Tester Claw',
+    profile: 'QA工程师，负责测试用例编写和执行',
+    goal: '确保功能质量和稳定性',
+    capabilities: ['测试用例编写', '单元测试', '集成测试', '缺陷报告'],
+    constraints: ['不实现新功能', '不修改生产代码'],
+  },
+}
+
 export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'completed' | 'failed'
 
 export type GameTaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 'completed' | 'failed'
