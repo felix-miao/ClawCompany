@@ -238,10 +238,16 @@ describe('ClawCompanyOrchestrator', () => {
       expect(result.results).toHaveLength(2)
     })
 
-    test('应该处理 PM Agent 抛出异常', async () => {
+    test('应该处理 PM Agent spawnAgent 失败（使用降级模式）', async () => {
       mockSessionsSpawn.mockRejectedValueOnce(new Error('PM Agent 崩溃'))
 
-      await expect(orchestrator.execute('测试')).rejects.toThrow('PM Agent 启动失败')
+      // 现在 PM Agent 使用降级模式，不会抛出异常
+      const result = await orchestrator.execute('测试')
+
+      // 应该返回降级模式的结果
+      expect(result.success).toBe(true)
+      expect(result.tasks).toHaveLength(1)
+      expect(result.tasks[0].description).toContain('降级模式')
     })
   })
 })

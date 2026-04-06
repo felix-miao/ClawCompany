@@ -115,12 +115,14 @@ describe('ReviewAgent', () => {
       expect(result.issues).toContain('无法解析审查结果')
     })
 
-    test('应该在 sessions_spawn 不可用时抛出异常', async () => {
+    test('应该在 sessions_spawn 不可用时使用降级模式', async () => {
       delete (global as any).sessions_spawn
 
-      await expect(agent.review(mockTask, mockDevResult)).rejects.toThrow(
-        'sessions_spawn not available'
-      )
+      const result = await agent.review(mockTask, mockDevResult)
+
+      // 应该返回降级模式的结果（安全第一：默认拒绝）
+      expect(result.approved).toBe(false)
+      expect(result.issues).toContain('审查环境不可用 (降级模式)')
 
       ;(global as any).sessions_spawn = mockSessionsSpawn
     })

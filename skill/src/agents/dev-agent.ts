@@ -38,12 +38,22 @@ export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
       this.log('ACP runtime 不可用，切换到 subagent')
     }
 
-    const session = await this.spawnAgent(prompt)
-    return await this.parseJSONFromSession<DevResult>(session as SessionLike, {
-      success: true,
-      files: [],
-      summary: '任务完成',
-    })
+    try {
+      const session = await this.spawnAgent(prompt)
+      return await this.parseJSONFromSession<DevResult>(session as SessionLike, {
+        success: true,
+        files: [],
+        summary: '任务完成',
+      })
+    } catch (error) {
+      console.warn('Dev Agent spawnAgent 失败，使用降级模式:', error)
+      // 降级到默认开发结果
+      return {
+        success: false,
+        files: [],
+        summary: `开发任务 "${task.title}" 无法执行 (降级模式 - 无法使用 sessions_spawn)`,
+      }
+    }
   }
 
   protected buildPrompt(task: Task): string {

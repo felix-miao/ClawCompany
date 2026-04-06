@@ -17,20 +17,36 @@ export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {
   async analyze(userRequest: string): Promise<PMResult> {
     const prompt = this.buildPrompt(userRequest)
 
-    const session = await this.spawnAgent(prompt)
-
-    return await this.parseJSONFromSession<PMResult>(session as SessionLike, {
-      analysis: '自动生成的任务分解',
-      tasks: [{
-        id: 'task-1',
-        title: '实现用户需求',
-        description: '根据用户需求实现核心功能',
-        assignedTo: 'dev',
-        dependencies: [],
-        status: 'pending',
-        files: [],
-      }],
-    })
+    try {
+      const session = await this.spawnAgent(prompt)
+      return await this.parseJSONFromSession<PMResult>(session as SessionLike, {
+        analysis: '自动生成的任务分解',
+        tasks: [{
+          id: 'task-1',
+          title: '实现用户需求',
+          description: '根据用户需求实现核心功能',
+          assignedTo: 'dev',
+          dependencies: [],
+          status: 'pending',
+          files: [],
+        }],
+      })
+    } catch (error) {
+      console.warn('PM Agent spawnAgent 失败，使用降级模式:', error)
+      // 降级到简单的本地解析
+      return {
+        analysis: `用户需求: ${userRequest} (降级模式 - 无法使用 sessions_spawn)`,
+        tasks: [{
+          id: 'task-1',
+          title: '实现用户需求',
+          description: `根据用户需求 "${userRequest}" 实现核心功能 (降级模式)`,
+          assignedTo: 'dev',
+          dependencies: [],
+          status: 'pending',
+          files: [],
+        }],
+      }
+    }
   }
 
   protected buildPrompt(userRequest: string): string {

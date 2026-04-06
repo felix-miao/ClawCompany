@@ -30,14 +30,24 @@ export class ReviewAgent extends BaseOpenClawAgent<ReviewAgentConfig> {
   async review(task: Task, devResult: DevResult): Promise<ReviewResult> {
     const prompt = this.buildPrompt(task, devResult)
 
-    const session = await this.spawnAgent(prompt)
-
-    return await this.parseJSONFromSession<ReviewResult>(session as SessionLike, {
-      approved: false,  // 安全修复：解析失败时拒绝通过审查
-      issues: ['无法解析审查结果'],
-      suggestions: [],
-      summary: '审查失败：无法解析审查结果',
-    })
+    try {
+      const session = await this.spawnAgent(prompt)
+      return await this.parseJSONFromSession<ReviewResult>(session as SessionLike, {
+        approved: false,  // 安全修复：解析失败时拒绝通过审查
+        issues: ['无法解析审查结果'],
+        suggestions: [],
+        summary: '审查失败：无法解析审查结果',
+      })
+    } catch (error) {
+      console.warn('Review Agent spawnAgent 失败，使用降级模式:', error)
+      // 降级到默认审查结果
+      return {
+        approved: false,  // 安全第一：降级模式下拒绝通过
+        issues: ['审查环境不可用 (降级模式)', `具体错误: ${error instanceof Error ? error.message : '未知错误'}`],
+        suggestions: ['请在完整 OpenClaw 环境中重新审查'],
+        summary: `审查失败：sessions_spawn 不可用 (${task.title})`,
+      }
+    }
   }
 
   protected buildPrompt(task: Task, devResult: DevResult): string {

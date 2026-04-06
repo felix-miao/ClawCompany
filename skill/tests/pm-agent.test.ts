@@ -85,12 +85,15 @@ describe('PMAgent', () => {
       expect(result.tasks).toHaveLength(1)
     })
 
-    test('应该在 sessions_spawn 不可用时抛出异常', async () => {
+    test('应该在 sessions_spawn 不可用时使用降级模式', async () => {
       delete (global as any).sessions_spawn
 
-      await expect(agent.analyze('测试')).rejects.toThrow(
-        'sessions_spawn not available'
-      )
+      const result = await agent.analyze('测试')
+
+      // 应该返回降级模式的结果，而不是抛出异常
+      expect(result.analysis).toContain('降级模式')
+      expect(result.tasks).toHaveLength(1)
+      expect(result.tasks[0].title).toContain('实现用户需求')
 
       ;(global as any).sessions_spawn = mockSessionsSpawn
     })

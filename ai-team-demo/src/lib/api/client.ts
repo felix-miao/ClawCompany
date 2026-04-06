@@ -1,6 +1,11 @@
 // API 客户端 - 与后端交互
 
 import { Message, Task } from '../core/types'
+import { 
+  validateChatResponse, 
+  validateChatHistoryResponse, 
+  APIError 
+} from './type-utils'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -25,6 +30,21 @@ export interface ChatHistoryResponse {
 
 export async function sendMessage(message: string): Promise<ChatResponse> {
   try {
+    // 验证输入
+    if (!message || typeof message !== 'string') {
+      return {
+        success: false,
+        error: 'Message must be a non-empty string',
+      }
+    }
+
+    if (message.length > 10000) {
+      return {
+        success: false,
+        error: 'Message too long (max 10000 characters)',
+      }
+    }
+
     const response = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
       headers: {
@@ -34,10 +54,11 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
     })
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`)
+      throw new APIError(`API error: ${response.status}`, 'HTTP_ERROR', response.status)
     }
 
-    return (await response.json()) as ChatResponse
+    const data = await response.json()
+    return validateChatResponse(data)
   } catch (error) {
     console.error('Failed to send message:', error)
     return {
@@ -54,10 +75,11 @@ export async function getChatHistory(): Promise<ChatHistoryResponse> {
     })
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`)
+      throw new APIError(`API error: ${response.status}`, 'HTTP_ERROR', response.status)
     }
 
-    return (await response.json()) as ChatHistoryResponse
+    const data = await response.json()
+    return validateChatHistoryResponse(data)
   } catch (error) {
     console.error('Failed to get chat history:', error)
     return {

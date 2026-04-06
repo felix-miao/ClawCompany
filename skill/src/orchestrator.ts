@@ -44,8 +44,7 @@ export class ClawCompanyOrchestrator {
   async execute(userRequest: string, projectPath?: string): Promise<ExecutionResult> {
     const apiCheck = this.pmAgent.checkOpenClawAPI()
     if (!apiCheck.available) {
-      const errorMsg = `OpenClaw API 不可用: 缺少 ${apiCheck.missing.join(', ')}. ` +
-        `请确保在 OpenClaw 环境中运行此代码。`
+      const errorMsg = `OpenClaw API 不可用: 缺少 ${apiCheck.missing.join(', ')}. 请确保在 OpenClaw 环境中运行。`
       console.error(`❌ ${errorMsg}`)
       return { success: false, tasks: [], results: [], summary: errorMsg }
     }
@@ -119,6 +118,18 @@ export async function orchestrate(
 ): Promise<WorkflowResult> {
   const orchestrator = new ClawCompanyOrchestrator({ projectPath })
   const messages: WorkflowResult['messages'] = []
+
+  // 检查 OpenClaw API 可用性
+  const apiCheck = orchestrator['pmAgent'].checkOpenClawAPI()
+  if (!apiCheck.available) {
+    const errorMsg = `OpenClaw API 不可用: 缺少 ${apiCheck.missing.join(', ')}. 请确保在 OpenClaw 环境中运行。`
+    messages.push({
+      agent: 'system',
+      content: errorMsg,
+      timestamp: new Date().toISOString(),
+    })
+    return { success: false, tasks: [], messages }
+  }
 
   try {
     const pmResult = await orchestrator.runPM(userRequest)

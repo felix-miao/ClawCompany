@@ -26,4 +26,11 @@ abstract class BaseOpenClawAgent<TConfig extends AgentConfig = AgentConfig> exte
       missing,
     }
   }
+
+  // 检查是否可以在没有完整 OpenClaw API 的情况下运行
+  canRunInRestrictedMode(): boolean {
+    const apiCheck = this.checkOpenClawAPI()
+    // 至少需要其中一个 API 来运行基本功能
+    return apiCheck.missing.length < 2
+  }
 }
