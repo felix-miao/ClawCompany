@@ -31,12 +31,12 @@ interface MockRequestOptions {
   body?: Record<string, unknown>
 }
 
-// 使用类型安全的mock（重命名导入避免与本地函数冲突）
-import { createMockRequest as createMockNextRequest } from '@/test-utils/next-request-mock'
+// 使用类型安全的mock工具
+import { createMockNextRequest } from '@/test-utils/next-request-mock'
 
 // 保持向后兼容性的包装函数
 function createMockRequest(options?: MockRequestOptions): NextRequest {
-  return createMockNextRequest(options)
+  return createMockNextRequest(options) as unknown as NextRequest
 }
 
 jest.mock('@/lib/storage/manager', () => {
@@ -141,12 +141,12 @@ function createMockLLMProvider(chatFn: jest.Mock): LLMProvider {
 
 describe('Authentication', () => {
   it('POST should return 401 without API key', async () => {
-    const request = {
+    const request = createMockRequest({
       url: 'http://localhost/api/agent',
       method: 'POST',
-      headers: { get: () => null },
-      json: async () => ({ agentId: 'pm-agent', userMessage: 'Hello' }),
-    } as NextRequest
+      noAuth: true,
+      body: { agentId: 'pm-agent', userMessage: 'Hello' }
+    })
     const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)
@@ -154,12 +154,12 @@ describe('Authentication', () => {
   })
 
   it('GET should return 401 without API key', async () => {
-    const request = {
+    const request = createMockRequest({
       url: 'http://localhost/api/agent',
       method: 'GET',
-      headers: { get: () => null },
-      json: async () => ({}),
-    }
+      noAuth: true,
+      body: {}
+    })
     const response = await GET(request)
     const data = await response.json()
     expect(response.status).toBe(401)

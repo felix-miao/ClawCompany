@@ -72,11 +72,15 @@ interface MockRequestOptions {
   body?: Record<string, unknown> | string
 }
 
-interface MockNextURL extends NextURL {
+interface MockNextURL {
   searchParams: URLSearchParams
   pathname: string
   hostname: string
   protocol: string
+  buildId?: string
+  locale?: string
+  defaultLocale?: string
+  domainLocale?: { domain: string; locale: string }
 }
 
 // 类型安全的 NextURL mock
@@ -101,185 +105,154 @@ function createMockNextUrl(urlString: string): MockNextURL {
     get defaultLocale() {
       return undefined as string | undefined
     },
+    set defaultLocale(_defaultLocale: string | undefined) {},
     get domainLocale() {
       return undefined as { domain: string; locale: string } | undefined
     },
-    get host() {
-      return url.host
-    },
-    set host(_value: string) {
-      url.host = _value
+    set domainLocale(_domainLocale: { domain: string; locale: string } | undefined) {},
+    get pathname() {
+      return url.pathname
     },
     get hostname() {
       return url.hostname
     },
-    set hostname(_value: string) {
-      url.hostname = _value
-    },
-    get port() {
-      return url.port
-    },
-    set port(_value: string) {
-      url.port = _value
-    },
     get protocol() {
       return url.protocol
-    },
-    set protocol(_value: string) {
-      url.protocol = _value
-    },
-    get href() {
-      return url.href
-    },
-    set href(_value: string) {
-      url.href = _value
-    },
-    get pathname() {
-      return url.pathname
-    },
-    set pathname(_value: string) {
-      url.pathname = _value
-    },
-    get hash() {
-      return url.hash
-    },
-    set hash(_value: string) {
-      url.hash = _value
-    },
-    get search() {
-      return url.search
-    },
-    set search(_value: string) {
-      url.search = _value
     }
   }
-
-  return mockNextUrl as unknown as MockNextURL
+  return mockNextUrl
 }
 
-// 类型安全的 RequestCookies mock
-function createMockRequestCookies(): RequestCookies {
-  const cookies = new Map<string, string>()
+// 创建cookies mock
+function createMockCookies(headers: Map<string, string>): any {
+  const cookieMap = new Map<string, string>()
   
-  return {
-    get: jest.fn((name: string) => {
-      const value = cookies.get(name)
-      return value ? { name, value } : null
-    }),
-    getAll: jest.fn(() => Array.from(cookies.entries()).map(([name, value]) => ({ name, value }))),
-    has: jest.fn((name: string) => cookies.has(name)),
-    set: jest.fn((name: string, value: string) => {
-      cookies.set(name, value)
-      return this
-    }),
-    delete: jest.fn((name: string) => {
-      cookies.delete(name)
-      return this
-    }),
-    clear: jest.fn(() => {
-      cookies.clear()
-      return this
+  // 从headers中解析cookie
+  const cookieHeader = headers.get('cookie')
+  if (cookieHeader) {
+    cookieHeader.split(';').forEach(cookie => {
+      const [key, value] = cookie.trim().split('=')
+      if (key && value) {
+        cookieMap.set(key, value)
+      }
     })
-  } as unknown as RequestCookies
-}
-
-// 创建一个简化的NextRequest mock
-function createMockRequest(options: MockRequestOptions = {}): NextRequest {
-  const url = options.url || 'http://localhost/api/agent'
-  const method = options.method || 'GET'
-  const headers = options.headers || {}
-  const noAuth = options.noAuth || false
-  const body = options.body
-
-  // 准备headers
-  const finalHeaders = new Map<string, string>()
-  Object.entries(headers).forEach(([key, value]) => {
-    finalHeaders.set(key.toLowerCase(), value)
-  })
-
-  // 添加API key header（仅当未提供时）
-  if (!noAuth && !finalHeaders.has('x-api-key')) {
-    const apiKey = process.env.AGENT_API_KEY || 'test-api-key-12345678901234567890'
-    finalHeaders.set('x-api-key', apiKey)
   }
 
-  // Mock cookies
-  const mockCookies = createMockRequestCookies()
+  return {
+    get: (name: string) => cookieMap.get(name) || null,
+    set: jest.fn(),
+    delete: jest.fn(),
+    has: (name: string) => cookieMap.has(name),
+    getAll: () => Array.from(cookieMap.entries()),
+    clear: () => {
+      cookieMap.clear()
+    }
+  }
+}
 
-  // Mock nextUrl
+// 创建NextRequest mock
+function createMockNextRequest(options: MockRequestOptions = {}): any {
+  const url = options.url || 'http://localhost:3000/api/test'
+  const method = options.method || 'POST'
+  const headers = new Map<string, string>()
+  
+  // 设置默认headers
+  headers.set('content-type', 'application/json')
+  headers.set('user-agent', 'jest-test')
+  
+  // 添加认证头部（除非明确要求 noAuth）
+  if (!options.noAuth && process.env.AGENT_API_KEY) {
+    headers.set('x-api-key', process.env.AGENT_API_KEY)
+  }
+  
+  // 添加自定义headers
+  if (options.headers) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      headers.set(key, value as string)
+    })
+  }
+  
+  // 创建基础的Request对象
+  const request = new globalRequest(url, {
+    method,
+    headers: Object.fromEntries(headers)
+  })
+  
+  // 添加Next.js特有的属性
   const mockNextUrl = createMockNextUrl(url)
 
-  // 创建一个基础的request对象
-  const request = {
-    url,
-    method,
-    headers: {
-      get: jest.fn((name: string) => {
-        const headerKey = name.toLowerCase()
-        return finalHeaders.get(headerKey) || null
-      })
+  // 创建 headers wrapper 对象（符合 Headers API）
+  const mockHeaders = {
+    get: (name: string) => headers.get(name) || null,
+    has: (name: string) => headers.has(name),
+    set: (name: string, value: string) => {
+      headers.set(name, value)
+      return mockHeaders
     },
-    cookies: mockCookies,
-    nextUrl: mockNextUrl,
-    page: undefined,
-    ua: undefined,
-    json: jest.fn().mockImplementation(async () => {
-      if (typeof body === 'string') {
-        try {
-          return JSON.parse(body)
-        } catch {
-          return body
-        }
+    delete: (name: string) => headers.delete(name),
+    append: (name: string, value: string) => {
+      const existing = headers.get(name)
+      if (existing) {
+        headers.set(name, `${existing}, ${value}`)
+      } else {
+        headers.set(name, value)
       }
-      return body || {}
-    }),
-    clone: jest.fn(),
-    text: jest.fn().mockResolvedValue(''),
-    arrayBuffer: jest.fn().mockResolvedValue(new ArrayBuffer(0)),
-    formData: jest.fn().mockResolvedValue(new FormData()),
-    blob: jest.fn().mockResolvedValue(new Blob()),
-    bodyUsed: false
-  } as any
+      return mockHeaders
+    },
+    entries: () => headers.entries(),
+    keys: () => headers.keys(),
+    values: () => headers.values(),
+    forEach: (callback: (value: string, key: string) => void) => headers.forEach(callback)
+  }
 
-  return request as unknown as NextRequest
+  const mockRequest: any = {
+    ...request,
+    headers: mockHeaders,  // 覆盖 spread 的 headers Map
+    cookies: createMockCookies(headers),
+    nextUrl: mockNextUrl,
+    page: {
+      pathname: url,
+      searchParams: mockNextUrl.searchParams
+    },
+    ua: {
+      getBrowserName: () => 'jest',
+      getOSName: () => 'jest',
+      getDeviceType: () => 'desktop'
+    },
+    geo: {
+      country: undefined,
+      region: undefined,
+      city: undefined,
+      latitude: undefined,
+      longitude: undefined
+    },
+    ip: undefined,
+    host: url,
+    protocol: 'https',
+    url: url,
+    
+    // 添加一些常用的方法
+    clone: () => createMockNextRequest({ ...options, method }),
+    text: async () => options.body ? JSON.stringify(options.body) : '',
+    json: async () => options.body ? options.body : {},
+    arrayBuffer: async () => new ArrayBuffer(0)
+  }
+  
+  return mockRequest
 }
 
-// 创建简化版 NextRequest（用于 chat API 测试）
-// 签名：createMockNextRequest(body, options?)
-// 注意：默认不添加 API key，需要认证时使用 createMockNextRequestWithAuth
-interface CreateMockNextRequestOptions {
-  headers?: Record<string, string>
-  method?: string
-  url?: string
-}
+// 向后兼容的别名
+const createMockRequest = createMockNextRequest
 
-function createMockNextRequest(
-  body: Record<string, unknown>,
-  options: CreateMockNextRequestOptions = {}
-): NextRequest {
-  return createMockRequest({
-    method: options.method || 'POST',
-    url: options.url || 'http://localhost/api/chat',
-    headers: options.headers,
-    body,
-    noAuth: true  // 默认不添加认证
-  })
-}
-
-// 创建带认证的请求（简化版，用于 chat API 测试）
-function createMockNextRequestWithAuth(
-  body: Record<string, unknown>,
-  apiKey: string
-): NextRequest {
-  return createMockRequest({
+// 带认证的便捷函数（兼容旧API）
+function createMockNextRequestWithAuth(body: Record<string, unknown>, apiKey?: string): any {
+  const key = apiKey || process.env.AGENT_API_KEY || 'test-api-key'
+  return createMockNextRequest({
     method: 'POST',
-    headers: { 'x-api-key': apiKey },
+    headers: { 'x-api-key': key },
     body
   })
 }
 
-// 导出类型安全的 mock 函数
-export { createMockRequest, createMockNextUrl, createMockRequestCookies, createMockNextRequest, createMockNextRequestWithAuth }
-
-// 辅助类型导出
-export type { MockRequestOptions }
+export { createMockNextRequest, createMockNextUrl, createMockRequest, createMockNextRequestWithAuth }
+export type { MockRequestOptions, MockNextURL }

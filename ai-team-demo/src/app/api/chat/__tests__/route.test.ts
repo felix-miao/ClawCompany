@@ -93,7 +93,7 @@ describe('Authentication', () => {
   })
 
   it('POST should return 401 without API key', async () => {
-    const request = createMockNextRequest({ message: 'test' })
+    const request = createMockNextRequest({ message: 'test', noAuth: true })
     const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)
@@ -101,7 +101,7 @@ describe('Authentication', () => {
   })
 
   it('GET should return 401 without API key', async () => {
-    const request = createMockNextRequest({})
+    const request = createMockNextRequest({ noAuth: true })
     const response = await GET(request)
     const data = await response.json()
     expect(response.status).toBe(401)
@@ -109,7 +109,7 @@ describe('Authentication', () => {
   })
 
   it('POST should return 401 with wrong API key', async () => {
-    const request = createMockNextRequest({ message: 'test' }, { headers: { 'x-api-key': 'wrong-key' } })
+    const request = createMockNextRequest({ message: 'test', headers: { 'x-api-key': 'wrong-key' } })
     const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)

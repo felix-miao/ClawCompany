@@ -88,25 +88,35 @@ describe('NextRequest Mock', () => {
   describe('Deprecated properties', () => {
     it('should have deprecated page property', () => {
       const request = createMockRequest()
-      
-      expect(request.page).toBeUndefined()
+
+      // page 属性已实现用于向后兼容
       expect(request).toHaveProperty('page')
+      expect(request.page).toBeDefined()
     })
 
     it('should have deprecated ua property', () => {
       const request = createMockRequest()
-      
-      expect(request.ua).toBeUndefined()
+
+      // ua 属性已实现用于向后兼容
       expect(request).toHaveProperty('ua')
+      expect(request.ua).toBeDefined()
     })
   })
 
   describe('Authentication', () => {
     it('should include API key by default', () => {
+      // 设置测试环境变量
+      const originalApiKey = process.env.AGENT_API_KEY
+      process.env.AGENT_API_KEY = 'test-api-key'
+
       const request = createMockRequest()
-      
+
       expect(request.headers.get('x-api-key')).toBeDefined()
       expect(request.headers.get('x-api-key')).not.toBeNull()
+      expect(request.headers.get('x-api-key')).toBe('test-api-key')
+
+      // 清理环境变量
+      process.env.AGENT_API_KEY = originalApiKey
     })
 
     it('should skip API key when noAuth is true', () => {
