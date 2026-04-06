@@ -1,6 +1,6 @@
 jest.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, options?: any) => ({
+    json: (data: unknown, options?: { status?: number }) => ({
       json: async () => data,
       status: options?.status || 200,
     }),
@@ -37,17 +37,27 @@ import { RateLimiter } from '@/lib/security/utils'
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
-function createMockRequest(options?: any): any {
+interface MockRequestOptions {
+  url?: string
+  noAuth?: boolean
+  headers?: Record<string, string>
+  body?: Record<string, unknown> | string
+}
+
+function createMockRequest(options?: MockRequestOptions) {
   const url = options?.url || 'http://localhost/api/git'
   const headers: Record<string, string> = {
     'x-forwarded-for': '1.2.3.4',
+    'content-type': 'application/json',
     ...(options?.noAuth ? {} : { 'x-api-key': API_KEY }),
     ...(options?.headers || {}),
   }
   return {
     url,
-    headers: { get: (name: string) => headers[name] || null },
+    headers: { get: (name: string) => headers[name.toLowerCase()] || null },
     json: () => Promise.resolve(options?.body || {}),
+    clone: () => createMockRequest({ ...options, url }),
+    text: async () => options?.body ? JSON.stringify(options.body) : '',
   }
 }
 

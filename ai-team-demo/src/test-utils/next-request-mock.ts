@@ -86,39 +86,15 @@ interface MockNextURL {
 // 类型安全的 NextURL mock
 function createMockNextUrl(urlString: string): MockNextURL {
   const url = new URL(urlString)
-  const mockNextUrl = {
-    buildId: undefined as string | undefined,
-    locale: 'en' as string,
-    defaultLocale: undefined as string | undefined,
-    domainLocale: undefined as { domain: string; locale: string } | undefined,
-    get searchParams() {
-      return url.searchParams
-    },
-    get buildId() {
-      return undefined as string | undefined
-    },
-    set buildId(_buildId: string | undefined) {},
-    get locale() {
-      return 'en'
-    },
-    set locale(_locale: string) {},
-    get defaultLocale() {
-      return undefined as string | undefined
-    },
-    set defaultLocale(_defaultLocale: string | undefined) {},
-    get domainLocale() {
-      return undefined as { domain: string; locale: string } | undefined
-    },
-    set domainLocale(_domainLocale: { domain: string; locale: string } | undefined) {},
-    get pathname() {
-      return url.pathname
-    },
-    get hostname() {
-      return url.hostname
-    },
-    get protocol() {
-      return url.protocol
-    }
+  const mockNextUrl: MockNextURL = {
+    searchParams: url.searchParams,
+    pathname: url.pathname,
+    hostname: url.hostname,
+    protocol: url.protocol,
+    buildId: undefined,
+    locale: 'en',
+    defaultLocale: undefined,
+    domainLocale: undefined
   }
   return mockNextUrl
 }

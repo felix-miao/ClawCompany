@@ -45,19 +45,28 @@ interface MockRequestOptions {
   url?: string
   noAuth?: boolean
   headers?: Record<string, string>
+  body?: Record<string, unknown> | string
 }
 
-function createMockRequest(options?: MockRequestOptions): { json: () => Promise<unknown>; headers: { get: (name: string) => string | null } } {
+// 使用统一的 MockRequest 格式
+function createMockRequest(options?: MockRequestOptions) {
   const url = options?.url || 'http://localhost/api/conversations'
   const headers: Record<string, string> = {
     'x-forwarded-for': '1.2.3.4',
+    'content-type': 'application/json',
     ...(options?.noAuth ? {} : { 'x-api-key': API_KEY }),
     ...(options?.headers || {}),
   }
+  
   return {
     url,
-    headers: { get: (name: string) => headers[name] || null },
+    headers: { 
+      get: (name: string) => headers[name.toLowerCase()] || null 
+    },
     json: () => Promise.resolve(options?.body || {}),
+    clone: () => createMockRequest({ ...options, url }),
+    text: async () => options?.body ? JSON.stringify(options.body) : '',
+    arrayBuffer: async () => new ArrayBuffer(0)
   }
 }
 
