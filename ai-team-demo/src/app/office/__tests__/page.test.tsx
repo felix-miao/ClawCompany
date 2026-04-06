@@ -1,5 +1,6 @@
 import React from 'react'
 import { render, screen, cleanup } from '@testing-library/react'
+
 import OfficePage from '../page'
 
 // Mock the game module

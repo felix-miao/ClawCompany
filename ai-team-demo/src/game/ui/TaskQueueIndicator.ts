@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { TaskManager } from '../systems/TaskManager';
 import { Task } from '../types/Task';
 import { QueueItem } from './QueueItem';

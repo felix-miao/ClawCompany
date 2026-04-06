@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+
 import { PerformanceMonitor, PerformanceReport, ApiStats, MemoryStats } from '@/lib/monitoring/performance-monitor';
 import { ApiPerformanceMonitor } from '@/lib/monitoring/api-performance-monitor';
 

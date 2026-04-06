@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 
+import { parseCodeBlocks } from './parse-code-blocks'
+
 import { InputValidator } from '@/lib/security/utils'
 import { SandboxedFileWriter } from '@/lib/security/sandbox'
 import { StorageManager } from '@/lib/storage/manager'
@@ -11,7 +13,6 @@ import { withRateLimit, withAuth, successResponse, errorResponse } from '@/lib/a
 import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 import { logger } from '@/lib/core/logger'
-import { parseCodeBlocks } from './parse-code-blocks'
 
 const sandboxedWriter = new SandboxedFileWriter(process.cwd())
 const storageManager = new StorageManager()

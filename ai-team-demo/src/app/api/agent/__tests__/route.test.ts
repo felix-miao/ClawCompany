@@ -32,6 +32,8 @@ interface MockRequestOptions {
 }
 
 // 使用类型安全的mock工具
+import { POST, GET, PUT, DELETE } from '../route'
+
 import { createMockNextRequest } from '@/test-utils/next-request-mock'
 
 // 保持向后兼容性的包装函数
@@ -123,7 +125,6 @@ jest.mock('@/lib/security/utils', () => ({
   }
 }))
 
-import { POST, GET, PUT, DELETE } from '../route'
 
 import { RateLimiter, SecurityManager } from '@/lib/security/utils'
 import { setLLMProvider } from '@/lib/llm/factory'

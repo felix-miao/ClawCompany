@@ -1,6 +1,6 @@
 import { Orchestrator } from '../index'
-import type { Task } from '@/lib/core/types'
 
+import type { Task } from '@/lib/core/types'
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
 import { chatManager } from '@/lib/chat/manager'

@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { Task } from '../types/Task';
 import { TaskDetailPanel } from './TaskDetailPanel';
 

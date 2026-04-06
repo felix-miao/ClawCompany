@@ -1,10 +1,11 @@
+import * as Phaser from 'phaser';
+
 import { TaskManager } from '../systems/TaskManager';
 import { TaskBubble } from './TaskBubble';
 import { ProgressBar } from './ProgressBar';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { TaskQueueIndicator } from './TaskQueueIndicator';
 import { Task, TaskStatus } from '../types/Task';
-import * as Phaser from 'phaser';
 
 const BUBBLE_OFFSET_Y = -60;
 const PROGRESS_BAR_OFFSET_Y = -48;

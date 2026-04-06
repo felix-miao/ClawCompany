@@ -1,5 +1,6 @@
 import { EventBus } from '../EventBus';
 import { TaskHandoverSystem, HandoverableAgent } from '../TaskHandoverSystem';
+
 import type { AgentConfig } from '@/types/agent-config';
 
 function createMockAgent(id: string, x: number, y: number, role: string = 'worker'): HandoverableAgent & {

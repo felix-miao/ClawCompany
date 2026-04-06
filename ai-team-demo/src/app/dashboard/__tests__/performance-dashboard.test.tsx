@@ -1,10 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
 import { PerformanceDashboard } from '@/components/performance-dashboard';
 import { PerformanceMonitor, PerformanceReport } from '@/lib/monitoring/performance-monitor';
 
 // Mock the PerformanceMonitor
 jest.mock('@/lib/monitoring/performance-monitor');
-import { PerformanceMonitor } from '@/lib/monitoring/performance-monitor';
 
 const mockPerformanceMonitor = new PerformanceMonitor() as jest.Mocked<PerformanceMonitor>;
 

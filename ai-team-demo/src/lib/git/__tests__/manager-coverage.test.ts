@@ -31,8 +31,8 @@ describe('GitManager - 覆盖率补充测试', () => {
   })
 
   afterEach(async () => {
-    try { await fs.rm(testDir, { recursive: true, force: true }) } catch {}
-    try { await fs.rm(remoteDir, { recursive: true, force: true }) } catch {}
+    try { await fs.rm(testDir, { recursive: true, force: true }) } catch (error) { /* Ignore cleanup errors */ }
+    try { await fs.rm(remoteDir, { recursive: true, force: true }) } catch (error) { /* Ignore cleanup errors */ }
   })
 
   describe('status - upstream ahead/behind', () => {
