@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { TaskStatus } from '../types/Task';
 
 const STATUS_COLORS: Record<TaskStatus, number> = {

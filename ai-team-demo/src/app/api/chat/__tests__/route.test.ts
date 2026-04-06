@@ -73,6 +73,7 @@ jest.mock('@/lib/core/services', () => {
 })
 
 import { POST, GET } from '../route'
+
 import { createMockNextRequest, createMockNextRequestWithAuth } from '@/test-utils/next-request-mock'
 
 const API_KEY = 'test-api-key-12345678901234567890'

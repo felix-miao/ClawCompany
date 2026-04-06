@@ -22,7 +22,7 @@ describe('GitManager - 错误处理和边界情况', () => {
   })
 
   afterEach(async () => {
-    try { await fs.rm(testDir, { recursive: true, force: true }) } catch {}
+    try { await fs.rm(testDir, { recursive: true, force: true }) } catch (error) { /* Ignore cleanup errors */ }
   })
 
   describe('status - 非Git目录', () => {

@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { Task, TaskStatus } from '../types/Task';
 
 export interface TaskDetailPanelConfig {

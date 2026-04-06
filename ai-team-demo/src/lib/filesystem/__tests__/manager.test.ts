@@ -1,7 +1,8 @@
-import { FileSystemManager, fileSystemManager } from '../manager'
-import { SandboxedFileWriter } from '../../security/sandbox'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+
+import { FileSystemManager, fileSystemManager } from '../manager'
+import { SandboxedFileWriter } from '../../security/sandbox'
 
 describe('FileSystemManager', () => {
   let fsManager: FileSystemManager

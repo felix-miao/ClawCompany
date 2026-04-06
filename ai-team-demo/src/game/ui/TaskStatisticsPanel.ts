@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { TaskStatisticsStore, TaskStatistics } from '../data/TaskStatisticsStore';
 import { TaskHistoryPanel } from './TaskHistoryPanel';
 

@@ -10,7 +10,6 @@ import {
   createLogger,
   logger,
 } from '../logger'
-
 import {
   StructuredLogger,
   StructuredLogLevel,

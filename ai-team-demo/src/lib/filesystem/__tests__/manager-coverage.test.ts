@@ -1,6 +1,7 @@
-import { FileSystemManager, createFileSystemManager } from '../manager'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+
+import { FileSystemManager, createFileSystemManager } from '../manager'
 
 describe('FileSystemManager - validatePath edge cases', () => {
   let mgr: FileSystemManager

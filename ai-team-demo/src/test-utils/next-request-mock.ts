@@ -44,7 +44,7 @@ if (isJest) {
       return Promise.resolve('')
     }
 
-    json(): Promise<any> {
+    json(): Promise<Record<string, unknown>> {
       return Promise.resolve({})
     }
 
@@ -99,8 +99,18 @@ function createMockNextUrl(urlString: string): MockNextURL {
   return mockNextUrl
 }
 
+// Cookie 接口定义
+interface MockCookie {
+  get: (name: string) => string | null;
+  set: jest.Mock;
+  delete: jest.Mock;
+  has: (name: string) => boolean;
+  getAll: () => Array<[string, string]>;
+  clear: () => void;
+}
+
 // 创建cookies mock
-function createMockCookies(headers: Map<string, string>): any {
+function createMockCookies(headers: Map<string, string>): MockCookie {
   const cookieMap = new Map<string, string>()
   
   // 从headers中解析cookie
@@ -126,8 +136,39 @@ function createMockCookies(headers: Map<string, string>): any {
   }
 }
 
+// NextRequest 扩展接口
+interface MockNextRequest extends globalRequest {
+  headers: Headers;
+  cookies: MockCookie;
+  nextUrl: MockNextURL;
+  page: {
+    pathname: string;
+    searchParams: URLSearchParams;
+  };
+  ua: {
+    getBrowserName: () => string;
+    getOSName: () => string;
+    getDeviceType: () => string;
+  };
+  geo: {
+    country?: string;
+    region?: string;
+    city?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  ip?: string;
+  host: string;
+  protocol: string;
+  url: string;
+  clone: () => MockNextRequest;
+  text: () => Promise<string>;
+  json: () => Promise<Record<string, unknown>>;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+}
+
 // 创建NextRequest mock
-function createMockNextRequest(options: MockRequestOptions = {}): any {
+function createMockNextRequest(options: MockRequestOptions = {}): MockNextRequest {
   const url = options.url || 'http://localhost:3000/api/test'
   const method = options.method || 'POST'
   const headers = new Map<string, string>()
@@ -181,7 +222,7 @@ function createMockNextRequest(options: MockRequestOptions = {}): any {
     forEach: (callback: (value: string, key: string) => void) => headers.forEach(callback)
   }
 
-  const mockRequest: any = {
+  const mockRequest: MockNextRequest = {
     ...request,
     headers: mockHeaders,  // 覆盖 spread 的 headers Map
     cookies: createMockCookies(headers),
@@ -221,7 +262,7 @@ function createMockNextRequest(options: MockRequestOptions = {}): any {
 const createMockRequest = createMockNextRequest
 
 // 带认证的便捷函数（兼容旧API）
-function createMockNextRequestWithAuth(body: Record<string, unknown>, apiKey?: string): any {
+function createMockNextRequestWithAuth(body: Record<string, unknown>, apiKey?: string): MockNextRequest {
   const key = apiKey || process.env.AGENT_API_KEY || 'test-api-key'
   return createMockNextRequest({
     method: 'POST',
