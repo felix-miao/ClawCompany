@@ -1,8 +1,9 @@
 import { BaseOpenClawAgent } from '../core/base-agent'
-import type { Task, PMResult, AgentConfig } from '../core/types'
+import type { PMResult, AgentConfig } from '../core/types'
 
 type SessionLike = { sessionKey?: string } | null | undefined
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface PMAgentConfig extends AgentConfig {}
 
 export class PMAgent extends BaseOpenClawAgent<PMAgentConfig> {

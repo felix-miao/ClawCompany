@@ -34,7 +34,7 @@ export class DevAgent extends BaseOpenClawAgent<DevAgentConfig> {
           summary: '任务完成',
         })
       }
-    } catch (error) {
+    } catch {
       this.log('ACP runtime 不可用，切换到 subagent')
     }
 

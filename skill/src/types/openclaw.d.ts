@@ -42,5 +42,6 @@ interface OpenClawGlobal {
 }
 
 declare global {
+  // eslint-disable-next-line no-var
   var openclaw: OpenClawGlobal | undefined
 }
