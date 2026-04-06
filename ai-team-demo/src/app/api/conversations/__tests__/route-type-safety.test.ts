@@ -3,6 +3,39 @@
  * 验证类型安全改进
  */
 
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (data: unknown, options?: { status?: number }) => ({
+      json: async () => data,
+      status: options?.status || 200,
+    }),
+  },
+}))
+
+jest.mock('@/lib/storage/manager', () => {
+  const mockStorageManager = {
+    createConversation: jest.fn(),
+    loadConversation: jest.fn(),
+    saveConversation: jest.fn(),
+    listConversations: jest.fn(),
+    deleteConversation: jest.fn(),
+  }
+  return {
+    StorageManager: jest.fn().mockImplementation(() => mockStorageManager),
+  }
+})
+
+jest.mock('@/lib/security/utils', () => ({
+  InputValidator: {
+    sanitize: (str: string) => str,
+    validateApiKey: () => true,
+  },
+  RateLimiter: {
+    isAllowed: () => true,
+    getRemaining: () => 100,
+  },
+}))
+
 import { POST, GET, PUT, DELETE } from '@/app/api/conversations/route'
 import { StorageManager } from '@/lib/storage/manager'
 import { InputValidator } from '@/lib/security/utils'
