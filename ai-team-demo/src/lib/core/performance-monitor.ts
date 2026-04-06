@@ -40,8 +40,17 @@ export interface PerformanceSnapshot {
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0
-  const idx = Math.ceil((p / 100) * sorted.length) - 1
-  return sorted[Math.max(0, idx)]
+  
+  const pos = (p / 100) * (sorted.length - 1)
+  const lower = Math.floor(pos)
+  const upper = Math.ceil(pos)
+  
+  if (lower === upper) {
+    return sorted[lower]
+  }
+  
+  // 线性插值
+  return sorted[lower] + (pos - lower) * (sorted[upper] - sorted[lower])
 }
 
 const DEFAULT_MAX_HISTOGRAM_VALUES = 10000
@@ -58,6 +67,15 @@ export class PerformanceMonitor {
   private maxHistogramValues: number
   private maxMetricEntries: number
   private maxTimerAgeMs: number
+  
+  // 新增：性能警告历史
+  private alertHistory: Array<{
+    timestamp: string
+    type: string
+    metric: string
+    value: number
+    threshold: number
+  }> = []
 
   constructor(options?: {
     maxHistogramValues?: number
@@ -233,5 +251,247 @@ export class PerformanceMonitor {
       entries.splice(0, entries.length - this.maxMetricEntries)
     }
     this.metricEntries.set(name, entries)
+  }
+
+  /**
+   * 批量记录指标，提高效率
+   */
+  recordBatch(batchData: Array<{
+    name: string
+    value: number
+    type: MetricType
+    tags?: Record<string, string>
+  }>): void {
+    batchData.forEach(item => {
+      switch (item.type) {
+        case MetricType.COUNTER:
+          this.increment(item.name, item.value, item.tags)
+          break
+        case MetricType.GAUGE:
+          this.setGauge(item.name, item.value)
+          break
+        case MetricType.HISTOGRAM:
+          this.recordValue(item.name, item.value, item.tags)
+          break
+        default:
+          // 对于未知的类型，默认作为histogram记录
+          this.recordValue(item.name, item.value, item.tags)
+      }
+    })
+  }
+
+  /**
+   * 导出指标数据到指定格式
+   * @param format 导出格式: 'json', 'csv', 'prometheus'
+   */
+  exportMetrics(format: 'json' | 'csv' | 'prometheus'): string {
+    const snapshot = this.snapshot()
+    
+    switch (format) {
+      case 'json':
+        return JSON.stringify(snapshot, null, 2)
+      
+      case 'csv':
+        return this.exportToCSV(snapshot)
+      
+      case 'prometheus':
+        return this.exportToPrometheus(snapshot)
+      
+      default:
+        throw new Error(`Unsupported export format: ${format}`)
+    }
+  }
+
+  /**
+   * 检查性能警告
+   * @param thresholds 性能阈值配置
+   */
+  checkPerformanceAlerts(thresholds: {
+    cpuThreshold?: number
+    memoryThreshold?: number
+    responseTimeThreshold?: number
+    errorRateThreshold?: number
+  }): Array<{
+    type: string
+    metric: string
+    value: number
+    threshold: number
+    timestamp: string
+  }> {
+    const alerts: Array<{
+      type: string
+      metric: string
+      value: number
+      threshold: number
+      timestamp: string
+    }> = []
+
+    const snapshot = this.snapshot()
+    const now = new Date().toISOString()
+
+    // 检查CPU使用率
+    if (thresholds.cpuThreshold && snapshot.gauges.cpu_usage) {
+      const cpuValue = snapshot.gauges.cpu_usage
+      if (cpuValue > thresholds.cpuThreshold) {
+        alerts.push({
+          type: 'high_cpu',
+          metric: 'cpu_usage',
+          value: cpuValue,
+          threshold: thresholds.cpuThreshold,
+          timestamp: now,
+        })
+      }
+    }
+
+    // 检查内存使用率
+    if (thresholds.memoryThreshold && snapshot.gauges.memory_usage) {
+      const memoryValue = snapshot.gauges.memory_usage
+      if (memoryValue > thresholds.memoryThreshold) {
+        alerts.push({
+          type: 'high_memory',
+          metric: 'memory_usage',
+          value: memoryValue,
+          threshold: thresholds.memoryThreshold,
+          timestamp: now,
+        })
+      }
+    }
+
+    // 检查响应时间
+    if (thresholds.responseTimeThreshold && snapshot.histograms.response_times) {
+      const respTimeStats = snapshot.histograms.response_times
+      if (respTimeStats.p95 > thresholds.responseTimeThreshold) {
+        alerts.push({
+          type: 'high_response_time',
+          metric: 'response_times',
+          value: respTimeStats.p95,
+          threshold: thresholds.responseTimeThreshold,
+          timestamp: now,
+        })
+      }
+    }
+
+    // 检查错误率
+    if (thresholds.errorRateThreshold) {
+      const totalRequests = snapshot.counters.total_requests || 0
+      const errorRequests = snapshot.counters.error_requests || 0
+      if (totalRequests > 0) {
+        const errorRate = errorRequests / totalRequests
+        if (errorRate > thresholds.errorRateThreshold) {
+          alerts.push({
+            type: 'high_error_rate',
+            metric: 'error_rate',
+            value: errorRate,
+            threshold: thresholds.errorRateThreshold,
+            timestamp: now,
+          })
+        }
+      }
+    }
+
+    // 保存警告历史
+    alerts.forEach(alert => {
+      this.alertHistory.push(alert)
+    })
+
+    return alerts
+  }
+
+  /**
+   * 获取警告历史
+   */
+  getAlertHistory(): Array<{
+    timestamp: string
+    type: string
+    metric: string
+    value: number
+    threshold: number
+  }> {
+    return [...this.alertHistory]
+  }
+
+  /**
+   * 清理过期的警告历史
+   * @param maxAgeDays 最大保留天数
+   */
+  cleanupAlertHistory(maxAgeDays: number = 7): number {
+    const cutoffTime = Date.now() - (maxAgeDays * 24 * 60 * 60 * 1000)
+    let removed = 0
+
+    this.alertHistory = this.alertHistory.filter(alert => {
+      const alertTime = new Date(alert.timestamp).getTime()
+      if (alertTime < cutoffTime) {
+        removed++
+        return false
+      }
+      return true
+    })
+
+    return removed
+  }
+
+  /**
+   * CSV格式导出
+   */
+  private exportToCSV(snapshot: PerformanceSnapshot): string {
+    const lines: string[] = ['name,value,type,timestamp']
+    
+    // Counters
+    Object.entries(snapshot.counters).forEach(([name, value]) => {
+      lines.push(`${name},${value},counter,${snapshot.timestamp}`)
+    })
+    
+    // Gauges
+    Object.entries(snapshot.gauges).forEach(([name, value]) => {
+      if (value !== undefined) {
+        lines.push(`${name},${value},gauge,${snapshot.timestamp}`)
+      }
+    })
+    
+    // Histograms (只导出统计数据)
+    Object.entries(snapshot.histograms).forEach(([name, stats]) => {
+      lines.push(`${name},${stats.count},histogram_count,${snapshot.timestamp}`)
+      lines.push(`${name},${stats.avg},histogram_avg,${snapshot.timestamp}`)
+      lines.push(`${name},${stats.p95},histogram_p95,${snapshot.timestamp}`)
+    })
+    
+    return lines.join('\n')
+  }
+
+  /**
+   * Prometheus格式导出
+   */
+  private exportToPrometheus(snapshot: PerformanceSnapshot): string {
+    let output = ''
+    
+    // Counters
+    Object.entries(snapshot.counters).forEach(([name, value]) => {
+      output += `# HELP ${name} Total count\n`
+      output += `# TYPE ${name} counter\n`
+      output += `${name} ${value}\n`
+    })
+    
+    // Gauges
+    Object.entries(snapshot.gauges).forEach(([name, value]) => {
+      if (value !== undefined) {
+        output += `# HELP ${name} Current value\n`
+        output += `# TYPE ${name} gauge\n`
+        output += `${name} ${value}\n`
+      }
+    })
+    
+    // Histograms
+    Object.entries(snapshot.histograms).forEach(([name, stats]) => {
+      output += `# HELP ${name} Request duration histogram\n`
+      output += `# TYPE ${name} histogram\n`
+      output += `${name}_count ${stats.count}\n`
+      output += `${name}_sum ${stats.sum}\n`
+      output += `${name}_bucket{le="0.1"} 0\n`
+      output += `${name}_bucket{le="0.5"} ${stats.p50}\n`
+      output += `${name}_bucket{le="1.0"} ${stats.p95}\n`
+      output += `${name}_bucket{le="+Inf"} ${stats.count}\n`
+    })
+    
+    return output
   }
 }
