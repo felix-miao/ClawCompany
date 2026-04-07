@@ -5,7 +5,7 @@ import { AnimationController, AnimationState } from '../systems/AnimationControl
 import { PathfindingSystem, PathPoint } from '../systems/PathfindingSystem';
 import { EmotionSystem, EmotionType } from '../systems/EmotionSystem';
 
-import type { AgentConfig } from '@/types/agent-config';
+import type { AgentConfig } from '../../types/agent-config';
 
 type NavigationState = 'idle' | 'moving' | 'jumping' | 'arrived';
 

@@ -42,11 +42,16 @@ describe('OfficePage', () => {
     expect(container).toBeInTheDocument()
   })
 
-  it('should have correct container dimensions', () => {
+  it('should have correct container responsive styling', () => {
     render(<OfficePage />)
     
     const container = document.getElementById('game-container')
-    expect(container).toHaveStyle({ width: '800px', height: '600px' })
+    expect(container).toHaveStyle({ 
+      aspectRatio: '4/3',
+      maxWidth: '800px',
+      maxHeight: '600px',
+    })
+    expect(container).toHaveClass('w-full')
   })
 
   it('should have correct container styling', () => {

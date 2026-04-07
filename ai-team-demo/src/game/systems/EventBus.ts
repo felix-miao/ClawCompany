@@ -5,7 +5,7 @@ import {
   EventTypeMap,
 } from '../types/GameEvents';
 
-import { TypedEventBus } from '@/lib/core/typed-event-bus';
+import { TypedEventBus } from '../../lib/core/typed-event-bus';
 
 export interface EventBusConfig {
   maxHistorySize?: number;

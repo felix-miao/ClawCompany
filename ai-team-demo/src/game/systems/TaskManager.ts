@@ -212,7 +212,7 @@ export class TaskManager {
 
   private cleanupHistory(): void {
     while (this.taskHistory.size > this.maxHistorySize) {
-      const firstKey = this.taskHistory.keys().next().value;
+      const firstKey = Array.from(this.taskHistory.keys())[0];
       if (firstKey !== undefined) {
         this.taskHistory.delete(firstKey);
       } else {

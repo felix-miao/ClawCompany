@@ -24,12 +24,13 @@ import { TaskHandoverSystem } from '../systems/TaskHandoverSystem';
 import { TaskVisualizer } from '../ui/TaskVisualizer';
 import { TaskHistoryPanel } from '../ui/TaskHistoryPanel';
 import { TaskStatisticsPanel } from '../ui/TaskStatisticsPanel';
+import { VirtualJoystick } from '../ui/VirtualJoystick';
 import { EventBus } from '../systems/EventBus';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
 import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 
-import type { AgentConfig } from '@/types/agent-config';
+import type { AgentConfig } from '../../types/agent-config';
 export type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 
 const AGENT_CONFIGS: AgentConfig[] = [
@@ -155,64 +156,79 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.createParticleTexture();
-    this.tilemapData = this.getDefaultTilemapData();
+    try {
+      console.log('🏢 创建虚拟办公室场景...');
+      
+      this.createParticleTexture();
+      this.tilemapData = this.getDefaultTilemapData();
 
-    this.platforms = this.physics.add.staticGroup();
-    this.particleSystem = new ParticleSystem();
-    this.performanceMonitor = new PerformanceMonitor({
-      targetFPS: 60,
-      sampleSize: 60,
-      warningThreshold: 0.8,
-      criticalThreshold: 0.5,
-    });
-    this.memoryManager = new MemoryManager({
-      maxTrackedResources: 200,
-      memoryBudgetMB: 10,
-    });
-    this.renderOptimizer = new RenderOptimizer({
-      viewportWidth: Number(this.scale.width) || 800,
-      viewportHeight: Number(this.scale.height) || 600,
-      cullingMargin: 64,
-      lodDistances: { near: 200, medium: 500, far: 800 },
-    });
-    this.throttleSystem = new ThrottleSystem();
-    this.soundSystem = new SoundSystem();
-    this.shadowRenderer = new ShadowRenderer();
-    this.cachedShadowOffsetY = this.shadowRenderer.getShadowDimensions(32, 32).offsetY;
-    this.roleVisuals = new RoleVisuals();
-    this.officeDecorator = new OfficeDecorator();
-    this.targetMarker = new TargetMarker(this);
-    this.eventBus = new EventBus();
-    this.taskManager = new TaskManager(this.eventBus);
-    this.taskVisualizer = new TaskVisualizer(this, this.taskManager);
-    this.historyPanel = new TaskHistoryPanel(this, this.taskManager.getHistoryStore());
-    this.historyPanel.setPosition(10, 10);
-    this.statisticsPanel = new TaskStatisticsPanel(this, this.taskManager.getStatisticsStore());
-    this.statisticsPanel.setPosition(340, 10);
-    this.particles = this.add.particles(0, 0, 'particle', {
-      speed: { min: 20, max: 50 },
-      scale: { start: 0.4, end: 0 },
-      lifespan: 600,
-      blendMode: 'ADD',
-      frequency: -1,
-      emitting: false,
-    });
-    this.createPlatforms();
-    this.createDecorations();
-    this.createNavigationMesh();
-    this.createAgents();
-    this.taskHandoverSystem = new TaskHandoverSystem(this.agentMap, this.eventBus);
-    this.setupCollisions();
-    this.setupDebug();
-    this.setupWorkstationStatus();
-    this.movementSystem = new MovementSystem(this);
-    if (this.agents.length > 0) {
-      this.movementSystem.setActiveAgent(this.agents[0]);
+      this.platforms = this.physics.add.staticGroup();
+      this.particleSystem = new ParticleSystem();
+      this.performanceMonitor = new PerformanceMonitor({
+        targetFPS: 60,
+        sampleSize: 60,
+        warningThreshold: 0.8,
+        criticalThreshold: 0.5,
+      });
+      this.memoryManager = new MemoryManager({
+        maxTrackedResources: 200,
+        memoryBudgetMB: 10,
+      });
+      this.renderOptimizer = new RenderOptimizer({
+        viewportWidth: Number(this.scale.width) || 800,
+        viewportHeight: Number(this.scale.height) || 600,
+        cullingMargin: 64,
+        lodDistances: { near: 200, medium: 500, far: 800 },
+      });
+      this.throttleSystem = new ThrottleSystem();
+      this.soundSystem = new SoundSystem();
+      this.shadowRenderer = new ShadowRenderer();
+      this.cachedShadowOffsetY = this.shadowRenderer.getShadowDimensions(32, 32).offsetY;
+      this.roleVisuals = new RoleVisuals();
+      this.officeDecorator = new OfficeDecorator();
+      this.targetMarker = new TargetMarker(this);
+      this.eventBus = new EventBus();
+      this.taskManager = new TaskManager(this.eventBus);
+      this.taskVisualizer = new TaskVisualizer(this, this.taskManager);
+      this.historyPanel = new TaskHistoryPanel(this, this.taskManager.getHistoryStore());
+      this.historyPanel.setPosition(10, 10);
+      this.statisticsPanel = new TaskStatisticsPanel(this, this.taskManager.getStatisticsStore());
+      this.statisticsPanel.setPosition(340, 10);
+      this.particles = this.add.particles(0, 0, 'particle', {
+        speed: { min: 20, max: 50 },
+        scale: { start: 0.4, end: 0 },
+        lifespan: 600,
+        blendMode: 'ADD',
+        frequency: -1,
+        emitting: false,
+      });
+      
+      this.createPlatforms();
+      this.createDecorations();
+      this.createNavigationMesh();
+      this.createAgents();
+      this.taskHandoverSystem = new TaskHandoverSystem(this.agentMap, this.eventBus);
+      this.setupCollisions();
+      this.setupDebug();
+      this.setupWorkstationStatus();
+      this.movementSystem = new MovementSystem(this);
+      if (this.agents.length > 0) {
+        this.movementSystem.setActiveAgent(this.agents[0]);
+      }
+      this.setupKeyboard();
+      this.setupTaskSystem();
+      this.setupEventBridge();
+      
+      console.log('✅ 虚拟办公室场景创建成功');
+    } catch (error) {
+      console.error('❌ 虚拟办公室场景创建失败:', error);
+      this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 
+        '场景加载失败，请刷新页面重试', {
+          fontSize: '18px',
+          color: '#ff4444',
+          align: 'center'
+        }).setOrigin(0.5);
     }
-    this.setupKeyboard();
-    this.setupTaskSystem();
-    this.setupEventBridge();
   }
 
   private createNavigationMesh(): void {
@@ -334,6 +350,10 @@ export class OfficeScene extends Phaser.Scene {
       }
     });
 
+    this.input.keyboard!.on('keydown-D', () => {
+      this.toggleDebug();
+    });
+
     this.input.keyboard!.on('keydown-H', () => {
       if (this.historyPanel.isVisible()) {
         this.historyPanel.hide();
@@ -348,6 +368,14 @@ export class OfficeScene extends Phaser.Scene {
       } else {
         this.statisticsPanel.show();
       }
+    });
+
+    this.input.keyboard!.on('keydown-R', () => {
+      this.reloadScene();
+    });
+
+    this.input.keyboard!.on('keydown-P', () => {
+      this.performanceMonitor.printStats();
     });
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -723,6 +751,11 @@ export class OfficeScene extends Phaser.Scene {
 
   toggleDebug(): void {
     this.physics.world.drawDebug = !this.physics.world.drawDebug;
+  }
+
+  reloadScene(): void {
+    console.log('🔄 重新加载场景...');
+    this.scene.restart();
   }
 
   moveToPosition(agentId: string, targetX: number, targetY: number): void {
