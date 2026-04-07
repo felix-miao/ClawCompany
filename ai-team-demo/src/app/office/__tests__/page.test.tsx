@@ -31,8 +31,11 @@ describe('OfficePage', () => {
   it('should render game instructions', () => {
     render(<OfficePage />)
     
-    expect(screen.getByText(/WASD 或方向键移动/)).toBeInTheDocument()
-    expect(screen.getByText(/D 键切换 debug 模式/)).toBeInTheDocument()
+    expect(screen.getByText('🎮 操作指南')).toBeInTheDocument()
+    expect(screen.getByText('移动')).toBeInTheDocument()
+    expect(screen.getByText('调试')).toBeInTheDocument()
+    expect(screen.getByText('任务')).toBeInTheDocument()
+    expect(screen.getByText('快速移动')).toBeInTheDocument()
   })
 
   it('should render game container with correct id', () => {
@@ -46,19 +49,27 @@ describe('OfficePage', () => {
     render(<OfficePage />)
     
     const container = document.getElementById('game-container')
-    expect(container).toHaveStyle({ 
-      aspectRatio: '4/3',
-      maxWidth: '800px',
-      maxHeight: '600px',
-    })
-    expect(container).toHaveClass('w-full')
+    expect(container).toHaveClass('w-full', 'h-full')
+    
+    // The styling is applied to the parent container, not the game-container itself
+    const parentContainer = container?.parentElement
+    if (parentContainer) {
+      const computedStyle = window.getComputedStyle(parentContainer)
+      expect(computedStyle.aspectRatio).toBe('4/3')
+      expect(computedStyle.maxWidth).toBe('800px')
+      expect(computedStyle.maxHeight).toBe('600px')
+    }
   })
 
   it('should have correct container styling', () => {
     render(<OfficePage />)
     
     const container = document.getElementById('game-container')
-    expect(container).toHaveClass('rounded-xl', 'overflow-hidden')
+    expect(container).toHaveClass('w-full', 'h-full')
+    
+    // The rounded-xl and overflow-hidden classes are now on the parent container
+    const parentContainer = container?.parentElement
+    expect(parentContainer).toHaveClass('rounded-xl', 'overflow-hidden')
   })
 
   it('should render header with gradient text', () => {
