@@ -42,7 +42,7 @@ const AGENT_CONFIGS: AgentConfig[] = [
 export class OfficeScene extends Phaser.Scene {
   private agents: AgentCharacter[] = [];
   private agentMap: Map<string, AgentCharacter> = new Map();
-  private platforms: Phaser.Physics.Arcade.StaticGroup;
+  private platforms!: Phaser.Physics.Arcade.StaticGroup;
   private debugOverlay!: DebugOverlay;
   private movementSystem!: MovementSystem;
   private navigationSystem!: NavigationSystem;
@@ -92,7 +92,6 @@ export class OfficeScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'OfficeScene' });
-    this.platforms = this.physics.add.staticGroup();
   }
 
   async preload(): Promise<void> {
@@ -161,6 +160,7 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.platforms = this.physics.add.staticGroup();
     this.particleSystem = new ParticleSystem();
     this.performanceMonitor = new PerformanceMonitor({
       targetFPS: 60,

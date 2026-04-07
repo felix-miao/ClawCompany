@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {
+    resolveAlias: {
+      phaser: 'phaser/dist/phaser.esm.min.js',
+    },
+  },
   async headers() {
     return [
       {
