@@ -296,7 +296,6 @@ export class OfficeScene extends Phaser.Scene {
     // 创建任务分配事件
     this.eventBus.emit('task-assigned', {
       type: 'task:assigned',
-      taskId: `${agent.agentId}_${Date.now()}`,
       agentId: agent.agentId,
       task: {
         id: `${agent.agentId}_${Date.now()}`,
@@ -319,10 +318,14 @@ export class OfficeScene extends Phaser.Scene {
     });
 
     // 启动任务进度
-    this.eventBus.emit('task-started', {
-      taskId: `${agent.agentId}_${Date.now()}`,
+    const taskId = `${agent.agentId}_${Date.now()}`;
+    this.eventBus.emit('task-progress', {
+      type: 'task:progress',
+      taskId: taskId,
       agentId: agent.agentId,
-      taskType: this.getRandomTaskType()
+      progress: 0,
+      currentAction: 'Starting task',
+      timestamp: Date.now()
     });
   }
 
@@ -340,9 +343,12 @@ export class OfficeScene extends Phaser.Scene {
       }
 
       this.eventBus.emit('task-progress', {
+        type: 'task:progress',
         taskId: `${agentId}_${Date.now()}`,
         agentId: agentId,
-        progress: Math.random()
+        progress: Math.random(),
+        currentAction: 'Working on task',
+        timestamp: Date.now()
       });
     }, 1000);
   }
@@ -725,7 +731,7 @@ export class OfficeScene extends Phaser.Scene {
     });
     
     // 播放互动音效
-    this.soundSystem.play('interaction');
+    this.soundSystem.play('click');
   }
 
   private setupInterAgentCollisions(): void {

@@ -2,7 +2,6 @@ import * as Phaser from 'phaser';
 import { AgentCharacter } from '../characters/AgentCharacter';
 import { TaskManager } from './TaskManager';
 import { EventBus } from './EventBus';
-import { ParticleEffectType } from './ParticleSystem';
 
 export interface TaskFlowState {
   id: string;
@@ -32,24 +31,20 @@ export class TaskFlowSystem {
   }
 
   private setupEventListeners(): void {
-    this.eventBus.on('task-assigned', (data: any) => {
+    this.eventBus.on('task:assigned', (data: any) => {
       this.createTaskFlow(data);
     });
 
-    this.eventBus.on('task-started', (data: any) => {
-      this.updateTaskFlow(data.taskId, 'in-progress', 0);
-    });
-
-    this.eventBus.on('task-progress', (data: any) => {
+    this.eventBus.on('task:progress', (data: any) => {
       this.updateTaskFlow(data.taskId, 'in-progress', data.progress);
     });
 
-    this.eventBus.on('task-completed', (data: any) => {
+    this.eventBus.on('task:completed', (data: any) => {
       this.updateTaskFlow(data.taskId, 'completed', 1);
       this.createCompletionEffect(data.taskId);
     });
 
-    this.eventBus.on('task-failed', (data: any) => {
+    this.eventBus.on('task:failed', (data: any) => {
       this.updateTaskFlow(data.taskId, 'failed', 0);
       this.createFailureEffect(data.taskId);
     });
@@ -223,7 +218,7 @@ export class TaskFlowSystem {
     return colorMap[status] || '#ffffff';
   }
 
-  updateTaskFlow(flowId: string, status: string, progress: number): void {
+  updateTaskFlow(flowId: string, status: 'pending' | 'in-progress' | 'completed' | 'failed', progress: number): void {
     const flow = this.activeFlows.get(flowId);
     if (!flow) return;
 
@@ -237,9 +232,9 @@ export class TaskFlowSystem {
       ) as Phaser.GameObjects.Container;
       
       if (bubble) {
-        const statusText = bubble.list.find((child: any) => 
+        const statusText = bubble.list.find((child: any) =>
           child.text && child.text === this.getStatusText(status)
-        );
+        ) as Phaser.GameObjects.Text | undefined;
         if (statusText) {
           statusText.setText(this.getStatusText(status));
           statusText.setColor(this.getStatusColor(status));
