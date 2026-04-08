@@ -31,21 +31,21 @@ export class TaskFlowSystem {
   }
 
   private setupEventListeners(): void {
-    // 修复：使用连字符而不是冒号（与 OfficeScene 发送的事件名称一致）
-    this.eventBus.on('task-assigned', (data: any) => {
+    // 修复：使用冒号（与 OfficeScene 发送的事件名称一致）
+    this.eventBus.on('task:assigned', (data: any) => {
       this.createTaskFlow(data);
     });
 
-    this.eventBus.on('task-progress', (data: any) => {
+    this.eventBus.on('task:progress', (data: any) => {
       this.updateTaskFlow(data.taskId, 'in-progress', data.progress);
     });
 
-    this.eventBus.on('task-completed', (data: any) => {
+    this.eventBus.on('task:completed', (data: any) => {
       this.updateTaskFlow(data.taskId, 'completed', 1);
       this.createCompletionEffect(data.taskId);
     });
 
-    this.eventBus.on('task-failed', (data: any) => {
+    this.eventBus.on('task:failed', (data: any) => {
       this.updateTaskFlow(data.taskId, 'failed', 0);
       this.createFailureEffect(data.taskId);
     });
