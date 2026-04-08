@@ -5,8 +5,8 @@ import { TILE_SIZE } from '../config/gameConfig';
 import { DebugOverlay } from '../utils/DebugOverlay';
 import { MovementSystem } from '../systems/MovementSystem';
 import { AnimationController } from '../systems/AnimationController';
-import { createCharacterSprites } from '../sprites/CharacterSprites';
 import { CharacterSpriteSystem } from '../sprites/CharacterSpriteSystem';
+import { OfficeMapGenerator } from '../sprites/OfficeMapGenerator';
 import { NavigationMesh } from '../data/NavigationMesh';
 import { PathfindingSystem } from '../systems/PathfindingSystem';
 import { NavigationSystem } from '../systems/NavigationSystem';
@@ -90,6 +90,7 @@ export class OfficeScene extends Phaser.Scene {
   private historyPanel!: TaskHistoryPanel;
   private statisticsPanel!: TaskStatisticsPanel;
   private characterSpriteSystem!: CharacterSpriteSystem;
+  private officeMapGenerator!: OfficeMapGenerator;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
     'pm-office': { x: 350, y: 280 },
@@ -168,8 +169,12 @@ export class OfficeScene extends Phaser.Scene {
       
       // 初始化角色精灵系统
       this.characterSpriteSystem = new CharacterSpriteSystem(this);
+      // 初始化办公室地图生成器
+      this.officeMapGenerator = new OfficeMapGenerator(this);
       this.createParticleTexture();
-      this.tilemapData = this.getDefaultTilemapData();
+      
+      // 生成增强的办公室地图
+      this.generateEnhancedOfficeMap();
 
       this.platforms = this.physics.add.staticGroup();
       this.particleSystem = new ParticleSystem();
@@ -240,6 +245,54 @@ export class OfficeScene extends Phaser.Scene {
           align: 'center'
         }).setOrigin(0.5);
     }
+  }
+
+  private generateEnhancedOfficeMap(): void {
+    console.log('🗺️ 生成增强办公室地图...');
+    
+    // 生成办公室地图
+    this.officeMapGenerator.generateOffice().then(officeData => {
+      console.log('✅ 办公室地图生成完成');
+      
+      // 更新 tilemapData
+      this.tilemapData = {
+        width: 20,
+        height: 15,
+        tileSize: 32,
+        workstations: officeData.workstations,
+        platforms: officeData.platforms
+      };
+      
+      // 创建背景
+      this.officeMapGenerator.createOfficeBackground();
+      
+      // 创建装饰
+      this.createEnhancedDecorations(officeData.decorations);
+      
+    }).catch(error => {
+      console.warn('⚠️ 办公室地图生成失败，使用默认配置:', error);
+      this.tilemapData = this.getDefaultTilemapData();
+    });
+  }
+
+  private createEnhancedDecorations(decorations: any[]): void {
+    console.log('🎨 创建增强装饰...');
+    
+    // 使用办公室装饰器创建装饰
+    decorations.forEach(decoration => {
+      const asset = this.officeMapGenerator.getDecorationAsset(decoration.type);
+      
+      if (asset) {
+        const sprite = this.add.image(
+          decoration.x * 32 + 16,
+          decoration.y * 32 + 16,
+          asset
+        );
+        sprite.setOrigin(0.5);
+        sprite.setDepth(decoration.y + 1);
+        this.decorationGraphics.push(sprite as any);
+      }
+    });
   }
 
   private createNavigationMesh(): void {

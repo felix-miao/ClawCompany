@@ -1,56 +1,68 @@
 import * as Phaser from 'phaser';
+import { TinyTownLoader } from './TinyTownLoader';
 
 export class CharacterSpriteSystem {
   private scene: Phaser.Scene;
   private spritesheets: Map<string, Phaser.Textures.Texture> = new Map();
+  private tinyTownLoader: TinyTownLoader | null = null;
+  private isInitialized: boolean = false;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    this.loadSpritesheets();
+    this.initialize();
   }
 
-  private loadSpritesheets(): void {
-    // 加载Tiny Dungeon资源作为角色的基础
-    this.loadCharacterSprites();
-    this.loadOfficeEnvironment();
+  private async initialize(): Promise<void> {
+    if (this.isInitialized) return;
+    
+    console.log('🎨 初始化角色精灵系统...');
+    
+    // 创建 Tiny Town 加载器
+    this.tinyTownLoader = new TinyTownLoader(this.scene);
+    
+    // 加载资源
+    await this.loadSpritesheets();
+    
+    this.isInitialized = true;
+    console.log('✅ 角色精灵系统初始化完成');
+  }
+
+  private async loadSpritesheets(): Promise<void> {
+    try {
+      // 首先尝试加载 Tiny Town 资源
+      if (this.tinyTownLoader) {
+        await this.tinyTownLoader.loadResources();
+      }
+      
+      this.loadCharacterSprites();
+      this.loadOfficeEnvironment();
+    } catch (error) {
+      console.warn('精灵加载失败，使用默认方案:', error);
+      this.createDefaultCharacterSprites();
+      this.createDefaultOfficeAssets();
+    }
   }
 
   private loadCharacterSprites(): void {
-    // 使用Tiny Dungeon的角色精灵
-    try {
-      // 尝试从tiny-dungeon加载角色精灵
-      const characterFiles = [
-        'character_0', 'character_1', 'character_2', 'character_3',
-        'character_4', 'character_5', 'character_6', 'character_7'
-      ];
-
-      characterFiles.forEach((file, index) => {
-        const exists = this.scene.textures.exists(file);
-        if (!exists) {
-          // 如果文件不存在，创建默认角色精灵
-          this.createDefaultCharacterSprite(index);
-        }
-      });
-    } catch (error) {
-      console.warn('无法加载角色精灵，使用默认方案:', error);
-      this.createDefaultCharacterSprites();
+    if (this.tinyTownLoader && this.tinyTownLoader.isTinyTownAvailable()) {
+      console.log('🎭 使用 Tiny Town 角色精灵');
+      return; // Tiny Town 已经处理了角色精灵
     }
+    
+    // 后备方案：创建默认角色精灵
+    console.log('🎨 创建默认角色精灵');
+    this.createDefaultCharacterSprites();
   }
 
   private loadOfficeEnvironment(): void {
-    // 加载办公室环境资源
-    try {
-      // 检查Tiny Town资源
-      if (this.scene.textures.exists('tiny-town')) {
-        console.log('✅ Tiny Town 资源已加载');
-      } else {
-        console.log('⚠️ Tiny Town 资源未找到，使用默认资源');
-        this.createDefaultOfficeAssets();
-      }
-    } catch (error) {
-      console.warn('加载办公室环境资源失败:', error);
-      this.createDefaultOfficeAssets();
+    if (this.tinyTownLoader && this.tinyTownLoader.isTinyTownAvailable()) {
+      console.log('🏢 使用 Tiny Town 环境资源');
+      return; // Tiny Town 已经处理了环境资源
     }
+    
+    // 后备方案：创建默认环境资源
+    console.log('🏗️ 创建默认环境资源');
+    this.createDefaultOfficeAssets();
   }
 
   private createDefaultCharacterSprites(): void {
@@ -205,10 +217,17 @@ export class CharacterSpriteSystem {
   }
 
   getCharacterSprite(role: string): string {
-    return `character_${role.toLowerCase()}`;
+    if (this.tinyTownLoader) {
+      return this.tinyTownLoader.getCharacterSprite(role.toLowerCase());
+    }
+    return `character-${role.toLowerCase()}`;
   }
 
   getOfficeAsset(type: string): string {
+    if (this.tinyTownLoader) {
+      return this.tinyTownLoader.getEnvironmentTile(type);
+    }
+    
     switch (type) {
       case 'floor':
         return 'floor';
