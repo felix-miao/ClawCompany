@@ -294,7 +294,7 @@ export class OfficeScene extends Phaser.Scene {
     const target = targetPositions[Math.floor(Math.random() * targetPositions.length)];
 
     // 创建任务分配事件
-    this.eventBus.emit('task-assigned', {
+    this.eventBus.emit('task:assigned', {
       type: 'task:assigned',
       agentId: agent.agentId,
       task: {
@@ -319,7 +319,7 @@ export class OfficeScene extends Phaser.Scene {
 
     // 启动任务进度
     const taskId = `${agent.agentId}_${Date.now()}`;
-    this.eventBus.emit('task-progress', {
+    this.eventBus.emit('task:progress', {
       type: 'task:progress',
       taskId: taskId,
       agentId: agent.agentId,
@@ -342,7 +342,7 @@ export class OfficeScene extends Phaser.Scene {
         return;
       }
 
-      this.eventBus.emit('task-progress', {
+      this.eventBus.emit('task:progress', {
         type: 'task:progress',
         taskId: `${agentId}_${Date.now()}`,
         agentId: agentId,
@@ -377,7 +377,7 @@ export class OfficeScene extends Phaser.Scene {
                 agent.returnToOriginal();
                 
                 // 发送任务完成事件
-                this.eventBus.emit('task-completed', {
+                this.eventBus.emit('task:completed', {
                   type: 'task:completed',
                   taskId: `${agentId}_${Date.now()}`,
                   agentId: agentId,
