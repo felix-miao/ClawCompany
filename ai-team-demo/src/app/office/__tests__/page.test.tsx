@@ -57,7 +57,8 @@ describe('OfficePage', () => {
       const computedStyle = window.getComputedStyle(parentContainer)
       expect(computedStyle.aspectRatio).toBe('4/3')
       expect(computedStyle.maxWidth).toBe('800px')
-      expect(computedStyle.maxHeight).toBe('600px')
+      // maxHeight removed for better responsive design
+      expect(computedStyle.margin).toBe('0px auto')
     }
   })
 
