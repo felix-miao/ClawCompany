@@ -973,12 +973,7 @@ export class OfficeScene extends Phaser.Scene {
     this.interactiveTutorial = new InteractiveTutorial(this, {
       steps: tutorialSteps,
       onComplete: () => {
-        this.onboardingManager.startPhase(OnboardingPhase.WELCOME);
-        const phases = Object.values(OnboardingPhase);
-        phases.forEach(phase => {
-          this.onboardingManager.startPhase(phase);
-          this.onboardingManager.completePhase(phase);
-        });
+        this.onboardingManager.completeAll();
         console.log('新手引导完成');
       },
       onStepComplete: (step) => {

@@ -4,12 +4,13 @@ import { GameEventStore } from './GameEventStore';
 import { Task, TaskStatus } from '../types/Task';
 import { GameEvent } from '../types/GameEvents';
 
-export interface ExportFilters {
-  dateRange?: { start: number; end: number };
-  agentId?: string;
-  status?: TaskStatus;
-  taskType?: string;
-  eventType?: string;
+function escapeCsvField(value: string | undefined | null): string {
+  if (value == null) return '""';
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function getEventProp(event: GameEvent, prop: string): unknown {
+  return (event as unknown as Record<string, unknown>)[prop];
 }
 
 export class DataExportService {
@@ -19,44 +20,11 @@ export class DataExportService {
   ) {}
 
   exportTasksAsJson(): string {
-    const records = this.taskHistoryStore.getRecords();
-    return JSON.stringify(records, null, 2);
+    return this.exportFilteredTasksAsJson();
   }
 
   exportTasksAsCsv(): string {
-    const records = this.taskHistoryStore.getRecords();
-    const headers = [
-      'id',
-      'agentId',
-      'description',
-      'status',
-      'taskType',
-      'progress',
-      'currentAction',
-      'assignedAt',
-      'completedAt',
-      'duration'
-    ];
-
-    const rows = records.map(record => {
-      const { task, completedAt } = record;
-      const duration = completedAt ? completedAt - task.assignedAt : 0;
-      
-      return [
-        task.id,
-        task.agentId,
-        `"${task.description.replace(/"/g, '""')}"`,
-        task.status,
-        task.taskType,
-        task.progress,
-        `"${task.currentAction.replace(/"/g, '""')}"`,
-        task.assignedAt,
-        completedAt,
-        duration
-      ].join(',');
-    });
-
-    return [headers.join(','), ...rows].join('\n');
+    return this.exportFilteredTasksAsCsv();
   }
 
   exportEventsAsJson(): string {
@@ -81,11 +49,11 @@ export class DataExportService {
       event.type,
       event.timestamp,
       event.agentId || '',
-      event.sessionKey || '',
-      event.role || '',
-      `"${(event as any).task || ''}"`,
-      (event as any).status || '',
-      `"${(event as any).error || ''}"`
+      getEventProp(event, 'sessionKey') || '',
+      getEventProp(event, 'role') || '',
+      escapeCsvField(getEventProp(event, 'task') as string | undefined),
+      getEventProp(event, 'status') || '',
+      escapeCsvField(getEventProp(event, 'error') as string | undefined)
     ].join(','));
 
     return [headers.join(','), ...rows].join('\n');
@@ -142,7 +110,7 @@ export class DataExportService {
 
     if (filters) {
       if (filters.dateRange) {
-        events = events.filter(event => 
+        events = events.filter(event =>
           event.timestamp >= filters.dateRange!.start && event.timestamp <= filters.dateRange!.end
         );
       }
@@ -152,15 +120,14 @@ export class DataExportService {
       }
 
       if (filters.agentId) {
-        events = events.filter(event => (event as any).agentId === filters.agentId);
+        events = events.filter(event => event.agentId === filters.agentId);
       }
     }
 
     return events;
   }
 
-  exportFilteredTasksAsCsv(filters?: ExportFilters): string {
-    const records = this.queryTaskHistory(filters);
+  private formatRecordsAsCsv(records: TaskHistoryRecord[]): string {
     const headers = [
       'id',
       'agentId',
@@ -177,15 +144,15 @@ export class DataExportService {
     const rows = records.map(record => {
       const { task, completedAt } = record;
       const duration = completedAt ? completedAt - task.assignedAt : 0;
-      
+
       return [
         task.id,
         task.agentId,
-        `"${task.description.replace(/"/g, '""')}"`,
+        escapeCsvField(task.description),
         task.status,
         task.taskType,
         task.progress,
-        `"${task.currentAction.replace(/"/g, '""')}"`,
+        escapeCsvField(task.currentAction),
         task.assignedAt,
         completedAt,
         duration
@@ -193,6 +160,11 @@ export class DataExportService {
     });
 
     return [headers.join(','), ...rows].join('\n');
+  }
+
+  exportFilteredTasksAsCsv(filters?: ExportFilters): string {
+    const records = this.queryTaskHistory(filters);
+    return this.formatRecordsAsCsv(records);
   }
 
   exportFilteredTasksAsJson(filters?: ExportFilters): string {

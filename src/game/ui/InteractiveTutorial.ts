@@ -400,8 +400,5 @@ export class InteractiveTutorial {
     this.hide();
     this.container.destroy();
     this.highlightGraphics.destroy();
-    this.nextButton.destroy();
-    this.prevButton.destroy();
-    this.skipButton.destroy();
   }
 }

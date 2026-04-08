@@ -1,7 +1,7 @@
 import { ErrorSeverity, ErrorCategory, AppError, ValidationError, isAppError, toAppError } from '@/lib/core/errors'
 import { generateId } from '@/lib/utils/id'
 
-describe('Jest smoke test - ai-team-demo', () => {
+describe('Jest smoke test - ClawCompany', () => {
   test('jest environment is working', () => {
     expect(1 + 1).toBe(2)
     expect(typeof jest).toBe('object')

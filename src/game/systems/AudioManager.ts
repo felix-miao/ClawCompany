@@ -23,7 +23,6 @@ export class AudioManager {
   private config: AudioMixerConfig;
   private masterVolume: number;
   private categoryVolumes: Map<AudioCategory, number> = new Map();
-  private categoryHasOverride: Set<AudioCategory> = new Set();
   private activeSounds: Map<string, AudioCategory> = new Map();
   private fadeState: FadeState = 'none';
   private fadeProgress: number = 0;
@@ -58,17 +57,14 @@ export class AudioManager {
 
   setCategoryVolume(category: AudioCategory, volume: number): void {
     this.categoryVolumes.set(category, Math.max(0, Math.min(1, volume)));
-    this.categoryHasOverride.add(category);
   }
 
   resetCategoryVolume(category: AudioCategory): void {
     this.categoryVolumes.delete(category);
-    this.categoryHasOverride.delete(category);
   }
 
   resetAllCategoryVolumes(): void {
     this.categoryVolumes.clear();
-    this.categoryHasOverride.clear();
   }
 
   getEffectiveVolume(category: AudioCategory): number {
@@ -89,6 +85,12 @@ export class AudioManager {
   }
 
   fadeOut(durationMs: number): void {
+    if (durationMs <= 0) {
+      this.volumeBeforeFade = this.masterVolume;
+      this.masterVolume = 0;
+      this.fadeState = 'faded-out';
+      return;
+    }
     this.volumeBeforeFade = this.masterVolume;
     this.fadeDurationMs = durationMs;
     this.fadeProgress = 0;
@@ -96,6 +98,11 @@ export class AudioManager {
   }
 
   fadeIn(durationMs: number): void {
+    if (durationMs <= 0) {
+      this.masterVolume = this.targetVolume;
+      this.fadeState = 'faded-in';
+      return;
+    }
     this.fadeDurationMs = durationMs;
     this.fadeProgress = 0;
     this.fadeState = 'fading-in';

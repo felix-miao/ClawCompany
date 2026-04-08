@@ -355,10 +355,5 @@ export class TutorialOverlay {
     this.hide();
     this.container.destroy();
     this.highlightGraphics.destroy();
-    this.nextButton.destroy();
-    this.prevButton.destroy();
-    if (this.highlightTween) {
-      this.highlightTween.destroy();
-    }
   }
 }

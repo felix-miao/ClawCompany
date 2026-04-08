@@ -95,6 +95,7 @@ export class VirtualOfficePerformanceMonitor {
   private totalMemoryMB: number = 0;
   private renderStatsHistory: RenderStatsInput[] = [];
   private alerts: PerformanceAlert[] = [];
+  private lastAlertTime: Record<string, number> = {};
   private lastFrameDelta = 0;
   private droppedFrameCount = 0;
   private writeIndex = 0;
@@ -371,6 +372,13 @@ export class VirtualOfficePerformanceMonitor {
   }
 
   private pushAlert(alert: PerformanceAlert): void {
+    const alertKey = `${alert.type}:${alert.level}`;
+    const now = Date.now();
+    const minInterval = 5000;
+    const lastTime = this.lastAlertTime[alertKey] ?? 0;
+    if (now - lastTime < minInterval) return;
+
+    this.lastAlertTime[alertKey] = now;
     this.alerts.push(alert);
     if (this.alerts.length > 50) {
       this.alerts = this.alerts.slice(-50);

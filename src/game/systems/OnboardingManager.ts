@@ -184,7 +184,7 @@ export class OnboardingManager {
   isPhaseReadyToComplete(phase: OnboardingPhase): boolean {
     const steps = PHASE_STEPS[phase] ?? [];
     if (steps.length === 0) return true;
-    return steps.some(s => this.isStepCompleted(s.id));
+    return steps.every(s => this.isStepCompleted(s.id));
   }
 
   getStepResults(phase: OnboardingPhase): OnboardingStepResult[] {
@@ -207,6 +207,37 @@ export class OnboardingManager {
 
   getPhaseSteps(phase: OnboardingPhase): OnboardingStepDefinition[] {
     return PHASE_STEPS[phase] ?? [];
+  }
+
+  completeAll(): void {
+    for (const phase of PHASE_ORDER) {
+      this.activePhase = phase;
+      if (!this.completedPhases.has(phase)) {
+        this.completedPhases.add(phase);
+
+        const achievement = PHASE_ACHIEVEMENTS[phase];
+        if (achievement && !this.achievements.some(a => a.phase === phase)) {
+          const newAchievement: Achievement = {
+            phase,
+            title: achievement.title,
+            icon: achievement.icon,
+            unlockedAt: Date.now(),
+          };
+          this.achievements.push(newAchievement);
+          this.emitEvent('achievement:unlock', newAchievement);
+        }
+
+        this.emitEvent('phase:complete', { phase });
+      }
+    }
+    this.currentPhase = PHASE_ORDER[PHASE_ORDER.length - 1];
+    this.activePhase = null;
+
+    if (this.isCompleted()) {
+      this.emitEvent('onboarding:complete', {});
+    }
+
+    this.saveToStorage();
   }
 
   reset(): void {
