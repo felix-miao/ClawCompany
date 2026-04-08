@@ -137,7 +137,7 @@ function createMockCookies(headers: Map<string, string>): MockCookie {
 }
 
 // NextRequest 扩展接口
-interface MockNextRequest extends globalRequest {
+interface MockNextRequest extends Request {
   headers: Headers;
   cookies: MockCookie;
   nextUrl: MockNextURL;

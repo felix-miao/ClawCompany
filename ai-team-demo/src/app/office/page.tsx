@@ -16,6 +16,7 @@ export default function OfficePage() {
     memory: string;
     agents: number;
   } | null>(null);
+  const [showPerformanceDetail, setShowPerformanceDetail] = useState(false);
 
   const updatePerformanceStats = useCallback(() => {
     if (gameRef.current && gameRef.current.getPerformanceMonitor) {
@@ -109,27 +110,44 @@ export default function OfficePage() {
               </div>
             )}
             
-            {/* 性能监控面板 */}
+            {/* 简化的性能监控面板 */}
             {performanceStats && (
-              <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm rounded p-2 text-xs text-gray-300 space-y-1">
-                <div className="flex justify-between items-center gap-2">
+              <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm rounded-lg p-2 text-xs text-gray-300 transition-all duration-200 hover:bg-black/80">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-gray-400">性能:</span>
+                  <button 
+                    onClick={() => setShowPerformanceDetail(!showPerformanceDetail)}
+                    className="text-xs text-primary-400 hover:text-primary-300"
+                  >
+                    {showPerformanceDetail ? '简化' : '详细'}
+                  </button>
+                </div>
+                
+                {/* 关键指标 */}
+                <div className="flex items-center gap-2">
                   <span className="text-gray-400">FPS:</span>
                   <span className={`font-mono ${performanceStats.fps >= 55 ? 'text-green-400' : performanceStats.fps >= 30 ? 'text-yellow-400' : 'text-red-400'}`}>
                     {performanceStats.fps}
                   </span>
                 </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-gray-400">帧时间:</span>
-                  <span className="font-mono text-blue-400">{performanceStats.frameTime}ms</span>
-                </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-gray-400">内存:</span>
-                  <span className="font-mono text-purple-400">{performanceStats.memory}</span>
-                </div>
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-gray-400">角色:</span>
-                  <span className="font-mono text-orange-400">{performanceStats.agents}</span>
-                </div>
+                
+                {/* 详细信息（可展开） */}
+                {showPerformanceDetail && (
+                  <div className="mt-2 pt-2 border-t border-gray-600 space-y-1">
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-400">帧时间:</span>
+                      <span className="font-mono text-blue-400">{performanceStats.frameTime}ms</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-400">内存:</span>
+                      <span className="font-mono text-purple-400">{performanceStats.memory}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-400">角色:</span>
+                      <span className="font-mono text-orange-400">{performanceStats.agents}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

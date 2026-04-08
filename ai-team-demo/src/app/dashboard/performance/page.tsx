@@ -1,3 +1,5 @@
+'use client';
+
 import { PerformanceMonitor } from '@/lib/monitoring/performance-monitor';
 import { PerformanceDashboard } from '@/components/performance-dashboard';
 

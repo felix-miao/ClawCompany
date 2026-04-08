@@ -25,6 +25,7 @@ import { TaskVisualizer } from '../ui/TaskVisualizer';
 import { TaskHistoryPanel } from '../ui/TaskHistoryPanel';
 import { TaskStatisticsPanel } from '../ui/TaskStatisticsPanel';
 import { VirtualJoystick } from '../ui/VirtualJoystick';
+import { TutorialOverlay } from '../ui/TutorialOverlay';
 import { EventBus } from '../systems/EventBus';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
@@ -75,6 +76,8 @@ export class OfficeScene extends Phaser.Scene {
   private shadowGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map();
   private cachedShadowOffsetY: number = 0;
   private decorationGraphics: Phaser.GameObjects.Graphics[] = [];
+  private virtualJoystick!: VirtualJoystick;
+  private tutorialOverlay!: TutorialOverlay;
   private taskTimer: Phaser.Time.TimerEvent | null = null;
   private workstationTimer: Phaser.Time.TimerEvent | null = null;
   private eventBus!: EventBus;
@@ -218,6 +221,7 @@ export class OfficeScene extends Phaser.Scene {
       this.setupKeyboard();
       this.setupTaskSystem();
       this.setupEventBridge();
+      this.setupVirtualJoystick();
       
       console.log('✅ 虚拟办公室场景创建成功');
     } catch (error) {
@@ -584,6 +588,74 @@ export class OfficeScene extends Phaser.Scene {
 
     this.eventBridge = new SceneEventBridge(actions);
     this.eventBridge.connect();
+  }
+
+  private setupVirtualJoystick(): void {
+    this.virtualJoystick = new VirtualJoystick(this, {
+      x: this.cameras.main.width - 100,
+      y: this.cameras.main.height - 100,
+      radius: 80,
+      knobRadius: 35,
+      opacity: 0.7,
+      autoShow: true,
+      vibrateOnActive: true,
+    });
+
+    // 设置新手引导
+    this.setupTutorial();
+  }
+
+  private setupTutorial(): void {
+    const tutorialSteps = [
+      {
+        title: '欢迎来到虚拟办公室！',
+        description: '在这里，AI 团队将协作完成各种任务。让我们开始学习如何使用这个系统。',
+        position: { x: this.cameras.main.width / 2, y: 100 },
+      },
+      {
+        title: '角色移动',
+        description: '点击屏幕任意位置，角色会移动到该位置。你也可以使用 WASD 键控制。',
+        position: { x: 200, y: 400 },
+        width: 300,
+        height: 200,
+        highlight: true,
+      },
+      {
+        title: '任务管理',
+        description: '角色头上的气泡显示当前任务状态。点击角色可以查看任务详情。',
+        position: { x: 600, y: 300 },
+        width: 200,
+        height: 100,
+        highlight: true,
+      },
+      {
+        title: '虚拟摇杆',
+        description: '在移动设备上，可以使用右下角的虚拟摇杆控制角色移动。',
+        position: { x: this.cameras.main.width - 150, y: this.cameras.main.height - 150 },
+        width: 200,
+        height: 200,
+        highlight: true,
+      },
+      {
+        title: '开始协作！',
+        description: '现在你已经了解了基本操作。让 AI 团队开始工作吧！',
+        position: { x: this.cameras.main.width / 2, y: 100 },
+      },
+    ];
+
+    this.tutorialOverlay = new TutorialOverlay(this, {
+      title: '虚拟办公室引导',
+      steps: tutorialSteps,
+      skipButton: true,
+      onComplete: () => {
+        console.log('新手引导完成');
+      },
+    });
+
+    // 延迟显示引导
+    this.time.delayedCall(2000, () => {
+      this.tutorialOverlay.show();
+    });
   }
 
   getEventBridge(): SceneEventBridge | null {

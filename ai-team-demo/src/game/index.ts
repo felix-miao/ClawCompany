@@ -2,10 +2,27 @@ import * as Phaser from 'phaser';
 
 import { gameConfig } from './config/gameConfig';
 import { OfficeScene } from './scenes/OfficeScene';
+import { PerformanceMonitor } from './systems/PerformanceMonitor';
 
 export class Game extends Phaser.Game {
   constructor(config: Phaser.Types.Core.GameConfig) {
     super(config);
+  }
+
+  getPerformanceMonitor(): PerformanceMonitor | null {
+    const scene = this.scene.getScene('OfficeScene');
+    return (scene as any)?.performanceMonitor || null;
+  }
+
+  getAgents(): any[] {
+    const scene = this.scene.getScene('OfficeScene');
+    return (scene as any)?.getAgents() || [];
+  }
+
+  destroy(destroyChildren?: boolean): void {
+    super.destroy(destroyChildren || false);
+    const scene = this.scene.getScene('OfficeScene');
+    (scene as any)?.shutdown();
   }
 }
 

@@ -6,6 +6,8 @@ export interface VirtualJoystickConfig {
   radius?: number;
   knobRadius?: number;
   opacity?: number;
+  autoShow?: boolean;
+  vibrateOnActive?: boolean;
 }
 
 const DEFAULT_CONFIG: Required<VirtualJoystickConfig> = {
@@ -14,6 +16,8 @@ const DEFAULT_CONFIG: Required<VirtualJoystickConfig> = {
   radius: 60,
   knobRadius: 25,
   opacity: 0.6,
+  autoShow: false,
+  vibrateOnActive: false,
 };
 
 export class VirtualJoystick {
@@ -49,16 +53,33 @@ export class VirtualJoystick {
     this.container.add([this.baseGraphics, this.knobGraphics]);
 
     this.setupInputHandlers();
+
+    // 自动显示支持
+    if (this.config.autoShow) {
+      this.autoShowForTouch();
+    }
   }
 
   private drawBase(): void {
     const { radius } = this.config;
 
     this.baseGraphics.clear();
-    this.baseGraphics.lineStyle(3, 0x4a5568, 0.8);
+    
+    // 外圈
+    this.baseGraphics.lineStyle(4, 0x4a5568, 0.9);
     this.baseGraphics.strokeCircle(0, 0, radius);
-    this.baseGraphics.fillStyle(0x1a1a2e, 0.5);
+    
+    // 内圈装饰
+    this.baseGraphics.lineStyle(2, 0x718096, 0.6);
+    this.baseGraphics.strokeCircle(0, 0, radius - 10);
+    
+    // 填充
+    this.baseGraphics.fillStyle(0x1a1a2e, 0.7);
     this.baseGraphics.fillCircle(0, 0, radius);
+    
+    // 中心点
+    this.baseGraphics.fillStyle(0x4a5568, 0.8);
+    this.baseGraphics.fillCircle(0, 0, 4);
   }
 
   private drawKnob(offsetX: number, offsetY: number): void {
@@ -66,10 +87,22 @@ export class VirtualJoystick {
 
     this.knobGraphics.clear();
     this.knobGraphics.setPosition(offsetX, offsetY);
-    this.knobGraphics.lineStyle(2, 0x718096, 0.9);
+    
+    // 外圈
+    this.knobGraphics.lineStyle(3, 0x718096, 1);
     this.knobGraphics.strokeCircle(0, 0, knobRadius);
-    this.knobGraphics.fillStyle(0x4a5568, 0.8);
+    
+    // 内圈
+    this.knobGraphics.lineStyle(1, 0xa0aec0, 0.8);
+    this.knobGraphics.strokeCircle(0, 0, knobRadius - 5);
+    
+    // 填充
+    this.knobGraphics.fillStyle(0x4a5568, 0.9);
     this.knobGraphics.fillCircle(0, 0, knobRadius);
+    
+    // 高光效果
+    this.knobGraphics.fillStyle(0x718096, 0.3);
+    this.knobGraphics.fillCircle(-knobRadius/3, -knobRadius/3, knobRadius/3);
   }
 
   private setupInputHandlers(): void {
@@ -93,6 +126,20 @@ export class VirtualJoystick {
       this.active = true;
       this.pointerId = pointer.id;
       this.updateKnobPosition(pointerX, pointerY);
+      
+      // 触控反馈
+      this.scene.tweens.add({
+        targets: this.container,
+        scale: 1.1,
+        duration: 100,
+        yoyo: true,
+        ease: 'Power2'
+      });
+      
+      // 振动反馈
+      if (this.config.vibrateOnActive) {
+        this.vibrate();
+      }
     }
   }
 
@@ -111,6 +158,16 @@ export class VirtualJoystick {
     this.pointerId = null;
     this.direction = { x: 0, y: 0 };
     this.knobOffset = { x: 0, y: 0 };
+    
+    // 返回中心位置的动画
+    this.scene.tweens.add({
+      targets: this.knobGraphics,
+      x: 0,
+      y: 0,
+      duration: 200,
+      ease: 'Power2'
+    });
+    
     this.drawKnob(0, 0);
   }
 
@@ -189,6 +246,12 @@ export class VirtualJoystick {
   autoShowForTouch(): void {
     if (this.isTouchDevice()) {
       this.show();
+    }
+  }
+
+  private vibrate(): void {
+    if (navigator.vibrate && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(50);
     }
   }
 

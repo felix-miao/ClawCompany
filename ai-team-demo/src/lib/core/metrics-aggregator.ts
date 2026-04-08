@@ -236,7 +236,7 @@ export class MetricsAggregator {
     
     return {
       overall,
-      uptime: (typeof process !== 'undefined' && typeof process.uptime === 'function') ? process.uptime() : (typeof performance !== 'undefined' && performance.now ? performance.now() / 1000 : 0),
+      uptime: (typeof process !== 'undefined' && typeof process.uptime === 'function') ? process.uptime() : (typeof performance !== 'undefined' && (performance as any).now ? (performance as any).now() / 1000 : 0),
       lastUpdated: new Date()
     }
   }

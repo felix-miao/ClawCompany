@@ -182,6 +182,34 @@ export class PerformanceMonitor {
     this.statsDirty = true;
   }
 
+  getAverageFrameTime(): number {
+    this.recomputeStatsIfNeeded();
+    return this.cachedAvgFrameTime;
+  }
+
+  getMemoryUsage(): number {
+    if (typeof performance !== 'undefined' && (performance as any).memory) {
+      return (performance as any).memory.usedJSHeapSize;
+    }
+    return 0;
+  }
+
+  printStats(): void {
+    const stats = this.getFrameStats();
+    const budgetUsed = this.getBudgetUsedPercent();
+    
+    console.log('=== Performance Stats ===');
+    console.log(`Current FPS: ${stats.currentFPS.toFixed(1)}`);
+    console.log(`Average FPS: ${stats.averageFPS.toFixed(1)}`);
+    console.log(`Min FPS: ${stats.minFPS.toFixed(1)}`);
+    console.log(`Max FPS: ${stats.maxFPS.toFixed(1)}`);
+    console.log(`Average Frame Time: ${stats.avgFrameTime.toFixed(1)}ms`);
+    console.log(`Budget Used: ${budgetUsed.toFixed(1)}%`);
+    console.log(`Memory Usage: ${(this.getMemoryUsage() / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`Active Alerts: ${this.alerts.length}`);
+    console.log('======================');
+  }
+
   private checkAlerts(): void {
     if (this.frameTimes.length < 10) return;
 
