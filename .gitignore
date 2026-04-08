@@ -1,8 +1,45 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+.yarn/install-state.gz
 
-# Generated files
-ai-team-demo/generated/
+# Next.js
+/.next/
+/out/
 
-# Memory/日志文件夹（不要提交）
-memory/
+# Production
+/build/
+/output/
+
+# Testing
+/coverage/
+/coverage-final/
+coverage-output.txt
+coverage-summary.txt
+playwright-report/
+test-results/
+
+# IDE
+.DS_Store
+*.pem
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env
+.env*.local
+
+# Vercel
+.vercel
+
+# Misc
 *.log
 *.tmp
+generated/
