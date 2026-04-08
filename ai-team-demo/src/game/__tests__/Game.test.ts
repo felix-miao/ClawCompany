@@ -78,6 +78,9 @@ jest.mock('phaser', () => {
     constructor(_scene: unknown, _x: number, _y: number, _text: string, _style: unknown) {}
     setText(_text: string) { return this; }
     setOrigin(_x: number, _y?: number) { return this; }
+    setFontSize(_size: number) { return this; }
+    setColor(_color: string) { return this; }
+    setStroke(_color: string, _width: number) { return this; }
     destroy() {}
   };
 
@@ -94,6 +97,11 @@ jest.mock('phaser', () => {
     Graphics: GraphicsClass,
     Text: TextClass,
     Sprite: SpriteClass,
+  };
+
+  const ScaleClass = {
+    FIT: 0,
+    CENTER_BOTH: 0,
   };
 
   const GameClass = class implements MockPhaserGame {
@@ -116,12 +124,14 @@ jest.mock('phaser', () => {
       Game: GameClass,
       Scene: SceneClass,
       AUTO: 0,
+      Scale: ScaleClass,
     },
     Game: GameClass,
     Scene: SceneClass,
     Physics: PhysicsClass,
     GameObjects: GameObjectsClass,
     AUTO: 0,
+    Scale: ScaleClass,
   } as PhaserMock;
 });
 

@@ -4,9 +4,11 @@ jest.mock('phaser', () => {
   const createMockGraphics = () => {
     const g: any = {
       clear: jest.fn(),
+      lineStyle: jest.fn(),
       fillStyle: jest.fn(),
       fillRect: jest.fn(),
       fillRoundedRect: jest.fn(),
+      strokeRoundedRect: jest.fn(),
       setPosition: jest.fn(),
       setDepth: jest.fn(),
       setAlpha: jest.fn((a: number) => {
