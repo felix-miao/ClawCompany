@@ -28,6 +28,7 @@ export class ProgressRing {
   private currentAlpha: number = 0;
   private destroyed: boolean = false;
   private dirty: boolean = true;
+  private lastText: Phaser.GameObjects.Text | undefined;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -142,15 +143,14 @@ export class ProgressRing {
       text.setPosition(0, 0);
       
       // 临时保存文本引用以便在下一次重绘时清理
-      (this as any).lastText = text;
+      (this).lastText = text;
     }
 
-    // 清理之前的文本
-    if ((this as any).lastText && (this as any).lastText !== undefined) {
-      const text = (this as any).lastText;
+    if ((this).lastText && (this).lastText !== undefined) {
+      const text = (this).lastText;
       if (text && text.text !== `${Math.round(this.displayedProgress)}%`) {
         text.destroy();
-        (this as any).lastText = undefined;
+        (this).lastText = undefined;
       }
     }
   }

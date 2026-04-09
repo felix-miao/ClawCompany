@@ -2,6 +2,12 @@ import * as Phaser from 'phaser';
 import { AgentCharacter } from '../characters/AgentCharacter';
 import { TaskManager } from './TaskManager';
 import { EventBus } from './EventBus';
+import type {
+  TaskVisualizationAssignedEvent,
+  TaskVisualizationProgressEvent,
+  TaskVisualizationCompletedEvent,
+  TaskVisualizationFailedEvent,
+} from '../types/GameEvents';
 
 export interface TaskFlowState {
   id: string;
@@ -21,7 +27,7 @@ export class TaskFlowSystem {
   private activeFlows: Map<string, TaskFlowState> = new Map();
   private flowGraphics: Map<string, Phaser.GameObjects.Container> = new Map();
   private flowAnimations: Map<string, Phaser.Tweens.Tween> = new Map();
-  private particleEffects: Map<string, any> = new Map();
+  private particleEffects: Map<string, Phaser.GameObjects.Particles.ParticleEmitter> = new Map();
 
   constructor(scene: Phaser.Scene, taskManager: TaskManager, eventBus: EventBus) {
     this.scene = scene;
@@ -31,38 +37,37 @@ export class TaskFlowSystem {
   }
 
   private setupEventListeners(): void {
-    // 修复：使用冒号（与 OfficeScene 发送的事件名称一致）
-    this.eventBus.on('task:assigned', (data: any) => {
-      this.createTaskFlow(data);
+    this.eventBus.on('task:assigned', (event: TaskVisualizationAssignedEvent) => {
+      this.createTaskFlow(event);
     });
 
-    this.eventBus.on('task:progress', (data: any) => {
-      this.updateTaskFlow(data.taskId, 'in-progress', data.progress);
+    this.eventBus.on('task:progress', (event: TaskVisualizationProgressEvent) => {
+      this.updateTaskFlow(event.taskId, 'in-progress', event.progress);
     });
 
-    this.eventBus.on('task:completed', (data: any) => {
-      this.updateTaskFlow(data.taskId, 'completed', 1);
-      this.createCompletionEffect(data.taskId);
+    this.eventBus.on('task:completed', (event: TaskVisualizationCompletedEvent) => {
+      this.updateTaskFlow(event.taskId, 'completed', 1);
+      this.createCompletionEffect(event.taskId);
     });
 
-    this.eventBus.on('task:failed', (data: any) => {
-      this.updateTaskFlow(data.taskId, 'failed', 0);
-      this.createFailureEffect(data.taskId);
+    this.eventBus.on('task:failed', (event: TaskVisualizationFailedEvent) => {
+      this.updateTaskFlow(event.taskId, 'failed', 0);
+      this.createFailureEffect(event.taskId);
     });
   }
 
-  createTaskFlow(data: any): void {
-    const flowId = `flow_${data.taskId}_${Date.now()}`;
+  createTaskFlow(event: TaskVisualizationAssignedEvent): void {
+    const flowId = `flow_${event.task.id}_${Date.now()}`;
     
     const flowState: TaskFlowState = {
       id: flowId,
-      fromAgent: data.fromAgent,
-      toAgent: data.toAgent,
-      taskType: data.taskType,
+      fromAgent: event.agentId,
+      toAgent: event.agentId,
+      taskType: event.task.taskType,
       status: 'pending',
       progress: 0,
       startTime: Date.now(),
-      duration: 5000 + Math.random() * 5000, // 5-10秒持续时间
+      duration: 5000 + Math.random() * 5000,
     };
 
     this.activeFlows.set(flowId, flowState);
@@ -72,12 +77,12 @@ export class TaskFlowSystem {
 
   private createFlowVisualization(flow: TaskFlowState): void {
     // 获取角色位置
-    const fromAgent = this.scene.children.list.find((child: any) => 
-      child.agentId === flow.fromAgent
+    const fromAgent = this.scene.children.list.find((child: Phaser.GameObjects.GameObject) => 
+      (child as AgentCharacter).agentId === flow.fromAgent
     ) as AgentCharacter;
     
-    const toAgent = this.scene.children.list.find((child: any) => 
-      child.agentId === flow.toAgent
+    const toAgent = this.scene.children.list.find((child: Phaser.GameObjects.GameObject) => 
+      (child as AgentCharacter).agentId === flow.toAgent
     ) as AgentCharacter;
 
     if (!fromAgent || !toAgent) return;
@@ -228,13 +233,13 @@ export class TaskFlowSystem {
 
     const flowContainer = this.flowGraphics.get(flowId);
     if (flowContainer) {
-      const bubble = flowContainer.list.find((child: any) => 
-        child.list && child.list.length > 1
+      const bubble = flowContainer.list.find((child: Phaser.GameObjects.GameObject) => 
+        child instanceof Phaser.GameObjects.Container && child.list.length > 1
       ) as Phaser.GameObjects.Container;
       
       if (bubble) {
-        const statusText = bubble.list.find((child: any) =>
-          child.text && child.text === this.getStatusText(status)
+        const statusText = bubble.list.find((child: Phaser.GameObjects.GameObject) =>
+          child instanceof Phaser.GameObjects.Text && (child as Phaser.GameObjects.Text).text === this.getStatusText(status)
         ) as Phaser.GameObjects.Text | undefined;
         if (statusText) {
           statusText.setText(this.getStatusText(status));

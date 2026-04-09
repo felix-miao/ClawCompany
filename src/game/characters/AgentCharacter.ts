@@ -182,7 +182,7 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
   }
 
   private updateEmojiPosition(): void {
-    const emojiText = (this as any).emojiText;
+    const emojiText = this.emojiText;
     if (emojiText) {
       const size = 64;
       emojiText.setPosition(this.x, this.y - size / 2);
@@ -409,7 +409,7 @@ export function createAgent(
     emojiText.setDepth(agent.depth + 1);
     
     // 将 emoji 保存到 agent，以便后续更新位置
-    (agent as any).emojiText = emojiText;
+    (agent as { emojiText?: Phaser.GameObjects.Text }).emojiText = emojiText;
   }
 
   return agent;

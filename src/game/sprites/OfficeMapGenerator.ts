@@ -1,5 +1,12 @@
 import Phaser from 'phaser';
 import { TinyTownLoader } from './TinyTownLoader';
+import type { Platform, Workstation } from '../types/OfficeTypes';
+
+interface OfficeMapConfig {
+  width: number;
+  height: number;
+  tileSize: number;
+}
 
 export interface OfficeRoom {
   id: string;
@@ -31,10 +38,10 @@ export class OfficeMapGenerator {
   }
 
   async generateOffice(): Promise<{
-    platforms: any[];
+    platforms: Platform[];
     decorations: OfficeDecoration[];
     rooms: OfficeRoom[];
-    workstations: any[];
+    workstations: Workstation[];
   }> {
     // 先加载 Tiny Town 资源
     await this.tinyTownLoader.loadResources();
@@ -53,11 +60,7 @@ export class OfficeMapGenerator {
     };
   }
 
-  private getOfficeConfig(): {
-    width: number;
-    height: number;
-    tileSize: number;
-  } {
+  private getOfficeConfig(): OfficeMapConfig {
     return {
       width: 20,
       height: 15,
@@ -65,8 +68,8 @@ export class OfficeMapGenerator {
     };
   }
 
-  private generatePlatforms(config: any): any[] {
-    const platforms: any[] = [];
+  private generatePlatforms(config: OfficeMapConfig): Platform[] {
+    const platforms: Platform[] = [];
     
     // 外墙
     platforms.push(
@@ -143,7 +146,7 @@ export class OfficeMapGenerator {
     return platforms;
   }
 
-  private generateDecorations(config: any): OfficeDecoration[] {
+  private generateDecorations(config: OfficeMapConfig): OfficeDecoration[] {
     const decorations: OfficeDecoration[] = [];
     
     // 植物
@@ -186,7 +189,7 @@ export class OfficeMapGenerator {
     return decorations;
   }
 
-  private generateRooms(config: any): OfficeRoom[] {
+  private generateRooms(config: OfficeMapConfig): OfficeRoom[] {
     return [
       {
         id: 'meeting-room',
@@ -231,7 +234,7 @@ export class OfficeMapGenerator {
     ];
   }
 
-  private generateWorkstations(config: any): any[] {
+  private generateWorkstations(config: OfficeMapConfig): Workstation[] {
     return [
       { id: 'ws1', x: 5, y: 4, label: 'PM', status: 'idle' as const, taskType: 'meeting' },
       { id: 'ws2', x: 14, y: 4, label: 'Dev1', status: 'idle' as const, taskType: 'coding' },

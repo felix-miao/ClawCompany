@@ -36,7 +36,8 @@ import { OnboardingManager, OnboardingPhase } from '../systems/OnboardingManager
 import { EventBus } from '../systems/EventBus';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
-import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
+import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask, Platform } from '../types/OfficeTypes';
+import { OfficeDecoration } from '../sprites/OfficeMapGenerator';
 
 import type { AgentConfig } from '../../types/agent-config';
 export type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
@@ -82,7 +83,7 @@ export class OfficeScene extends Phaser.Scene {
   private roleVisuals!: RoleVisuals;
   private shadowGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map();
   private cachedShadowOffsetY: number = 0;
-  private decorationGraphics: Phaser.GameObjects.Graphics[] = [];
+  private decorationGraphics: Phaser.GameObjects.GameObject[] = [];
   private virtualJoystick!: VirtualJoystick;
   private tutorialOverlay!: TutorialOverlay;
   private interactiveTutorial!: InteractiveTutorial;
@@ -297,7 +298,7 @@ export class OfficeScene extends Phaser.Scene {
     });
   }
 
-  private createEnhancedDecorations(decorations: any[]): void {
+  private createEnhancedDecorations(decorations: OfficeDecoration[]): void {
     console.log('🎨 创建增强装饰...');
     
     // 使用办公室装饰器创建装饰
@@ -312,7 +313,7 @@ export class OfficeScene extends Phaser.Scene {
         );
         sprite.setOrigin(0.5);
         sprite.setDepth(decoration.y + 1);
-        this.decorationGraphics.push(sprite as any);
+        this.decorationGraphics.push(sprite);
       }
     });
   }
@@ -530,7 +531,7 @@ export class OfficeScene extends Phaser.Scene {
       const modes = ['compact', 'detailed', 'overview', 'focus'];
       const currentIndex = modes.indexOf(currentMode);
       const nextMode = modes[(currentIndex + 1) % modes.length];
-      this.smartTaskVisualizer.setDisplayMode(nextMode as any);
+      this.smartTaskVisualizer.setDisplayMode(nextMode as DisplayMode);
       this.soundSystem.play('click');
     });
 
@@ -641,7 +642,7 @@ export class OfficeScene extends Phaser.Scene {
     });
   }
 
-  private addPlatformDecoration(platform: any, x: number, y: number, width: number, height: number): void {
+  private addPlatformDecoration(platform: Platform, x: number, y: number, width: number, height: number): void {
     // 为平台添加装饰效果
     if (platform.type === 'desk') {
       // 添加桌面装饰
@@ -776,7 +777,7 @@ export class OfficeScene extends Phaser.Scene {
     roleIndicator.setDepth(agent.depth + 2);
     
     // 保存引用以便更新位置
-    (agent as any).roleIndicator = roleIndicator;
+    (agent as AgentCharacter & { roleIndicator?: Phaser.GameObjects.Text }).roleIndicator = roleIndicator;
   }
 
   private createAgentInteractions(): void {
@@ -1124,7 +1125,7 @@ export class OfficeScene extends Phaser.Scene {
         label.setDepth(agent.depth + 1);
         
         // 更新角色指示器位置
-        const roleIndicator = (agent as any).roleIndicator;
+        const roleIndicator = (agent as AgentCharacter & { roleIndicator?: Phaser.GameObjects.Text }).roleIndicator;
         if (roleIndicator) {
           roleIndicator.setPosition(agent.x, agent.y - 40);
           roleIndicator.setDepth(agent.depth + 2);
@@ -1330,7 +1331,7 @@ export class OfficeScene extends Phaser.Scene {
     
     // 清理角色指示器（在清空数组之前）
     this.agents.forEach(agent => {
-      const roleIndicator = (agent as any).roleIndicator;
+      const roleIndicator = (agent as AgentCharacter & { roleIndicator?: Phaser.GameObjects.Text }).roleIndicator;
       if (roleIndicator) {
         roleIndicator.destroy();
       }

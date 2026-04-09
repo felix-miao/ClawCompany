@@ -3,6 +3,7 @@ import * as Phaser from 'phaser';
 import { gameConfig } from './config/gameConfig';
 import { OfficeScene } from './scenes/OfficeScene';
 import { PerformanceMonitor } from './systems/PerformanceMonitor';
+import { AgentCharacter } from './characters/AgentCharacter';
 
 export class Game extends Phaser.Game {
   constructor(config: Phaser.Types.Core.GameConfig) {
@@ -14,15 +15,15 @@ export class Game extends Phaser.Game {
     return (scene as { performanceMonitor?: PerformanceMonitor })?.performanceMonitor || null;
   }
 
-  getAgents(): any[] {
+  getAgents(): AgentCharacter[] {
     const scene = this.scene.getScene('OfficeScene');
-    return (scene as { getAgents?: () => any[] })?.getAgents?.() || [];
+    return (scene as { getAgents?: () => AgentCharacter[] })?.getAgents?.() || [];
   }
 
   destroy(destroyChildren?: boolean): void {
     super.destroy(destroyChildren || false);
     const scene = this.scene.getScene('OfficeScene');
-    (scene as any)?.shutdown();
+    (scene as { shutdown?: () => void })?.shutdown?.();
   }
 }
 

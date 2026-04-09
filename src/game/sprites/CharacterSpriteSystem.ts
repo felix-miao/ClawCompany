@@ -242,7 +242,7 @@ export class CharacterSpriteSystem {
     }
   }
 
-  createEnhancedOfficeMap(): any {
+  createEnhancedOfficeMap(): { width: number; height: number; tileSize: number; layers: { name: string; data: number[][] }[]; objects: { name: string; x: number; y: number; width: number; height: number; type: string }[] } {
     // 创建增强的办公室地图
     return {
       width: 20,

@@ -188,8 +188,9 @@ export class PerformanceMonitor {
   }
 
   getMemoryUsage(): number {
-    if (typeof performance !== 'undefined' && (performance as any).memory) {
-      return (performance as any).memory.usedJSHeapSize;
+    const perf = performance as unknown as { memory?: { usedJSHeapSize: number } };
+    if (typeof performance !== 'undefined' && perf.memory) {
+      return perf.memory.usedJSHeapSize;
     }
     return 0;
   }

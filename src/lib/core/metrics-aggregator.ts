@@ -107,8 +107,9 @@ export class MetricsAggregator {
       return { used, total, percentage }
     }
 
-    if (typeof performance !== 'undefined' && (performance as any).memory) {
-      const mem = (performance as any).memory
+    const perf = performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } };
+    if (typeof performance !== 'undefined' && perf.memory) {
+      const mem = perf.memory
       const used = Math.round(mem.usedJSHeapSize / 1024 / 1024)
       const total = Math.round(mem.totalJSHeapSize / 1024 / 1024)
       const percentage = total > 0 ? Math.round((used / total) * 100) : 0
@@ -236,7 +237,7 @@ export class MetricsAggregator {
     
     return {
       overall,
-      uptime: (typeof process !== 'undefined' && typeof process.uptime === 'function') ? process.uptime() : (typeof performance !== 'undefined' && (performance as any).now ? (performance as any).now() / 1000 : 0),
+      uptime: (typeof process !== 'undefined' && typeof process.uptime === 'function') ? process.uptime() : (typeof globalThis !== 'undefined' && typeof globalThis.performance?.now === 'function' ? globalThis.performance.now() / 1000 : 0),
       lastUpdated: new Date()
     }
   }

@@ -176,7 +176,7 @@ export class AgentHistoryPanel {
       timelineLine.lineStyle(2, 0x4B5563, 0.6);
       timelineLine.lineBetween(TIMELINE_LEFT, timelineStart, TIMELINE_LEFT, timelineEnd);
       this.container.add(timelineLine);
-      this.recordContainers.push(timelineLine as any);
+      this.recordContainers.push(timelineLine as unknown as Phaser.GameObjects.Container);
     }
 
     visibleRecords.forEach((record, index) => {

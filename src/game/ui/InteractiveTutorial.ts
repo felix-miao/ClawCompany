@@ -364,7 +364,7 @@ export class InteractiveTutorial {
     this.interactionZone.on('pointerdown', () => {
       this.completeCurrentInteraction();
     });
-    (this.interactionZone as any).setAlpha(0);
+    (this.interactionZone as unknown as Phaser.GameObjects.Container).setAlpha(0);
   }
 
   private clearHighlight(): void {

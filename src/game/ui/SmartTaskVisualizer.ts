@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 
 import { TaskManager } from '../systems/TaskManager';
-import { TaskStatus } from '../types/Task';
+import { TaskStatus, Task } from '../types/Task';
 import { EnhancedStatusIndicator } from './EnhancedStatusIndicator';
 import { ProgressRing } from './ProgressRing';
 import { PriorityPulseEffect } from './PriorityPulseEffect';
@@ -48,6 +48,7 @@ export class SmartTaskVisualizer {
   private lastInteractionTime: number = Date.now();
   private dirty: boolean = true;
   private destroyed: boolean = false;
+  private timers: Map<string, Phaser.Time.TimerEvent> = new Map();
 
   constructor(scene: Phaser.Scene, taskManager: TaskManager, config: Partial<SmartTaskVisualizerConfig> = {}) {
     this.scene = scene;
@@ -91,7 +92,7 @@ export class SmartTaskVisualizer {
     this.dirty = false;
   }
 
-  private updateAgentVisualization(task: any, now: number): void {
+  private updateAgentVisualization(task: Task, now: number): void {
     const agentId = task.agentId;
     const pos = this.agentPositions.get(agentId);
     
@@ -184,7 +185,7 @@ export class SmartTaskVisualizer {
     }
   }
 
-  private calculateProgressScale(task: any): number {
+  private calculateProgressScale(task: Task): number {
     let baseScale = 1.0;
     
     // 根据进度调整
@@ -219,8 +220,8 @@ export class SmartTaskVisualizer {
     });
     
     // 保存计时器引用以便清理
-    (this as any).timers = (this as any).timers || new Map();
-    (this as any).timers.set(agentId, timer);
+    this.timers = this.timers || new Map();
+    this.timers.set(agentId, timer);
   }
 
   private hideAgent(agentId: string): void {
@@ -248,11 +249,11 @@ export class SmartTaskVisualizer {
     const statusIndicator = this.statusIndicators.get(agentId);
     const progressRing = this.progressRings.get(agentId);
     const priorityEffect = this.priorityEffects.get(agentId);
-    const timer = (this as any).timers?.get(agentId);
+    const timer = this.timers?.get(agentId);
 
     if (timer) {
       timer.remove(false);
-      (this as any).timers.delete(agentId);
+      this.timers.delete(agentId);
     }
 
     if (statusIndicator) {
@@ -269,7 +270,7 @@ export class SmartTaskVisualizer {
     }
   }
 
-  private cleanupInactiveAgents(activeTasks: any[]): void {
+  private cleanupInactiveAgents(activeTasks: Task[]): void {
     const activeAgentIds = new Set(activeTasks.map(t => t.agentId));
     
     for (const [agentId] of this.statusIndicators.entries()) {
@@ -325,11 +326,11 @@ export class SmartTaskVisualizer {
     this.destroyed = true;
     
     // 清理所有计时器
-    if ((this as any).timers) {
-      for (const timer of (this as any).timers.values()) {
+    if (this.timers) {
+      for (const timer of this.timers.values()) {
         timer.remove(false);
       }
-      (this as any).timers.clear();
+      this.timers.clear();
     }
 
     // 销毁所有可视化组件
