@@ -110,35 +110,35 @@ export class StatusAnimationSystem {
     const tweens: Phaser.Tweens.Tween[] = [];
 
     switch (animation.to) {
-      case 'assigned':
-        // 分配任务时的动画
+      case 'assigned': {
         const assignedTweens = this.createAssignedAnimation(agentId);
         tweens.push(...assignedTweens);
         break;
+      }
 
-      case 'working':
-        // 开始工作时的动画
+      case 'working': {
         const workingTweens = this.createWorkingAnimation(agentId);
         tweens.push(...workingTweens);
         break;
+      }
 
-      case 'reviewing':
-        // 审查时的动画
+      case 'reviewing': {
         const reviewingTweens = this.createReviewingAnimation(agentId);
         tweens.push(...reviewingTweens);
         break;
+      }
 
-      case 'completed':
-        // 完成时的庆祝动画
+      case 'completed': {
         const completedTweens = this.createCompletedAnimation(agentId);
         tweens.push(...completedTweens);
         break;
+      }
 
-      case 'failed':
-        // 失败时的动画
+      case 'failed': {
         const failedTweens = this.createFailedAnimation(agentId);
         tweens.push(...failedTweens);
         break;
+      }
     }
 
     this.activeAnimations.set(agentId, tweens);

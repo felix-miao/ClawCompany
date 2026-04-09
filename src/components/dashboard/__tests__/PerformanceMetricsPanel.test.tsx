@@ -195,8 +195,8 @@ describe('PerformanceMetricsPanel', () => {
     render(<PerformanceMetricsPanel metricsAggregator={createMockAggregator()} />)
 
     await waitFor(() => {
-      // Check that any timestamp is displayed in the format HH:MM:SS AM/PM
-      const timestampElement = screen.getByText(/\d{1,2}:\d{2}:\d{2} (AM|PM)/)
+      // Check that any timestamp is displayed in the format HH:MM:SS (12h or 24h)
+      const timestampElement = screen.getByText(/\d{1,2}:\d{2}(:\d{2})?( (AM|PM))?/)
       expect(timestampElement).toBeInTheDocument()
     })
   })

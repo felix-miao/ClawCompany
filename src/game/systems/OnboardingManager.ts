@@ -249,7 +249,7 @@ export class OnboardingManager {
 
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch {}
+    } catch { /* storage unavailable */ }
   }
 
   on<K extends keyof OnboardingEventMap>(event: K, handler: (data: OnboardingEventMap[K]) => void): void {
@@ -282,7 +282,7 @@ export class OnboardingManager {
         currentPhase: this.currentPhase,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch {}
+    } catch { /* storage unavailable */ }
   }
 
   private loadFromStorage(): void {
