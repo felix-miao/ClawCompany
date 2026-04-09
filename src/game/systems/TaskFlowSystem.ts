@@ -7,6 +7,7 @@ import type {
   TaskVisualizationProgressEvent,
   TaskVisualizationCompletedEvent,
   TaskVisualizationFailedEvent,
+  TaskVisualizationHandoverEvent,
 } from '../types/GameEvents';
 
 export interface TaskFlowState {
@@ -53,6 +54,10 @@ export class TaskFlowSystem {
     this.eventBus.on('task:failed', (event: TaskVisualizationFailedEvent) => {
       this.updateTaskFlow(event.taskId, 'failed', 0);
       this.createFailureEffect(event.taskId);
+    });
+
+    this.eventBus.on('task:handover', (event: TaskVisualizationHandoverEvent) => {
+      this.createHandoverAnimation(event);
     });
   }
 
@@ -405,6 +410,164 @@ export class TaskFlowSystem {
         }
       }
     });
+  }
+
+  private findAgentById(agentId: string): AgentCharacter | undefined {
+    return this.scene.children.list.find(
+      (child: Phaser.GameObjects.GameObject) =>
+        (child as AgentCharacter).agentId === agentId
+    ) as AgentCharacter | undefined;
+  }
+
+  private createHandoverAnimation(event: TaskVisualizationHandoverEvent): void {
+    const fromAgent = this.findAgentById(event.fromAgentId);
+    const toAgent = this.findAgentById(event.toAgentId);
+    if (!fromAgent || !toAgent) return;
+
+    const fromX = fromAgent.x;
+    const fromY = fromAgent.y - 30;
+    const toX = toAgent.x;
+    const toY = toAgent.y - 30;
+    const flightDuration = 1500;
+
+    const container = this.scene.add.container(fromX, fromY);
+    container.setDepth(150);
+
+    const glow = this.scene.add.graphics();
+    glow.fillStyle(0x00ff88, 0.6);
+    glow.fillCircle(0, 0, 12);
+    glow.lineStyle(2, 0xffffff, 0.8);
+    glow.strokeCircle(0, 0, 12);
+
+    const innerGlow = this.scene.add.graphics();
+    innerGlow.fillStyle(0xffffff, 0.9);
+    innerGlow.fillCircle(0, 0, 4);
+
+    container.add([glow, innerGlow]);
+
+    const midX = (fromX + toX) / 2;
+    const midY = Math.min(fromY, toY) - 80;
+
+    this.scene.tweens.add({
+      targets: container,
+      x: { from: fromX, to: toX },
+      y: { from: fromY, to: toY },
+      duration: flightDuration,
+      ease: 'Cubic.easeInOut',
+      onUpdate: () => {
+        const t = (container.x - fromX) / (toX - fromX || 1);
+        const arcY = fromY * (1 - t) * (1 - t) + 2 * midY * (1 - t) * t + toY * t * t;
+        container.y = arcY;
+      },
+      onComplete: () => {
+        this.createArrivalBurst(toX, toY);
+        this.cleanupHandoverContainer(container);
+      },
+    });
+
+    this.scene.tweens.add({
+      targets: glow,
+      alpha: { from: 0.8, to: 0.3 },
+      duration: 200,
+      yoyo: true,
+      repeat: Math.ceil(flightDuration / 400),
+    });
+
+    this.drawFlightLine(fromX, fromY, toX, toY, midX, midY, flightDuration);
+
+    this.scene.time.delayedCall(flightDuration + 500, () => {
+      this.cleanupHandoverContainer(container);
+    });
+  }
+
+  private drawFlightLine(
+    fromX: number, fromY: number,
+    toX: number, toY: number,
+    midX: number, midY: number,
+    duration: number,
+  ): void {
+    const line = this.scene.add.graphics();
+    line.setDepth(140);
+
+    const steps = 20;
+    const drawStep = (progress: number) => {
+      line.clear();
+      line.lineStyle(2, 0x00ff88, 0.4 * (1 - progress));
+      line.beginPath();
+      for (let i = 0; i <= steps * progress; i++) {
+        const t = i / steps;
+        const px = fromX + (toX - fromX) * t;
+        const py = fromY * (1 - t) * (1 - t) + 2 * midY * (1 - t) * t + toY * t * t;
+        if (i === 0) line.moveTo(px, py);
+        else line.lineTo(px, py);
+      }
+      line.strokePath();
+    };
+
+    this.scene.tweens.add({
+      targets: { progress: 0 },
+      progress: 1,
+      duration,
+      ease: 'Linear',
+      onUpdate: (_tween: Phaser.Tweens.Tween, target: { progress: number }) => {
+        drawStep(target.progress);
+      },
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: line,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => line.destroy(),
+        });
+      },
+    });
+  }
+
+  private createArrivalBurst(x: number, y: number): void {
+    const burstCount = 8;
+    const particles: Phaser.GameObjects.Graphics[] = [];
+
+    for (let i = 0; i < burstCount; i++) {
+      const angle = (i / burstCount) * Math.PI * 2;
+      const p = this.scene.add.graphics();
+      p.fillStyle(0x00ff88, 0.8);
+      p.fillCircle(0, 0, 4);
+      p.setPosition(x, y);
+      p.setDepth(160);
+      particles.push(p);
+
+      this.scene.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * 40,
+        y: y + Math.sin(angle) * 40,
+        alpha: 0,
+        duration: 400,
+        ease: 'Cubic.out',
+        onComplete: () => p.destroy(),
+      });
+    }
+
+    const ring = this.scene.add.graphics();
+    ring.lineStyle(2, 0x00ff88, 0.6);
+    ring.strokeCircle(x, y, 5);
+    ring.setDepth(155);
+
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 3,
+      scaleY: 3,
+      alpha: 0,
+      duration: 500,
+      ease: 'Cubic.out',
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  private cleanupHandoverContainer(container: Phaser.GameObjects.Container): void {
+    if (container && container.active) {
+      this.scene.tweens.killTweensOf(container);
+      container.destroy();
+    }
   }
 
   destroy(): void {

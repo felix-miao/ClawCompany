@@ -320,3 +320,124 @@ function createTestTask(overrides: Partial<Task> = {}): Task {
     ...overrides,
   };
 }
+
+describe('handover flight animation', () => {
+  let handoverSystem: TaskFlowSystem;
+  let handoverTaskManager: TaskManager;
+  let handoverEventBus: EventBus;
+  let fromAgent: any;
+  let toAgent: any;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    handoverEventBus = new EventBus();
+    handoverTaskManager = new TaskManager(handoverEventBus);
+    handoverSystem = new TaskFlowSystem(mockScene as any, handoverTaskManager, handoverEventBus);
+
+    fromAgent = {
+      agentId: 'alice',
+      x: 100,
+      y: 200,
+    };
+    toAgent = {
+      agentId: 'bob',
+      x: 400,
+      y: 300,
+    };
+    mockScene.children.list = [fromAgent, toAgent];
+  });
+
+  it('should create handover animation on task:handover event', () => {
+    const task = createTestTask({ id: 'task-h1', agentId: 'alice', taskType: 'coding' });
+    handoverTaskManager.assignTask('alice', task);
+
+    handoverEventBus.emit({
+      type: 'task:handover',
+      timestamp: Date.now(),
+      fromAgentId: 'alice',
+      toAgentId: 'bob',
+      taskId: 'task-h1',
+      description: 'Test handover',
+    });
+
+    expect(mockScene.add.container).toHaveBeenCalled();
+    expect(mockScene.add.graphics).toHaveBeenCalled();
+    expect(mockScene.tweens.add).toHaveBeenCalled();
+  });
+
+  it('should handle handover with unknown agents gracefully', () => {
+    const task = createTestTask({ id: 'task-h2', agentId: 'alice', taskType: 'coding' });
+    handoverTaskManager.assignTask('alice', task);
+
+    expect(() => {
+      handoverEventBus.emit({
+        type: 'task:handover',
+        timestamp: Date.now(),
+        fromAgentId: 'unknown',
+        toAgentId: 'bob',
+        taskId: 'task-h2',
+        description: 'Unknown from',
+      });
+    }).not.toThrow();
+  });
+
+  it('should handle handover when toAgent is unknown', () => {
+    const task = createTestTask({ id: 'task-h3', agentId: 'alice', taskType: 'coding' });
+    handoverTaskManager.assignTask('alice', task);
+
+    expect(() => {
+      handoverEventBus.emit({
+        type: 'task:handover',
+        timestamp: Date.now(),
+        fromAgentId: 'alice',
+        toAgentId: 'unknown',
+        taskId: 'task-h3',
+        description: 'Unknown to',
+      });
+    }).not.toThrow();
+  });
+
+  it('should create flight object with tween to target position', () => {
+    const task = createTestTask({ id: 'task-h4', agentId: 'alice', taskType: 'review' });
+    handoverTaskManager.assignTask('alice', task);
+
+    handoverEventBus.emit({
+      type: 'task:handover',
+      timestamp: Date.now(),
+      fromAgentId: 'alice',
+      toAgentId: 'bob',
+      taskId: 'task-h4',
+      description: 'Flight tween test',
+    });
+
+    const tweenCalls = (mockScene.tweens.add as jest.Mock).mock.calls;
+    const hasFlightTween = tweenCalls.some((call: any[]) => {
+      const config = call[0];
+      return config?.targets &&
+        typeof config.x === 'object' &&
+        config.x?.to === toAgent.x;
+    });
+    expect(hasFlightTween).toBe(true);
+  });
+
+  it('should clean up handover animation after completion', () => {
+    jest.useFakeTimers();
+    const task = createTestTask({ id: 'task-h5', agentId: 'alice', taskType: 'coding' });
+    handoverTaskManager.assignTask('alice', task);
+
+    handoverEventBus.emit({
+      type: 'task:handover',
+      timestamp: Date.now(),
+      fromAgentId: 'alice',
+      toAgentId: 'bob',
+      taskId: 'task-h5',
+      description: 'Cleanup test',
+    });
+
+    const delayedCalls = (mockScene.time.delayedCall as jest.Mock).mock.calls;
+    const cleanupCall = delayedCalls.find((call: any[]) => call[0] >= 1000);
+    expect(cleanupCall).toBeDefined();
+
+    jest.useRealTimers();
+  });
+});
