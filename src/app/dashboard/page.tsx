@@ -10,6 +10,7 @@ import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetri
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSessions } from "@/hooks/useOpenClawSessions";
+import { useOpenClawMetrics } from "@/hooks/useOpenClawMetrics";
 import { Game } from "@/game";
 import { DashboardStore } from "@/game/data/DashboardStore";
 import { GameEvent } from "@/game/types/GameEvents";
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const { isConnected, isReconnecting } = useEventStream(store);
   const { agents, events, stats } = useDashboardStore(store);
   useOpenClawSessions(store);
+  const { metrics: openClawMetrics, source: openClawSource } = useOpenClawMetrics();
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
   
@@ -115,7 +117,7 @@ export default function DashboardPage() {
         <aside className="w-80 border-l border-dark-100 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <AgentStatusPanel agents={agents} />
-            <PerformanceMetricsPanel metricsAggregator={metricsAggregator} />
+            <PerformanceMetricsPanel metricsAggregator={metricsAggregator} openClawMetrics={openClawMetrics} openClawSource={openClawSource} />
             <EventLog events={events} />
           </div>
           <div className="border-t border-dark-100 p-3">
