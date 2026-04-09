@@ -1,15 +1,17 @@
 import * as Phaser from 'phaser';
 
+import { TaskArtifact } from '../../lib/core/types';
 import { Task, TaskStatus } from '../types/Task';
 
 export interface TaskDetailPanelConfig {
   task: Task;
   position: { x: number; y: number };
   onClose: () => void;
+  eventBus?: { emit: (type: string, event: unknown) => unknown };
 }
 
 const PANEL_WIDTH = 240;
-const PANEL_HEIGHT = 200;
+const BASE_PANEL_HEIGHT = 200;
 const BORDER_RADIUS = 8;
 const PADDING = 14;
 const FONT_SIZE = '14px';
@@ -19,6 +21,33 @@ const BG_ALPHA = 0.9;
 const PROGRESS_BAR_HEIGHT = 6;
 const CLOSE_BUTTON_SIZE = 16;
 const FADE_DURATION = 200;
+const ARTIFACT_CARD_HEIGHT = 48;
+const ARTIFACT_CARD_GAP = 6;
+const ARTIFACTS_SECTION_HEADER = 22;
+const ARTIFACT_ICON_SIZE = 20;
+const ARTIFACT_BUTTON_PADDING = 6;
+
+const ARTIFACT_TYPE_COLORS: Record<TaskArtifact['type'], number> = {
+  html: 0xF97316,
+  code: 0x8B5CF6,
+  image: 0x3B82F6,
+  file: 0x6B7280,
+};
+
+const ARTIFACT_TYPE_ICONS: Record<TaskArtifact['type'], string> = {
+  html: '🌐',
+  code: '<>',
+  image: '🖼',
+  file: '📄',
+};
+
+interface ArtifactUIElements {
+  container: Phaser.GameObjects.Container;
+  cardGraphics: Phaser.GameObjects.Graphics;
+  iconText: Phaser.GameObjects.Text;
+  nameText: Phaser.GameObjects.Text;
+  buttons: Phaser.GameObjects.Text[];
+}
 
 export class TaskDetailPanel {
   static readonly PRIORITY_COLORS = {
@@ -42,6 +71,8 @@ export class TaskDetailPanel {
   private timeText: Phaser.GameObjects.Text;
   private closeButtonGraphics: Phaser.GameObjects.Graphics;
   private closeButtonText: Phaser.GameObjects.Text;
+  private artifactsHeaderText: Phaser.GameObjects.Text;
+  private artifactsSectionGraphics: Phaser.GameObjects.Graphics;
 
   private currentTask: Task;
   private onClose: () => void;
@@ -49,11 +80,14 @@ export class TaskDetailPanel {
   private x: number = 0;
   private y: number = 0;
   private clickHandler: (pointer: Phaser.Input.Pointer) => void;
+  private eventBus?: { emit: (type: string, event: unknown) => unknown };
+  private artifactElements: ArtifactUIElements[] = [];
 
   constructor(scene: Phaser.Scene, config: TaskDetailPanelConfig) {
     this.scene = scene;
     this.currentTask = config.task;
     this.onClose = config.onClose;
+    this.eventBus = config.eventBus;
     this.x = config.position.x;
     this.y = config.position.y;
 
@@ -63,6 +97,7 @@ export class TaskDetailPanel {
     this.background = scene.add.graphics();
     this.borderGraphics = scene.add.graphics();
     this.closeButtonGraphics = scene.add.graphics();
+    this.artifactsSectionGraphics = scene.add.graphics();
 
     this.titleText = scene.add.text(0, 0, '', {
       fontSize: '13px',
@@ -124,6 +159,13 @@ export class TaskDetailPanel {
     this.closeButtonText.setInteractive({ useHandCursor: true });
     this.closeButtonText.on('pointerdown', () => this.close());
 
+    this.artifactsHeaderText = scene.add.text(0, 0, '', {
+      fontSize: SMALL_FONT_SIZE,
+      color: '#9CA3AF',
+      fontFamily: 'Arial',
+      fontStyle: 'bold',
+    });
+
     this.container.add([
       this.background,
       this.borderGraphics,
@@ -138,6 +180,8 @@ export class TaskDetailPanel {
       this.timeText,
       this.closeButtonGraphics,
       this.closeButtonText,
+      this.artifactsSectionGraphics,
+      this.artifactsHeaderText,
     ]);
 
     this.container.setAlpha(0);
@@ -159,6 +203,16 @@ export class TaskDetailPanel {
       }
     };
     scene.input.on('pointerdown', this.clickHandler);
+  }
+
+  getArtifacts(): TaskArtifact[] {
+    return this.currentTask.metadata?.artifacts ?? [];
+  }
+
+  getPanelHeight(): number {
+    const artifacts = this.getArtifacts();
+    if (artifacts.length === 0) return BASE_PANEL_HEIGHT;
+    return BASE_PANEL_HEIGHT + ARTIFACTS_SECTION_HEADER + artifacts.length * (ARTIFACT_CARD_HEIGHT + ARTIFACT_CARD_GAP);
   }
 
   update(task: Task): void {
@@ -224,6 +278,9 @@ export class TaskDetailPanel {
 
     this.scene.input.off('pointerdown', this.clickHandler);
 
+    this.clearArtifactElements();
+    this.artifactsHeaderText.destroy();
+    this.artifactsSectionGraphics.destroy();
     this.background.destroy();
     this.borderGraphics.destroy();
     this.titleText.destroy();
@@ -240,10 +297,19 @@ export class TaskDetailPanel {
     this.container.destroy();
   }
 
+  private clearArtifactElements(): void {
+    for (const elements of this.artifactElements) {
+      this.container.remove(elements.container);
+      elements.container.destroy(true);
+    }
+    this.artifactElements = [];
+  }
+
   private layout(): void {
     const task = this.currentTask;
+    const panelHeight = this.getPanelHeight();
     const leftX = -PANEL_WIDTH / 2 + PADDING;
-    let curY = -PANEL_HEIGHT / 2 + PADDING;
+    let curY = -panelHeight / 2 + PADDING;
 
     this.titleText.setText('TASK DETAILS');
     this.titleText.setPosition(leftX, curY);
@@ -282,9 +348,146 @@ export class TaskDetailPanel {
     this.timeText.setPosition(leftX, curY);
 
     const closeX = PANEL_WIDTH / 2 - PADDING - CLOSE_BUTTON_SIZE / 2;
-    const closeY = -PANEL_HEIGHT / 2 + PADDING + CLOSE_BUTTON_SIZE / 2;
+    const closeY = -panelHeight / 2 + PADDING + CLOSE_BUTTON_SIZE / 2;
     this.closeButtonGraphics.setPosition(closeX, closeY);
     this.closeButtonText.setPosition(closeX, closeY);
+
+    this.layoutArtifacts(panelHeight);
+  }
+
+  private layoutArtifacts(panelHeight: number): void {
+    this.clearArtifactElements();
+
+    const artifacts = this.getArtifacts();
+    const leftX = -PANEL_WIDTH / 2 + PADDING;
+
+    if (artifacts.length === 0) {
+      this.artifactsHeaderText.setText('');
+      this.artifactsSectionGraphics.clear();
+      return;
+    }
+
+    const baseContentBottom = -panelHeight / 2 + BASE_PANEL_HEIGHT - PADDING + 8;
+    let curY = baseContentBottom;
+
+    this.artifactsHeaderText.setText('ARTIFACTS');
+    this.artifactsHeaderText.setPosition(leftX, curY);
+    curY += ARTIFACTS_SECTION_HEADER;
+
+    for (const artifact of artifacts) {
+      this.createArtifactCard(artifact, curY);
+      curY += ARTIFACT_CARD_HEIGHT + ARTIFACT_CARD_GAP;
+    }
+  }
+
+  private createArtifactCard(artifact: TaskArtifact, y: number): void {
+    const leftX = -PANEL_WIDTH / 2 + PADDING;
+    const cardWidth = PANEL_WIDTH - PADDING * 2;
+    const typeColor = ARTIFACT_TYPE_COLORS[artifact.type];
+    const typeIcon = ARTIFACT_TYPE_ICONS[artifact.type];
+
+    const cardContainer = this.scene.add.container(leftX, y);
+
+    const cardGraphics = this.scene.add.graphics();
+    cardGraphics.fillStyle(0x2d2d44, 0.85);
+    cardGraphics.fillRoundedRect(0, 0, cardWidth, ARTIFACT_CARD_HEIGHT, 6);
+    cardGraphics.fillStyle(typeColor, 0.1);
+    cardGraphics.fillRoundedRect(0, 0, cardWidth, ARTIFACT_CARD_HEIGHT, 6);
+    cardGraphics.lineStyle(1, typeColor, 0.3);
+    cardGraphics.strokeRoundedRect(0, 0, cardWidth, ARTIFACT_CARD_HEIGHT, 6);
+    cardContainer.add(cardGraphics);
+
+    const iconBg = this.scene.add.graphics();
+    iconBg.fillStyle(typeColor, 0.2);
+    iconBg.fillRoundedRect(6, (ARTIFACT_CARD_HEIGHT - ARTIFACT_ICON_SIZE) / 2, ARTIFACT_ICON_SIZE, ARTIFACT_ICON_SIZE, 4);
+    cardContainer.add(iconBg);
+
+    const iconText = this.scene.add.text(
+      6 + ARTIFACT_ICON_SIZE / 2,
+      ARTIFACT_CARD_HEIGHT / 2,
+      typeIcon,
+      {
+        fontSize: '10px',
+        color: '#ffffff',
+        fontFamily: 'Arial',
+      }
+    );
+    iconText.setOrigin(0.5);
+    cardContainer.add(iconText);
+
+    const nameText = this.scene.add.text(
+      ARTIFACT_ICON_SIZE + 16,
+      8,
+      artifact.name.length > 20 ? artifact.name.substring(0, 20) + '...' : artifact.name,
+      {
+        fontSize: SMALL_FONT_SIZE,
+        color: '#ffffff',
+        fontFamily: 'Arial',
+      }
+    );
+    cardContainer.add(nameText);
+
+    const buttons: Phaser.GameObjects.Text[] = [];
+    const buttonConfigs = this.getArtifactButtons(artifact);
+    let btnX = cardWidth - 8;
+
+    for (let i = buttonConfigs.length - 1; i >= 0; i--) {
+      const btnConfig = buttonConfigs[i];
+      const btn = this.scene.add.text(btnX, ARTIFACT_CARD_HEIGHT / 2 + 2, btnConfig.label, {
+        fontSize: '9px',
+        color: '#D1D5DB',
+        fontFamily: 'Arial',
+        backgroundColor: '#374151',
+        padding: { x: ARTIFACT_BUTTON_PADDING, y: 2 },
+      });
+      btn.setOrigin(1, 0.5);
+      btn.setInteractive({ useHandCursor: true });
+      btn.on('pointerdown', () => {
+        this.emitArtifactEvent(btnConfig.eventType, artifact);
+      });
+      cardContainer.add(btn);
+      buttons.push(btn);
+      btnX -= (btn.width + 4);
+    }
+
+    this.container.add(cardContainer);
+
+    this.artifactElements.push({
+      container: cardContainer,
+      cardGraphics,
+      iconText,
+      nameText,
+      buttons,
+    });
+  }
+
+  private getArtifactButtons(artifact: TaskArtifact): Array<{ label: string; eventType: string }> {
+    switch (artifact.type) {
+      case 'html':
+        return [
+          { label: 'Preview', eventType: 'artifact-preview' },
+          { label: 'Browser', eventType: 'artifact-open-browser' },
+        ];
+      case 'code':
+        return [
+          { label: 'View Code', eventType: 'artifact-preview' },
+        ];
+      default:
+        return [
+          { label: 'Open Folder', eventType: 'artifact-open-folder' },
+        ];
+    }
+  }
+
+  private emitArtifactEvent(eventType: string, artifact: TaskArtifact): void {
+    if (this.eventBus) {
+      this.eventBus.emit(eventType, {
+        type: eventType,
+        artifact,
+        taskId: this.currentTask.id,
+        timestamp: Date.now(),
+      });
+    }
   }
 
   private drawBackground(): void {
@@ -292,15 +495,16 @@ export class TaskDetailPanel {
     this.borderGraphics.clear();
     this.progressGraphics.clear();
 
+    const panelHeight = this.getPanelHeight();
     const borderColor = this.getBorderColor();
     const halfW = PANEL_WIDTH / 2;
-    const halfH = PANEL_HEIGHT / 2;
+    const halfH = panelHeight / 2;
 
     this.borderGraphics.fillStyle(borderColor, 1);
-    this.borderGraphics.fillRoundedRect(-halfW, -halfH, PANEL_WIDTH, PANEL_HEIGHT, BORDER_RADIUS);
+    this.borderGraphics.fillRoundedRect(-halfW, -halfH, PANEL_WIDTH, panelHeight, BORDER_RADIUS);
 
     this.background.fillStyle(BG_COLOR, BG_ALPHA);
-    this.background.fillRoundedRect(-halfW + 2, -halfH + 2, PANEL_WIDTH - 4, PANEL_HEIGHT - 4, BORDER_RADIUS - 1);
+    this.background.fillRoundedRect(-halfW + 2, -halfH + 2, PANEL_WIDTH - 4, panelHeight - 4, BORDER_RADIUS - 1);
 
     const barY = this.progressLabel.y + 12;
     const barX = -PANEL_WIDTH / 2 + PADDING;
@@ -313,7 +517,7 @@ export class TaskDetailPanel {
     this.progressGraphics.fillRoundedRect(barX, barY, fillWidth, PROGRESS_BAR_HEIGHT, 3);
 
     const closeX = PANEL_WIDTH / 2 - PADDING - CLOSE_BUTTON_SIZE / 2;
-    const closeY = -PANEL_HEIGHT / 2 + PADDING + CLOSE_BUTTON_SIZE / 2;
+    const closeY = -panelHeight / 2 + PADDING + CLOSE_BUTTON_SIZE / 2;
     this.closeButtonGraphics.setPosition(closeX, closeY);
     this.closeButtonGraphics.fillStyle(0x374151, 0.5);
     this.closeButtonGraphics.fillRoundedRect(

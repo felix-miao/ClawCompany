@@ -12,6 +12,8 @@ import {
   PendingCall,
   TaskStatus,
   AgentRole,
+  TaskArtifact,
+  GameTaskMetadata,
 } from '../types'
 
 describe('Result type utilities', () => {
@@ -219,5 +221,76 @@ describe('Type narrowings', () => {
   it('AgentRole covers all expected roles', () => {
     const roles: AgentRole[] = ['pm', 'dev', 'review']
     expect(roles).toHaveLength(3)
+  })
+})
+
+describe('TaskArtifact type', () => {
+  it('accepts html artifact', () => {
+    const artifact: TaskArtifact = {
+      type: 'html',
+      name: 'report.html',
+      path: '/output/report.html',
+      preview: '<html>preview</html>',
+    }
+    expect(artifact.type).toBe('html')
+    expect(artifact.preview).toBeDefined()
+  })
+
+  it('accepts code artifact without preview', () => {
+    const artifact: TaskArtifact = {
+      type: 'code',
+      name: 'main.ts',
+      path: '/src/main.ts',
+    }
+    expect(artifact.type).toBe('code')
+    expect(artifact.preview).toBeUndefined()
+  })
+
+  it('accepts image artifact', () => {
+    const artifact: TaskArtifact = {
+      type: 'image',
+      name: 'screenshot.png',
+      path: '/output/screenshot.png',
+    }
+    expect(artifact.type).toBe('image')
+  })
+
+  it('accepts file artifact', () => {
+    const artifact: TaskArtifact = {
+      type: 'file',
+      name: 'data.json',
+      path: '/output/data.json',
+    }
+    expect(artifact.type).toBe('file')
+  })
+})
+
+describe('GameTaskMetadata.artifacts', () => {
+  it('accepts metadata with artifacts', () => {
+    const metadata: GameTaskMetadata = {
+      files: ['src/main.ts'],
+      artifacts: [
+        { type: 'html', name: 'index.html', path: '/output/index.html' },
+        { type: 'code', name: 'app.ts', path: '/src/app.ts' },
+      ],
+    }
+    expect(metadata.artifacts).toHaveLength(2)
+    expect(metadata.artifacts![0].type).toBe('html')
+    expect(metadata.artifacts![1].type).toBe('code')
+  })
+
+  it('accepts metadata without artifacts', () => {
+    const metadata: GameTaskMetadata = {
+      files: ['src/main.ts'],
+      priority: 'high',
+    }
+    expect(metadata.artifacts).toBeUndefined()
+  })
+
+  it('accepts metadata with empty artifacts', () => {
+    const metadata: GameTaskMetadata = {
+      artifacts: [],
+    }
+    expect(metadata.artifacts).toHaveLength(0)
   })
 })

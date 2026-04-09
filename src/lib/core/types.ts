@@ -45,11 +45,19 @@ export type GameTaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 
 
 export type GameTaskType = 'coding' | 'testing' | 'review' | 'meeting'
 
+export interface TaskArtifact {
+  type: 'html' | 'code' | 'image' | 'file'
+  name: string
+  path: string
+  preview?: string
+}
+
 export interface GameTaskMetadata {
   files?: string[]
   estimatedDuration?: number
   priority?: 'low' | 'medium' | 'high'
   dependencies?: string[]
+  artifacts?: TaskArtifact[]
 }
 
 export interface GameTask {

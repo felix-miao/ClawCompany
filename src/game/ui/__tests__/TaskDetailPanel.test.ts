@@ -1,5 +1,6 @@
 import { TaskDetailPanel } from '../TaskDetailPanel';
 import { Task, TaskStatus } from '../../types/Task';
+import { TaskArtifact } from '../../../lib/core/types';
 
 interface MockGraphics {
   clear: jest.Mock;
@@ -35,6 +36,7 @@ interface MockContainer {
   setDepth: jest.Mock;
   setAlpha: jest.Mock;
   add: jest.Mock;
+  remove: jest.Mock;
   destroy: jest.Mock;
   setPosition: jest.Mock<(x: number, y: number) => void>;
   setScrollFactor: jest.Mock;
@@ -102,6 +104,7 @@ jest.mock('phaser', () => {
     setDepth: jest.fn(),
     setAlpha: jest.fn(),
     add: jest.fn(),
+    remove: jest.fn(),
     destroy: jest.fn(),
     setPosition: jest.fn((x: number, y: number) => {
       (this as MockContainer).x = x;
@@ -405,6 +408,175 @@ describe('TaskDetailPanel', () => {
 
       expect(panel.getPriority()).toBe('medium');
       expect(panel.getElapsedTime()).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('artifacts', () => {
+    it('should return empty artifacts when no metadata', () => {
+      const task = createTestTask({ metadata: undefined });
+      panel = new TaskDetailPanel(mockScene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+
+      expect(panel.getArtifacts()).toEqual([]);
+    });
+
+    it('should return empty artifacts when metadata has no artifacts', () => {
+      const task = createTestTask({ metadata: { priority: 'high' } });
+      panel = new TaskDetailPanel(mockScene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+
+      expect(panel.getArtifacts()).toEqual([]);
+    });
+
+    it('should return artifacts from task metadata', () => {
+      const artifacts: TaskArtifact[] = [
+        { type: 'html', name: 'report.html', path: '/output/report.html' },
+        { type: 'code', name: 'main.ts', path: '/src/main.ts' },
+      ];
+      const task = createTestTask({
+        metadata: { priority: 'high', artifacts },
+      });
+      panel = new TaskDetailPanel(mockScene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+
+      expect(panel.getArtifacts()).toHaveLength(2);
+      expect(panel.getArtifacts()[0].type).toBe('html');
+      expect(panel.getArtifacts()[1].type).toBe('code');
+    });
+
+    it('should use base panel height when no artifacts', () => {
+      const task = createTestTask({ metadata: { priority: 'high' } });
+      panel = new TaskDetailPanel(mockScene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+
+      expect(panel.getPanelHeight()).toBe(200);
+    });
+
+    it('should increase panel height when artifacts present', () => {
+      const artifacts: TaskArtifact[] = [
+        { type: 'html', name: 'report.html', path: '/output/report.html' },
+      ];
+      const task = createTestTask({
+        metadata: { priority: 'high', artifacts },
+      });
+      panel = new TaskDetailPanel(mockScene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+
+      expect(panel.getPanelHeight()).toBeGreaterThan(200);
+    });
+
+    it('should scale height with more artifacts', () => {
+      const singleArtifacts: TaskArtifact[] = [
+        { type: 'file', name: 'a.txt', path: '/a.txt' },
+      ];
+      const task1 = createTestTask({
+        metadata: { priority: 'high', artifacts: singleArtifacts },
+      });
+      panel = new TaskDetailPanel(mockScene, {
+        task: task1,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+      const height1 = panel.getPanelHeight();
+
+      const multiArtifacts: TaskArtifact[] = [
+        { type: 'file', name: 'a.txt', path: '/a.txt' },
+        { type: 'file', name: 'b.txt', path: '/b.txt' },
+        { type: 'file', name: 'c.txt', path: '/c.txt' },
+      ];
+      const task2 = createTestTask({
+        metadata: { priority: 'high', artifacts: multiArtifacts },
+      });
+      panel.update(task2);
+      const height3 = panel.getPanelHeight();
+
+      expect(height3).toBeGreaterThan(height1);
+    });
+
+    it('should render correctly without artifacts', () => {
+      const task = createTestTask({ metadata: undefined });
+      expect(() => {
+        panel = new TaskDetailPanel(mockScene, {
+          task,
+          position: { x: 200, y: 100 },
+          onClose,
+        });
+      }).not.toThrow();
+    });
+
+    it('should render correctly with artifacts', () => {
+      const artifacts: TaskArtifact[] = [
+        { type: 'html', name: 'page.html', path: '/output/page.html', preview: '<html></html>' },
+        { type: 'code', name: 'app.ts', path: '/src/app.ts' },
+        { type: 'image', name: 'img.png', path: '/output/img.png' },
+        { type: 'file', name: 'data.json', path: '/output/data.json' },
+      ];
+      const task = createTestTask({
+        metadata: { priority: 'medium', artifacts },
+      });
+      expect(() => {
+        panel = new TaskDetailPanel(mockScene, {
+          task,
+          position: { x: 200, y: 100 },
+          onClose,
+        });
+      }).not.toThrow();
+      expect(panel.getArtifacts()).toHaveLength(4);
+    });
+
+    it('should emit events via eventBus when configured', () => {
+      const emitMock = jest.fn();
+      const artifacts: TaskArtifact[] = [
+        { type: 'html', name: 'page.html', path: '/output/page.html' },
+      ];
+      const task = createTestTask({
+        metadata: { priority: 'high', artifacts },
+      });
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+        eventBus: { emit: emitMock },
+      });
+
+      panel['emitArtifactEvent']('artifact-preview', artifacts[0]);
+      expect(emitMock).toHaveBeenCalledWith('artifact-preview', expect.objectContaining({
+        type: 'artifact-preview',
+        artifact: artifacts[0],
+      }));
+    });
+
+    it('should not throw when no eventBus configured', () => {
+      const artifacts: TaskArtifact[] = [
+        { type: 'html', name: 'page.html', path: '/output/page.html' },
+      ];
+      const task = createTestTask({
+        metadata: { priority: 'high', artifacts },
+      });
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
+        task,
+        position: { x: 200, y: 100 },
+        onClose,
+      });
+
+      expect(() => {
+        panel['emitArtifactEvent']('artifact-preview', artifacts[0]);
+      }).not.toThrow();
     });
   });
 });
