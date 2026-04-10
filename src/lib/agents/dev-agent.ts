@@ -96,8 +96,18 @@ export class DevAgent extends BaseAgent {
 直接返回 JSON，不要额外的解释。`
   }
 
-  private buildLLMUserPrompt(task: Task): string {
-    return `${sanitizeTaskPrompt(task)}\n\n生成完整的代码实现（JSON 格式）。`
+  private buildLLMUserPrompt(task: Task, context?: AgentContext): string {
+    let prompt = `${sanitizeTaskPrompt(task)}`
+
+    if (context?.pmAnalysis) {
+      prompt += `\n\n## PM 需求分析:\n${context.pmAnalysis}`
+    }
+
+    if (context?.reviewFeedback) {
+      prompt += `\n\n## Review 反馈（请修复以下问题）:\n${context.reviewFeedback}`
+    }
+
+    return `${prompt}\n\n生成完整的代码实现（JSON 格式）。`
   }
 
   private async implementWithOpenClaw(task: Task, context: AgentContext): Promise<AgentResponse> {
@@ -203,7 +213,7 @@ export class DevAgent extends BaseAgent {
     try {
       const response = await this.callLLM(
         this.getLLMSystemPrompt(),
-        this.buildLLMUserPrompt(task),
+        this.buildLLMUserPrompt(task, context),
       )
 
       if (!response) {

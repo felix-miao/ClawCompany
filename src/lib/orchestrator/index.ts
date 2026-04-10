@@ -84,6 +84,7 @@ export class Orchestrator extends BaseOrchestrator {
   private sandboxedWriter: SandboxedFileWriter
   private taskQueue: TaskQueue
   private deps: OrchestratorDependencies
+  private currentPMAnalysis: string = ''
 
   constructor(
     projectId: string = 'default',
@@ -104,6 +105,14 @@ export class Orchestrator extends BaseOrchestrator {
 
   getObservability() {
     return super.getObservability()
+  }
+
+  protected override async buildContext(callbacks: OrchestratorCallbacks) {
+    const context = await super.buildContext(callbacks)
+    if (this.currentPMAnalysis) {
+      return { ...context, pmAnalysis: this.currentPMAnalysis }
+    }
+    return context
   }
 
   resetObservability() {
@@ -146,6 +155,7 @@ export class Orchestrator extends BaseOrchestrator {
     this.startTime = Date.now()
     this.totalRetries = 0
     this.failedTasks = []
+    this.currentPMAnalysis = ''
 
     const cb = this.getCallbacks()
 
@@ -162,6 +172,8 @@ export class Orchestrator extends BaseOrchestrator {
         this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
+      // Capture PM analysis for injection into dev context (Fix 3)
+      this.currentPMAnalysis = (pmResponse.metadata?.pmAnalysis as string) || ''
       const pmCompletedIds = new Set<string>()
       this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
 
