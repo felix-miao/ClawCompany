@@ -30,9 +30,9 @@
 
 - [x] ~~#003 [P0][GAME] AgentCharacter 角色是纯色方块，无帧动画~~ → commit 603b79b 已实现程序化像素小人 + idle/walk/work 帧动画
 
-- [x] **#006 [P0][HYGIENE] MEMORY.md.backup 包含个人信息提交进公开仓库** → commits 616db1e, 499aaa3
-  - **完成**: .gitignore 添加 *.backup，删除 metrics-aggregator.ts.backup
-  - **需人工**: 见下方历史清理说明
+- [code-complete] **#006 [P0][HYGIENE] MEMORY.md.backup 包含个人信息提交进公开仓库** → commits 616db1e, 499aaa3
+  - **已完成**: .gitignore 添加 *.backup，删除 metrics-aggregator.ts.backup
+  - **需人工**: 仍需执行 git history rewrite + force-push（origin: git@github.com:felix-miao/ClawCompany.git；本地当前未安装 git-filter-repo）
 
 - [ ] **#067 [P0][API] game-events GET 端点完全无认证保护**
   - **文件**: `src/app/api/game-events/route.ts` (第8行)
