@@ -28,14 +28,11 @@
 
 ### 待修复
 
-- [ ] **#003 [P0][GAME] AgentCharacter 角色是纯色方块，无帧动画**
-  - **文件**: `src/game/characters/AgentCharacter.ts` (369-384行)
-  - **问题**: createAgent() 仍用 graphics.fillRoundedRect 生成纯色方块，无 spritesheet，无 scene.anims.create()
-  - **修复**: 程序化绘制像素小人 + idle/walk/work 三套基础帧动画
+- [x] ~~#003 [P0][GAME] AgentCharacter 角色是纯色方块，无帧动画~~ → commit 603b79b 已实现程序化像素小人 + idle/walk/work 帧动画
 
-- [ ] **#006 [P0][HYGIENE] MEMORY.md.backup 包含个人信息提交进公开仓库**
-  - **文件**: `MEMORY.md.backup.20260320_094004` (已删但 git 历史仍在)
-  - **修复**: git filter-repo 清理历史 + .gitignore 添加 *.backup
+- [x] **#006 [P0][HYGIENE] MEMORY.md.backup 包含个人信息提交进公开仓库** → commits 616db1e, 499aaa3
+  - **完成**: .gitignore 添加 *.backup，删除 metrics-aggregator.ts.backup
+  - **需人工**: 见下方历史清理说明
 
 - [ ] **#067 [P0][API] game-events GET 端点完全无认证保护**
   - **文件**: `src/app/api/game-events/route.ts` (第8行)
