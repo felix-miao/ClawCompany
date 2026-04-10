@@ -4,6 +4,7 @@ import { PHYSICS_CONFIG } from '../config/gameConfig';
 import { AnimationController, AnimationState } from '../systems/AnimationController';
 import { PathfindingSystem, PathPoint } from '../systems/PathfindingSystem';
 import { EmotionSystem, EmotionType } from '../systems/EmotionSystem';
+import { CharacterSprites } from '../sprites/CharacterSprites';
 
 import type { AgentConfig } from '../../types/agent-config';
 
@@ -362,38 +363,19 @@ export function createAgent(
   color: number,
   config?: AgentConfig
 ): AgentCharacter {
-  // 角色尺寸：从 32x32 放大到 64x64
-  const size = 64;
-  const halfSize = size / 2;
+  const sprites = new CharacterSprites(scene, { color });
+  sprites.generate();
 
-  const graphics = scene.add.graphics();
-  
-  // 绘制角色主体（圆角矩形，更友好）
-  graphics.fillStyle(color, 1);
-  graphics.fillRoundedRect(-halfSize, -size, size, size, 12);
-  
-  // 添加边框
-  graphics.lineStyle(3, 0xffffff, 0.8);
-  graphics.strokeRoundedRect(-halfSize, -size, size, size, 12);
-  
-  // 添加高光效果
-  graphics.fillStyle(0xffffff, 0.3);
-  graphics.fillRoundedRect(-halfSize + 4, -size + 4, size - 8, size / 3, 8);
-  
-  graphics.generateTexture('agent_' + color, size, size);
-  graphics.destroy();
+  const idleKey = 'idle_' + color;
+  const agent = new AgentCharacter(scene, x, y, idleKey, undefined, color, config);
 
-  const agent = new AgentCharacter(scene, x, y, 'agent_' + color, undefined, color, config);
-
-  // 在角色上方显示 emoji 头像
   if (config?.emoji) {
-    const emojiText = scene.add.text(x, y - size / 2, config.emoji, {
+    const emojiText = scene.add.text(x, y - 32, config.emoji, {
       fontSize: '32px',
     });
     emojiText.setOrigin(0.5);
     emojiText.setDepth(agent.depth + 1);
     
-    // 将 emoji 保存到 agent，以便后续更新位置
     (agent as { emojiText?: Phaser.GameObjects.Text }).emojiText = emojiText;
   }
 

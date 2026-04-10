@@ -4,7 +4,12 @@ describe('GameEventStore', () => {
   let store: GameEventStore;
 
   beforeEach(() => {
+    GameEventStore.clearAllSubscribers();
     store = new GameEventStore();
+  });
+
+  afterEach(() => {
+    GameEventStore.clearAllSubscribers();
   });
 
   describe('push', () => {

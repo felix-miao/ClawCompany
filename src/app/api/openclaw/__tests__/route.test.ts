@@ -203,16 +203,11 @@ describe('/api/openclaw', () => {
       expect(response.status).toBe(429)
     })
 
-    it('should successfully orchestrate and poll for result', async () => {
-      fetchSpy
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ sessionKey: 'session-1' }),
-        } as Response)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ([{ status: 'completed', content: 'Analysis done' }]),
-        } as Response)
+    it('should successfully orchestrate and return sessionKey immediately', async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sessionKey: 'session-1' }),
+      } as Response)
 
       const request = createMockRequest({
         body: { action: 'orchestrate', userRequest: 'Analyze this' },
@@ -223,59 +218,41 @@ describe('/api/openclaw', () => {
 
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
-      expect(data.messages).toBeDefined()
       expect(data.sessionKey).toBe('session-1')
+      expect(data.status).toBe('started')
     })
 
-    it('should handle failed session status', async () => {
-      fetchSpy
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ sessionKey: 'session-fail' }),
-        } as Response)
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ([{ status: 'failed', content: 'Error occurred' }]),
-        } as Response)
+    it('should handle failed session spawn', async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: 'Spawn failed' }),
+      } as Response)
 
-      jest.useFakeTimers()
-      const promise = POST(createMockRequest({
+      const request = createMockRequest({
         body: { action: 'orchestrate', userRequest: 'test' },
-      }))
-      await jest.runAllTimersAsync()
-      const response = await promise
+      })
+
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
       expect(data.error).toBeDefined()
-      jest.useRealTimers()
-    }, 30000)
+    })
 
-    it('should handle poll timeout', async () => {
-      jest.useFakeTimers()
+    it('should handle network error during spawn', async () => {
+      fetchSpy.mockRejectedValueOnce(new Error('Network error'))
 
-      fetchSpy
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ sessionKey: 'session-timeout' }),
-        } as Response)
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ([{ status: 'running', content: 'still running' }]),
-        } as Response)
-
-      const promise = POST(createMockRequest({
+      const request = createMockRequest({
         body: { action: 'orchestrate', userRequest: 'test' },
-      }))
-      await jest.runAllTimersAsync()
-      const response = await promise
+      })
+
+      const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(500)
-      expect(data.error).toContain('timeout')
-
-      jest.useRealTimers()
-    }, 30000)
+      expect(data.error).toBeDefined()
+    })
   })
 
   describe('GET - Status', () => {

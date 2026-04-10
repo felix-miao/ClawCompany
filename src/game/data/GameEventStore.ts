@@ -128,9 +128,12 @@ export class GameEventStore {
    */
   push(event: GameEvent): void {
     this.ring.push(event);
-    // Notify local subscribers immediately (same process)
-    processEmitter.emit(EVENT_CHANNEL, event);
-    // Cross-worker: publish to Redis (non-blocking)
+    const listeners = processEmitter.listeners(EVENT_CHANNEL);
+    for (const listener of listeners) {
+      try {
+        (listener as EventCallback)(event);
+      } catch {}
+    }
     if (redisReady && redisPub) {
       redisPub.publish(EVENT_CHANNEL, JSON.stringify(event)).catch(() => {});
     }
@@ -173,6 +176,10 @@ export class GameEventStore {
 
   clear(): void {
     this.ring.clear();
+  }
+
+  static clearAllSubscribers(): void {
+    processEmitter.removeAllListeners(EVENT_CHANNEL);
   }
 }
 

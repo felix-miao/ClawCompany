@@ -17,6 +17,11 @@ describe('GameEventStore', () => {
     store = new GameEventStore(5);
   });
 
+  afterEach(() => {
+    store.clear();
+    GameEventStore.clearAllSubscribers();
+  });
+
   describe('push', () => {
     it('should add events', () => {
       store.push(createMockEvent('agent:task-assigned'));

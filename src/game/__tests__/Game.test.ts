@@ -175,7 +175,7 @@ describe('Game module', () => {
   describe('triggerTestTask', () => {
     it('should delegate to OfficeScene.triggerTestTask', () => {
       const game = startGame('container');
-      const mockResult = { agentId: 'charlie', description: 'test' };
+      const mockResult = { agentId: 'pm-agent', description: 'test' };
       (game as any).scene = {
         getScene: jest.fn().mockReturnValue({
           triggerTestTask: jest.fn().mockReturnValue(mockResult),

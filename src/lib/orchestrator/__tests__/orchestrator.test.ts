@@ -696,6 +696,22 @@ describe('Orchestrator - 错误处理和重试机制', () => {
           message: 'Review rejected: needs fixes',
           status: 'error',
         })
+        .mockResolvedValueOnce({
+          message: 'Dev retry done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review still rejects',
+          status: 'error',
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev retry 2 done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review still rejects',
+          status: 'error',
+        })
 
       const result = await orchestrator.executeUserRequest('build feature')
 
