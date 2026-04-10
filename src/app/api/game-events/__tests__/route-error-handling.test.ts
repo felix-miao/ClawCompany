@@ -29,7 +29,7 @@ jest.mock('@/lib/core/logger', () => ({
   },
 }))
 
-import { POST } from '../route'
+import { POST, GET } from '../route'
 import { GameEventStore, setGameEventStore, resetGameEventStore } from '@/game/data/GameEventStore'
 import { RateLimiter } from '@/lib/security/utils'
 import { createMockNextRequest } from '@/test-utils/next-request-mock'
@@ -227,6 +227,35 @@ describe('Game Events API - Error Handling', () => {
       expect(data).toHaveProperty('event')
       expect(data.event).toHaveProperty('type')
       expect(data.event).toHaveProperty('timestamp')
+    })
+  })
+
+  describe('GET /api/game-events - authentication', () => {
+    it('should return 401 without API key', async () => {
+      const request = createMockNextRequest({
+        method: 'GET',
+        noAuth: true,
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(data.success).toBe(false)
+      expect(data.error).toContain('Unauthorized')
+    })
+
+    it('should return 401 with wrong API key', async () => {
+      const request = createMockNextRequest({
+        method: 'GET',
+        headers: { 'x-api-key': 'wrong-key-that-is-long-enough' },
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(data.success).toBe(false)
     })
   })
 })

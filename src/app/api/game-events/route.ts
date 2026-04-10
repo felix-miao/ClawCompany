@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 
-import { requireApiKey, getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
+import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
 import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
 import { getGameEventStore } from '@/game/data/GameEventStore';
 import type { GameEvent } from '@/game/types/GameEvents';
@@ -35,12 +35,8 @@ function releaseConnection(ip: string): void {
 }
 
 // ── GET：SSE 端点（需认证 + 连接限制）───────────────────────
-export async function GET(request: NextRequest) {
-  // 1. API Key 认证（与 POST 保持一致）
-  const authError = requireApiKey(request);
-  if (authError) return authError;
-
-  // 2. per-IP 连接数限制（最多 5 个并发 SSE 连接）
+const handleGet = async (request: NextRequest) => {
+  // per-IP 连接数限制（最多 5 个并发 SSE 连接）
   const ip = getClientId(request);
   if (!acquireConnection(ip)) {
     return new Response('Too Many Connections', {
@@ -103,7 +99,7 @@ export async function GET(request: NextRequest) {
         }
       }, 30000);
 
-      // 3. 断开时清理连接计数
+      // 断开时清理连接计数
       request.signal.addEventListener('abort', () => {
         clearInterval(keepalive);
         unsubscribe();
@@ -125,7 +121,9 @@ export async function GET(request: NextRequest) {
       'X-Accel-Buffering': 'no',
     },
   });
-}
+};
+
+export const GET = withAuth(handleGet);
 
 export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json();
