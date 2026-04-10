@@ -160,9 +160,9 @@ export class Orchestrator extends BaseOrchestrator {
       const initialTask = cb.createTask(userMessage, userMessage, 'pm', [], [])
 
       // Notify dashboard: PM agent is now working
-      await events.emitAgentStatus({ agentId: 'pm', status: 'working' })
+      await events.emitAgentStatus({ agentId: 'pm-agent', status: 'working' })
       await events.emitTaskAssigned({
-        agentId: 'pm',
+        agentId: 'pm-agent',
         taskId: initialTask.id,
         taskType: 'meeting',
         description: userMessage.slice(0, 120),
@@ -176,8 +176,8 @@ export class Orchestrator extends BaseOrchestrator {
       }
       const pmCompletedIds = new Set<string>()
       this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
-      await events.emitTaskCompleted({ agentId: 'pm', taskId: initialTask.id, success: true })
-      await events.emitAgentStatus({ agentId: 'pm', status: 'idle' })
+      await events.emitTaskCompleted({ agentId: 'pm-agent', taskId: initialTask.id, result: 'success' })
+      await events.emitAgentStatus({ agentId: 'pm-agent', status: 'idle' })
 
       const validatedTasks = validateSubTasks(pmResponse.tasks)
       const subTasks: Task[] = []
@@ -199,13 +199,20 @@ export class Orchestrator extends BaseOrchestrator {
             : taskData.assignedTo === 'tester'
               ? 'testing'
               : 'meeting'
+        const canonicalAgentId = taskData.assignedTo === 'dev'
+          ? 'dev-agent'
+          : taskData.assignedTo === 'review'
+            ? 'review-agent'
+            : taskData.assignedTo === 'tester'
+              ? 'test-agent'
+              : 'pm-agent'
         await events.emitTaskAssigned({
-          agentId: taskData.assignedTo,
+          agentId: canonicalAgentId,
           taskId: task.id,
           taskType: gameTaskType,
           description: taskData.title.slice(0, 120),
         })
-        await events.emitAgentStatus({ agentId: taskData.assignedTo, status: 'working' })
+        await events.emitAgentStatus({ agentId: canonicalAgentId, status: 'working' })
       }
 
       const subTaskIds = subTasks.map((t) => t.id)
@@ -266,12 +273,24 @@ export class Orchestrator extends BaseOrchestrator {
 
       // Reset all agents to idle once workflow is done
       for (const taskData of validatedTasks) {
-        await events.emitTaskCompleted({
-          agentId: taskData.assignedTo,
-          taskId: subTasks.find(t => t.title === taskData.title)?.id ?? taskData.title,
-          success: hasSuccess,
-        })
-        await events.emitAgentStatus({ agentId: taskData.assignedTo, status: 'idle' })
+        const subTask = subTasks.find(t => t.title === taskData.title)
+        const taskId = subTask?.id ?? taskData.title
+        const wasCompleted = subTask ? completedTaskIds.has(subTask.id) : false
+        const canonicalAgentId = taskData.assignedTo === 'dev'
+          ? 'dev-agent'
+          : taskData.assignedTo === 'review'
+            ? 'review-agent'
+            : taskData.assignedTo === 'tester'
+              ? 'test-agent'
+              : 'pm-agent'
+        if (subTask) {
+          await events.emitTaskCompleted({
+            agentId: canonicalAgentId,
+            taskId,
+            result: wasCompleted ? 'success' : 'failure',
+          })
+        }
+        await events.emitAgentStatus({ agentId: canonicalAgentId, status: 'idle' })
       }
       return {
         success: hasSuccess,

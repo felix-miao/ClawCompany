@@ -9,7 +9,7 @@
  * in GameEventStore, and the dashboard/virtual-office receives them via SSE.
  */
 
-export type AgentRole = 'pm' | 'dev' | 'review' | 'tester'
+export type AgentRole = 'pm' | 'dev' | 'review' | 'tester' | 'pm-agent' | 'dev-agent' | 'review-agent' | 'test-agent'
 
 export interface GameEventEmitterOptions {
   /** Base URL for internal API calls (defaults to http://localhost:3000) */
@@ -57,13 +57,15 @@ export class GameEventEmitter {
   async emitTaskCompleted(params: {
     agentId: AgentRole
     taskId: string
-    success: boolean
+    result: 'success' | 'failure' | 'partial'
+    duration?: number
   }): Promise<void> {
     await this.post({
       type: 'agent:task-completed',
       agentId: params.agentId,
       taskId: params.taskId,
-      success: params.success,
+      result: params.result,
+      duration: params.duration ?? 0,
       timestamp: Date.now(),
     })
   }
