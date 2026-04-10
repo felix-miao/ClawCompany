@@ -29,6 +29,16 @@ export interface HistoryMessage {
   status?: 'pending' | 'running' | 'completed' | 'failed'
 }
 
+export interface SendOptions {
+  role?: 'user' | 'assistant' | 'system'
+}
+
+export interface SendResult {
+  status: 'sent' | 'error'
+  messageId?: string
+  error?: string
+}
+
 export interface GatewayOptions {
   timeout?: number
   token?: string
@@ -196,6 +206,17 @@ export class OpenClawGatewayClient {
       limit,
       includeTools: false
     })
+  }
+
+  async sessions_send(sessionKey: string, message: string, options?: SendOptions): Promise<SendResult> {
+    const params: Record<string, unknown> = {
+      sessionKey,
+      message,
+    }
+
+    if (options?.role) params.role = options.role
+
+    return this.call<SendResult>('sessions.send', params)
   }
 
   async waitForCompletion(sessionKey: string, timeout: number = 60000): Promise<string> {

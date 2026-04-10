@@ -8,6 +8,7 @@ import {
   TaskVisualizationCompletedEvent,
   TaskVisualizationFailedEvent,
   TaskVisualizationHandoverEvent,
+  OpenClawSendEvent,
 } from '../types/GameEvents';
 
 export interface TaskManagerConfig {
@@ -32,7 +33,7 @@ export class TaskManager {
     this.statisticsStore = new TaskStatisticsStore(this.historyStore);
   }
 
-  assignTask(agentId: string, task: Task): void {
+  assignTask(agentId: string, task: Task, triggerRealSend?: boolean): void {
     const existingTask = this.activeTasks.get(agentId);
     if (existingTask) {
       this.moveToHistory(existingTask);
@@ -58,6 +59,16 @@ export class TaskManager {
         metadata: assignedTask.metadata as Record<string, unknown> | undefined,
       },
     } as TaskVisualizationAssignedEvent);
+
+    if (triggerRealSend) {
+      this.eventBus.emit({
+        type: 'openclaw:send',
+        timestamp: Date.now(),
+        sessionKey: agentId,
+        message: assignedTask.description,
+        agentRole: agentId,
+      } as OpenClawSendEvent);
+    }
   }
 
   updateProgress(agentId: string, progress: number, currentAction?: string): void {

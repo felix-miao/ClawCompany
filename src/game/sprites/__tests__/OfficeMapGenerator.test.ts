@@ -50,7 +50,7 @@ jest.mock('phaser', () => {
 });
 
 const Phaser = require('phaser');
-const { mockScene } = Phaser.__mocks;
+const { mockScene, mockGraphics } = Phaser.__mocks;
 
 describe('OfficeMapGenerator', () => {
   let generator: OfficeMapGenerator;
@@ -296,6 +296,30 @@ describe('OfficeMapGenerator', () => {
     it('should return floor as default', () => {
       const asset = generator.getDecorationAsset('unknown');
       expect(asset).toBe('floor');
+    });
+  });
+
+  describe('decoration asset texture existence', () => {
+    const decorationTypes = ['plant', 'computer', 'window', 'door', 'art', 'bookshelf'] as const;
+
+    decorationTypes.forEach(decoType => {
+      it(`should return a valid asset key for "${decoType}"`, async () => {
+        await generator.generateOffice();
+        const asset = generator.getDecorationAsset(decoType);
+        expect(asset).toBeDefined();
+        expect(typeof asset).toBe('string');
+        expect(asset.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('should have art-frame texture generated after loadResources', async () => {
+      await generator.generateOffice();
+      const artAsset = generator.getDecorationAsset('art');
+      expect(artAsset).toBe('art-frame');
+      const generatedKeys = mockGraphics.generateTexture.mock.calls.map(
+        (call: any[]) => call[0]
+      );
+      expect(generatedKeys).toContain('art-frame');
     });
   });
 

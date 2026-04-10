@@ -1,5 +1,12 @@
-import { OpenClawGatewayClient, SpawnOptions, SpawnResult, getGatewayClient } from './client'
+import { OpenClawGatewayClient, SpawnOptions, SpawnResult, SendResult, getGatewayClient } from './client'
 import { sanitizeUserInput } from '../utils/prompt-sanitizer'
+
+const ROLE_TO_SESSION_PREFIX: Record<string, string> = {
+  pm: 'sidekick-claw',
+  dev: 'dev-claw',
+  review: 'reviewer-claw',
+  tester: 'tester-claw',
+}
 
 export interface AgentSpawnConfig {
   runtime: 'subagent' | 'acp'
@@ -190,6 +197,51 @@ Provide your review with APPROVED or NEEDS_CHANGES verdict.`
       thinking: 'medium',
       timeout: 180 
     })
+  }
+
+  async sendToAgent(agentRole: string, message: string): Promise<AgentExecutionResult> {
+    if (!this.connected) {
+      await this.connect()
+    }
+
+    try {
+      const prefix = ROLE_TO_SESSION_PREFIX[agentRole]
+      if (!prefix) {
+        return {
+          success: false,
+          error: `Unknown agent role: ${agentRole}`,
+        }
+      }
+
+      const sessions = await this.client.call<Array<{ key: string; status: string }>>(
+        'sessions.list',
+        { status: 'running' }
+      )
+
+      const activeSession = sessions.find(s =>
+        s.key.includes(prefix) && s.status === 'running'
+      )
+
+      if (!activeSession) {
+        return {
+          success: false,
+          error: `No active session found for role: ${agentRole}`,
+        }
+      }
+
+      const sendResult = await this.client.sessions_send(activeSession.key, message)
+
+      return {
+        success: sendResult.status === 'sent',
+        sessionKey: activeSession.key,
+        content: sendResult.messageId,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
   }
 
   isConnected(): boolean {

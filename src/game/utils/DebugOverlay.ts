@@ -64,7 +64,15 @@ export class DebugOverlay {
 
   toggleDebug(): void {
     this.debugEnabled = !this.debugEnabled;
-    this.scene.physics.world.drawDebug = this.debugEnabled;
+
+    const world = this.scene.physics.world as any;
+    if (this.debugEnabled && !world.debugGraphic && typeof world.createDebugGraphic === 'function') {
+      world.createDebugGraphic();
+    }
+    if ('drawDebug' in world) {
+      world.drawDebug = this.debugEnabled;
+    }
+
     this.fpsText.setVisible(this.debugEnabled);
     this.positionText.setVisible(this.debugEnabled);
     this.velocityText.setVisible(this.debugEnabled);

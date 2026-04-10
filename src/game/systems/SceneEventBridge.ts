@@ -10,6 +10,7 @@ import {
   SessionCompletedEvent,
   GameEventType,
   ROLE_TO_ROOM,
+  OpenClawSendEvent,
 } from '../types/GameEvents';
 import { ParticleSystem, ParticleEffectType } from './ParticleSystem';
 
@@ -55,6 +56,7 @@ export class SceneEventBridge {
     this.eventBus.on('agent:emotion-change', (event) => this.handleEmotionChange(event));
     this.eventBus.on('session:started', (event) => this.handleSessionStarted(event));
     this.eventBus.on('session:completed', (event) => this.handleSessionCompleted(event));
+    this.eventBus.on('openclaw:send', (event) => this.handleOpenClawSend(event));
     this.eventBus.on('connection:open', () => {
       this.stats.connected = true;
     });
@@ -162,5 +164,19 @@ export class SceneEventBridge {
     const emotion = event.status === 'completed' ? 'celebrating' : 'stressed';
     this.actions.setAgentEmotion(event.role, emotion);
     this.triggerParticle(event.role, 'session:completed', { status: event.status });
+  }
+
+  private async handleOpenClawSend(event: OpenClawSendEvent): Promise<void> {
+    this.updateStats();
+    try {
+      await fetch('/api/openclaw/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionKey: event.sessionKey,
+          message: event.message,
+        }),
+      });
+    } catch {}
   }
 }

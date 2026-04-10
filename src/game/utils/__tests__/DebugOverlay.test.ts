@@ -210,6 +210,79 @@ describe('DebugOverlay', () => {
     });
   });
 
+  describe('toggleDebug safety', () => {
+    it('should ensure debugGraphic exists when enabling drawDebug', () => {
+      let createDebugGraphicCalled = false;
+      const sceneWithMissingDebugGraphic = {
+        add: {
+          text: jest.fn().mockImplementation(() => ({
+            setDepth: jest.fn().mockReturnThis(),
+            setScrollFactor: jest.fn().mockReturnThis(),
+            setVisible: jest.fn().mockReturnThis(),
+            setText: jest.fn().mockReturnThis(),
+          })),
+        },
+        input: { keyboard: { on: jest.fn() } },
+        physics: {
+          world: {
+            drawDebug: false,
+            debugGraphic: null,
+            createDebugGraphic: jest.fn(() => { createDebugGraphicCalled = true; }),
+          },
+        },
+        game: { loop: { actualFps: 60 } },
+      };
+      const overlay = new DebugOverlay(sceneWithMissingDebugGraphic as any);
+      overlay.toggleDebug();
+      overlay.toggleDebug();
+      expect(createDebugGraphicCalled).toBe(true);
+    });
+
+    it('should not call createDebugGraphic if debugGraphic already exists', () => {
+      let createDebugGraphicCalled = false;
+      const sceneWithDebugGraphic = {
+        add: {
+          text: jest.fn().mockImplementation(() => ({
+            setDepth: jest.fn().mockReturnThis(),
+            setScrollFactor: jest.fn().mockReturnThis(),
+            setVisible: jest.fn().mockReturnThis(),
+            setText: jest.fn().mockReturnThis(),
+          })),
+        },
+        input: { keyboard: { on: jest.fn() } },
+        physics: {
+          world: {
+            drawDebug: false,
+            debugGraphic: { clear: jest.fn() },
+            createDebugGraphic: jest.fn(() => { createDebugGraphicCalled = true; }),
+          },
+        },
+        game: { loop: { actualFps: 60 } },
+      };
+      const overlay = new DebugOverlay(sceneWithDebugGraphic as any);
+      overlay.toggleDebug();
+      expect(sceneWithDebugGraphic.physics.world.createDebugGraphic).not.toHaveBeenCalled();
+    });
+
+    it('should not crash when physics world has no drawDebug property', () => {
+      const minimalScene = {
+        add: {
+          text: jest.fn().mockImplementation(() => ({
+            setDepth: jest.fn().mockReturnThis(),
+            setScrollFactor: jest.fn().mockReturnThis(),
+            setVisible: jest.fn().mockReturnThis(),
+            setText: jest.fn().mockReturnThis(),
+          })),
+        },
+        input: { keyboard: { on: jest.fn() } },
+        physics: { world: {} },
+        game: { loop: { actualFps: 60 } },
+      };
+      const overlay = new DebugOverlay(minimalScene as any);
+      expect(() => overlay.toggleDebug()).not.toThrow();
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle zero FPS', () => {
       mockScene.game.loop.actualFps = 0;

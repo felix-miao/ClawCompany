@@ -188,7 +188,8 @@ export class OfficeScene extends Phaser.Scene {
       this.officeMapGenerator = new OfficeMapGenerator(this);
       this.createParticleTexture();
       
-      // 生成增强的办公室地图
+      this.tilemapData = this.getDefaultTilemapData();
+
       this.generateEnhancedOfficeMap();
 
       this.platforms = this.physics.add.staticGroup();
@@ -1232,7 +1233,14 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   toggleDebug(): void {
-    this.physics.world.drawDebug = !this.physics.world.drawDebug;
+    if (this.physics.world.drawDebug) {
+      this.physics.world.drawDebug = false;
+    } else {
+      if (!this.physics.world.debugGraphic) {
+        this.physics.world.createDebugGraphic();
+      }
+      this.physics.world.drawDebug = true;
+    }
   }
 
   reloadScene(): void {

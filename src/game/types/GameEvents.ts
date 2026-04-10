@@ -14,7 +14,8 @@ export type GameEventType =
   | 'task:progress'
   | 'task:completed'
   | 'task:failed'
-  | 'task:handover';
+  | 'task:handover'
+  | 'openclaw:send';
 
 export type AgentStatus = 'idle' | 'busy' | 'working' | 'offline';
 
@@ -134,6 +135,13 @@ export interface TaskVisualizationHandoverEvent extends BaseGameEvent {
   description: string;
 }
 
+export interface OpenClawSendEvent extends BaseGameEvent {
+  type: 'openclaw:send';
+  sessionKey: string;
+  message: string;
+  agentRole: string;
+}
+
 export type GameEvent =
   | AgentStatusEvent
   | TaskAssignedEvent
@@ -148,7 +156,8 @@ export type GameEvent =
   | TaskVisualizationProgressEvent
   | TaskVisualizationCompletedEvent
   | TaskVisualizationFailedEvent
-  | TaskVisualizationHandoverEvent;
+  | TaskVisualizationHandoverEvent
+  | OpenClawSendEvent;
 
 export type GameEventHandler<T extends GameEvent = GameEvent> = (event: T) => void;
 
@@ -169,6 +178,7 @@ export interface EventTypeMap {
   'task:completed': TaskVisualizationCompletedEvent;
   'task:failed': TaskVisualizationFailedEvent;
   'task:handover': TaskVisualizationHandoverEvent;
+  'openclaw:send': OpenClawSendEvent;
 }
 
 export interface SSEMessage {

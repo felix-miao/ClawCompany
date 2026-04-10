@@ -492,4 +492,65 @@ describe('OfficeScene logic', () => {
       expect(failedSounds).toEqual(['error']);
     });
   });
+
+  describe('getDefaultTilemapData', () => {
+    it('should return tilemap data with valid dimensions', () => {
+      const scene = new OfficeScene();
+      const data = (scene as any).getDefaultTilemapData();
+      expect(data).toBeDefined();
+      expect(data.width).toBeGreaterThan(0);
+      expect(data.height).toBeGreaterThan(0);
+      expect(data.tileSize).toBeGreaterThan(0);
+    });
+
+    it('should return tilemap data with platforms', () => {
+      const scene = new OfficeScene();
+      const data = (scene as any).getDefaultTilemapData();
+      expect(data.platforms).toBeDefined();
+      expect(data.platforms.length).toBeGreaterThan(0);
+    });
+
+    it('should return tilemap data with workstations covering all task types', () => {
+      const scene = new OfficeScene();
+      const data = (scene as any).getDefaultTilemapData();
+      expect(data.workstations).toBeDefined();
+      expect(data.workstations.length).toBeGreaterThanOrEqual(4);
+      const types = data.workstations.map((ws: Workstation) => ws.taskType);
+      expect(types).toContain('coding');
+      expect(types).toContain('testing');
+      expect(types).toContain('meeting');
+      expect(types).toContain('review');
+    });
+
+    it('should return tilemap data that would not cause createPlatforms to bail', () => {
+      const scene = new OfficeScene();
+      const data = (scene as any).getDefaultTilemapData();
+      expect(data).not.toBeNull();
+      expect(data.platforms.length).toBeGreaterThan(0);
+      data.platforms.forEach((p: any) => {
+        expect(typeof p.x).toBe('number');
+        expect(typeof p.y).toBe('number');
+        expect(typeof p.width).toBe('number');
+        expect(typeof p.height).toBe('number');
+        expect(typeof p.type).toBe('string');
+      });
+    });
+
+    it('should have non-null tilemapData after default initialization', () => {
+      const scene = new OfficeScene();
+      (scene as any).tilemapData = (scene as any).getDefaultTilemapData();
+      expect((scene as any).tilemapData).not.toBeNull();
+      expect((scene as any).tilemapData.platforms.length).toBeGreaterThan(0);
+      expect((scene as any).tilemapData.workstations.length).toBeGreaterThan(0);
+    });
+
+    it('should initialize tilemapData before createPlatforms would be called', () => {
+      const scene = new OfficeScene();
+      expect((scene as any).tilemapData).toBeNull();
+      const defaultData = (scene as any).getDefaultTilemapData();
+      (scene as any).tilemapData = defaultData;
+      const guardResult = (scene as any).tilemapData !== null;
+      expect(guardResult).toBe(true);
+    });
+  });
 });

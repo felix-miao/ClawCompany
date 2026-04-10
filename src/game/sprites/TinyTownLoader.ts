@@ -39,13 +39,7 @@ export class TinyTownLoader {
   }
 
   private loadTileset(): Promise<void> {
-    return new Promise((resolve) => {
-      // 延迟加载以避免构建问题
-      setTimeout(() => {
-        console.log('🗺️ 加载瓷砖集...');
-        resolve();
-      }, 100);
-    });
+    return Promise.resolve();
   }
 
   private async loadCharacterSprites(): Promise<void> {
@@ -211,6 +205,16 @@ export class TinyTownLoader {
     chairGraphics.strokeRect(0, 0, 16, 24);
     chairGraphics.generateTexture('chair', 16, 24);
     chairGraphics.destroy();
+
+    const artFrameGraphics = this.scene.add.graphics();
+    artFrameGraphics.fillStyle(0xDAA520, 1);
+    artFrameGraphics.fillRect(0, 0, 32, 24);
+    artFrameGraphics.lineStyle(2, 0x8B6914, 1);
+    artFrameGraphics.strokeRect(1, 1, 30, 22);
+    artFrameGraphics.fillStyle(0x87CEEB, 1);
+    artFrameGraphics.fillRect(4, 4, 24, 16);
+    artFrameGraphics.generateTexture('art-frame', 32, 24);
+    artFrameGraphics.destroy();
   }
 
   getCharacterSprite(role: string): string {

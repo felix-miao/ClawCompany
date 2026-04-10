@@ -233,5 +233,17 @@ describe('TinyTownLoader', () => {
       const tile = loader.getEnvironmentTile('');
       expect(tile).toBe('floor');
     });
+
+    it('should resolve loadResources without requiring timer advancement', async () => {
+      jest.useFakeTimers();
+      const timerLoader = new TinyTownLoader(mockScene as any);
+      const promise = timerLoader.loadResources();
+      const result = await Promise.race([
+        promise.then(() => 'resolved'),
+        jest.advanceTimersByTimeAsync(0).then(() => 'pending'),
+      ]);
+      expect(result).toBe('resolved');
+      jest.useRealTimers();
+    });
   });
 });
