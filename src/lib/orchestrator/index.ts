@@ -283,5 +283,9 @@ export function createOrchestrator(deps: OrchestratorDependencies, options?: {
   )
 }
 
-/** @deprecated Use DI container via getDefaultContainer().resolve(Services.Orchestrator) instead */
-export const orchestrator = new Orchestrator()
+/** @deprecated Use DI container via getDefaultContainer().resolve(Services.Orchestrator) instead.
+ *  WARNING: This global singleton causes state pollution in concurrent requests.
+ *  Do NOT use in production. Will be removed in a future release.
+ */
+// TODO: Remove this export once all consumers have migrated to DI container
+// export const orchestrator = new Orchestrator()

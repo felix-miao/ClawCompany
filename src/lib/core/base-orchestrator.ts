@@ -112,11 +112,12 @@ export abstract class BaseOrchestrator {
     task: Task,
     callbacks: OrchestratorCallbacks
   ): Promise<AgentResponse | null> {
+    // Build context once outside retry loop to avoid N+1 file reads (P2 fix)
+    const context = await this.buildContext(callbacks)
     const result = await this.retry.execute(
       async () => {
         const timerId = this.obs.perf.startTimer(`agent.${role}`)
         try {
-          const context = await this.buildContext(callbacks)
           return await callbacks.executeAgent(role, task, context)
         } finally {
           this.obs.perf.stopTimer(timerId)
@@ -347,14 +348,20 @@ export abstract class BaseOrchestrator {
     allFiles: FileChange[],
   ): Promise<void> {
     const devResponse = await this.runAgentForTask(task, cb, 'dev')
-    if (!devResponse) return
+    if (!devResponse) {
+      this.markTaskFailed(task, cb, 'dev', 'Dev agent returned null response')
+      return
+    }
 
     await this.saveResponseFiles(task, cb, devResponse.files, allFiles)
 
     cb.updateTaskStatus(task.id, 'review')
 
     const reviewResponse = await this.runAgentForTask(task, cb, 'review')
-    if (!reviewResponse) return
+    if (!reviewResponse) {
+      this.markTaskFailed(task, cb, 'review', 'Review agent returned null response')
+      return
+    }
 
     cb.broadcast('review', reviewResponse.message)
 

@@ -76,6 +76,8 @@ export const GET = withAuth(async (request: NextRequest) => {
 }, 'OpenClaw Status API')
 
 async function pollForResult(sessionKey: string): Promise<{ messages: Array<{ agent: string; content: string; timestamp: string }> }> {
+  const MAX_CONSECUTIVE_ERRORS = 5
+  let consecutiveErrors = 0
   for (let i = 0; i < POLL_MAX_ATTEMPTS; i++) {
     try {
       const response = await fetch(
@@ -86,6 +88,7 @@ async function pollForResult(sessionKey: string): Promise<{ messages: Array<{ ag
         throw new Error(`History fetch error: ${response.status}`)
       }
 
+      consecutiveErrors = 0
       const history = await response.json()
 
       if (history && history.length > 0) {
@@ -108,7 +111,11 @@ async function pollForResult(sessionKey: string): Promise<{ messages: Array<{ ag
 
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
     } catch (error) {
+      consecutiveErrors++
       console.error('[OpenClaw API] Poll error:', error)
+      if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+        throw new Error(`Polling aborted after ${MAX_CONSECUTIVE_ERRORS} consecutive errors: ${error instanceof Error ? error.message : String(error)}`)
+      }
       await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
     }
   }
