@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/game-events/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/openclaw/route.ts": {
+      "maxDuration": 300
+    }
+  }
+}
