@@ -16,6 +16,7 @@ import { ErrorTracker, ErrorSummary } from './error-tracker'
 import { OrchestratorError, AppError, isAppError, FileSystemError, ErrorCategory } from './errors'
 import { AgentEventBus, AgentEventType } from './agent-event-bus'
 import { UnifiedRetry } from './unified-retry'
+import { getGameEventStore } from '@/game/data/GameEventStore'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -361,6 +362,14 @@ export abstract class BaseOrchestrator {
     let context = await this.buildContext(cb)
 
     while (iteration < MAX_ITERATIONS) {
+      // Emit dev:iteration-start before each dev iteration
+      getGameEventStore().push({
+        type: 'dev:iteration-start',
+        agentId: 'dev-agent',
+        timestamp: Date.now(),
+        payload: { taskId: task.id, iteration, hasFeedback: !!context.reviewFeedback },
+      })
+
       const devResponse = await this.runAgentForTaskWithContext(task, cb, 'dev', context)
       if (!devResponse) {
         this.markTaskFailed(task, cb, 'dev', 'Dev agent returned null response')
@@ -384,6 +393,13 @@ export abstract class BaseOrchestrator {
 
       if (reviewResponse.status === 'success') {
         this.markTaskCompleted(task, cb, completedTaskIds, 'review')
+        // Emit workflow:iteration-complete on success
+        getGameEventStore().push({
+          type: 'workflow:iteration-complete',
+          agentId: 'review-agent',
+          timestamp: Date.now(),
+          payload: { taskId: task.id, totalIterations: iteration + 1, approved: true },
+        })
         return
       }
 
@@ -391,8 +407,23 @@ export abstract class BaseOrchestrator {
       iteration++
       if (iteration >= MAX_ITERATIONS) {
         this.markTaskFailed(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations`)
+        // Emit workflow:iteration-complete on exhausted iterations
+        getGameEventStore().push({
+          type: 'workflow:iteration-complete',
+          agentId: 'review-agent',
+          timestamp: Date.now(),
+          payload: { taskId: task.id, totalIterations: iteration, approved: false },
+        })
         return
       }
+
+      // Review rejected — emit event before retrying
+      getGameEventStore().push({
+        type: 'review:rejected',
+        agentId: 'review-agent',
+        timestamp: Date.now(),
+        payload: { taskId: task.id, iteration, feedback: reviewResponse.message ?? '' },
+      })
 
       // Pass review feedback into the next dev iteration
       this.logInfo('Review not approved, retrying dev with feedback', {

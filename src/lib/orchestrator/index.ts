@@ -10,6 +10,7 @@ import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
 import { UnifiedRetry } from '../core/unified-retry'
+import { getGameEventStore } from '@/game/data/GameEventStore'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 export { UnifiedRetry } from '../core/unified-retry'
@@ -178,6 +179,18 @@ export class Orchestrator extends BaseOrchestrator {
       this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
 
       const validatedTasks = validateSubTasks(pmResponse.tasks)
+
+      // Emit pm:analysis-complete after PM generates task list
+      getGameEventStore().push({
+        type: 'pm:analysis-complete',
+        agentId: 'pm-agent',
+        timestamp: Date.now(),
+        payload: {
+          projectId: this.projectId,
+          taskCount: validatedTasks.length,
+          analysis: this.currentPMAnalysis,
+        },
+      })
       const subTasks: Task[] = []
       for (const taskData of validatedTasks) {
         const task = cb.createTask(
