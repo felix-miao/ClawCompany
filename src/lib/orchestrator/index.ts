@@ -170,7 +170,7 @@ export class Orchestrator extends BaseOrchestrator {
 
       const pmResponse = await this.runAgentForTask(initialTask, cb, 'pm')
       if (!pmResponse) {
-        await events.emitAgentStatus({ agentId: 'pm', status: 'idle' })
+        await events.emitAgentStatus({ agentId: 'pm-agent', status: 'idle' })
         this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
