@@ -22,7 +22,7 @@ describe('DashboardStore', () => {
     it('should have default agent configs', () => {
       const agents = store.getAgents();
       expect(agents).toHaveLength(4);
-      expect(agents.map(a => a.id)).toEqual(['alice', 'bob', 'charlie', 'diana']);
+      expect(agents.map(a => a.id)).toEqual(['pm-agent', 'dev-agent', 'review-agent', 'test-agent']);
     });
 
     it('should have all agents idle initially', () => {
@@ -50,13 +50,13 @@ describe('DashboardStore', () => {
       const event: AgentStatusEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'working',
       };
 
       store.processEvent(event);
 
-      const agent = store.getAgentById('alice');
+      const agent = store.getAgentById('pm-agent');
       expect(agent?.status).toBe('working');
     });
 
@@ -64,19 +64,19 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'bob',
+        agentId: 'dev-agent',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'bob',
+        agentId: 'dev-agent',
         status: 'idle',
         previousStatus: 'busy',
       });
 
-      const agent = store.getAgentById('bob');
+      const agent = store.getAgentById('dev-agent');
       expect(agent?.status).toBe('idle');
     });
 
@@ -98,7 +98,7 @@ describe('DashboardStore', () => {
       const event: TaskAssignedEvent = {
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'charlie',
+        agentId: 'review-agent',
         taskId: 'task-1',
         taskType: 'review',
         description: 'Review the code',
@@ -110,7 +110,7 @@ describe('DashboardStore', () => {
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toMatchObject({
         taskId: 'task-1',
-        agentId: 'charlie',
+        agentId: 'review-agent',
         description: 'Review the code',
       });
     });
@@ -119,13 +119,13 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build feature',
       });
 
-      expect(store.getAgentById('alice')?.status).toBe('working');
+      expect(store.getAgentById('pm-agent')?.status).toBe('working');
     });
   });
 
@@ -134,7 +134,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build feature',
@@ -145,7 +145,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-completed',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         taskId: 'task-1',
         result: 'success',
         duration: 5000,
@@ -158,13 +158,13 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-completed',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         taskId: 'task-1',
         result: 'success',
         duration: 5000,
       });
 
-      expect(store.getAgentById('alice')?.status).toBe('idle');
+      expect(store.getAgentById('pm-agent')?.status).toBe('idle');
     });
   });
 
@@ -173,12 +173,12 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:emotion-change',
         timestamp: Date.now(),
-        agentId: 'diana',
+        agentId: 'test-agent',
         emotion: 'happy',
         source: 'manual',
       });
 
-      expect(store.getAgentById('diana')?.emotion).toBe('happy');
+      expect(store.getAgentById('test-agent')?.emotion).toBe('happy');
     });
   });
 
@@ -266,14 +266,14 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: 1000,
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:status-change',
         timestamp: 2000,
-        agentId: 'bob',
+        agentId: 'dev-agent',
         status: 'working',
       });
 
@@ -288,7 +288,7 @@ describe('DashboardStore', () => {
         limitedStore.processEvent({
           type: 'agent:status-change',
           timestamp: i * 1000,
-          agentId: 'alice',
+          agentId: 'pm-agent',
           status: 'busy',
         });
       }
@@ -300,14 +300,14 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: 1000,
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:emotion-change',
         timestamp: 2000,
-        agentId: 'alice',
+        agentId: 'pm-agent',
         emotion: 'happy',
         source: 'manual',
       });
@@ -320,18 +320,18 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: 1000,
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:status-change',
         timestamp: 2000,
-        agentId: 'bob',
+        agentId: 'dev-agent',
         status: 'working',
       });
 
-      const aliceEvents = store.getEventsByAgent('alice');
+      const aliceEvents = store.getEventsByAgent('pm-agent');
       expect(aliceEvents).toHaveLength(1);
     });
   });
@@ -344,7 +344,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
@@ -360,7 +360,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
@@ -377,7 +377,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
@@ -388,11 +388,11 @@ describe('DashboardStore', () => {
 
   describe('getAgentById', () => {
     it('should return agent by id', () => {
-      const alice = store.getAgentById('alice');
+      const alice = store.getAgentById('pm-agent');
       expect(alice).toMatchObject({
-        id: 'alice',
-        name: 'Alice',
-        role: 'Developer',
+        id: 'pm-agent',
+        name: 'PM',
+        role: 'PM',
       });
     });
 
@@ -406,14 +406,14 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build',
@@ -434,14 +434,14 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
 
       store.reset();
 
       expect(store.getEvents()).toEqual([]);
-      expect(store.getAgentById('alice')?.status).toBe('idle');
+      expect(store.getAgentById('pm-agent')?.status).toBe('idle');
       expect(store.getActiveTasks()).toEqual([]);
     });
   });

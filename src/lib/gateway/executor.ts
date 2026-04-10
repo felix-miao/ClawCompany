@@ -1,5 +1,9 @@
 import { OpenClawGatewayClient, SpawnOptions, SpawnResult, SendResult, getGatewayClient } from './client'
 import { sanitizeUserInput } from '../utils/prompt-sanitizer'
+import * as path from 'path'
+
+// Default project cwd for ACP sessions (where opencode will write files)
+const PROJECT_CWD = process.env.CLAWCOMPANY_CWD || path.resolve(__dirname, '../../../..')
 
 const ROLE_TO_SESSION_PREFIX: Record<string, string> = {
   pm: 'sidekick-claw',
@@ -87,6 +91,9 @@ export class OpenClawAgentExecutor {
     } else if (agentRole === 'dev') {
       spawnOptions.label = `Dev Implementation: ${task.substring(0, 50)}`
       spawnOptions.streamTo = 'parent'
+      // ACP: route to opencode for real file writing
+      spawnOptions.agentId = 'opencode'
+      spawnOptions.cwd = PROJECT_CWD
     } else if (agentRole === 'review') {
       spawnOptions.label = `Review: ${task.substring(0, 50)}`
     }

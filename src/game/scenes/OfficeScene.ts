@@ -45,10 +45,10 @@ import type { AgentConfig } from '../../types/agent-config';
 export type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 
 const AGENT_CONFIGS: AgentConfig[] = [
-  { id: 'alice', name: 'Alice', role: 'Developer', emoji: '👩‍💻', color: '#ff6b6b', systemPrompt: '', runtime: 'subagent' },
-  { id: 'bob', name: 'Bob', role: 'Developer', emoji: '👨‍💻', color: '#4ecdc4', systemPrompt: '', runtime: 'subagent' },
-  { id: 'charlie', name: 'Charlie', role: 'Project Manager', emoji: '📋', color: '#45b7d1', systemPrompt: '', runtime: 'subagent' },
-  { id: 'diana', name: 'Diana', role: 'Code Reviewer', emoji: '🔍', color: '#96ceb4', systemPrompt: '', runtime: 'subagent' },
+  { id: 'pm-agent', name: 'PM', role: 'Project Manager', emoji: '📋', color: '#45b7d1', systemPrompt: '', runtime: 'subagent' },
+  { id: 'dev-agent', name: 'Dev', role: 'Developer', emoji: '👨‍💻', color: '#4ecdc4', systemPrompt: '', runtime: 'subagent' },
+  { id: 'review-agent', name: 'Reviewer', role: 'Code Reviewer', emoji: '🔍', color: '#96ceb4', systemPrompt: '', runtime: 'subagent' },
+  { id: 'test-agent', name: 'Tester', role: 'QA Engineer', emoji: '🧪', color: '#ff6b6b', systemPrompt: '', runtime: 'subagent' },
 ];
 
 export class OfficeScene extends Phaser.Scene {
@@ -1286,7 +1286,7 @@ export class OfficeScene extends Phaser.Scene {
     return this.renderOptimizer;
   }
 
-  private static readonly PM_AGENT_ID = 'charlie';
+  private static readonly PM_AGENT_ID = 'pm-agent';
 
   private static readonly TEST_TASKS: { description: string }[] = [
     { description: '写一个个人博客网站，包含首页、关于我、文章列表三个页面，使用 Next.js 和 Tailwind CSS' },

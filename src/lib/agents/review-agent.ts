@@ -29,7 +29,7 @@ export class ReviewAgent extends BaseAgent {
       (response) => this.handleLLMResponse(response),
       () => this.review(task, context),
       this.getSystemPrompt(),
-      (t, _ctx) => this.buildUserPrompt(t),
+      (t, ctx) => this.buildUserPrompt(t, ctx),
     )
   }
 
@@ -53,8 +53,31 @@ export class ReviewAgent extends BaseAgent {
     }
   }
 
-  private buildUserPrompt(task: Task): string {
-    return `## 任务信息\n${sanitizeTaskPrompt(task)}\n\n## 审查范围\n请对刚才实现的代码进行全面审查。\n\n请开始审查。`
+  private buildUserPrompt(task: Task, context?: AgentContext): string {
+    let codeContent = ''
+
+    if (context) {
+      const fileEntries = Object.entries(context.files)
+      if (fileEntries.length > 0) {
+        codeContent = fileEntries
+          .map(([path, content]) => `### ${path}\n\`\`\`\n${content}\n\`\`\``)
+          .join('\n\n')
+      } else if (context.chatHistory && context.chatHistory.length > 0) {
+        // Try to extract code from the last dev agent message
+        const lastDevMsg = [...context.chatHistory].reverse().find(m => m.agent === 'dev')
+        if (lastDevMsg) {
+          codeContent = lastDevMsg.content
+        }
+      }
+    }
+
+    const base = `## 任务信息\n${sanitizeTaskPrompt(task)}\n\n## 审查范围\n请对刚才实现的代码进行全面审查。`
+
+    if (codeContent) {
+      return `${base}\n\n## Code to Review:\n${codeContent}\n\n请开始审查。`
+    }
+
+    return `${base}\n\n请开始审查。`
   }
 
   private getSystemPrompt(): string {

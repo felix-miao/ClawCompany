@@ -154,6 +154,8 @@ export interface AgentContext {
   tasks: Task[]
   files: Record<string, string>
   chatHistory: ChatMessage[]
+  pmAnalysis?: string
+  reviewFeedback?: string
 }
 
 export interface ChatMessage {

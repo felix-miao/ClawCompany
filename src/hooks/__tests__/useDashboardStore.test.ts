@@ -10,7 +10,7 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore(store));
 
     expect(result.current.agents).toHaveLength(4);
-    expect(result.current.agents[0].id).toBe('alice');
+    expect(result.current.agents[0].id).toBe('pm-agent');
   });
 
   it('should update when store processes event', () => {
@@ -21,12 +21,12 @@ describe('useDashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'working',
       });
     });
 
-    expect(result.current.agents[0].status).toBe('working');
+    expect(result.current.agents[0].status).toBe('working'); // pm-agent
   });
 
   it('should update events list', () => {
@@ -37,7 +37,7 @@ describe('useDashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
     });
@@ -53,7 +53,7 @@ describe('useDashboardStore', () => {
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build feature',
@@ -73,7 +73,7 @@ describe('useDashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'busy',
       });
     });

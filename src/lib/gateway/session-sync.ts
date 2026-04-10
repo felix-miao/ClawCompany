@@ -2,10 +2,10 @@ import { OpenClawGatewayClient, createGatewayClient } from './client'
 import { AgentInfo } from '@/game/data/DashboardStore'
 
 const DEFAULT_AGENTS: AgentInfo[] = [
-  { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'bob', name: 'Bob', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'charlie', name: 'Charlie', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'diana', name: 'Diana', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null },
 ]
 
 export interface GatewayAgent {

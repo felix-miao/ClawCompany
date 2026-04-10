@@ -112,11 +112,21 @@ export abstract class BaseOrchestrator {
     task: Task,
     callbacks: OrchestratorCallbacks
   ): Promise<AgentResponse | null> {
+    // Build context once outside retry loop to avoid N+1 file reads (P2 fix)
+    const context = await this.buildContext(callbacks)
+    return this.executeAgentWithContext(role, task, callbacks, context)
+  }
+
+  protected async executeAgentWithContext(
+    role: AgentRole,
+    task: Task,
+    callbacks: OrchestratorCallbacks,
+    context: AgentContext,
+  ): Promise<AgentResponse | null> {
     const result = await this.retry.execute(
       async () => {
         const timerId = this.obs.perf.startTimer(`agent.${role}`)
         try {
-          const context = await this.buildContext(callbacks)
           return await callbacks.executeAgent(role, task, context)
         } finally {
           this.obs.perf.stopTimer(timerId)
@@ -346,22 +356,52 @@ export abstract class BaseOrchestrator {
     completedTaskIds: Set<string>,
     allFiles: FileChange[],
   ): Promise<void> {
-    const devResponse = await this.runAgentForTask(task, cb, 'dev')
-    if (!devResponse) return
+    const MAX_ITERATIONS = 3
+    let iteration = 0
+    let context = await this.buildContext(cb)
 
-    await this.saveResponseFiles(task, cb, devResponse.files, allFiles)
+    while (iteration < MAX_ITERATIONS) {
+      const devResponse = await this.runAgentForTaskWithContext(task, cb, 'dev', context)
+      if (!devResponse) {
+        this.markTaskFailed(task, cb, 'dev', 'Dev agent returned null response')
+        return
+      }
 
-    cb.updateTaskStatus(task.id, 'review')
+      await this.saveResponseFiles(task, cb, devResponse.files, allFiles)
+      task.files = allFiles.map(f => f.path)
 
-    const reviewResponse = await this.runAgentForTask(task, cb, 'review')
-    if (!reviewResponse) return
+      cb.updateTaskStatus(task.id, 'review')
 
-    cb.broadcast('review', reviewResponse.message)
+      // Rebuild context so review can see newly saved files
+      const reviewContext = await this.buildContext(cb)
+      const reviewResponse = await this.runAgentForTaskWithContext(task, cb, 'review', reviewContext)
+      if (!reviewResponse) {
+        this.markTaskFailed(task, cb, 'review', 'Review agent returned null response')
+        return
+      }
 
-    if (reviewResponse.status === 'success') {
-      this.markTaskCompleted(task, cb, completedTaskIds, 'review')
-    } else {
-      this.markTaskFailed(task, cb, 'review', 'Review not approved')
+      cb.broadcast('review', reviewResponse.message)
+
+      if (reviewResponse.status === 'success') {
+        this.markTaskCompleted(task, cb, completedTaskIds, 'review')
+        return
+      }
+
+      // Review not approved — check if we should iterate
+      iteration++
+      if (iteration >= MAX_ITERATIONS) {
+        this.markTaskFailed(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations`)
+        return
+      }
+
+      // Pass review feedback into the next dev iteration
+      this.logInfo('Review not approved, retrying dev with feedback', {
+        taskId: task.id,
+        iteration,
+        feedback: reviewResponse.message.slice(0, 200),
+      })
+      context = { ...reviewContext, reviewFeedback: reviewResponse.message }
+      cb.updateTaskStatus(task.id, 'in_progress')
     }
   }
 
@@ -408,6 +448,24 @@ export abstract class BaseOrchestrator {
   ): Promise<AgentResponse | null> {
     this.emitTaskStarted(task, role)
     const response = await this.executeAgentWithRetry(role, task, cb)
+
+    if (!response) {
+      this.emitTaskFailed(task, role, `${role} task failed after all retries`)
+      return null
+    }
+
+    cb.broadcast(role, response.message)
+    return response
+  }
+
+  protected async runAgentForTaskWithContext(
+    task: Task,
+    cb: OrchestratorCallbacks,
+    role: AgentRole,
+    context: AgentContext,
+  ): Promise<AgentResponse | null> {
+    this.emitTaskStarted(task, role)
+    const response = await this.executeAgentWithContext(role, task, cb, context)
 
     if (!response) {
       this.emitTaskFailed(task, role, `${role} task failed after all retries`)

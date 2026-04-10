@@ -165,7 +165,7 @@ describe('SessionSyncService', () => {
       const defaults = sync.getDefaultAgents()
 
       expect(defaults).toHaveLength(4)
-      expect(defaults.map(a => a.id)).toEqual(['alice', 'bob', 'charlie', 'diana'])
+      expect(defaults.map(a => a.id)).toEqual(['pm-agent', 'dev-agent', 'review-agent', 'test-agent'])
     })
 
     it('should return a copy each time', () => {
@@ -173,7 +173,7 @@ describe('SessionSyncService', () => {
       const b = sync.getDefaultAgents()
 
       a[0].name = 'Modified'
-      expect(b[0].name).toBe('Alice')
+      expect(b[0].name).toBe('PM')
     })
   })
 })

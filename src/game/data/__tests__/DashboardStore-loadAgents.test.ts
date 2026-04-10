@@ -25,16 +25,16 @@ describe('DashboardStore.loadAgents', () => {
     store.processEvent({
       type: 'agent:emotion-change',
       timestamp: Date.now(),
-      agentId: 'alice',
+      agentId: 'pm-agent',
       emotion: 'happy',
       source: 'manual',
     })
 
     store.loadAgents([
-      { id: 'alice', name: 'Alice Updated', role: 'PM', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'Alice Updated', role: 'PM', status: 'busy', emotion: 'neutral', currentTask: null },
     ])
 
-    const alice = store.getAgentById('alice')
+    const alice = store.getAgentById('pm-agent')
     expect(alice?.emotion).toBe('happy')
     expect(alice?.name).toBe('Alice Updated')
     expect(alice?.status).toBe('busy')
@@ -45,29 +45,29 @@ describe('DashboardStore.loadAgents', () => {
     store.processEvent({
       type: 'agent:task-assigned',
       timestamp: Date.now(),
-      agentId: 'alice',
+      agentId: 'pm-agent',
       taskId: 'task-1',
       taskType: 'develop',
       description: 'Build feature X',
     })
 
     store.loadAgents([
-      { id: 'alice', name: 'Alice', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'PM', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null },
     ])
 
-    const alice = store.getAgentById('alice')
+    const alice = store.getAgentById('pm-agent')
     expect(alice?.currentTask).toBe('Build feature X')
     expect(alice?.status).toBe('busy')
   })
 
   it('should update status for existing agents', () => {
     store.loadAgents([
-      { id: 'alice', name: 'Alice', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null },
-      { id: 'bob', name: 'Bob', role: 'Developer', status: 'offline', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'PM', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'offline', emotion: 'neutral', currentTask: null },
     ])
 
-    expect(store.getAgentById('alice')?.status).toBe('busy')
-    expect(store.getAgentById('bob')?.status).toBe('offline')
+    expect(store.getAgentById('pm-agent')?.status).toBe('busy')
+    expect(store.getAgentById('dev-agent')?.status).toBe('offline')
   })
 
   it('should handle empty agents list', () => {
@@ -98,13 +98,13 @@ describe('DashboardStore.loadAgents', () => {
     store.processEvent({
       type: 'agent:status-change',
       timestamp: Date.now(),
-      agentId: 'alice',
+      agentId: 'pm-agent',
       status: 'busy',
     })
 
     store.reset()
 
-    expect(store.getAgentById('alice')?.status).toBe('idle')
+    expect(store.getAgentById('pm-agent')?.status).toBe('idle')
     expect(store.getEvents()).toEqual([])
   })
 })

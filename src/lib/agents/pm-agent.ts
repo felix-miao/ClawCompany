@@ -53,6 +53,9 @@ export class PMAgent extends BaseAgent {
         tasks,
         nextAgent: 'dev',
         status: 'success',
+        metadata: {
+          pmAnalysis: data.analysis || '',
+        },
       }
     }
 

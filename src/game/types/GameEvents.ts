@@ -15,7 +15,11 @@ export type GameEventType =
   | 'task:completed'
   | 'task:failed'
   | 'task:handover'
-  | 'openclaw:send';
+  | 'openclaw:send'
+  | 'pm:analysis-complete'
+  | 'dev:iteration-start'
+  | 'review:rejected'
+  | 'workflow:iteration-complete';
 
 export type AgentStatus = 'idle' | 'busy' | 'working' | 'offline';
 
@@ -142,6 +146,26 @@ export interface OpenClawSendEvent extends BaseGameEvent {
   agentRole: string;
 }
 
+export interface PmAnalysisCompleteEvent extends BaseGameEvent {
+  type: 'pm:analysis-complete';
+  payload: { projectId: string; taskCount: number; analysis: string };
+}
+
+export interface DevIterationStartEvent extends BaseGameEvent {
+  type: 'dev:iteration-start';
+  payload: { taskId: string; iteration: number; hasFeedback: boolean };
+}
+
+export interface ReviewRejectedEvent extends BaseGameEvent {
+  type: 'review:rejected';
+  payload: { taskId: string; iteration: number; feedback: string };
+}
+
+export interface WorkflowIterationCompleteEvent extends BaseGameEvent {
+  type: 'workflow:iteration-complete';
+  payload: { taskId: string; totalIterations: number; approved: boolean };
+}
+
 export type GameEvent =
   | AgentStatusEvent
   | TaskAssignedEvent
@@ -157,7 +181,11 @@ export type GameEvent =
   | TaskVisualizationCompletedEvent
   | TaskVisualizationFailedEvent
   | TaskVisualizationHandoverEvent
-  | OpenClawSendEvent;
+  | OpenClawSendEvent
+  | PmAnalysisCompleteEvent
+  | DevIterationStartEvent
+  | ReviewRejectedEvent
+  | WorkflowIterationCompleteEvent;
 
 export type GameEventHandler<T extends GameEvent = GameEvent> = (event: T) => void;
 
@@ -179,6 +207,10 @@ export interface EventTypeMap {
   'task:failed': TaskVisualizationFailedEvent;
   'task:handover': TaskVisualizationHandoverEvent;
   'openclaw:send': OpenClawSendEvent;
+  'pm:analysis-complete': PmAnalysisCompleteEvent;
+  'dev:iteration-start': DevIterationStartEvent;
+  'review:rejected': ReviewRejectedEvent;
+  'workflow:iteration-complete': WorkflowIterationCompleteEvent;
 }
 
 export interface SSEMessage {

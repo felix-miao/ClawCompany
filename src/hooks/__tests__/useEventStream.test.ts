@@ -84,12 +84,12 @@ describe('useEventStream', () => {
     act(() => {
       es.simulateMessage(JSON.stringify({
         type: 'agent:status-change',
-        agentId: 'alice',
+        agentId: 'pm-agent',
         status: 'working',
       }));
     });
 
-    expect(store.getAgentById('alice')?.status).toBe('working');
+    expect(store.getAgentById('pm-agent')?.status).toBe('working');
   });
 
   it('should track connection status', () => {
