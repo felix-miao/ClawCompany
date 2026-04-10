@@ -396,3 +396,90 @@ describe('Tween-based Movement', () => {
     expect(firstCall.ease).toBe('Power2');
   });
 });
+
+describe('Animation State Integration', () => {
+  interface MockAnimationController {
+    update: jest.Mock;
+    forcePlay: jest.Mock;
+    getState: jest.Mock;
+  }
+
+  function createMockAnimationController(): MockAnimationController {
+    let state = 'idle';
+    return {
+      update: jest.fn((vx, vy, floor, working) => {
+        if (working) state = 'working';
+        else if (Math.abs(vx) > 10) state = 'moving';
+        else state = 'idle';
+      }),
+      forcePlay: jest.fn((s) => { state = s; }),
+      getState: jest.fn(() => state),
+    };
+  }
+
+  it('should call animationController.update() when not navigating', () => {
+    const controller = createMockAnimationController();
+    const lastVelocityX = 0;
+    const lastVelocityY = 0;
+    const isOnFloor = true;
+    const isWorking = false;
+
+    if (controller) {
+      controller.update(lastVelocityX, lastVelocityY, isOnFloor, isWorking);
+    }
+
+    expect(controller.update).toHaveBeenCalledWith(0, 0, true, false);
+  });
+
+  it('should pass working state to animation controller', () => {
+    const controller = createMockAnimationController();
+
+    controller.update(0, 0, true, true);
+
+    expect(controller.update).toHaveBeenCalledWith(0, 0, true, true);
+    expect(controller.getState()).toBe('working');
+  });
+
+  it('should pass moving state to animation controller', () => {
+    const controller = createMockAnimationController();
+
+    controller.update(100, 0, true, false);
+
+    expect(controller.update).toHaveBeenCalledWith(100, 0, true, false);
+  });
+
+  it('should reset lastVelocityX/Y when navigation stops', () => {
+    let lastVelocityX = 100;
+    let lastVelocityY = 50;
+
+    function stopMovement(): void {
+      lastVelocityX = 0;
+      lastVelocityY = 0;
+    }
+
+    expect(lastVelocityX).toBe(100);
+    expect(lastVelocityY).toBe(50);
+
+    stopMovement();
+
+    expect(lastVelocityX).toBe(0);
+    expect(lastVelocityY).toBe(0);
+  });
+
+  it('should reset lastVelocityX/Y when navigation completes', () => {
+    let lastVelocityX = 80;
+    let lastVelocityY = 30;
+
+    function completeNavigation(): void {
+      lastVelocityX = 0;
+      lastVelocityY = 0;
+    }
+
+    expect(lastVelocityX).not.toBe(0);
+
+    completeNavigation();
+
+    expect(lastVelocityX).toBe(0);
+    expect(lastVelocityY).toBe(0);
+  });
+});

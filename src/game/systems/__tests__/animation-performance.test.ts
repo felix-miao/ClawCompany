@@ -65,7 +65,7 @@ describe('Animation System Performance', () => {
 
       expect(sprite.scene.anims.get).toHaveBeenCalled();
       const calledKey = sprite.scene.anims.get.mock.calls[0][0];
-      expect(calledKey).toMatch(/^moving_\d+$/);
+      expect(calledKey).toMatch(/^walk_\d+$/);
     });
 
     it('should handle rapid state changes with cooldown', () => {

@@ -53,13 +53,16 @@ export class AnimationController {
       this.isTransitioning = false;
     }
 
-    const animationKey = `${state}_${this.color}`;
+    const animationKey = state === 'moving' ? `walk_${this.color}` 
+                     : state === 'working' ? `work_${this.color}`
+                     : `${state}_${this.color}`;
     const animation = this.sprite.scene.anims.get(animationKey);
+
+    this.currentState = state;
+    this.lastTransitionTime = now;
 
     if (animation) {
       this.sprite.play(animationKey);
-      this.currentState = state;
-      this.lastTransitionTime = now;
     }
   }
 
