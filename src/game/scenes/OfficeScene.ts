@@ -350,13 +350,6 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private setupTaskSystem(): void {
-    this.taskTimer = this.time.addEvent({
-      delay: 5000,
-      callback: () => {
-        this.triggerRandomTask();
-      },
-      loop: true,
-    });
   }
 
   private triggerRandomTask(): void {
@@ -849,21 +842,6 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private setupWorkstationStatus(): void {
-    this.workstationTimer = this.time.addEvent({
-      delay: 3000,
-      callback: () => {
-        this.tilemapData?.workstations.forEach((ws) => {
-          if (Math.random() > 0.7) {
-            ws.status = ws.status === 'idle' ? 'busy' : 'idle';
-            const agentIndex = this.tilemapData?.workstations.findIndex(w => w.id === ws.id) ?? -1;
-            if (agentIndex >= 0 && this.agents[agentIndex]) {
-              this.agents[agentIndex].setWorking(ws.status === 'busy');
-            }
-          }
-        });
-      },
-      loop: true,
-    });
   }
 
   private setupCollisions(): void {
