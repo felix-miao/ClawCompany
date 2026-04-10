@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // standalone 模式：Docker 多阶段构建必需，复制最小运行时到 .next/standalone
+  output: 'standalone',
   async headers() {
     return [
       {

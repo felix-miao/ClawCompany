@@ -1,12 +1,54 @@
 import { NextRequest } from 'next/server';
 
-import { withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
+import { requireApiKey, getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
 import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
 import { getGameEventStore } from '@/game/data/GameEventStore';
 import type { GameEvent } from '@/game/types/GameEvents';
 import { getSessionPoller } from '@/lib/gateway/session-poller';
 
+// ── SSE 连接计数器 ────────────────────────────────────────────
+// ⚠️  注意：Vercel 多 Worker 环境下，此计数器仅在单个 Worker 进程内有效。
+//   多 Worker 场景需要 Redis 原子计数（待 P0-1 Redis PR 实现后替换）。
+//   单容器/Docker 部署（--replicas 1）时计数器完全有效。
+const MAX_SSE_CONNECTIONS = 100;
+const MAX_SSE_PER_IP = 5;
+const activeConnections = new Map<string, number>(); // ip → count
+let totalConnections = 0;
+
+function acquireConnection(ip: string): boolean {
+  if (totalConnections >= MAX_SSE_CONNECTIONS) return false;
+  const ipCount = activeConnections.get(ip) ?? 0;
+  if (ipCount >= MAX_SSE_PER_IP) return false;
+  activeConnections.set(ip, ipCount + 1);
+  totalConnections++;
+  return true;
+}
+
+function releaseConnection(ip: string): void {
+  const ipCount = activeConnections.get(ip) ?? 0;
+  if (ipCount <= 1) {
+    activeConnections.delete(ip);
+  } else {
+    activeConnections.set(ip, ipCount - 1);
+  }
+  totalConnections = Math.max(0, totalConnections - 1);
+}
+
+// ── GET：SSE 端点（需认证 + 连接限制）───────────────────────
 export async function GET(request: NextRequest) {
+  // 1. API Key 认证（与 POST 保持一致）
+  const authError = requireApiKey(request);
+  if (authError) return authError;
+
+  // 2. per-IP 连接数限制（最多 5 个并发 SSE 连接）
+  const ip = getClientId(request);
+  if (!acquireConnection(ip)) {
+    return new Response('Too Many Connections', {
+      status: 503,
+      headers: { 'Retry-After': '10' },
+    });
+  }
+
   const store = getGameEventStore();
   const encoder = new TextEncoder();
 
@@ -61,9 +103,11 @@ export async function GET(request: NextRequest) {
         }
       }, 30000);
 
+      // 3. 断开时清理连接计数
       request.signal.addEventListener('abort', () => {
         clearInterval(keepalive);
         unsubscribe();
+        releaseConnection(ip);
         try {
           controller.close();
         } catch {
