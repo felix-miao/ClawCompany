@@ -362,7 +362,7 @@ export abstract class BaseOrchestrator {
     let context = await this.buildContext(cb)
 
     while (iteration < MAX_ITERATIONS) {
-      // Emit dev:iteration-start before each dev iteration
+      // Emit dev:iteration-start before each dev attempt
       getGameEventStore().push({
         type: 'dev:iteration-start',
         agentId: 'dev-agent',
@@ -393,7 +393,7 @@ export abstract class BaseOrchestrator {
 
       if (reviewResponse.status === 'success') {
         this.markTaskCompleted(task, cb, completedTaskIds, 'review')
-        // Emit workflow:iteration-complete on success
+        // Emit workflow:iteration-complete on approval
         getGameEventStore().push({
           type: 'workflow:iteration-complete',
           agentId: 'review-agent',
@@ -407,7 +407,7 @@ export abstract class BaseOrchestrator {
       iteration++
       if (iteration >= MAX_ITERATIONS) {
         this.markTaskFailed(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations`)
-        // Emit workflow:iteration-complete on exhausted iterations
+        // Emit workflow:iteration-complete on exhausted retries
         getGameEventStore().push({
           type: 'workflow:iteration-complete',
           agentId: 'review-agent',
@@ -417,7 +417,7 @@ export abstract class BaseOrchestrator {
         return
       }
 
-      // Review rejected — emit event before retrying
+      // Review rejected — emit before retrying
       getGameEventStore().push({
         type: 'review:rejected',
         agentId: 'review-agent',

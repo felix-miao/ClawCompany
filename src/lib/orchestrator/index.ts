@@ -191,6 +191,7 @@ export class Orchestrator extends BaseOrchestrator {
           analysis: this.currentPMAnalysis,
         },
       })
+
       const subTasks: Task[] = []
       for (const taskData of validatedTasks) {
         const task = cb.createTask(
