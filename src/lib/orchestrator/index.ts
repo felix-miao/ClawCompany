@@ -10,6 +10,7 @@ import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
 import { UnifiedRetry } from '../core/unified-retry'
+import { getGameEventEmitter } from '../core/game-event-emitter'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 export { UnifiedRetry } from '../core/unified-retry'
@@ -148,6 +149,7 @@ export class Orchestrator extends BaseOrchestrator {
     this.failedTasks = []
 
     const cb = this.getCallbacks()
+    const events = getGameEventEmitter()
 
     this.logInfo('Workflow started', { userMessage })
     this.emitWorkflowStarted({ userMessage })
@@ -157,13 +159,25 @@ export class Orchestrator extends BaseOrchestrator {
 
       const initialTask = cb.createTask(userMessage, userMessage, 'pm', [], [])
 
+      // Notify dashboard: PM agent is now working
+      await events.emitAgentStatus({ agentId: 'pm', status: 'working' })
+      await events.emitTaskAssigned({
+        agentId: 'pm',
+        taskId: initialTask.id,
+        taskType: 'meeting',
+        description: userMessage.slice(0, 120),
+      })
+
       const pmResponse = await this.runAgentForTask(initialTask, cb, 'pm')
       if (!pmResponse) {
+        await events.emitAgentStatus({ agentId: 'pm', status: 'idle' })
         this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
       const pmCompletedIds = new Set<string>()
       this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
+      await events.emitTaskCompleted({ agentId: 'pm', taskId: initialTask.id, success: true })
+      await events.emitAgentStatus({ agentId: 'pm', status: 'idle' })
 
       const validatedTasks = validateSubTasks(pmResponse.tasks)
       const subTasks: Task[] = []
@@ -176,6 +190,22 @@ export class Orchestrator extends BaseOrchestrator {
           taskData.files ?? [],
         )
         subTasks.push(task)
+
+        // Notify dashboard: sub-task assigned to an agent
+        const gameTaskType = taskData.assignedTo === 'dev'
+          ? 'coding'
+          : taskData.assignedTo === 'review'
+            ? 'review'
+            : taskData.assignedTo === 'tester'
+              ? 'testing'
+              : 'meeting'
+        await events.emitTaskAssigned({
+          agentId: taskData.assignedTo,
+          taskId: task.id,
+          taskType: gameTaskType,
+          description: taskData.title.slice(0, 120),
+        })
+        await events.emitAgentStatus({ agentId: taskData.assignedTo, status: 'working' })
       }
 
       const subTaskIds = subTasks.map((t) => t.id)
@@ -233,6 +263,16 @@ export class Orchestrator extends BaseOrchestrator {
       const hasSuccess = subTaskIds.length === 0 || completedTaskIds.size === subTaskIds.length
       this.logInfo('Workflow completed', { success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
       this.emitWorkflowCompleted({ success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
+
+      // Reset all agents to idle once workflow is done
+      for (const taskData of validatedTasks) {
+        await events.emitTaskCompleted({
+          agentId: taskData.assignedTo,
+          taskId: subTasks.find(t => t.title === taskData.title)?.id ?? taskData.title,
+          success: hasSuccess,
+        })
+        await events.emitAgentStatus({ agentId: taskData.assignedTo, status: 'idle' })
+      }
       return {
         success: hasSuccess,
         messages: this.buildMessages(cb),

@@ -2,10 +2,10 @@ import { OpenClawGatewayClient, createGatewayClient } from './client'
 import { AgentInfo } from '@/game/data/DashboardStore'
 
 const DEFAULT_AGENTS: AgentInfo[] = [
-  { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'bob', name: 'Bob', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'charlie', name: 'Charlie', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'diana', name: 'Diana', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'pm-agent', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'dev-agent', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'review-agent', name: 'Reviewer Claw', role: 'review', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'test-agent', name: 'Tester Claw', role: 'tester', status: 'idle', emotion: 'neutral', currentTask: null },
 ]
 
 export interface GatewayAgent {
@@ -41,6 +41,12 @@ export interface SessionSummary {
 }
 
 const AGENT_ID_ROLE_MAP: Record<string, string> = {
+  // canonical agent ids (from agents/config.ts)
+  'pm-agent': 'pm',
+  'dev-agent': 'dev',
+  'review-agent': 'review',
+  'test-agent': 'tester',
+  // legacy / alternative ids kept for backwards compatibility
   'sidekick-claw': 'pm',
   'dev-claw': 'dev',
   'reviewer-claw': 'review',
