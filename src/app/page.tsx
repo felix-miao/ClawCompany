@@ -102,12 +102,6 @@ export default function Home() {
               Start Chatting →
             </Link>
             <Link
-              href="/office"
-              className="px-8 py-4 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105"
-            >
-              虚拟办公室 →
-            </Link>
-            <Link
               href="/demo"
               className="px-8 py-4 glass text-white font-semibold rounded-xl hover:bg-dark-100 transition-all duration-300"
             >

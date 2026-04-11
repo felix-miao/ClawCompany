@@ -191,6 +191,9 @@ export class OfficeScene extends Phaser.Scene {
       
       this.tilemapData = this.getDefaultTilemapData();
 
+      // 立即同步绘制办公室背景（不依赖 async generateEnhancedOfficeMap）
+      this.drawOfficeBackground();
+
       this.generateEnhancedOfficeMap();
 
       this.platforms = this.physics.add.staticGroup();
@@ -277,6 +280,107 @@ export class OfficeScene extends Phaser.Scene {
           align: 'center'
         }).setOrigin(0.5);
     }
+  }
+
+  /**
+   * Synchronously paint a readable office floor plan so the canvas is never
+   * empty while the async map-generator runs.
+   *
+   * Layout (800 × 600):
+   *   - dark navy floor fills the entire canvas
+   *   - four coloured room zones
+   *   - four desk strips (one per agent workstation)
+   *   - subtle grid lines so the space reads as a room
+   */
+  private drawOfficeBackground(): void {
+    const W = 800;
+    const H = 600;
+
+    // ── Floor ──────────────────────────────────────────────────────────────
+    const floor = this.add.graphics();
+    floor.fillStyle(0x1e2235, 1);
+    floor.fillRect(0, 0, W, H);
+    floor.setDepth(-10);
+
+    // Grid lines (every 40px)
+    floor.lineStyle(1, 0x2a3050, 0.6);
+    for (let x = 0; x <= W; x += 40) {
+      floor.moveTo(x, 0); floor.lineTo(x, H);
+    }
+    for (let y = 0; y <= H; y += 40) {
+      floor.moveTo(0, y); floor.lineTo(W, y);
+    }
+    floor.strokePath();
+
+    // ── Outer walls ────────────────────────────────────────────────────────
+    const walls = this.add.graphics();
+    walls.lineStyle(4, 0x4a5568, 1);
+    walls.strokeRect(2, 2, W - 4, H - 4);
+    walls.setDepth(-9);
+
+    // ── Room zones ─────────────────────────────────────────────────────────
+    const rooms: { x: number; y: number; w: number; h: number; color: number; label: string; emoji: string }[] = [
+      { x: 40,  y: 60,  w: 200, h: 160, color: 0x1a3a4a, label: 'PM Office',        emoji: '📋' },
+      { x: 300, y: 60,  w: 200, h: 160, color: 0x1a3a2a, label: 'Dev Studio',       emoji: '💻' },
+      { x: 560, y: 60,  w: 200, h: 160, color: 0x3a1a2a, label: 'Review Center',    emoji: '🔍' },
+      { x: 300, y: 380, w: 200, h: 160, color: 0x3a2a1a, label: 'Test Lab',         emoji: '🧪' },
+    ];
+
+    const roomGfx = this.add.graphics();
+    roomGfx.setDepth(-8);
+
+    rooms.forEach(r => {
+      // Room fill
+      roomGfx.fillStyle(r.color, 1);
+      roomGfx.fillRoundedRect(r.x, r.y, r.w, r.h, 8);
+      // Room border
+      roomGfx.lineStyle(2, 0x4a5580, 0.8);
+      roomGfx.strokeRoundedRect(r.x, r.y, r.w, r.h, 8);
+
+      // Room label
+      this.add.text(r.x + r.w / 2, r.y + 16, `${r.emoji} ${r.label}`, {
+        fontSize: '12px',
+        color: '#94a3b8',
+        fontStyle: 'bold',
+      }).setOrigin(0.5, 0).setDepth(-7);
+    });
+
+    // ── Desk strips (match workstation positions in getDefaultTilemapData) ──
+    // ws: x=4,y=8  x=8,y=8  x=12,y=8  x=16,y=8  (TILE_SIZE=32)
+    const deskPositions = [
+      { cx: 4  * 32 + 16, cy: 8 * 32 },   // Dev1 workstation
+      { cx: 8  * 32 + 16, cy: 8 * 32 },   // Dev2 workstation
+      { cx: 12 * 32 + 16, cy: 8 * 32 },   // PM workstation
+      { cx: 16 * 32 + 16, cy: 8 * 32 },   // Review workstation
+    ];
+
+    const desks = this.add.graphics();
+    desks.setDepth(-7);
+    deskPositions.forEach(d => {
+      // Desk surface
+      desks.fillStyle(0x4a3728, 1);
+      desks.fillRoundedRect(d.cx - 44, d.cy - 12, 88, 24, 4);
+      desks.lineStyle(1, 0x6b4f3a, 1);
+      desks.strokeRoundedRect(d.cx - 44, d.cy - 12, 88, 24, 4);
+      // Monitor
+      desks.fillStyle(0x1a1f2e, 1);
+      desks.fillRect(d.cx - 14, d.cy - 28, 28, 18);
+      desks.lineStyle(1, 0x45b7d1, 0.6);
+      desks.strokeRect(d.cx - 14, d.cy - 28, 28, 18);
+      // Monitor glow
+      desks.fillStyle(0x45b7d1, 0.15);
+      desks.fillRect(d.cx - 12, d.cy - 26, 24, 14);
+    });
+
+    // ── Path between rooms (subtle dotted lines) ───────────────────────────
+    const paths = this.add.graphics();
+    paths.setDepth(-8);
+    paths.lineStyle(1, 0x3a4060, 0.5);
+    // Horizontal corridor
+    paths.moveTo(240, 300); paths.lineTo(560, 300);
+    // Vertical connections
+    paths.moveTo(400, 220); paths.lineTo(400, 380);
+    paths.strokePath();
   }
 
   private generateEnhancedOfficeMap(): void {
@@ -672,27 +776,31 @@ export class OfficeScene extends Phaser.Scene {
   private createAgents(): void {
     if (!this.tilemapData) return;
 
-    const agentColors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0x96ceb4];
+    // Map agent id → short role key used by TinyTownLoader animations
+    const ROLE_KEY: Record<string, string> = {
+      'pm-agent':     'pm',
+      'dev-agent':    'dev',
+      'review-agent': 'reviewer',
+      'test-agent':   'tester',
+    };
 
     this.tilemapData.workstations.forEach((ws, index) => {
-      const color = agentColors[index % agentColors.length];
       const config = AGENT_CONFIGS[index] ?? { id: ws.id, name: ws.label, role: ws.taskType };
+      const roleKey = ROLE_KEY[config.id] ?? 'pm';
       const badgeConfig = this.roleVisuals.getNameBadgeConfig(config.role);
-      
-      // 生成角色精灵和动画（程序化像素小人）
-      const characterSprites = new CharacterSprites(this, { color });
-      characterSprites.generate();
-      
-      // 使用程序化角色精灵的纹理（idle 动画第一帧）
-      const textureKey = `idle_${color}_0`;
+
+      // Use the texture that TinyTownLoader registers: `character-{roleKey}`
+      // (64×64 pixel art with idle/walk/work animations keyed as `${roleKey}-idle` etc.)
+      const textureKey = `character-${roleKey}`;
 
       const x = ws.x * TILE_SIZE + TILE_SIZE / 2;
       const y = (ws.y - 1) * TILE_SIZE;
-      
-      // 使用增强的角色创建方法，传入正确的纹理 key
-      const agent = this.createEnhancedAgent(x, y, color, config, textureKey);
 
-      const controller = new AnimationController(agent, config.role);
+      const agent = this.createEnhancedAgent(x, y, 0xffffff, config, textureKey);
+
+      // AnimationController now receives the short role key so it can look up
+      // animations like "pm-idle", "dev-walk", "reviewer-work" registered by TinyTownLoader.
+      const controller = new AnimationController(agent, roleKey);
       agent.setAnimationController(controller);
       controller.forcePlay('idle');
 
@@ -712,7 +820,7 @@ export class OfficeScene extends Phaser.Scene {
       nameLabel.setStroke(`#${badgeConfig.borderColor.toString(16).padStart(6, '0')}`, 1);
       this.nameLabels.set(agent.agentId, nameLabel);
 
-      // 创建增强的阴影
+      // Drop shadow
       const shadowDims = this.shadowRenderer.getShadowDimensions(64, 64);
       const shadowGfx = this.add.graphics();
       const shadowColor = this.shadowRenderer.getShadowColor();
@@ -721,7 +829,7 @@ export class OfficeScene extends Phaser.Scene {
       shadowGfx.setPosition(agent.x, agent.y + shadowDims.offsetY);
       this.shadowGraphics.set(agent.agentId, shadowGfx);
 
-      // 添加角色特效标识
+      // Role indicator (emoji above head)
       this.addRoleIndicator(agent, config.role);
 
       this.memoryManager.track({
@@ -731,7 +839,7 @@ export class OfficeScene extends Phaser.Scene {
       });
     });
 
-    // 创建角色间互动
+    // Agent proximity interactions
     this.createAgentInteractions();
   }
 

@@ -19,7 +19,11 @@ const AGENT_COLORS: Record<string, string> = {
 const ROLE_EMOJI: Record<string, string> = {
   Developer: '💻',
   PM: '📋',
+  'Project Manager': '📋',
   Reviewer: '🔍',
+  'Code Reviewer': '🔍',
+  'QA Engineer': '🧪',
+  Tester: '🧪',
 };
 
 interface AgentStatusPanelProps {
@@ -28,33 +32,33 @@ interface AgentStatusPanelProps {
 
 export function AgentStatusPanel({ agents }: AgentStatusPanelProps) {
   return (
-    <div className="glass rounded-xl p-4">
-      <h2 className="text-lg font-bold gradient-text mb-3">Agent Status</h2>
-      <div className="space-y-2">
+    <div className="glass rounded-xl p-3">
+      <h2 className="text-sm font-bold gradient-text mb-2">Agent Status</h2>
+      <div className="space-y-1.5">
         {agents.map(agent => (
           <div
             key={agent.id}
-            className="bg-dark-50/50 rounded-lg p-3 border border-dark-100/20"
+            className="bg-dark-50/50 rounded-lg p-2.5 border border-dark-100/20"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-8 h-8 rounded-lg bg-gradient-to-br ${AGENT_COLORS[agent.id] ?? 'from-gray-500 to-gray-600'} flex items-center justify-center text-sm`}
+                  className={`w-7 h-7 rounded-lg bg-gradient-to-br ${AGENT_COLORS[agent.id] ?? 'from-gray-500 to-gray-600'} flex items-center justify-center text-sm shrink-0`}
                 >
                   {ROLE_EMOJI[agent.role] ?? '🤖'}
                 </div>
-                <div>
-                  <span className="text-white font-medium text-sm">
+                <div className="min-w-0">
+                  <span className="text-white font-medium text-xs block truncate">
                     {agent.name}
                   </span>
-                  <span className="text-gray-500 text-xs ml-2">
+                  <span className="text-gray-500 text-xs truncate block">
                     {agent.role}
                   </span>
                 </div>
               </div>
               <span
                 data-status={agent.status}
-                className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[agent.status] ?? ''}`}
+                className={`text-xs px-1.5 py-0.5 rounded-full shrink-0 ${STATUS_COLORS[agent.status] ?? ''}`}
               >
                 {agent.status}
               </span>

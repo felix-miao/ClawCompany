@@ -128,9 +128,9 @@ export class TinyTownLoader {
   }
 
   private createCharacterAnimations(spriteName: string, role: string): void {
-    // 站立动画
+    // Keys match AnimationController format: `${role}_idle`, `${role}_walk`, `${role}_work`
     this.scene.anims.create({
-      key: `${role}-idle`,
+      key: `${role}_idle`,
       frames: [
         { key: spriteName, frame: 0 },
       ],
@@ -138,9 +138,8 @@ export class TinyTownLoader {
       repeat: -1
     });
 
-    // 行走动画
     this.scene.anims.create({
-      key: `${role}-walk`,
+      key: `${role}_walk`,
       frames: [
         { key: spriteName, frame: 0 },
         { key: spriteName, frame: 0 },
@@ -151,9 +150,8 @@ export class TinyTownLoader {
       repeat: -1
     });
 
-    // 工作动画
     this.scene.anims.create({
-      key: `${role}-work`,
+      key: `${role}_work`,
       frames: [
         { key: spriteName, frame: 0 },
         { key: spriteName, frame: 0 },

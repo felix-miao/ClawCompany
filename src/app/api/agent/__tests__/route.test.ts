@@ -962,4 +962,99 @@ describe('/api/agent', () => {
       expect(data.error).toContain('not found')
     })
   })
+
+  describe('Agent API 职责明确 - 与 /api/chat 的分工', () => {
+    it('GET /api/agent?agentId=X 应该返回单 agent 完整详情（包含 systemPrompt、runtime）', async () => {
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue({
+        id: 'pm-agent',
+        name: 'PM Claw',
+        role: 'pm',
+        emoji: '📋',
+        color: '#3B82F6',
+        systemPrompt: 'You are PM Claw负责需求分析',
+        runtime: 'subagent',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost/api/agent?agentId=pm-agent'
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agent).toBeDefined()
+      expect(data.agent.id).toBe('pm-agent')
+      expect(data.agent).toHaveProperty('systemPrompt')
+      expect(data.agent).toHaveProperty('runtime')
+      expect(data.agent).toHaveProperty('emoji')
+      expect(data.agent).toHaveProperty('color')
+    })
+
+    it('GET /api/agent（无 agentId）应该返回 agents 列表（不包含单个详情）', async () => {
+      const storage = getMockStorageManager()
+      storage.listAgents.mockResolvedValue([
+        { id: 'pm-agent', name: 'PM Claw' },
+        { id: 'dev-agent', name: 'Dev Claw' }
+      ])
+
+      const request = createMockRequest({
+        method: 'GET',
+        url: 'http://localhost/api/agent'
+      })
+
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agents).toBeDefined()
+      expect(Array.isArray(data.agents)).toBe(true)
+      data.agents.forEach((agent: { id: string; name: string }) => {
+        expect(agent).toHaveProperty('id')
+        expect(agent).toHaveProperty('name')
+        expect(agent).not.toHaveProperty('systemPrompt')
+      })
+    })
+
+    it('POST /api/agent 应该返回 conversationId（单 agent 对话上下文）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.conversationId).toBeDefined()
+      expect(data.agentId).toBe('pm-agent')
+      expect(data).toHaveProperty('message')
+    })
+
+    it('POST /api/agent 应该不返回 tasks 列表（与 /api/chat 区别）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).not.toHaveProperty('tasks')
+      expect(data).not.toHaveProperty('chatHistory')
+      expect(data).not.toHaveProperty('files')
+    })
+  })
 })

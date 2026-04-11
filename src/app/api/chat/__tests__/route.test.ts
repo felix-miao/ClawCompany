@@ -253,5 +253,62 @@ describe('Chat API', () => {
       expect(data.tasks).toBeDefined()
       expect(data.chatHistory).toBeDefined()
     })
+
+    it('GET 应该返回聚合的 agents 列表（不包含单个 agent 详情）', async () => {
+      const request = createMockNextRequestWithAuth({}, API_KEY)
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agents).toBeDefined()
+      expect(Array.isArray(data.agents)).toBe(true)
+      data.agents.forEach((agent: { id: string; name: string; role: string; description?: string }) => {
+        expect(agent).toHaveProperty('id')
+        expect(agent).toHaveProperty('name')
+        expect(agent).toHaveProperty('role')
+        expect(agent).toHaveProperty('description')
+        expect(agent).not.toHaveProperty('systemPrompt')
+        expect(agent).not.toHaveProperty('runtime')
+      })
+    })
+
+    it('GET 应该返回 stats 信息', async () => {
+      const request = createMockNextRequestWithAuth({}, API_KEY)
+      const response = await GET(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.stats).toBeDefined()
+      expect(data.stats).toHaveProperty('total')
+      expect(data.stats).toHaveProperty('pending')
+      expect(data.stats).toHaveProperty('in_progress')
+      expect(data.stats).toHaveProperty('review')
+      expect(data.stats).toHaveProperty('completed')
+    })
+  })
+
+  describe('POST /api/chat - 完整工作流', () => {
+    it('POST 应该触发 Orchestrator 完整工作流', async () => {
+      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.tasks).toBeDefined()
+      expect(Array.isArray(data.tasks)).toBe(true)
+      expect(data.chatHistory).toBeDefined()
+      expect(data.chatHistory.length).toBeGreaterThan(1)
+    })
+
+    it('POST 应该返回 files 字段（Orchestrator 执行结果）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).toHaveProperty('files')
+      expect(Array.isArray(data.files)).toBe(true)
+    })
   })
 })

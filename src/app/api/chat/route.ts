@@ -5,6 +5,18 @@ import type { Orchestrator } from '@/lib/orchestrator'
 import { withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils'
 import { ChatRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 
+/**
+ * /api/chat - 聚合工作流 API
+ *
+ * 职责：触发 Orchestrator 完整多 Agent 工作流（PM → Dev → Review）
+ * - POST: 发送消息，触发 Orchestrator.executeUserRequest，返回完整工作流结果
+ * - GET: 聚合视图，返回 tasks、chatHistory、stats、agents 列表
+ *
+ * 与 /api/agent 的分工：
+ * - /api/chat: 多 Agent 协作的聚合结果（tasks、chatHistory、files）
+ * - /api/agent: 单 Agent 交互，返回 conversationId、agentId）
+ */
+
 export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body = await request.json()
   const parsed = parseRequestBody(ChatRequestSchema, body)

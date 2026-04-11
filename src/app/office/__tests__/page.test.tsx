@@ -1,82 +1,25 @@
-import React from 'react'
-import { render, screen, cleanup } from '@testing-library/react'
+/**
+ * /office route now redirects to /dashboard.
+ * We verify that the redirect helper is called so the route stays thin.
+ */
 
-import OfficePage from '../page'
+import { redirect } from 'next/navigation';
 
-// Mock the game module
-jest.mock('@/game', () => ({
-  Game: jest.fn().mockImplementation(() => ({
-    destroy: jest.fn(),
-  })),
-  startGame: jest.fn().mockReturnValue({
-    destroy: jest.fn(),
-  }),
-}))
+import OfficePage from '../page';
 
-describe('OfficePage', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
+jest.mock('next/navigation', () => ({
+  redirect: jest.fn(),
+}));
 
-  afterEach(() => {
-    cleanup()
-  })
-
-  it('should render the office page with correct title', () => {
-    render(<OfficePage />)
-    
-    expect(screen.getByText('虚拟办公室 - Phaser 3')).toBeInTheDocument()
-  })
-
-  it('should render game instructions', () => {
-    render(<OfficePage />)
-    
-    expect(screen.getByText('🎮 操作指南')).toBeInTheDocument()
-    expect(screen.getByText('移动')).toBeInTheDocument()
-    expect(screen.getByText('调试')).toBeInTheDocument()
-    expect(screen.getByText('任务')).toBeInTheDocument()
-    expect(screen.getByText('快速移动')).toBeInTheDocument()
-  })
-
-  it('should render game container with correct id', () => {
-    render(<OfficePage />)
-    
-    const container = document.getElementById('game-container')
-    expect(container).toBeInTheDocument()
-  })
-
-  it('should have correct container responsive styling', () => {
-    render(<OfficePage />)
-    
-    const container = document.getElementById('game-container')
-    expect(container).toHaveClass('w-full', 'h-full')
-    
-    // The styling is applied to the parent container, not the game-container itself
-    const parentContainer = container?.parentElement
-    if (parentContainer) {
-      const computedStyle = window.getComputedStyle(parentContainer)
-      expect(computedStyle.aspectRatio).toBe('4/3')
-      expect(computedStyle.maxWidth).toBe('800px')
-      // maxHeight removed for better responsive design
-      expect(computedStyle.margin).toBe('0px auto')
+describe('OfficePage (redirect)', () => {
+  it('should redirect to /dashboard', () => {
+    // OfficePage calls redirect() which throws in Next.js runtime;
+    // in tests the mock just records the call.
+    try {
+      OfficePage();
+    } catch {
+      // redirect() in tests may throw — that is fine
     }
-  })
-
-  it('should have correct container styling', () => {
-    render(<OfficePage />)
-    
-    const container = document.getElementById('game-container')
-    expect(container).toHaveClass('w-full', 'h-full')
-    
-    // The rounded-xl and overflow-hidden classes are now on the parent container
-    const parentContainer = container?.parentElement
-    expect(parentContainer).toHaveClass('rounded-xl', 'overflow-hidden')
-  })
-
-  it('should render header with gradient text', () => {
-    render(<OfficePage />)
-    
-    const title = screen.getByText('虚拟办公室 - Phaser 3')
-    expect(title).toHaveClass('gradient-text')
-  })
-})
+    expect(redirect).toHaveBeenCalledWith('/dashboard');
+  });
+});

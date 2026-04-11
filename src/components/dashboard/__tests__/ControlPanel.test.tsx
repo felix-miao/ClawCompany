@@ -26,8 +26,8 @@ describe('ControlPanel', () => {
     render(<ControlPanel onSendEvent={mockOnSendEvent} />);
 
     expect(screen.getByText('Set Status')).toBeInTheDocument();
-    expect(screen.getByText('Assign Task')).toBeInTheDocument();
-    expect(screen.getByText('Change Emotion')).toBeInTheDocument();
+    expect(screen.getByText('Assign')).toBeInTheDocument();
+    expect(screen.getByText('Emotion')).toBeInTheDocument();
   });
 
   it('should send status change event', () => {
@@ -45,9 +45,9 @@ describe('ControlPanel', () => {
   it('should send task assigned event', () => {
     render(<ControlPanel onSendEvent={mockOnSendEvent} />);
 
-    const descInput = screen.getByPlaceholderText('Task description');
+    const descInput = screen.getByPlaceholderText('Task description...');
     fireEvent.change(descInput, { target: { value: 'Write tests' } });
-    fireEvent.click(screen.getByText('Assign Task'));
+    fireEvent.click(screen.getByText('Assign'));
 
     expect(mockOnSendEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -60,7 +60,7 @@ describe('ControlPanel', () => {
   it('should send emotion change event', () => {
     render(<ControlPanel onSendEvent={mockOnSendEvent} />);
 
-    fireEvent.click(screen.getByText('Change Emotion'));
+    fireEvent.click(screen.getByText('Emotion'));
 
     expect(mockOnSendEvent).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -45,15 +45,16 @@ describe('EventLog', () => {
   it('should display event types', () => {
     render(<EventLog events={mockEvents} />);
 
-    expect(screen.getByText('agent:status-change')).toBeInTheDocument();
-    expect(screen.getByText('agent:task-assigned')).toBeInTheDocument();
-    expect(screen.getByText('session:started')).toBeInTheDocument();
+    // Event types are now shown as short labels (e.g. "status", "task", "session↑")
+    expect(screen.getByText('status')).toBeInTheDocument();
+    expect(screen.getByText('task')).toBeInTheDocument();
+    expect(screen.getByText('session↑')).toBeInTheDocument();
   });
 
   it('should show empty state', () => {
     render(<EventLog events={[]} />);
 
-    expect(screen.getByText(/No events yet/)).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for activity/)).toBeInTheDocument();
   });
 
   it('should limit displayed events', () => {

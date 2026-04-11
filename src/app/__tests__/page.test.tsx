@@ -16,6 +16,7 @@ describe('Landing Page', () => {
     expect(screen.getByRole('link', { name: /Start Chatting/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /View Demo/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument()
+    // /office route has been merged into /dashboard — no separate office button
   })
 
   it('应该显示三个 Agent 卡片', () => {

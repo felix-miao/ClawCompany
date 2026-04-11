@@ -2,6 +2,25 @@
 
 import { GameEvent } from '@/game/types/GameEvents';
 
+// Short display labels for event types
+const EVENT_SHORT: Record<string, string> = {
+  'agent:status-change': 'status',
+  'agent:task-assigned': 'task',
+  'agent:task-completed': 'done',
+  'agent:navigation-request': 'nav',
+  'agent:emotion-change': 'emotion',
+  'session:started': 'session↑',
+  'session:completed': 'session✓',
+  'session:progress': 'progress',
+  'connection:open': 'conn↑',
+  'connection:close': 'conn↓',
+  'connection:error': 'err',
+  'task:assigned': 'task↑',
+  'task:progress': 'task%',
+  'task:completed': 'task✓',
+  'task:failed': 'task✗',
+};
+
 const EVENT_COLORS: Record<string, string> = {
   'agent:status-change': 'text-blue-400',
   'agent:task-assigned': 'text-yellow-400',
@@ -14,6 +33,10 @@ const EVENT_COLORS: Record<string, string> = {
   'connection:open': 'text-green-400',
   'connection:close': 'text-red-400',
   'connection:error': 'text-red-500',
+  'task:assigned': 'text-yellow-400',
+  'task:progress': 'text-teal-400',
+  'task:completed': 'text-green-400',
+  'task:failed': 'text-red-400',
 };
 
 function formatEventDescription(event: GameEvent): string {
@@ -23,13 +46,13 @@ function formatEventDescription(event: GameEvent): string {
     case 'agent:task-assigned':
       return event.description;
     case 'agent:task-completed':
-      return `${event.agentId} completed (${event.result})`;
+      return `${event.agentId} (${event.result})`;
     case 'agent:emotion-change':
-      return `${event.agentId} feels ${event.emotion}`;
+      return `${event.agentId} ${event.emotion}`;
     case 'session:started':
       return `${event.role}: ${event.task}`;
     case 'session:completed':
-      return `${event.role} session ${event.status}`;
+      return `${event.role} ${event.status}`;
     case 'session:progress':
       return `${event.progress}% - ${event.message}`;
     case 'agent:navigation-request':
@@ -53,27 +76,27 @@ export function EventLog({ events, maxDisplay = 100 }: EventLogProps) {
   const displayed = events.slice(-maxDisplay);
 
   return (
-    <div className="glass rounded-xl p-4">
-      <h2 className="text-lg font-bold gradient-text mb-3">Event Log</h2>
-      <div className="space-y-1 max-h-64 overflow-y-auto hide-scrollbar">
+    <div className="glass rounded-xl p-3">
+      <h2 className="text-sm font-bold gradient-text mb-2">Event Log</h2>
+      <div className="space-y-0.5 max-h-48 overflow-y-auto hide-scrollbar">
         {displayed.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center py-4">
-            No events yet. Waiting for activity...
+          <p className="text-gray-500 text-xs text-center py-4">
+            Waiting for activity...
           </p>
         ) : (
           displayed.map((event, i) => (
             <div
               key={`${event.timestamp}-${i}`}
               data-testid="event-log-item"
-              className="flex items-start gap-2 py-1 px-2 rounded hover:bg-dark-50/30 text-xs"
+              className="flex items-center gap-1.5 py-0.5 px-1.5 rounded hover:bg-dark-50/30 text-xs"
             >
-              <span className="text-gray-500 font-mono shrink-0">
+              <span className="text-gray-600 font-mono shrink-0 text-[10px]">
                 {formatTime(event.timestamp)}
               </span>
-              <span className={`font-mono shrink-0 ${EVENT_COLORS[event.type] ?? 'text-gray-400'}`}>
-                {event.type}
+              <span className={`font-mono shrink-0 text-[10px] w-16 ${EVENT_COLORS[event.type] ?? 'text-gray-400'}`}>
+                {EVENT_SHORT[event.type] ?? event.type.split(':')[1] ?? event.type}
               </span>
-              <span className="text-gray-300 truncate">
+              <span className="text-gray-300 truncate text-[10px]">
                 {formatEventDescription(event)}
               </span>
             </div>
