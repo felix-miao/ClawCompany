@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 
 import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
 import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
-import { getGameEventStore } from '@/game/data/GameEventStore';
+import { createGameEventStore, getGameEventStore } from '@/game/data/GameEventStore';
 import type { GameEvent } from '@/game/types/GameEvents';
-import { getSessionPoller } from '@/lib/gateway/session-poller';
+import { getSessionPoller, createSessionPoller } from '@/lib/gateway/session-poller';
 
 // ── SSE 连接计数器 ────────────────────────────────────────────
 // ⚠️  注意：Vercel 多 Worker 环境下，此计数器仅在单个 Worker 进程内有效。
@@ -45,7 +45,7 @@ const handleGet = async (request: NextRequest) => {
     });
   }
 
-  const store = getGameEventStore();
+  const store = createGameEventStore();
   const encoder = new TextEncoder();
 
   const url = new URL(request.url);
@@ -53,7 +53,7 @@ const handleGet = async (request: NextRequest) => {
 
   const stream = new ReadableStream({
     start(controller) {
-      const poller = getSessionPoller(store);
+      const poller = createSessionPoller(store);
       if (!poller.isRunning()) {
         poller.start();
       }

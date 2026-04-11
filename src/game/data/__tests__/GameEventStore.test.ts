@@ -1,4 +1,4 @@
-import { GameEventStore, getGameEventStore, resetGameEventStore } from '../GameEventStore';
+import { GameEventStore, getGameEventStore, createGameEventStore, setGameEventStore, resetGameEventStore } from '../GameEventStore';
 import { GameEventType } from '../../types/GameEvents';
 
 function createMockEvent(type: GameEventType, agentId: string = 'agent1'): any {
@@ -169,6 +169,7 @@ describe('GameEventStore', () => {
 
 describe('Singleton functions', () => {
   afterEach(() => {
+    GameEventStore.clearAllSubscribers();
     resetGameEventStore();
   });
 
@@ -177,16 +178,64 @@ describe('Singleton functions', () => {
     expect(store).toBeInstanceOf(GameEventStore);
   });
 
-  it('should return the same instance', () => {
+  it('should return same instance (singleton for SSE subscribers)', () => {
     const s1 = getGameEventStore();
     const s2 = getGameEventStore();
     expect(s1).toBe(s2);
   });
 
-  it('resetGameEventStore should reset the singleton', () => {
-    const s1 = getGameEventStore();
-    resetGameEventStore();
-    const s2 = getGameEventStore();
-    expect(s1).not.toBe(s2);
+  it('getGameEventStore should use default maxEvents', () => {
+    const store = getGameEventStore();
+    for (let i = 0; i < 205; i++) {
+      store.push(createMockEvent('agent:task-assigned'));
+    }
+    expect(store.getEvents()).toHaveLength(200);
+  });
+});
+
+describe('Request Isolation - createGameEventStore factory', () => {
+  afterEach(() => {
+    GameEventStore.clearAllSubscribers();
+  });
+
+  it('createGameEventStore should return a new instance each time', () => {
+    const store1 = createGameEventStore(10);
+    const store2 = createGameEventStore(10);
+    expect(store1).not.toBe(store2);
+  });
+
+  it('different store instances should have isolated event buffers', () => {
+    const store1 = createGameEventStore(10);
+    const store2 = createGameEventStore(10);
+
+    store1.push(createMockEvent('agent:task-assigned', 'agent1'));
+    store2.push(createMockEvent('agent:task-completed', 'agent2'));
+
+    expect(store1.getEvents()).toHaveLength(1);
+    expect(store1.getEvents()[0].agentId).toBe('agent1');
+    expect(store2.getEvents()).toHaveLength(1);
+    expect(store2.getEvents()[0].agentId).toBe('agent2');
+  });
+
+  it('different store instances should share process-level emitter for SSE', (done) => {
+    const store1 = createGameEventStore(10);
+    const store2 = createGameEventStore(10);
+
+    let receivedFromStore2 = false;
+    store2.subscribe((event) => {
+      if (event.agentId === 'agent-from-store1') {
+        receivedFromStore2 = true;
+        expect(event.type).toBe('agent:task-assigned');
+        done();
+      }
+    });
+
+    store1.push(createMockEvent('agent:task-assigned', 'agent-from-store1'));
+
+    setTimeout(() => {
+      if (!receivedFromStore2) {
+        done(new Error('Event was not propagated to other store instance'));
+      }
+    }, 100);
   });
 });

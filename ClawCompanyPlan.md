@@ -34,15 +34,15 @@
   - **已完成**: .gitignore 添加 *.backup，删除 metrics-aggregator.ts.backup
   - **需人工**: 仍需执行 git history rewrite + force-push（origin: git@github.com:felix-miao/ClawCompany.git；本地当前未安装 git-filter-repo）
 
-- [ ] **#067 [P0][API] game-events GET 端点完全无认证保护**
+- [code-complete] **#067 [P0][API] game-events GET 端点完全无认证保护** → commit 7eb6e0b
   - **文件**: `src/app/api/game-events/route.ts` (第8行)
   - **问题**: GET 无 withAuth 包裹，POST 有认证但 GET 没有
   - **修复**: GET 加 withAuth 包裹
 
-- [ ] **#068 [P0][LIB] 全局单例在 Serverless 环境下状态污染**
+- [code-complete] **#068 [P0][LIB] 全局单例在 Serverless 环境下状态污染**
   - **文件**: GameEventStore.ts, session-poller.ts, executor.ts, client.ts, services.ts
   - **问题**: 5处模块级全局单例，并发请求共享状态
-  - **修复**: 删除全局单例导出，通过 DI Container 按请求创建实例
+  - **修复**: 默认路径改为 factory / DI 优先的按请求创建；仅保留测试/兼容层需要的显式 singleton helper
 
 - [ ] **#069 [P0][LIB] ChatManager 无消息数量上限，内存无界增长**
   - **文件**: `src/lib/chat/manager.ts` (31行)
