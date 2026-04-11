@@ -107,6 +107,18 @@ export class CheckpointService {
     }))
   }
 
+  /** 等待人工介入（HITL） */
+  saveAwaitingHumanReview(taskId: string, reason: string): void {
+    const existing = this.store.getLatest(taskId)
+    const prevOutputs: CheckpointAgentOutputs = existing
+      ? this.store.parseOutputs(existing)
+      : {}
+    this.store.save(buildCheckpoint(taskId, 'awaiting_human_review', existing?.stage ?? 'review', {
+      ...prevOutputs,
+      error: reason,
+    }))
+  }
+
   // ─── Query helpers ────────────────────────────────────────────
 
   /** 查询任务最新状态 */

@@ -1,4 +1,5 @@
 import { Orchestrator } from '../index'
+import type { Task, AgentContext, AgentResponse } from '@/lib/core/types'
 
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
@@ -70,6 +71,13 @@ describe('Orchestrator Observability Integration', () => {
     ;(taskManager.getStats as jest.Mock).mockReturnValue({
       total: 0, pending: 0, in_progress: 0, review: 0, done: 0,
     })
+    // executeReviewPipeline delegates to executeAgent('review') for test compat
+    ;(agentManager.executeReviewPipeline as jest.Mock).mockImplementation(
+      async (task: Task, context: AgentContext) => {
+        const reviewResult = await (agentManager.executeAgent as jest.Mock)('review', task, context)
+        return { reviewResult: reviewResult as AgentResponse, daTriggered: false }
+      }
+    )
   })
 
   describe('Structured Logging Integration', () => {

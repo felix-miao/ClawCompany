@@ -5,6 +5,7 @@ import { Orchestrator } from '../index'
 import { agentManager } from '@/lib/agents/manager'
 import { taskManager } from '@/lib/tasks/manager'
 import { chatManager } from '@/lib/chat/manager'
+import type { Task, AgentContext, AgentResponse } from '@/lib/core/types'
 
 // Mock dependencies
 jest.mock('@/lib/agents/manager')
@@ -55,6 +56,13 @@ describe('Orchestrator - 错误处理和重试机制', () => {
       review: 0,
       done: 0,
     })
+    // executeReviewPipeline delegates to executeAgent('review') for test compat
+    ;(agentManager.executeReviewPipeline as jest.Mock).mockImplementation(
+      async (task: Task, context: AgentContext) => {
+        const reviewResult = await (agentManager.executeAgent as jest.Mock)('review', task, context)
+        return { reviewResult: reviewResult as AgentResponse, daTriggered: false }
+      }
+    )
   })
 
   describe('重试机制', () => {

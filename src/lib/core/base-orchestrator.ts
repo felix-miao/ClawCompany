@@ -10,6 +10,7 @@ import {
   AgentResponse,
   FileChange,
 } from './types'
+import { compressHistory } from '../chat/compression'
 import { FileSnapshotManager } from '../tasks/file-snapshot-manager'
 import { DAGateReason } from '../agents/devil-advocate-agent'
 import { Logger, LogEntry } from './logger'
@@ -20,6 +21,7 @@ import { AgentEventBus, AgentEventType } from './agent-event-bus'
 import { UnifiedRetry } from './unified-retry'
 import { getGameEventStore } from '@/game/data/GameEventStore'
 import { DPScoreStore, buildDPScoreRecord } from '../analytics/dp-score-store'
+import { CheckpointService } from '../tasks/checkpoint-service'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -216,11 +218,18 @@ export abstract class BaseOrchestrator {
       }
     }
 
+    // ─── Context Compression ─────────────────────────────────────
+    // Compress chat history when it exceeds 20 messages or ~50K tokens
+    // to prevent LLM context window overflow in long-running workflows.
+    const rawHistory = callbacks.getChatHistory()
+    const chatHistory = await compressHistory(rawHistory)
+    // ─────────────────────────────────────────────────────────────
+
     return {
       projectId: 'default',
       tasks,
       files,
-      chatHistory: callbacks.getChatHistory(),
+      chatHistory,
     }
   }
 
@@ -493,12 +502,12 @@ export abstract class BaseOrchestrator {
       this.persistDPScore(task, reviewResponse)
       // ─────────────────────────────────────────────────────────
 
-      // DA FATAL 判定：基本假设错误，不应继续迭代
+      // DA FATAL 判定：基本假设错误，不应继续迭代 → 转 HITL
       const daVerdict = (daResponse?.metadata as { daResult?: { verdict?: string } } | undefined)?.daResult?.verdict
       if (daVerdict === 'FATAL') {
         // Rollback files changed by the rejected dev iteration
         if (snapshotId) this.rollbackToSnapshot(snapshotId)
-        this.markTaskFailed(task, cb, 'review', 'DA verdict: FATAL — basic assumptions are wrong')
+        this.markTaskAwaitingHumanReview(task, cb, 'review', 'DA verdict: FATAL — basic assumptions need human review')
         getGameEventStore().push({
           type: 'workflow:iteration-complete',
           agentId: 'review-agent',
@@ -525,7 +534,7 @@ export abstract class BaseOrchestrator {
       if (iteration >= MAX_ITERATIONS) {
         // Rollback the last rejected dev iteration's changes
         if (snapshotId) this.rollbackToSnapshot(snapshotId)
-        this.markTaskFailed(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations`)
+        this.markTaskAwaitingHumanReview(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations — needs human decision`)
         // Emit workflow:iteration-complete on exhausted retries
         getGameEventStore().push({
           type: 'workflow:iteration-complete',
@@ -626,6 +635,24 @@ export abstract class BaseOrchestrator {
       agentRole: role,
       taskId: task.id,
       data: { reason },
+    })
+  }
+
+  private markTaskAwaitingHumanReview(
+    task: Task,
+    cb: OrchestratorCallbacks,
+    role: AgentRole,
+    reason: string,
+  ): void {
+    cb.updateTaskStatus(task.id, 'awaiting_human_review')
+    this.obs.perf.increment('orchestrator.tasks.awaiting_human_review')
+    this.logWarn('Task awaiting human review (HITL)', { taskId: task.id, reason })
+    CheckpointService.getInstance().saveAwaitingHumanReview(task.id, reason)
+    this.getEventBus().emit({
+      type: 'task:failed',
+      agentRole: role,
+      taskId: task.id,
+      data: { reason: `[HITL] ${reason}` },
     })
   }
 

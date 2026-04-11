@@ -26,6 +26,7 @@ export type CheckpointStatus =
   | 'review_complete'
   | 'completed'
   | 'failed'
+  | 'awaiting_human_review'
 
 export interface TaskCheckpoint {
   id?: number

@@ -161,7 +161,7 @@ describe('Task Lifecycle E2E Integration', () => {
       executeAgent: jest.fn(),
       executeReviewPipeline: jest.fn(),
       getAgentInfo: jest.fn(),
-    } as jest.Mocked<AgentManager>
+    } as unknown as jest.Mocked<AgentManager>
 
     // Make executeReviewPipeline delegate to executeAgent('review') for backward compat
     ;(mockAgentManager.executeReviewPipeline as jest.Mock).mockImplementation(

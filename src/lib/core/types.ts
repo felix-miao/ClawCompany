@@ -78,7 +78,7 @@ export const DEFAULT_ROLE_DEFINITIONS: Record<AgentRole, AgentRoleDefinition> = 
   },
 }
 
-export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'completed' | 'failed'
+export type TaskStatus = 'pending' | 'in_progress' | 'review' | 'completed' | 'failed' | 'awaiting_human_review'
 
 export type GameTaskStatus = 'pending' | 'assigned' | 'working' | 'reviewing' | 'completed' | 'failed'
 
@@ -123,7 +123,7 @@ export interface GameTaskCreateInput {
 
 export type UnifiedTaskStatus = TaskStatus | GameTaskStatus
 
-export const TASK_STATUS_VALUES: readonly TaskStatus[] = ['pending', 'in_progress', 'review', 'completed', 'failed']
+export const TASK_STATUS_VALUES: readonly TaskStatus[] = ['pending', 'in_progress', 'review', 'completed', 'failed', 'awaiting_human_review']
 
 export const GAME_STATUS_VALUES: readonly GameTaskStatus[] = ['pending', 'assigned', 'working', 'reviewing', 'completed', 'failed']
 
@@ -142,6 +142,7 @@ export const LIB_TO_GAME_STATUS: Readonly<Record<TaskStatus, GameTaskStatus>> = 
   review: 'reviewing',
   completed: 'completed',
   failed: 'failed',
+  awaiting_human_review: 'failed',
 }
 
 export function gameStatusToLib(status: GameTaskStatus): TaskStatus {
