@@ -15,7 +15,7 @@ const MAX_SSE_PER_IP = 5;
 const activeConnections = new Map<string, number>(); // ip → count
 let totalConnections = 0;
 
-function acquireConnection(ip: string): boolean {
+export function acquireConnection(ip: string): boolean {
   if (totalConnections >= MAX_SSE_CONNECTIONS) return false;
   const ipCount = activeConnections.get(ip) ?? 0;
   if (ipCount >= MAX_SSE_PER_IP) return false;
@@ -24,7 +24,7 @@ function acquireConnection(ip: string): boolean {
   return true;
 }
 
-function releaseConnection(ip: string): void {
+export function releaseConnection(ip: string): void {
   const ipCount = activeConnections.get(ip) ?? 0;
   if (ipCount <= 1) {
     activeConnections.delete(ip);
@@ -32,6 +32,18 @@ function releaseConnection(ip: string): void {
     activeConnections.set(ip, ipCount - 1);
   }
   totalConnections = Math.max(0, totalConnections - 1);
+}
+
+export function resetConnectionCounters(): void {
+  activeConnections.clear();
+  totalConnections = 0;
+}
+
+export function getConnectionStats() {
+  return {
+    totalConnections,
+    activeConnections: new Map(activeConnections),
+  };
 }
 
 // ── GET：SSE 端点（需认证 + 连接限制）───────────────────────

@@ -29,6 +29,22 @@ jest.mock('@/lib/core/logger', () => ({
   },
 }))
 
+jest.mock('@/lib/gateway/session-poller', () => ({
+  getSessionPoller: jest.fn(() => ({
+    isRunning: () => false,
+    start: jest.fn(),
+  })),
+  createSessionPoller: jest.fn(() => ({
+    isRunning: () => false,
+    start: jest.fn(),
+  })),
+}))
+
+jest.mock('@/lib/api/route-utils', () => ({
+  ...jest.requireActual('@/lib/api/route-utils'),
+  getClientId: (request: any) => request.headers.get('x-forwarded-for') || 'unknown',
+}))
+
 import { POST, GET } from '../route'
 import { GameEventStore, setGameEventStore, resetGameEventStore } from '@/game/data/GameEventStore'
 import { RateLimiter } from '@/lib/security/utils'
