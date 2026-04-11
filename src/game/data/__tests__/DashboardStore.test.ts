@@ -336,6 +336,98 @@ describe('DashboardStore', () => {
     });
   });
 
+  describe('task history timeline', () => {
+    it('should derive a task timeline from visualization events', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: {
+          id: 'task-1',
+          description: '实现传统任务视图',
+          taskType: 'feature',
+        },
+      });
+
+      store.processEvent({
+        type: 'task:handover',
+        timestamp: 200,
+        fromAgentId: 'pm-agent',
+        toAgentId: 'dev-agent',
+        taskId: 'task-1',
+        description: '实现传统任务视图',
+      });
+
+      store.processEvent({
+        type: 'task:handover',
+        timestamp: 300,
+        fromAgentId: 'dev-agent',
+        toAgentId: 'review-agent',
+        taskId: 'task-1',
+        description: '实现传统任务视图',
+      });
+
+      store.processEvent({
+        type: 'task:completed',
+        timestamp: 400,
+        agentId: 'review-agent',
+        taskId: 'task-1',
+        result: 'success',
+        duration: 100,
+      });
+
+      const [task] = store.getTaskHistory();
+      expect(task).toMatchObject({
+        taskId: 'task-1',
+        description: '实现传统任务视图',
+        currentPhase: 'done',
+        status: 'completed',
+        result: 'success',
+      });
+
+      const developerPhase = task.phases.find(phase => phase.phase === 'developer');
+      const reviewerPhase = task.phases.find(phase => phase.phase === 'reviewer');
+      const donePhase = task.phases.find(phase => phase.phase === 'done');
+
+      expect(developerPhase).toMatchObject({ status: 'completed', agentId: 'dev-agent' });
+      expect(reviewerPhase).toMatchObject({ status: 'completed', agentId: 'review-agent' });
+      expect(donePhase).toMatchObject({ status: 'completed' });
+    });
+
+    it('should mark failed tasks and clear them from active tasks', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'dev-agent',
+        task: {
+          id: 'task-2',
+          description: '处理错误态',
+          taskType: 'bugfix',
+        },
+      });
+
+      store.processEvent({
+        type: 'task:failed',
+        timestamp: 200,
+        agentId: 'dev-agent',
+        taskId: 'task-2',
+        error: 'unit tests failed',
+      });
+
+      const task = store.getTaskHistoryById('task-2');
+      const donePhase = task?.phases.find(phase => phase.phase === 'done');
+
+      expect(task).toMatchObject({
+        taskId: 'task-2',
+        currentPhase: 'done',
+        status: 'failed',
+        result: 'failure',
+      });
+      expect(donePhase).toMatchObject({ status: 'failed' });
+      expect(store.getActiveTasks()).toEqual([]);
+    });
+  });
+
   describe('subscriber notifications', () => {
     it('should notify subscribers on event', () => {
       const callback = jest.fn();

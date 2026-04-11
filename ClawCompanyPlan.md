@@ -124,6 +124,9 @@
     - `src/components/dashboard/*`
     - `src/game/data/DashboardStore.ts`
     - `src/app/api/game-events/route.ts`（如需补事件字段）
+  - **当前进展**:
+    - 2026-04-11（Developer 第 1 轮增量）✅ 已完成最小 timeline 入口与基础任务追踪：Dashboard 新增 `Timeline View` 切换；`DashboardStore` 可从现有 task/game events 派生任务阶段历史；传统视图可选任务并显示步骤条、开始/结束时间、负责人、当前卡点；`useDashboardStore` 同步修复为基于 store version 刷新，避免 `loadAgents` 这类非 event 更新不触发 UI 刷新。
+    - 下一轮优先：补“当前阶段说明 + 最近事件日志 + 错误摘要”的详情面板，并把失败态/卡点信息做得更直接。
   - **验收标准**:
     - 提交一个真实任务后，用户能在非游戏界面里实时看到任务推进到哪一步
     - 任务失败时，能在传统视图中直接看到失败阶段和错误摘要

@@ -63,6 +63,55 @@ describe('useDashboardStore', () => {
     expect(result.current.stats.activeTasks).toBe(1);
   });
 
+  it('should expose task history derived from task lifecycle events', () => {
+    const store = new DashboardStore();
+    const { result } = renderHook(() => useDashboardStore(store));
+
+    act(() => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: {
+          id: 'task-1',
+          description: '实现传统任务视图',
+          taskType: 'feature',
+        },
+      });
+    });
+
+    expect(result.current.taskHistory).toHaveLength(1);
+    expect(result.current.taskHistory[0]).toMatchObject({
+      taskId: 'task-1',
+      currentPhase: 'pm_analysis',
+      status: 'in_progress',
+    });
+  });
+
+  it('should update when agents load without new events', () => {
+    const store = new DashboardStore();
+    const { result } = renderHook(() => useDashboardStore(store));
+
+    act(() => {
+      store.loadAgents([
+        {
+          id: 'pm-agent',
+          name: 'PM Updated',
+          role: 'PM',
+          status: 'busy',
+          emotion: 'neutral',
+          currentTask: null,
+        },
+      ]);
+    });
+
+    expect(result.current.agents[0]).toMatchObject({
+      id: 'pm-agent',
+      name: 'PM Updated',
+      status: 'busy',
+    });
+  });
+
   it('should unsubscribe on unmount', () => {
     const store = new DashboardStore();
     const { unmount } = renderHook(() => useDashboardStore(store));
