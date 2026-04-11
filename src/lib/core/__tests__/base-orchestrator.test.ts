@@ -57,6 +57,10 @@ function makeMockCallbacks(overrides?: Partial<OrchestratorCallbacks>): Orchestr
     getAllTasks: jest.fn().mockReturnValue([]),
     getChatHistory: jest.fn().mockReturnValue([]),
     executeAgent: jest.fn().mockResolvedValue({ agent: 'pm' as AgentRole, message: 'ok', status: 'success' as const }),
+    executeReviewPipeline: jest.fn().mockResolvedValue({
+      reviewResult: { agent: 'review' as AgentRole, message: 'ok', status: 'success' as const },
+      daTriggered: false,
+    }),
     ...overrides,
   }
 }

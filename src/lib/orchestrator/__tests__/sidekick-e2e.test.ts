@@ -3,7 +3,7 @@ import { AgentManager } from '../../agents/manager'
 import { ChatManager } from '../../chat/manager'
 import { TaskManager } from '../../tasks/manager'
 import { SandboxedFileWriter } from '../../security/sandbox'
-import { AgentRole, Task, AgentResponse } from '../../core/types'
+import { AgentRole, Task, AgentResponse, AgentContext } from '../../core/types'
 
 jest.mock('@/lib/gateway/executor', () => ({
   getAgentExecutor: jest.fn(() => ({
@@ -39,8 +39,17 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
       getAgent: jest.fn(),
       getAllAgents: jest.fn(),
       executeAgent: jest.fn(),
+      executeReviewPipeline: jest.fn(),
       getAgentInfo: jest.fn(),
     } as jest.Mocked<AgentManager>
+
+    // Make executeReviewPipeline delegate to executeAgent('review') for backward compat
+    ;(mockAgentManager.executeReviewPipeline as jest.Mock).mockImplementation(
+      async (task: Task, context: AgentContext) => {
+        const reviewResult = await (mockAgentManager.executeAgent as jest.Mock)('review', task, context)
+        return { reviewResult, daTriggered: false }
+      }
+    )
 
     // Mock ChatManager — use real array to capture messages
     const chatMessages: Array<{ agent: 'user' | AgentRole; content: string; timestamp: Date }> = []

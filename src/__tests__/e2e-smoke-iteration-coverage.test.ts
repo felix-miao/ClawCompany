@@ -41,8 +41,21 @@ function makeOrchestrator() {
     getAgent: jest.fn(),
     getAllAgents: jest.fn(),
     executeAgent: jest.fn(),
+    executeReviewPipeline: jest.fn(),
     getAgentInfo: jest.fn(),
   } as unknown as jest.Mocked<AgentManager>
+
+  // Make executeReviewPipeline delegate to executeAgent('review') for backward compat
+  ;(mockAgentManager.executeReviewPipeline as jest.Mock).mockImplementation(
+    async (task: Task, context: AgentContext) => {
+      const reviewResult = await (mockAgentManager.executeAgent as jest.Mock)('review', task, context)
+      return {
+        reviewResult,
+        daTriggered: false,
+        daGateReason: 'high_score_skip',
+      }
+    }
+  )
 
   const chatMessages: Array<{ agent: 'user' | AgentRole; content: string; timestamp: Date }> = []
   const mockChatManager = {

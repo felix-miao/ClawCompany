@@ -1,4 +1,4 @@
-import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
+import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig, ReviewPipelineResult } from '../core/base-orchestrator'
 import { WorkflowResult, Task, RetryConfig } from '../core/types'
 import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
 import { AgentManager } from '../agents/manager'
@@ -134,6 +134,20 @@ export class Orchestrator extends BaseOrchestrator {
       getAllTasks: () => taskManager.getAllTasks(),
       getChatHistory: () => chatManager.getHistory(),
       executeAgent: (role, task, context) => agentManager.executeAgent(role, task, context),
+      executeReviewPipeline: async (task, context, options): Promise<ReviewPipelineResult> => {
+        const result = await agentManager.executeReviewPipeline(task, context, options)
+        // Determine DA gate reason from DA gate stats (stored in db), fallback to presence of daResult
+        const daGateReason = result.daResult
+          ? 'high_risk_keyword'  // conservative fallback label
+          : 'high_score_skip'
+        return {
+          reviewResult: result.reviewResult,
+          daResult: result.daResult,
+          arbiterResult: result.arbiterResult,
+          daTriggered: !!result.daResult,
+          daGateReason: result.daResult ? daGateReason : undefined,
+        }
+      },
       saveFile: async (filePath, content) => {
         const result = await this.sandboxedWriter.writeFile(filePath, content)
         if (!result.success) {

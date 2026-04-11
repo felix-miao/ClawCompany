@@ -32,12 +32,11 @@ describe('LLMFactory', () => {
       expect(provider).toBeInstanceOf(GLMProvider)
     })
 
-    it('should throw for anthropic (not implemented)', () => {
+    it('should create AnthropicProvider for anthropic config', () => {
       const config = { provider: 'anthropic' as const, apiKey: 'test-key' }
 
-      expect(() => LLMFactory.createProvider(config)).toThrow(
-        'Anthropic provider not implemented yet'
-      )
+      // Anthropic is fully implemented — should not throw
+      expect(() => LLMFactory.createProvider(config)).not.toThrow()
     })
 
     it('should throw for unknown provider', () => {

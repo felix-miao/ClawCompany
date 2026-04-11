@@ -10,6 +10,7 @@ import {
   AgentResponse,
   FileChange,
 } from './types'
+import { DAGateReason } from '../agents/devil-advocate-agent'
 import { Logger, LogEntry } from './logger'
 import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
@@ -26,6 +27,14 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   backoffMultiplier: 2,
 }
 
+export interface ReviewPipelineResult {
+  reviewResult: AgentResponse
+  daResult?: AgentResponse
+  arbiterResult?: AgentResponse
+  daTriggered: boolean
+  daGateReason?: DAGateReason
+}
+
 export interface OrchestratorCallbacks {
   sendUserMessage: (message: string) => void
   broadcast: (agent: AgentRole, message: string) => void
@@ -35,6 +44,7 @@ export interface OrchestratorCallbacks {
   getAllTasks: () => Task[]
   getChatHistory: () => Array<{ agent: AgentRole | 'user'; content: string; timestamp?: Date }>
   executeAgent: (role: AgentRole, task: Task, context: AgentContext) => Promise<AgentResponse>
+  executeReviewPipeline: (task: Task, context: AgentContext, options?: { forceDA?: boolean; skipDA?: boolean }) => Promise<ReviewPipelineResult>
   readFile?: (path: string) => Promise<string | null>
   saveFile?: (path: string, content: string) => Promise<void>
   clearAll?: () => void
@@ -384,19 +394,54 @@ export abstract class BaseOrchestrator {
 
       // Rebuild context so review can see newly saved files
       const reviewContext = await this.buildContext(cb)
-      const reviewResponse = await this.runAgentForTaskWithContext(task, cb, 'review', reviewContext)
-      if (!reviewResponse) {
-        this.markTaskFailed(task, cb, 'review', 'Review agent returned null response')
+
+      // ─── Review Pipeline（含 DA 智能门控）─────────────────────
+      let pipelineResult: ReviewPipelineResult
+      try {
+        pipelineResult = await cb.executeReviewPipeline(task, reviewContext)
+      } catch {
+        this.markTaskFailed(task, cb, 'review', 'Review pipeline threw an error')
         return
       }
 
-      cb.broadcast('review', reviewResponse.message)
+      const reviewResponse = pipelineResult.reviewResult
+      const arbiterResponse = pipelineResult.arbiterResult
+      const daResponse = pipelineResult.daResult
 
-      // ─── DP Score 持久化 ─────────────────────────────────────
+      if (pipelineResult.daTriggered) {
+        this.logInfo('DA triggered in review pipeline', {
+          taskId: task.id,
+          gateReason: pipelineResult.daGateReason,
+          daStatus: daResponse?.status,
+          arbiterStatus: arbiterResponse?.status,
+        })
+        if (daResponse) cb.broadcast('devil-advocate', daResponse.message)
+        if (arbiterResponse) cb.broadcast('review', arbiterResponse.message)
+      }
+
+      // 最终裁决者：Arbiter（若存在）> Review
+      const finalResponse = arbiterResponse ?? reviewResponse
+
+      cb.broadcast('review', finalResponse.message)
+
+      // ─── DP Score 持久化（基于 Review score）─────────────────
       this.persistDPScore(task, reviewResponse)
       // ─────────────────────────────────────────────────────────
 
-      if (reviewResponse.status === 'success') {
+      // DA FATAL 判定：基本假设错误，不应继续迭代
+      const daVerdict = (daResponse?.metadata as { daResult?: { verdict?: string } } | undefined)?.daResult?.verdict
+      if (daVerdict === 'FATAL') {
+        this.markTaskFailed(task, cb, 'review', 'DA verdict: FATAL — basic assumptions are wrong')
+        getGameEventStore().push({
+          type: 'workflow:iteration-complete',
+          agentId: 'review-agent',
+          timestamp: Date.now(),
+          payload: { taskId: task.id, totalIterations: iteration + 1, approved: false },
+        })
+        return
+      }
+
+      if (finalResponse.status === 'success') {
         this.markTaskCompleted(task, cb, completedTaskIds, 'review')
         // Emit workflow:iteration-complete on approval
         getGameEventStore().push({
@@ -427,16 +472,16 @@ export abstract class BaseOrchestrator {
         type: 'review:rejected',
         agentId: 'review-agent',
         timestamp: Date.now(),
-        payload: { taskId: task.id, iteration, feedback: reviewResponse.message ?? '' },
+        payload: { taskId: task.id, iteration, feedback: finalResponse.message ?? '' },
       })
 
-      // Pass review feedback into the next dev iteration
+      // Pass review feedback (from arbiter if available) into the next dev iteration
       this.logInfo('Review not approved, retrying dev with feedback', {
         taskId: task.id,
         iteration,
-        feedback: reviewResponse.message.slice(0, 200),
+        feedback: finalResponse.message.slice(0, 200),
       })
-      context = { ...reviewContext, reviewFeedback: reviewResponse.message }
+      context = { ...reviewContext, reviewFeedback: finalResponse.message }
       cb.updateTaskStatus(task.id, 'in_progress')
     }
   }
