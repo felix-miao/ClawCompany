@@ -116,7 +116,7 @@ jest.mock('phaser', () => {
     getBounds: jest.fn().mockReturnValue({ contains: () => false }),
   });
 
-  const mockScene: MockScene = {
+  const mockScene: any = {
     add: {
       container: jest.fn(() => createMockContainer()),
       graphics: jest.fn(() => createMockGraphics()),
@@ -206,7 +206,7 @@ describe('TaskDetailPanel', () => {
   describe('display', () => {
     it('should display task description', () => {
       const task = createTestTask({ description: 'Fix login bug' });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -218,7 +218,7 @@ describe('TaskDetailPanel', () => {
 
     it('should show progress bar with correct progress', () => {
       const task = createTestTask({ progress: 65 });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -229,7 +229,7 @@ describe('TaskDetailPanel', () => {
 
     it('should display task status', () => {
       const task = createTestTask({ status: 'working' });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -240,7 +240,7 @@ describe('TaskDetailPanel', () => {
 
     it('should display task type and current action', () => {
       const task = createTestTask({ taskType: 'coding', currentAction: 'Refactoring module' });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -252,7 +252,7 @@ describe('TaskDetailPanel', () => {
 
     it('should display priority level', () => {
       const task = createTestTask({ metadata: { priority: 'high' } });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -265,7 +265,7 @@ describe('TaskDetailPanel', () => {
   describe('update', () => {
     it('should update when task changes', () => {
       const task = createTestTask({ progress: 30, status: 'working' });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -284,7 +284,7 @@ describe('TaskDetailPanel', () => {
 
     it('should recalculate elapsed time on update', () => {
       const task = createTestTask({ assignedAt: Date.now() - 120000 });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -301,7 +301,7 @@ describe('TaskDetailPanel', () => {
   describe('close', () => {
     it('should call onClose callback', () => {
       const task = createTestTask();
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -314,7 +314,7 @@ describe('TaskDetailPanel', () => {
 
     it('should destroy cleanly', () => {
       const task = createTestTask();
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -327,7 +327,7 @@ describe('TaskDetailPanel', () => {
   describe('priority-based styling', () => {
     it('should apply red border for high priority', () => {
       const task = createTestTask({ metadata: { priority: 'high' } });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -338,7 +338,7 @@ describe('TaskDetailPanel', () => {
 
     it('should apply yellow border for medium priority', () => {
       const task = createTestTask({ metadata: { priority: 'medium' } });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -349,7 +349,7 @@ describe('TaskDetailPanel', () => {
 
     it('should apply green border for low priority', () => {
       const task = createTestTask({ metadata: { priority: 'low' } });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -360,7 +360,7 @@ describe('TaskDetailPanel', () => {
 
     it('should default to medium when no priority', () => {
       const task = createTestTask({ metadata: undefined });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -373,7 +373,7 @@ describe('TaskDetailPanel', () => {
   describe('animation', () => {
     it('should fade in on creation', () => {
       const task = createTestTask();
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -384,7 +384,7 @@ describe('TaskDetailPanel', () => {
 
     it('should fade out on close', () => {
       const task = createTestTask();
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -400,7 +400,7 @@ describe('TaskDetailPanel', () => {
   describe('multi-task', () => {
     it('should handle task without metadata gracefully', () => {
       const task = createTestTask({ metadata: undefined });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -414,7 +414,7 @@ describe('TaskDetailPanel', () => {
   describe('artifacts', () => {
     it('should return empty artifacts when no metadata', () => {
       const task = createTestTask({ metadata: undefined });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -425,7 +425,7 @@ describe('TaskDetailPanel', () => {
 
     it('should return empty artifacts when metadata has no artifacts', () => {
       const task = createTestTask({ metadata: { priority: 'high' } });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -442,7 +442,7 @@ describe('TaskDetailPanel', () => {
       const task = createTestTask({
         metadata: { priority: 'high', artifacts },
       });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -455,7 +455,7 @@ describe('TaskDetailPanel', () => {
 
     it('should use base panel height when no artifacts', () => {
       const task = createTestTask({ metadata: { priority: 'high' } });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -471,7 +471,7 @@ describe('TaskDetailPanel', () => {
       const task = createTestTask({
         metadata: { priority: 'high', artifacts },
       });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task,
         position: { x: 200, y: 100 },
         onClose,
@@ -487,7 +487,7 @@ describe('TaskDetailPanel', () => {
       const task1 = createTestTask({
         metadata: { priority: 'high', artifacts: singleArtifacts },
       });
-      panel = new TaskDetailPanel(mockScene, {
+      panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
         task: task1,
         position: { x: 200, y: 100 },
         onClose,
@@ -511,7 +511,7 @@ describe('TaskDetailPanel', () => {
     it('should render correctly without artifacts', () => {
       const task = createTestTask({ metadata: undefined });
       expect(() => {
-        panel = new TaskDetailPanel(mockScene, {
+        panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
           task,
           position: { x: 200, y: 100 },
           onClose,
@@ -530,7 +530,7 @@ describe('TaskDetailPanel', () => {
         metadata: { priority: 'medium', artifacts },
       });
       expect(() => {
-        panel = new TaskDetailPanel(mockScene, {
+        panel = new TaskDetailPanel(mockScene as unknown as import('phaser').Scene, {
           task,
           position: { x: 200, y: 100 },
           onClose,

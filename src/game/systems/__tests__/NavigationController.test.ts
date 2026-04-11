@@ -69,8 +69,8 @@ function createMockPathfinding(): MockPathfinding {
     findPath: jest.fn((sx: number, sy: number, ex: number, ey: number) => {
       currentPath = [{ x: ex, y: ey, action: nextAction }];
       return currentPath;
-    }) as jest.Mock<(sx: number, sy: number, ex: number, ey: number) => PathfindingNode[]>,
-    getCurrentPath: jest.fn(() => currentPath) as jest.Mock<() => PathfindingNode[]>,
+    }) as unknown as jest.Mock<(sx: number, sy: number, ex: number, ey: number) => PathfindingNode[]>,
+    getCurrentPath: jest.fn(() => currentPath) as unknown as jest.Mock<() => PathfindingNode[]>,
     setCurrentPath: (path: PathfindingNode[]) => { currentPath = path; },
     setNextAction: (action: 'move' | 'jump') => { nextAction = action; },
   };

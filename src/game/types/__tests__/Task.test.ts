@@ -4,15 +4,15 @@ import {
   GAME_STATUS_VALUES,
   GAME_TO_LIB_STATUS,
   LIB_TO_GAME_STATUS,
-  GameTaskStatus,
-  GameTaskType,
-  GameTask,
-  GameTaskMetadata,
-  GameTaskCreateInput,
+  TaskStatus,
+  TaskType,
+  Task,
+  TaskMetadata,
+  TaskCreateInput,
 } from '../../types/Task';
 
 describe('Task Types', () => {
-  describe('GameTaskStatus', () => {
+  describe('TaskStatus', () => {
     it('should have all expected status values', () => {
       expect(GAME_STATUS_VALUES).toContain('pending');
       expect(GAME_STATUS_VALUES).toContain('assigned');
@@ -27,10 +27,10 @@ describe('Task Types', () => {
     });
   });
 
-  describe('GameTaskType', () => {
+  describe('TaskType', () => {
     it('should have valid task types', () => {
       const validTypes = ['coding', 'testing', 'review', 'meeting'];
-      const task: GameTask = {
+      const task: Task = {
         id: 'test',
         agentId: 'agent1',
         description: 'Test',
@@ -45,15 +45,15 @@ describe('Task Types', () => {
 
       validTypes.forEach(type => {
         expect(() => {
-          task.taskType = type as GameTaskType;
+          task.taskType = type as TaskType;
         }).not.toThrow();
       });
     });
   });
 
-  describe('GameTask', () => {
+  describe('Task', () => {
     it('should create a valid task object', () => {
-      const task: GameTask = {
+      const task: Task = {
         id: 'task-1',
         agentId: 'agent-1',
         description: 'Implement login feature',
@@ -74,7 +74,7 @@ describe('Task Types', () => {
     });
 
     it('should support optional metadata', () => {
-      const taskWithMetadata: GameTask = {
+      const taskWithMetadata: Task = {
         id: 'task-2',
         agentId: 'agent-1',
         description: 'Write tests',
@@ -100,7 +100,7 @@ describe('Task Types', () => {
 
     it('should allow completedAt to be set', () => {
       const completedAt = Date.now();
-      const task: GameTask = {
+      const task: Task = {
         id: 'task-3',
         agentId: 'agent-1',
         description: 'Completed task',
@@ -118,9 +118,9 @@ describe('Task Types', () => {
     });
   });
 
-  describe('GameTaskMetadata', () => {
+  describe('TaskMetadata', () => {
     it('should support all metadata fields', () => {
-      const metadata: GameTaskMetadata = {
+      const metadata: TaskMetadata = {
         files: ['src/index.ts', 'src/app.ts'],
         estimatedDuration: 7200000,
         priority: 'high',
@@ -139,7 +139,7 @@ describe('Task Types', () => {
     });
 
     it('should allow partial metadata', () => {
-      const minimalMetadata: GameTaskMetadata = {
+      const minimalMetadata: TaskMetadata = {
         priority: 'low',
       };
 
@@ -149,9 +149,9 @@ describe('Task Types', () => {
     });
   });
 
-  describe('GameTaskCreateInput', () => {
+  describe('TaskCreateInput', () => {
     it('should create valid input object', () => {
-      const input: GameTaskCreateInput = {
+      const input: TaskCreateInput = {
         description: 'New feature implementation',
         taskType: 'coding',
         currentAction: 'Starting',
@@ -167,7 +167,7 @@ describe('Task Types', () => {
     });
 
     it('should allow minimal input', () => {
-      const minimalInput: GameTaskCreateInput = {
+      const minimalInput: TaskCreateInput = {
         description: 'Simple task',
         taskType: 'meeting',
       };
@@ -254,7 +254,7 @@ describe('Task Types', () => {
       const priorities: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high'];
 
       priorities.forEach(priority => {
-        const task: GameTask = {
+        const task: Task = {
           id: 'test',
           agentId: 'agent',
           description: 'Test',
@@ -273,7 +273,7 @@ describe('Task Types', () => {
     });
 
     it('should handle task with parent task ID', () => {
-      const parentTask: GameTask = {
+      const parentTask: Task = {
         id: 'parent-1',
         agentId: 'agent-1',
         description: 'Parent task',
@@ -286,7 +286,7 @@ describe('Task Types', () => {
         parentTaskId: null,
       };
 
-      const childTask: GameTask = {
+      const childTask: Task = {
         id: 'child-1',
         agentId: 'agent-2',
         description: 'Child task',

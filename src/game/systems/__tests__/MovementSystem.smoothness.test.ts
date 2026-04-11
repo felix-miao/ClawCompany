@@ -116,7 +116,7 @@ describe('MovementSystem - Animation Smoothness', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as any;
+      } as unknown as import('../../characters/AgentCharacter').AgentCharacter;
 
       system.setActiveAgent(mockSprite);
       system.update();
@@ -130,7 +130,7 @@ describe('MovementSystem - Animation Smoothness', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as any;
+      } as unknown as import('../../characters/AgentCharacter').AgentCharacter;
 
       system.setActiveAgent(mockSprite);
       scene.cursors.left.isDown = true;
@@ -153,7 +153,7 @@ describe('MovementSystem - Animation Smoothness', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as any;
+      } as unknown as import('../../characters/AgentCharacter').AgentCharacter;
 
       system.setActiveAgent(mockSprite);
       scene.cursors.left.isDown = true;
@@ -171,7 +171,7 @@ describe('MovementSystem - Animation Smoothness', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as any;
+      } as unknown as import('../../characters/AgentCharacter').AgentCharacter;
 
       system.setActiveAgent(mockSprite);
 

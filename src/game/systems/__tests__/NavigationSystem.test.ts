@@ -22,7 +22,7 @@ function createMockNavMesh(): MockNavMesh {
     getNodeAt: jest.fn((x: number, y: number) => {
       const key = `${x},${y}`;
       return nodes.get(key) || null;
-    }) as jest.Mock<(x: number, y: number) => MockNavMeshNode | null>,
+    }) as unknown as jest.Mock<(x: number, y: number) => MockNavMeshNode | null>,
     setNode: (x: number, y: number, walkable: boolean) => {
       nodes.set(`${x},${y}`, { isWalkable: walkable });
     },

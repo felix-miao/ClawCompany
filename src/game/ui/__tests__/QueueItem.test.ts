@@ -1,5 +1,5 @@
 import { QueueItem } from '../QueueItem';
-import { Task, GameTaskStatus } from '../../types/Task';
+import { Task, TaskStatus } from '../../types/Task';
 
 jest.mock('phaser', () => {
   const mockGraphics = {
@@ -34,9 +34,11 @@ jest.mock('phaser', () => {
 
   return {
     default: {
-      GameObjects: { Container: jest.fn() },
-      GameObjects: { Graphics: jest.fn() },
-      GameObjects: { Text: jest.fn() },
+      GameObjects: { 
+        Container: jest.fn(),
+        Graphics: jest.fn(),
+        Text: jest.fn(),
+      },
     },
     Geom: {
       Rectangle: class {
@@ -272,7 +274,7 @@ function createTestTask(overrides: Partial<Task> = {}): Task {
     id: 'test-task-' + Math.random().toString(36).slice(2, 8),
     agentId: 'alice',
     description: 'Test task',
-    status: 'pending' as GameTaskStatus,
+    status: 'pending' as TaskStatus,
     progress: 0,
     currentAction: 'Idle',
     taskType: 'coding',

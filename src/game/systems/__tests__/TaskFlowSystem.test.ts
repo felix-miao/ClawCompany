@@ -172,7 +172,7 @@ describe('TaskFlowSystem', () => {
         type: 'task:assigned' as const,
         agentId: 'bob',
         task,
-      };
+      } as any;
 
       taskFlowSystem.createTaskFlow(event);
       const flows = taskFlowSystem.getActiveFlows();
@@ -204,7 +204,7 @@ describe('TaskFlowSystem', () => {
         type: 'task:assigned' as const,
         agentId: 'charlie',
         task,
-      };
+      } as any;
 
       taskFlowSystem.createTaskFlow(event);
       const flows = taskFlowSystem.getActiveFlows();
@@ -266,7 +266,7 @@ describe('TaskFlowSystem', () => {
     });
 
     it('should handle task:failed event', () => {
-      const task = createTestTask({ id: 'task-7', agentId: 'charlie', taskType: 'debugging' });
+      const task = createTestTask({ id: 'task-7', agentId: 'charlie', taskType: 'testing' });
       
       taskManager.assignTask('charlie', task);
       taskManager.completeTask('charlie', 'failure');
@@ -308,7 +308,7 @@ function createTestTask(overrides: Partial<Task> = {}): Task {
     id: 'test-task-' + Math.random().toString(36).slice(2, 8),
     agentId: 'alice',
     description: 'Test task',
-    status: 'pending' as GameTaskStatus,
+    status: 'pending' as TaskStatus,
     progress: 0,
     currentAction: 'Idle',
     taskType: 'coding',

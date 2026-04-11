@@ -10,3 +10,7 @@ export * from './openclaw-bridge'
 export * from './agentic-loop'
 export { createToolAwareDevAgent } from './tool-aware-dev-agent'
 export * from './shadow-git'
+
+// MCP Client - external tool server integration
+export { MCPClient, MCPToolAdapter, createMCPToolAdapters, registerMCPTools } from '../mcp'
+export type { MCPTool, MCPCallToolResult, MCPServerInfo, MCPClientOptions } from '../mcp'

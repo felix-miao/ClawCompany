@@ -95,15 +95,15 @@ jest.mock('phaser', () => {
       text: '',
       setText: jest.fn((val: string) => {
         textObj.text = val;
-      }),
-      setOrigin: jest.fn(),
+      }) as any,
+      setOrigin: jest.fn() as any,
       width: 80,
       height: 16,
-      setPosition: jest.fn(),
-      destroy: jest.fn(),
-      setDepth: jest.fn(),
-      setInteractive: jest.fn(),
-      on: jest.fn(),
+      setPosition: jest.fn() as any,
+      destroy: jest.fn() as any,
+      setDepth: jest.fn() as any,
+      setInteractive: jest.fn() as any,
+      on: jest.fn() as any,
     };
     return textObj;
   };
@@ -113,32 +113,32 @@ jest.mock('phaser', () => {
     const c: MockContainer = {
       x: 0,
       y: 0,
-      setDepth: jest.fn(),
-      setAlpha: jest.fn(),
+      setDepth: jest.fn() as any,
+      setAlpha: jest.fn() as any,
       setVisible: jest.fn((val: boolean) => {
         c._visible = val;
-      }),
-      add: jest.fn((item: any) => children.push(item)),
+      }) as any,
+      add: jest.fn((item: any) => children.push(item)) as any,
       remove: jest.fn((item: any) => {
         const idx = children.indexOf(item);
         if (idx >= 0) children.splice(idx, 1);
-      }),
-      destroy: jest.fn(),
+      }) as any,
+      destroy: jest.fn() as any,
       setPosition: jest.fn((x: number, y: number) => {
         c.x = x;
         c.y = y;
-      }),
-      setScrollFactor: jest.fn(),
-      setInteractive: jest.fn(),
-      on: jest.fn(),
-      getBounds: jest.fn().mockReturnValue({ contains: () => false }),
-      getChildren: jest.fn(() => children),
+      }) as any,
+      setScrollFactor: jest.fn() as any,
+      setInteractive: jest.fn() as any,
+      on: jest.fn() as any,
+      getBounds: jest.fn().mockReturnValue({ contains: () => false }) as any,
+      getChildren: jest.fn(() => children) as any,
       _visible: true,
     };
     return c;
   };
 
-  const mockScene: MockScene = {
+  const mockScene: any = {
     add: {
       container: jest.fn(() => createMockContainer()),
       graphics: jest.fn(() => createMockGraphics()),
@@ -222,7 +222,7 @@ describe('AgentHistoryPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     store = new TaskHistoryStore();
-    panel = new AgentHistoryPanel(mockScene, store);
+    panel = new AgentHistoryPanel(mockScene as unknown as import('phaser').Scene, store);
   });
 
   afterEach(() => {
