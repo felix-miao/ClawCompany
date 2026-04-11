@@ -29,9 +29,9 @@ import { TraceLogger } from '@/lib/analytics/trace-logger'
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { taskId: string } },
+  { params }: { params: Promise<{ taskId: string }> },
 ) {
-  const { taskId } = params
+  const { taskId } = await params
 
   if (!taskId || taskId.trim() === '') {
     return NextResponse.json(

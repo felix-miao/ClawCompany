@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 
-import { withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withErrorHandling, successResponse } from '@/lib/api/route-utils'
 import { SessionSyncService } from '@/lib/gateway/session-sync'
 import { cacheMetrics } from '@/lib/llm/cache-metrics'
 
@@ -96,7 +96,7 @@ function buildMetrics(
   }
 }
 
-export const GET = withAuth(async (_request: NextRequest) => {
+export const GET = withErrorHandling(async (_request: NextRequest) => {
   const sync = new SessionSyncService()
 
   try {

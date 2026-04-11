@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 
-import { requireApiKey, getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
+import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
 import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
 import { getGameEventStore } from '@/game/data/GameEventStore';
 import type { GameEvent } from '@/game/types/GameEvents';
@@ -34,42 +34,12 @@ function releaseConnection(ip: string): void {
   totalConnections = Math.max(0, totalConnections - 1);
 }
 
-// ── GET：SSE 端点（需认证 + 连接限制）───────────────────────
+// ── GET：SSE 端点（连接限制）────────────────────────────────
 export async function GET(request: NextRequest) {
-  // 1. API Key 认证（SSE 兼容模式）
-  // EventSource 无法发送自定义 Header，因此同时支持：
-  //   - Header: X-Api-Key / Authorization: Bearer <key>
-  //   - Query param: ?token=<key>
-  // 若 AGENT_API_KEY 未配置（本地开发），跳过认证。
-  const apiKey = process.env.AGENT_API_KEY;
-  if (apiKey) {
-    const url = new URL(request.url);
-    const queryToken = url.searchParams.get('token');
-    const headerKey =
-      request.headers.get('x-api-key') ||
-      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-    const providedKey = queryToken || headerKey;
-
-    if (!providedKey) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    // timing-safe compare
-    const { timingSafeEqual } = await import('crypto');
-    const a = Buffer.from(providedKey);
-    const b = Buffer.from(apiKey);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) {
-      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-  }
-
-  // 2. per-IP 连接数限制（最多 5 个并发 SSE 连接）
+  // SSE GET 端点提供只读事件流，不需要客户端传入 API Key。
+  // AGENT_API_KEY 仅在服务端用于 Gateway 通信（见 /lib/gateway/）。
+  // 写操作（POST）由 withAuth 保护。
+  // per-IP 连接数限制（最多 5 个并发 SSE 连接）
   const ip = getClientId(request);
   if (!acquireConnection(ip)) {
     return new Response('Too Many Connections', {

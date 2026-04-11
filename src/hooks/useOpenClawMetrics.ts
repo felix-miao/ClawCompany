@@ -57,12 +57,9 @@ export function useOpenClawMetrics(): UseOpenClawMetricsResult {
 
   const fetchData = useCallback(async () => {
     try {
-      // Use NEXT_PUBLIC_AGENT_API_KEY if available; fall back to a placeholder
-      // so the header is always present (server skips auth when key is unconfigured).
-      const apiKey = process.env.NEXT_PUBLIC_AGENT_API_KEY || 'dashboard'
-      const response = await fetch('/api/openclaw/metrics', {
-        headers: { 'x-api-key': apiKey },
-      })
+      // No API key needed: /api/openclaw/metrics is a same-origin Next.js route.
+      // AGENT_API_KEY is only used server-side for gateway auth.
+      const response = await fetch('/api/openclaw/metrics')
       const data: MetricsResponse = await response.json()
 
       if (data.success && data.metrics) {

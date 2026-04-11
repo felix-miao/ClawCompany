@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server'
 
-import { withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withErrorHandling, successResponse } from '@/lib/api/route-utils'
 import { SessionSyncService } from '@/lib/gateway/session-sync'
 
-export const GET = withAuth(async (request: NextRequest) => {
+export const GET = withErrorHandling(async (request: NextRequest) => {
   const sync = new SessionSyncService()
 
   try {

@@ -62,13 +62,11 @@ export function useEventStream(
     if (unmountedRef.current) return;
 
     // Build URL with ?since= for resume after disconnect.
-    // Also append ?token= for SSE auth: EventSource cannot send custom headers,
-    // so we pass the API key as a query parameter when NEXT_PUBLIC_AGENT_API_KEY is set.
+    // API key auth is NOT needed from the client: /api/game-events is a same-origin
+    // Next.js route. AGENT_API_KEY is validated server-side only (POST writes).
     const buildUrl = (base: string, since?: number): string => {
       const params = new URLSearchParams();
       if (since !== undefined) params.set('since', String(since));
-      const apiToken = process.env.NEXT_PUBLIC_AGENT_API_KEY;
-      if (apiToken) params.set('token', apiToken);
       const qs = params.toString();
       return qs ? `${base}${base.includes('?') ? '&' : '?'}${qs}` : base;
     };

@@ -38,12 +38,9 @@ export function useOpenClawSessions(store: DashboardStore): UseOpenClawSessionsR
 
   const fetchData = useCallback(async () => {
     try {
-      // Use NEXT_PUBLIC_AGENT_API_KEY if available; fall back to a placeholder
-      // so the header is always present (server skips auth when key is unconfigured).
-      const apiKey = process.env.NEXT_PUBLIC_AGENT_API_KEY || 'dashboard'
-      const response = await fetch('/api/openclaw/sessions', {
-        headers: { 'x-api-key': apiKey },
-      })
+      // No API key needed: /api/openclaw/sessions is a same-origin Next.js route.
+      // AGENT_API_KEY is only used server-side for gateway auth.
+      const response = await fetch('/api/openclaw/sessions')
       const data: SessionsResponse = await response.json()
 
       if (data.success && data.connected) {
