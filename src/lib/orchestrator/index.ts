@@ -11,6 +11,7 @@ import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
 import { UnifiedRetry } from '../core/unified-retry'
 import { getGameEventStore } from '@/game/data/GameEventStore'
+import { CheckpointService } from '../tasks/checkpoint-service'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
 export { UnifiedRetry } from '../core/unified-retry'
@@ -86,6 +87,7 @@ export class Orchestrator extends BaseOrchestrator {
   private taskQueue: TaskQueue
   private deps: OrchestratorDependencies
   private currentPMAnalysis: string = ''
+  private checkpoints: CheckpointService = CheckpointService.getInstance()
 
   constructor(
     projectId: string = 'default',
@@ -168,8 +170,12 @@ export class Orchestrator extends BaseOrchestrator {
 
       const initialTask = cb.createTask(userMessage, userMessage, 'pm', [], [])
 
+      // ─── Checkpoint: workflow started ─────────────────────────
+      this.checkpoints.saveInitial(initialTask.id, userMessage)
+
       const pmResponse = await this.runAgentForTask(initialTask, cb, 'pm')
       if (!pmResponse) {
+        this.checkpoints.saveError(initialTask.id, 'PM task failed after all retries')
         this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
@@ -179,6 +185,14 @@ export class Orchestrator extends BaseOrchestrator {
       this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
 
       const validatedTasks = validateSubTasks(pmResponse.tasks)
+
+      // ─── Checkpoint: PM complete ───────────────────────────────
+      this.checkpoints.savePMComplete(
+        initialTask.id,
+        pmResponse.message,
+        this.currentPMAnalysis,
+        validatedTasks,
+      )
 
       // Emit pm:analysis-complete after PM generates task list
       getGameEventStore().push({
@@ -205,6 +219,30 @@ export class Orchestrator extends BaseOrchestrator {
       }
 
       const subTaskIds = subTasks.map((t) => t.id)
+
+      // ─── Checkpoint hooks for sub-task stages ─────────────────
+      // Each sub-task completion/failure saves a checkpoint keyed by sub-task id
+      const unsubCheckpoint = this.getEventBus().subscribe((event) => {
+        if (!event.taskId || !subTaskIds.includes(event.taskId)) return
+        try {
+          if (event.type === 'task:completed') {
+            const subTask = cb.getTask(event.taskId)
+            const role = event.agentRole ?? subTask?.assignedTo ?? 'dev'
+            if (role === 'dev') {
+              this.checkpoints.saveDevComplete(event.taskId, '', [])
+            } else if (role === 'review' || role === 'pm') {
+              this.checkpoints.saveReviewComplete(event.taskId, true, '')
+            } else {
+              this.checkpoints.saveCompleted(event.taskId)
+            }
+          } else if (event.type === 'task:failed') {
+            const reason = (event.data?.reason as string) ?? 'unknown'
+            this.checkpoints.saveError(event.taskId, reason)
+          }
+        } catch {
+          // checkpoint failures must never break workflow
+        }
+      })
 
       const allFiles: WorkflowResult['files'] = []
       const completedTaskIds = new Set<string>()
@@ -255,10 +293,22 @@ export class Orchestrator extends BaseOrchestrator {
 
       this.obs.perf.recordValue('orchestrator.workflow.duration', Date.now() - this.startTime)
       this.obs.perf.setGauge('orchestrator.tasks.active', 0)
+      unsubCheckpoint()
 
       const hasSuccess = subTaskIds.length === 0 || completedTaskIds.size === subTaskIds.length
       this.logInfo('Workflow completed', { success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
       this.emitWorkflowCompleted({ success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
+
+      // ─── Checkpoint: workflow completed/partially-failed ──────
+      if (hasSuccess) {
+        this.checkpoints.saveCompleted(initialTask.id)
+      } else {
+        this.checkpoints.saveError(
+          initialTask.id,
+          `${this.failedTasks.length} sub-task(s) failed`,
+        )
+      }
+
       return {
         success: hasSuccess,
         messages: this.buildMessages(cb),
