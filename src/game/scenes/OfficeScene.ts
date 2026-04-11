@@ -688,7 +688,7 @@ export class OfficeScene extends Phaser.Scene {
       // 使用增强的角色创建方法
       const agent = this.createEnhancedAgent(x, y, color, config, characterSprite);
 
-      const controller = new AnimationController(agent, color);
+      const controller = new AnimationController(agent, config.role);
       agent.setAnimationController(controller);
 
       agent.setPathfindingSystem(this.pathfindingSystem);

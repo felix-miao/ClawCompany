@@ -10,10 +10,10 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const AGENT_COLORS: Record<string, string> = {
-  alice: 'from-blue-500 to-blue-600',
-  bob: 'from-green-500 to-green-600',
-  charlie: 'from-purple-500 to-purple-600',
-  diana: 'from-pink-500 to-pink-600',
+  'pm-agent': 'from-blue-500 to-blue-600',
+  'dev-agent': 'from-green-500 to-green-600',
+  'review-agent': 'from-purple-500 to-purple-600',
+  'test-agent': 'from-pink-500 to-pink-600',
 };
 
 const ROLE_EMOJI: Record<string, string> = {
