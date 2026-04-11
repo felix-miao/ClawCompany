@@ -1,4 +1,4 @@
-export type AgentRole = 'pm' | 'dev' | 'review' | 'tester' | 'devil-advocate'
+export type AgentRole = 'pm' | 'dev' | 'review' | 'tester' | 'devil-advocate' | 'arbiter'
 
 export interface AgentRoleDefinition {
   name: string
@@ -55,6 +55,25 @@ export const DEFAULT_ROLE_DEFINITIONS: Record<AgentRole, AgentRoleDefinition> = 
       '不实现功能',
       '不重复已被封闭(SEALED)的挑战',
       '每个挑战必须是可证伪的',
+    ],
+  },
+  arbiter: {
+    name: 'Arbiter Claw',
+    profile: '最终裁决者，在 Critic 和 Devil\'s Advocate 对抗性评估之后综合证据做出终局判决',
+    goal: '消除 Critic/DA 分歧，给出明确可执行的最终判决（ACCEPT/REVISE/REJECT）和 DP Score',
+    capabilities: [
+      '证据综合',
+      '分歧仲裁',
+      'DP Score 计算',
+      '终局判决',
+      '必修改项提炼',
+      '流程质量评注',
+    ],
+    constraints: [
+      '不提出新问题（只处理已有证据）',
+      '不偏袒 Critic 或 DA',
+      '判决必须可直接执行',
+      '必须解释分歧处理逻辑',
     ],
   },
 }
