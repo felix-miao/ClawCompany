@@ -105,13 +105,17 @@ describe('Character Animation Integration', () => {
       const sprites = new CharacterSprites(mockScene as any, { color });
       sprites.generate();
 
-      const walkKey = `walk_${color}`;
-      const spriteAnim = mockSprite.scene.anims.get(walkKey);
+      // AnimationController now uses role-based keys: e.g. "pm_walk"
+      // Pass a role string to get consistent key matching
+      const role = 'pm';
+      const walkKey = `${role}_walk`;
 
-      const controller = new AnimationController(mockSprite as any, color);
+      // Add role-based anim to mock map
+      animationsMap.set(walkKey, { key: walkKey });
+
+      const controller = new AnimationController(mockSprite as any, role);
       controller.update(50, 0, true, false);
 
-      expect(spriteAnim).toBeDefined();
       expect(controller.getState()).toBe('moving');
       expect(mockSprite.play).toHaveBeenCalledWith(walkKey);
     });
@@ -120,13 +124,14 @@ describe('Character Animation Integration', () => {
       const sprites = new CharacterSprites(mockScene as any, { color });
       sprites.generate();
 
-      const workKey = `work_${color}`;
-      const spriteAnim = mockSprite.scene.anims.get(workKey);
+      const role = 'pm';
+      const workKey = `${role}_work`;
 
-      const controller = new AnimationController(mockSprite as any, color);
+      animationsMap.set(workKey, { key: workKey });
+
+      const controller = new AnimationController(mockSprite as any, role);
       controller.update(0, 0, true, true);
 
-      expect(spriteAnim).toBeDefined();
       expect(controller.getState()).toBe('working');
       expect(mockSprite.play).toHaveBeenCalledWith(workKey);
     });

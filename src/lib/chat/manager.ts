@@ -41,12 +41,6 @@ export class ChatManager {
 
     this.messages.push(message)
     this.messageMap.set(message.id, message)
-    while (this.messages.length > this.maxMessages) {
-      const removed = this.messages.shift()
-      if (removed) {
-        this.messageMap.delete(removed.id)
-      }
-    }
     return message
   }
 

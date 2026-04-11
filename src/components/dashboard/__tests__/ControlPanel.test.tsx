@@ -73,12 +73,12 @@ describe('ControlPanel', () => {
     render(<ControlPanel onSendEvent={mockOnSendEvent} />);
 
     const select = screen.getByLabelText('Agent');
-    fireEvent.change(select, { target: { value: 'bob' } });
+    fireEvent.change(select, { target: { value: 'dev-agent' } });
     fireEvent.click(screen.getByText('Set Status'));
 
     expect(mockOnSendEvent).toHaveBeenCalledWith(
       expect.objectContaining({
-        agentId: 'bob',
+        agentId: 'dev-agent',
       })
     );
   });

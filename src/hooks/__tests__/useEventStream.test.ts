@@ -10,6 +10,7 @@ class MockEventSource {
   onopen: (() => void) | null = null;
   url: string;
   readyState: number = 0;
+  private listeners: Map<string, ((event: { data: string }) => void)[]> = new Map();
 
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
@@ -19,6 +20,13 @@ class MockEventSource {
     this.url = url;
     MockEventSource.instances.push(this);
     this.readyState = MockEventSource.CONNECTING;
+  }
+
+  addEventListener(type: string, listener: (event: { data: string }) => void): void {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, []);
+    }
+    this.listeners.get(type)!.push(listener);
   }
 
   close(): void {
@@ -32,6 +40,13 @@ class MockEventSource {
 
   simulateMessage(data: string): void {
     this.onmessage?.({ data });
+  }
+
+  simulateNamedEvent(type: string, data: string): void {
+    const handlers = this.listeners.get(type) ?? [];
+    for (const handler of handlers) {
+      handler({ data });
+    }
   }
 
   simulateError(): void {

@@ -15,6 +15,22 @@ const config: Config = {
     '^remark-gfm$': '<rootDir>/src/__mocks__/remark-gfm.js',
   },
   testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/node_modules/'],
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/**/__tests__/**',
+    '!src/__mocks__/**',
+    '!src/**/*.test.ts',
+    '!src/**/*.test.tsx',
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 70,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 }
 
 export default createJestConfig(config)

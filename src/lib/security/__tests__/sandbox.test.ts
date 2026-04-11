@@ -160,9 +160,9 @@ describe('SandboxedFileWriter', () => {
       expect(result.allowed).toBe(true)
     })
 
-    it('should accept .sh extension', () => {
+    it('should reject .sh extension (security: shell scripts not allowed)', () => {
       const result = writer.validatePath('deploy.sh')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
     })
 
     it('should accept .py extension', () => {
@@ -175,14 +175,14 @@ describe('SandboxedFileWriter', () => {
       expect(result.allowed).toBe(true)
     })
 
-    it('should accept .env.local extension', () => {
+    it('should reject .env.local extension (security: env files not allowed)', () => {
       const result = writer.validatePath('.env.local')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
     })
 
-    it('should accept .env.development extension', () => {
+    it('should reject .env.development extension (security: env files not allowed)', () => {
       const result = writer.validatePath('.env.development')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
     })
 
     it('should accept .eslintrc extension', () => {
@@ -427,7 +427,7 @@ describe('SandboxedFileWriter', () => {
     })
 
     it('should write various allowed file types', async () => {
-      const extensions = ['.ts', '.tsx', '.js', '.json', '.md', '.css', '.html', '.yaml', '.sh', '.py']
+      const extensions = ['.ts', '.tsx', '.js', '.json', '.md', '.css', '.html', '.yaml', '.py']
       for (const ext of extensions) {
         const result = await writer.writeFile(`test${ext}`, `content of ${ext}`)
         expect(result.success).toBe(true)
