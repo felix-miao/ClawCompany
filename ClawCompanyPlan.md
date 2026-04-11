@@ -57,7 +57,7 @@
   - **问题**: userMessage 直接传给 LLM，无 sanitize 调用
   - **修复**: 导入 `sanitizeUserInput`，在调用 LLM provider 前对 userMessage 进行 sanitization
 
-- [ ] **#142 [P0][SEC] AI 生成代码自动写入磁盘无人工审核**
+- [code-complete] **#142 [P0][SEC] AI 生成代码自动写入磁盘无人工审核**
   - **文件**: `src/lib/security/sandbox.ts` (169-176行)
   - **问题**: validateContent 检测到危险模式仅警告不阻断，allowed 永为 true
   - **修复**: 危险内容检测时必须阻断写入
