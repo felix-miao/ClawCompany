@@ -22,6 +22,7 @@ import { Task, AgentContext } from '../../core/types'
 
 jest.mock('../../llm/factory', () => ({
   getLLMProvider: jest.fn(),
+  getLLMProviderForAgent: jest.fn().mockReturnValue(null),
 }))
 
 jest.mock('../agentic-loop', () => ({
