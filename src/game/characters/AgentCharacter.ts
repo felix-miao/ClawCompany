@@ -94,13 +94,17 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     }
     this.isMoving = isMovingNow;
 
-    if (isMovingNow && this.animationController) {
+    if (this.animationController) {
+      const isOnFloor = this.getOnFloor();
       this.animationController.update(
         this.lastVelocityX,
         this.lastVelocityY,
-        true,
+        isOnFloor,
         this.isWorking
       );
+    } else if (isMovingNow) {
+      this.lastVelocityX = 0;
+      this.lastVelocityY = 0;
     }
 
     this.updateEmotionBubble();
@@ -243,6 +247,8 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     this.navigationState = 'idle';
     this.setVelocityX(0);
     this.setVelocityY(0);
+    this.lastVelocityX = 0;
+    this.lastVelocityY = 0;
   }
 
   private completeNavigation(): void {
@@ -251,6 +257,8 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     this.navigationState = 'arrived';
     this.setVelocityX(0);
     this.setVelocityY(0);
+    this.lastVelocityX = 0;
+    this.lastVelocityY = 0;
     this.arrivalCallback?.();
     this.onArrivalCallbacks.forEach(cb => cb());
     this.arrivalCallback = null;
@@ -369,6 +377,9 @@ export function createAgent(
   const idleKey = 'idle_' + color;
   const agent = new AgentCharacter(scene, x, y, idleKey, undefined, color, config);
 
+  const animationController = new AnimationController(agent, color);
+  agent.setAnimationController(animationController);
+
   if (config?.emoji) {
     const emojiText = scene.add.text(x, y - 32, config.emoji, {
       fontSize: '32px',
@@ -378,6 +389,8 @@ export function createAgent(
     
     (agent as { emojiText?: Phaser.GameObjects.Text }).emojiText = emojiText;
   }
+
+  agent.play('idle_' + color);
 
   return agent;
 }

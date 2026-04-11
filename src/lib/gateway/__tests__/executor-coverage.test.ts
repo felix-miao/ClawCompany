@@ -10,7 +10,8 @@ jest.mock('../client', () => ({
     sessions_history: jest.fn(),
     waitForCompletion: jest.fn()
   })),
-  getGatewayClient: jest.fn()
+  getGatewayClient: jest.fn(),
+  createGatewayClient: jest.fn()
 }))
 
 describe('OpenClawAgentExecutor - spawn without childSessionKey (lines 98-102)', () => {

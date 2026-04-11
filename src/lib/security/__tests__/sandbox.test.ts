@@ -257,79 +257,94 @@ describe('SandboxedFileWriter', () => {
       expect(result.allowed).toBe(true)
     })
 
-    it('should detect null bytes', () => {
+    it('should reject null bytes', () => {
       const result = writer.validateContent('file\x00.txt')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect eval() usage', () => {
+    it('should reject eval() usage', () => {
       const result = writer.validateContent('eval("malicious code")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect Function() constructor', () => {
+    it('should reject Function() constructor', () => {
       const result = writer.validateContent('Function("return this")()')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect process.env access', () => {
+    it('should reject process.env access', () => {
       const result = writer.validateContent('const key = process.env.SECRET')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect require("child_process")', () => {
+    it('should reject require("child_process")', () => {
       const result = writer.validateContent('require("child_process")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect require("fs")', () => {
+    it('should reject require("fs")', () => {
       const result = writer.validateContent('require("fs")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect require("fs/promises")', () => {
+    it('should reject require("fs/promises")', () => {
       const result = writer.validateContent('require("fs/promises")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect import from child_process', () => {
+    it('should reject import from child_process', () => {
       const result = writer.validateContent('import { exec } from "child_process"')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect import from fs', () => {
+    it('should reject import from fs', () => {
       const result = writer.validateContent('import fs from "fs"')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect import from fs/promises', () => {
+    it('should reject import from fs/promises', () => {
       const result = writer.validateContent('import { readFile } from "fs/promises"')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect exec() call', () => {
+    it('should reject exec() call', () => {
       const result = writer.validateContent('exec("rm -rf /")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect execSync() call', () => {
+    it('should reject execSync() call', () => {
       const result = writer.validateContent('execSync("rm -rf /")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect spawn() call', () => {
+    it('should reject spawn() call', () => {
       const result = writer.validateContent('spawn("bash", ["-c", "whoami"])')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect spawnSync() call', () => {
+    it('should reject spawnSync() call', () => {
       const result = writer.validateContent('spawnSync("bash")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
-    it('should detect script tags', () => {
+    it('should reject script tags', () => {
       const result = writer.validateContent('<script>alert("xss")</script>')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('dangerous pattern')
     })
 
     it('should calculate byte size correctly for unicode content', () => {
@@ -599,7 +614,7 @@ describe('SandboxedFileWriter', () => {
       expect(listed.files?.length).toBe(10)
     })
 
-    it('should not lose warnings across concurrent writeFile calls', async () => {
+it('should block dangerous content in concurrent writes', async () => {
       const dangerousContent = 'eval("code")'
       const safeContent = 'const x = 1'
 
@@ -611,40 +626,23 @@ describe('SandboxedFileWriter', () => {
 
       for (let i = 0; i < results.length; i++) {
         const result = results[i]
-        expect(result.success).toBe(true)
         if (i % 2 === 0) {
-          expect(result.warnings).toBeDefined()
-          expect(result.warnings!.length).toBeGreaterThan(0)
+          expect(result.success).toBe(false)
+          expect(result.error).toContain('dangerous pattern')
         } else {
-          expect(result.warnings).toBeUndefined()
+          expect(result.success).toBe(true)
         }
       }
     })
 
-    it('should not leak warnings from one writeFile call to another', async () => {
-      const result1 = writer.writeFile('leak-safe.txt', 'const x = 1')
-      const result2 = writer.writeFile('leak-danger.txt', 'eval("test")')
+    it('should block dangerous content and allow safe content', async () => {
+      const result1 = writer.writeFile('safe.txt', 'const x = 1')
+      const result2 = writer.writeFile('danger.txt', 'eval("test")')
       const [r1, r2] = await Promise.all([result1, result2])
 
       expect(r1.success).toBe(true)
-      expect(r2.success).toBe(true)
-      expect(r1.warnings).toBeUndefined()
-      expect(r2.warnings).toBeDefined()
-      expect(r2.warnings!.length).toBeGreaterThan(0)
-    })
-
-    it('should preserve correct warning count per file when concurrent', async () => {
-      const multiDangerContent = 'eval("x") + process.env.Y + exec("cmd")'
-      const promises = Array.from({ length: 10 }, (_, i) =>
-        writer.writeFile(`multi-${i}.txt`, multiDangerContent)
-      )
-      const results = await Promise.all(promises)
-
-      for (const result of results) {
-        expect(result.success).toBe(true)
-        expect(result.warnings).toBeDefined()
-        expect(result.warnings!.length).toBeGreaterThanOrEqual(3)
-      }
+      expect(r2.success).toBe(false)
+      expect(r2.error).toContain('dangerous pattern')
     })
   })
 

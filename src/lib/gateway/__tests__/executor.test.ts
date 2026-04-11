@@ -1,5 +1,6 @@
-import { OpenClawAgentExecutor, AgentExecutionResult, getAgentExecutor, resetAgentExecutor } from '../executor'
-import { OpenClawGatewayClient } from '../client'
+import { OpenClawAgentExecutor, AgentExecutionResult, getAgentExecutor, createAgentExecutor, resetAgentExecutor } from '../executor'
+import { OpenClawGatewayClient, resetGatewayClient } from '../client'
+import { GameEventStore } from '@/game/data/GameEventStore'
 
 jest.mock('../client', () => ({
   OpenClawGatewayClient: jest.fn().mockImplementation(() => ({
@@ -10,7 +11,9 @@ jest.mock('../client', () => ({
     sessions_history: jest.fn(),
     waitForCompletion: jest.fn()
   })),
-  getGatewayClient: jest.fn()
+  getGatewayClient: jest.fn(),
+  createGatewayClient: jest.fn(),
+  resetGatewayClient: jest.fn()
 }))
 
 describe('OpenClawAgentExecutor', () => {
@@ -217,22 +220,53 @@ describe('OpenClawAgentExecutor', () => {
   })
 })
 
-describe('getAgentExecutor / resetAgentExecutor', () => {
+describe('getAgentExecutor - singleton behavior', () => {
   beforeEach(() => {
     resetAgentExecutor()
+    resetGatewayClient()
   })
 
-  it('应该返回单例实例', () => {
-    const executor1 = getAgentExecutor()
-    const executor2 = getAgentExecutor()
-    expect(executor1).toBe(executor2)
-  })
-
-  it('reset 后应该返回新实例', () => {
-    const executor1 = getAgentExecutor()
+  afterEach(() => {
     resetAgentExecutor()
-    const executor2 = getAgentExecutor()
+    resetGatewayClient()
+    GameEventStore.clearAllSubscribers();
+  });
+
+  it('should return the same instance (singleton)', () => {
+    const executor1 = getAgentExecutor();
+    const executor2 = getAgentExecutor();
+    expect(executor1).toBe(executor2);
+  });
+
+  it('getAgentExecutor should create executor with default client', () => {
+    const executor = getAgentExecutor();
+    expect(executor).toBeInstanceOf(OpenClawAgentExecutor);
+  });
+
+  it('resetAgentExecutor should clear the singleton', () => {
+    const executor1 = getAgentExecutor();
+    resetAgentExecutor()
+    const executor2 = getAgentExecutor();
+    expect(executor1).not.toBe(executor2);
+  });
+})
+
+describe('Request Isolation - createAgentExecutor factory', () => {
+  it('createAgentExecutor should return a new instance each time', () => {
+    const executor1 = createAgentExecutor()
+    const executor2 = createAgentExecutor()
     expect(executor1).not.toBe(executor2)
+  })
+
+  it('different executor instances should have independent connection state', () => {
+    const mockClient1 = new OpenClawGatewayClient('ws://localhost:1') as jest.Mocked<OpenClawGatewayClient>
+    const mockClient2 = new OpenClawGatewayClient('ws://localhost:2') as jest.Mocked<OpenClawGatewayClient>
+
+    const executor1 = new OpenClawAgentExecutor(mockClient1)
+    const executor2 = new OpenClawAgentExecutor(mockClient2)
+
+    expect(executor1.isConnected()).toBe(false)
+    expect(executor2.isConnected()).toBe(false)
   })
 })
 

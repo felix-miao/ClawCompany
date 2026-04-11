@@ -47,14 +47,15 @@ describe('ChatManager Performance Optimization', () => {
 
   describe('Performance characteristics', () => {
     it('should handle many messages efficiently', () => {
+      const uncappedForBenchmark = new ChatManager('test-session', 1000)
       const messages: Message[] = []
       for (let i = 0; i < 1000; i++) {
-        messages.push(chatManager.addMessage('user', `Message ${i}`))
+        messages.push(uncappedForBenchmark.addMessage('user', `Message ${i}`))
       }
 
       const startTime = performance.now()
       messages.forEach(msg => {
-        const found = chatManager.getMessage(msg.id)
+        const found = uncappedForBenchmark.getMessage(msg.id)
         expect(found).toEqual(msg)
       })
       const endTime = performance.now()
@@ -66,12 +67,13 @@ describe('ChatManager Performance Optimization', () => {
     })
 
     it('should get recent messages without performance degradation', () => {
+      const uncappedForBenchmark = new ChatManager('test-session', 5000)
       for (let i = 0; i < 5000; i++) {
-        chatManager.addMessage('user', `Message ${i}`)
+        uncappedForBenchmark.addMessage('user', `Message ${i}`)
       }
 
       const startTime = performance.now()
-      const recent = chatManager.getRecentMessages(100)
+      const recent = uncappedForBenchmark.getRecentMessages(100)
       const endTime = performance.now()
 
       const recentTime = endTime - startTime

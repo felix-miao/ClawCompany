@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 
 import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
+import { CharacterSprites } from '../sprites/CharacterSprites';
 import { TILE_SIZE } from '../config/gameConfig';
 import { DebugOverlay } from '../utils/DebugOverlay';
 import { MovementSystem } from '../systems/MovementSystem';
@@ -678,18 +679,22 @@ export class OfficeScene extends Phaser.Scene {
       const config = AGENT_CONFIGS[index] ?? { id: ws.id, name: ws.label, role: ws.taskType };
       const badgeConfig = this.roleVisuals.getNameBadgeConfig(config.role);
       
-      // 使用新的角色精灵系统
-      const spriteSystem = this.characterSpriteSystem;
-      const characterSprite = spriteSystem.getCharacterSprite(config.role);
+      // 生成角色精灵和动画（程序化像素小人）
+      const characterSprites = new CharacterSprites(this, { color });
+      characterSprites.generate();
+      
+      // 使用程序化角色精灵的纹理（idle 动画第一帧）
+      const textureKey = `idle_${color}_0`;
 
       const x = ws.x * TILE_SIZE + TILE_SIZE / 2;
       const y = (ws.y - 1) * TILE_SIZE;
       
-      // 使用增强的角色创建方法
-      const agent = this.createEnhancedAgent(x, y, color, config, characterSprite);
+      // 使用增强的角色创建方法，传入正确的纹理 key
+      const agent = this.createEnhancedAgent(x, y, color, config, textureKey);
 
       const controller = new AnimationController(agent, config.role);
       agent.setAnimationController(controller);
+      controller.forcePlay('idle');
 
       agent.setPathfindingSystem(this.pathfindingSystem);
 

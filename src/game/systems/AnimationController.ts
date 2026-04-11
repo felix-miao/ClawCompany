@@ -71,10 +71,11 @@ export class AnimationController {
     const animationKey = `${this.role}_${STATE_TO_ANIM_SUFFIX[state]}`;
     const animation = this.sprite.scene.anims.get(animationKey);
 
+    this.currentState = state;
+    this.lastTransitionTime = now;
+
     if (animation) {
       this.sprite.play(animationKey);
-      this.currentState = state;
-      this.lastTransitionTime = now;
     }
   }
 

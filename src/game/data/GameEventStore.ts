@@ -183,23 +183,25 @@ export class GameEventStore {
   }
 }
 
-// ── Module-level singleton ───────────────────────────────────────────────────
+// ── Factory function (per-request instance) ────────────────────────────────────────────────
 
-let store: GameEventStore | null = null;
-
-export function getGameEventStore(): GameEventStore {
-  if (!store) store = new GameEventStore();
-  return store;
-}
-
-export function setGameEventStore(s: GameEventStore | null): void {
-  store = s;
-}
-
-export function resetGameEventStore(): void {
-  store = null;
-}
+let defaultStore: GameEventStore | null = null;
 
 export function createGameEventStore(maxEvents?: number): GameEventStore {
   return new GameEventStore(maxEvents);
+}
+
+export function getGameEventStore(): GameEventStore {
+  if (!defaultStore) {
+    defaultStore = createGameEventStore();
+  }
+  return defaultStore;
+}
+
+export function setGameEventStore(store: GameEventStore): void {
+  defaultStore = store;
+}
+
+export function resetGameEventStore(): void {
+  defaultStore = null;
 }

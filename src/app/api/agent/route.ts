@@ -13,6 +13,7 @@ import { withRateLimit, withAuth, successResponse, errorResponse } from '@/lib/a
 import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 import { logger } from '@/lib/core/logger'
+import { sanitizeUserInput } from '@/lib/utils/prompt-sanitizer'
 
 const sandboxedWriter = new SandboxedFileWriter(process.cwd())
 const storageManager = new StorageManager()
@@ -66,9 +67,10 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   } else {
     const llmProvider = getLLMProvider()
     if (llmProvider) {
+      const sanitizedMessage = sanitizeUserInput(userMessage)
       agentMessage = await llmProvider.chat([
         { role: 'system', content: agentConfig.systemPrompt },
-        { role: 'user', content: userMessage }
+        { role: 'user', content: sanitizedMessage }
       ])
     } else {
       await new Promise(resolve => setTimeout(resolve, 800))

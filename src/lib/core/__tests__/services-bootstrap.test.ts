@@ -248,6 +248,36 @@ describe('Services Bootstrap', () => {
       const logger = scope.resolve<Logger>(Services.Logger)
       expect(logger).toBeInstanceOf(Logger)
     })
+
+    it('每个容器请求应该返回独立的 GameEventStore 实例', () => {
+      const container1 = createAppContainer('/path1')
+      const container2 = createAppContainer('/path2')
+
+      const store1 = container1.resolve<GameEventStore>(Services.GameEventStore)
+      const store2 = container2.resolve<GameEventStore>(Services.GameEventStore)
+
+      expect(store1).not.toBe(store2)
+    })
+
+    it('每个容器请求应该返回独立的 GatewayClient 实例', () => {
+      const container1 = createAppContainer('/path1')
+      const container2 = createAppContainer('/path2')
+
+      const client1 = container1.resolve<OpenClawGatewayClient>(Services.GatewayClient)
+      const client2 = container2.resolve<OpenClawGatewayClient>(Services.GatewayClient)
+
+      expect(client1).not.toBe(client2)
+    })
+
+    it('每个容器请求应该返回独立的 AgentExecutor 实例', () => {
+      const container1 = createAppContainer('/path1')
+      const container2 = createAppContainer('/path2')
+
+      const executor1 = container1.resolve<OpenClawAgentExecutor>(Services.AgentExecutor)
+      const executor2 = container2.resolve<OpenClawAgentExecutor>(Services.AgentExecutor)
+
+      expect(executor1).not.toBe(executor2)
+    })
   })
 
   describe('服务类型安全', () => {
