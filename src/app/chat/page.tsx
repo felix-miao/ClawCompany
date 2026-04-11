@@ -39,6 +39,12 @@ const agentConfig = {
     color: 'bg-orange-600',
     borderColor: 'border-orange-500',
   },
+  'devil-advocate': {
+    name: "Devil's Advocate Claw",
+    avatar: '😈',
+    color: 'bg-red-700',
+    borderColor: 'border-red-500',
+  },
 }
 
 export default function ChatPage() {

@@ -28,6 +28,7 @@ describe('Task Lifecycle E2E', () => {
       getAgent: jest.fn(),
       getAllAgents: jest.fn(),
       executeAgent: jest.fn(),
+      executeReviewPipeline: jest.fn(),
       getAgentInfo: jest.fn(),
     } as jest.Mocked<AgentManager>
 

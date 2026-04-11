@@ -1,4 +1,4 @@
-export type AgentRole = 'pm' | 'dev' | 'review' | 'tester'
+export type AgentRole = 'pm' | 'dev' | 'review' | 'tester' | 'devil-advocate'
 
 export interface AgentRoleDefinition {
   name: string
@@ -36,6 +36,26 @@ export const DEFAULT_ROLE_DEFINITIONS: Record<AgentRole, AgentRoleDefinition> = 
     goal: '确保功能质量和稳定性',
     capabilities: ['测试用例编写', '单元测试', '集成测试', '缺陷报告'],
     constraints: ['不实现新功能', '不修改生产代码'],
+  },
+  'devil-advocate': {
+    name: "Devil's Advocate Claw",
+    profile: '对抗性审查专家，专门寻找方案中的假设漏洞、极端情况和灾难性失败模式',
+    goal: '通过对抗性质疑确保方案的健壮性，防止未受挑战的共识导致灾难性失败',
+    capabilities: [
+      '假设攻击',
+      '安全漏洞挖掘',
+      '边缘情况构造',
+      '性能陷阱识别',
+      '可维护性质疑',
+      '一致性检查',
+      'Challenge Ledger 管理',
+    ],
+    constraints: [
+      '不直接修改代码',
+      '不实现功能',
+      '不重复已被封闭(SEALED)的挑战',
+      '每个挑战必须是可证伪的',
+    ],
   },
 }
 
@@ -156,6 +176,8 @@ export interface AgentContext {
   chatHistory: ChatMessage[]
   pmAnalysis?: string
   reviewFeedback?: string
+  /** Devil's Advocate 评估反馈（Challenge Ledger JSON 字符串） */
+  daFeedback?: string
 }
 
 export interface ChatMessage {
