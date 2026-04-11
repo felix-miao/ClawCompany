@@ -91,7 +91,7 @@ export function successResponse(data: Record<string, unknown>, request?: NextReq
   return NextResponse.json(response)
 }
 
-type RouteHandler = (request: NextRequest) => Promise<NextResponse>
+type RouteHandler = (request: NextRequest) => Response | Promise<Response>
 
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false

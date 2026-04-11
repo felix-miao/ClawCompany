@@ -38,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
-    "public/assets/sprites/**/*"
+    "public/assets/sprites/**/*",
+    "output"
   ]
 }

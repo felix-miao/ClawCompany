@@ -68,9 +68,29 @@ processEmitter.setMaxListeners(500); // Allow many SSE connections
 
 // ── Redis Pub/Sub transport (multi-worker, optional) ──────────────────────────
 
-let redisPub: import('ioredis').Redis | null = null;
-let redisSub: import('ioredis').Redis | null = null;
+type RedisClient = {
+  connect(): Promise<void>;
+  subscribe(channel: string): Promise<unknown>;
+  on(event: 'message', listener: (channel: string, message: string) => void): unknown;
+  publish(channel: string, message: string): Promise<unknown>;
+};
+
+type RedisConstructor = new (
+  url: string,
+  options: { lazyConnect: boolean; enableReadyCheck: boolean }
+) => RedisClient;
+
+let redisPub: RedisClient | null = null;
+let redisSub: RedisClient | null = null;
 let redisReady = false;
+
+async function loadRedisConstructor(): Promise<RedisConstructor> {
+  const dynamicImport = new Function('specifier', 'return import(specifier)') as (
+    specifier: string
+  ) => Promise<{ default: RedisConstructor }>;
+  const module = await dynamicImport('ioredis');
+  return module.default;
+}
 
 /**
  * Try to initialise Redis pub/sub. Silently skips if ioredis is not installed
@@ -80,8 +100,7 @@ async function maybeInitRedis(): Promise<void> {
   const url = process.env.REDIS_URL;
   if (!url || redisReady) return;
   try {
-    // Dynamic import — won't crash if ioredis is not installed
-    const { default: Redis } = await import('ioredis');
+    const Redis = await loadRedisConstructor();
     redisPub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
     redisSub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
     await redisPub.connect();

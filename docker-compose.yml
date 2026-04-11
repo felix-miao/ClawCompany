@@ -1,19 +1,20 @@
-version: '3.9'
 services:
   clawcompany:
     build: .
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     environment:
-      - GLM_API_KEY=${GLM_API_KEY}
-      - AGENT_API_KEY=${AGENT_API_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - ENCRYPTION_SALT=${ENCRYPTION_SALT}
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+      - PORT=3000
+      - GLM_API_KEY=${GLM_API_KEY:-}
+      - AGENT_API_KEY=${AGENT_API_KEY:-}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-}
+      - ENCRYPTION_SALT=${ENCRYPTION_SALT:-}
       - OPENCLAW_GATEWAY_URL=${OPENCLAW_GATEWAY_URL:-ws://host.docker.internal:18789}
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN:-}
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - PROJECT_ROOT=/data/generated
     volumes:
       - clawcompany-data:/data/.clawcompany
       - generated-code:/data/generated
