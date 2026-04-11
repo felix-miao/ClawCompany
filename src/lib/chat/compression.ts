@@ -7,8 +7,12 @@
  *
  * Compression strategy:
  *   1. Keep last RECENT_KEEP (5) messages verbatim
- *   2. Summarise older messages via LLM (≤ SUMMARY_MAX_CHARS chars)
- *   3. Return: [summary message] + [last 5 messages]
+ *   2. Adjust compression boundary to avoid orphaned tool_call messages
+ *      (P0 fix: a tool_call without its tool_result causes API errors)
+ *   3. Summarise older messages via LLM (≤ SUMMARY_MAX_CHARS chars)
+ *      - Incremental summary: if a prior summary already exists, update it
+ *        rather than re-generating from scratch (P1 fix)
+ *   4. Return: [summaryMessage] + [last-N messages]
  *
  * Falls back to a simple tail-truncation summary when no LLM is available.
  */
@@ -64,6 +68,52 @@ function buildFallbackSummary(messages: ChatMessage[]): string {
   )
 }
 
+/**
+ * P0 fix: Find a safe split index so that no tool_call is left without its
+ * corresponding tool_result inside the "older" (to-be-summarised) slice.
+ *
+ * A tool_call message is identified by `metadata.toolCallId` being absent but
+ * a follow-up message having `metadata.toolCallId` set (conventional pairing).
+ *
+ * Because ClawCompany uses a simple role-based ChatMessage schema (not OpenAI's
+ * multi-part message format), tool pairing is tracked via metadata:
+ *   - tool_call message: `metadata.taskId` prefixed with "tool_call:" OR
+ *     message whose immediately following message has `metadata.toolCallId`
+ *   - tool_result message: `metadata.toolCallId` set to id of its tool_call
+ *
+ * Strategy: scan from the proposed splitIndex backward until we land on a
+ * boundary where no orphaned tool_call is stranded.
+ *
+ * @param messages   Full history array
+ * @param splitIndex Proposed index: messages[0..splitIndex-1] will be summarised
+ * @returns          Safe split index (may be equal to or less than splitIndex)
+ */
+function findSafeSplitIndex(messages: ChatMessage[], splitIndex: number): number {
+  // Walk backward from splitIndex-1 to find any orphaned tool_call
+  // An orphaned tool_call is one whose result falls at index >= splitIndex
+  let safe = splitIndex
+
+  for (let i = 0; i < safe; i++) {
+    const msg = messages[i]
+    // Detect a tool_call by: next message has toolCallId pointing to this msg's id
+    const msgId = msg.id
+    if (!msgId) continue
+
+    // Check if any message inside the "recent" slice (index >= safe) is the
+    // result of this tool_call
+    for (let j = safe; j < messages.length; j++) {
+      if (messages[j].metadata?.toolCallId === msgId) {
+        // This tool_call at i has its result at j (which is in the recent slice).
+        // We must include BOTH in the recent slice → move safe boundary to i
+        safe = i
+        break
+      }
+    }
+  }
+
+  return safe
+}
+
 // ─── Main export ───────────────────────────────────────────────────────────────
 
 /**
@@ -71,8 +121,9 @@ function buildFallbackSummary(messages: ChatMessage[]): string {
  *
  * Returns the original array unchanged when compression is not needed.
  * When compression is triggered:
- *   - Calls the LLM to summarise older messages (or uses fallback)
- *   - Returns [summaryMessage, ...last-5-messages]
+ *   - P0: Adjusts the compression boundary to prevent orphaned tool_call messages
+ *   - P1: Uses incremental summarisation if a prior summary message exists
+ *   - Returns [summaryMessage, ...last-N messages]
  *
  * @param messages  Full chat history from ChatManager.getHistory()
  * @param llm       Optional LLM provider override (defaults to getLLMProvider())
@@ -83,113 +134,83 @@ export async function compressHistory(
 ): Promise<ChatMessage[]> {
   if (!shouldCompress(messages)) return messages
 
-  const recentMessages = messages.slice(-RECENT_KEEP)
-  const olderMessages = messages.slice(0, -RECENT_KEEP)
+  // ── Determine raw split boundary (recent vs. older) ──────────────────────
+  const rawSplitIndex = Math.max(0, messages.length - RECENT_KEEP)
+
+  // P0: adjust boundary so no tool_call/result pair is split across slices
+  const splitIndex = findSafeSplitIndex(messages, rawSplitIndex)
+
+  const olderMessages = messages.slice(0, splitIndex)
+  const recentMessages = messages.slice(splitIndex)
 
   // Edge case: nothing old enough to summarise
   if (olderMessages.length === 0) return messages
 
-  let summaryContent: string
+  // ── P1: Find existing summary to update incrementally ────────────────────
+  // The previous summary (if any) is the first message and carries isSummary=true
+  const existingSummaryMsg =
+    olderMessages.length > 0 && olderMessages[0].metadata?.isSummary === true
+      ? olderMessages[0]
+      : null
 
-  // Detect if the first message is already a compaction summary (for iterative update)
-  const firstMsg = olderMessages[0]
-  const isPreviousSummary =
-    firstMsg?.metadata?.taskId === 'context-compression-summary' &&
-    firstMsg.content.startsWith('[历史摘要')
+  // Messages that need to be newly summarised (exclude the existing summary)
+  const messagesToSummarise = existingSummaryMsg
+    ? olderMessages.slice(1)
+    : olderMessages
+
+  let summaryContent: string
 
   const provider = llm ?? getLLMProvider()
   if (provider) {
     try {
-      const historyText = olderMessages
+      const historyText = messagesToSummarise
         .map(m => `[${m.agent}]: ${m.content}`)
         .join('\n')
         // Guard: don't feed absurdly large text to the LLM
         .slice(0, 60_000)
 
-      // Estimate a token budget for the summary (~2000 tokens × 4 chars/token)
-      const summaryBudget = Math.min(2000, Math.floor(SUMMARY_MAX_CHARS / 4))
-
-      // ─── Hermes-style 8-section summary prompts ─────────────────────────
-      const SECTION_TEMPLATE = `## Goal
-[What the multi-agent team is trying to accomplish for the user]
-
-## Constraints & Preferences
-[User preferences, coding style, constraints, important decisions, tech stack choices]
-
-## Progress
-### Done
-[Completed work — include specific file paths, commands run, results obtained]
-### In Progress
-[Work currently underway or partially completed]
-### Blocked
-[Any blockers, errors, or issues encountered]
-
-## Key Decisions
-[Important technical decisions made by PM/dev/review agents and why]
-
-## Relevant Files
-[Files read, modified, or created — with brief note on each]
-
-## Next Steps
-[What needs to happen next to continue the work]
-
-## Critical Context
-[Any specific values, error messages, configuration details, or data that would be lost without explicit preservation]
-
-## Tools & Patterns
-[Which agent roles were used, how tasks were delegated, any workflow patterns or discoveries]`
-
       let systemPrompt: string
       let userPrompt: string
 
-      if (isPreviousSummary) {
-        // Iterative update: incorporate new turns into existing summary
-        const previousSummary = firstMsg.content
-        const newTurnsText = olderMessages
-          .slice(1)
-          .map(m => `[${m.agent}]: ${m.content}`)
-          .join('\n')
-          .slice(0, 50_000)
+      if (existingSummaryMsg) {
+        // P1: incremental — update existing summary with new information
+        systemPrompt = `你是对话历史压缩助手。你有一份已有的历史摘要，以及一批新对话记录。
+请在已有摘要的基础上，补充新内容，更新为最新的结构化摘要。
+要求：
+1. 保留原摘要中仍然相关的关键决策、任务分配、代码方案、重要结论
+2. 将新对话中的重要信息补充到摘要中
+3. 摘要总长度控制在 ${SUMMARY_MAX_CHARS} 字符以内
+4. 使用清晰的中文按时间顺序描述关键事件
+5. 输出格式：纯文本，每条事件一行，以"- "开头`
 
-        systemPrompt = `You are updating a context compaction summary for a multi-agent coding system (ClawCompany). A previous compaction produced the summary below. New conversation turns have occurred since then and need to be incorporated.`
-
-        userPrompt = `PREVIOUS SUMMARY:
-${previousSummary}
-
-NEW TURNS TO INCORPORATE:
-${newTurnsText}
-
-Update the summary using this exact structure. PRESERVE all existing information that is still relevant. ADD new progress. Move items from "In Progress" to "Done" when completed. Remove information only if it is clearly obsolete.
-
-${SECTION_TEMPLATE}
-
-Target ~${summaryBudget} tokens. Be specific — include file paths, command outputs, error messages, and concrete values rather than vague descriptions. The goal is to prevent agents from repeating work or losing important details.
-
-Write only the summary body. Do not include any preamble or prefix.`
+        userPrompt =
+          `已有摘要：\n${existingSummaryMsg.content}\n\n` +
+          `新增 ${messagesToSummarise.length} 条对话：\n\n${historyText}\n\n` +
+          `请更新摘要，整合以上新内容：`
       } else {
-        // First compression
-        systemPrompt = `You are a context compaction assistant for ClawCompany, a multi-agent software development system. Create a structured handoff summary so agents can continue work after earlier turns are compacted.`
+        // First-time full summary
+        systemPrompt = `你是对话历史压缩助手。请将用户提供的对话历史压缩为结构化摘要。
+要求：
+1. 保留关键决策、任务分配、代码方案、重要结论
+2. 摘要总长度控制在 ${SUMMARY_MAX_CHARS} 字符以内
+3. 使用清晰的中文按时间顺序描述关键事件
+4. 输出格式：纯文本，每条事件一行，以"- "开头`
 
-        userPrompt = `TURNS TO SUMMARIZE:
-${historyText}
-
-Use this exact structure:
-
-${SECTION_TEMPLATE}
-
-Target ~${summaryBudget} tokens. Be specific — include file paths, command outputs, error messages, and concrete values rather than vague descriptions. The goal is to prevent agents from repeating work or losing important details.
-
-Write only the summary body. Do not include any preamble or prefix.`
+        userPrompt =
+          `请将以下 ${messagesToSummarise.length} 条对话历史压缩为摘要：\n\n${historyText}`
       }
-      // ────────────────────────────────────────────────────────────────────
 
       const response = await provider.chat([
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ])
 
+      const totalCount = existingSummaryMsg
+        ? (olderMessages.length - 1) + (messagesToSummarise.length)
+        : olderMessages.length
+
       summaryContent = response
-        ? `[历史摘要 - 已压缩 ${olderMessages.length} 条消息]\n${response}`
+        ? `[历史摘要 - 已压缩 ${totalCount} 条消息]\n${response}`
         : buildFallbackSummary(olderMessages)
     } catch {
       summaryContent = buildFallbackSummary(olderMessages)
@@ -211,6 +232,9 @@ Write only the summary body. Do not include any preamble or prefix.`
     timestamp: olderMessages[0]?.timestamp ?? new Date(),
     metadata: {
       taskId: 'context-compression-summary',
+      // P1: mark this message as a summary so subsequent compressions can
+      // update it incrementally rather than re-generating from scratch
+      isSummary: true,
     },
   }
 

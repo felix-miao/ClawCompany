@@ -138,10 +138,8 @@ export class Orchestrator extends BaseOrchestrator {
       executeAgent: (role, task, context) => agentManager.executeAgent(role, task, context),
       executeReviewPipeline: async (task, context, options): Promise<ReviewPipelineResult> => {
         const result = await agentManager.executeReviewPipeline(task, context, options)
-        // Determine DA gate reason from DA gate stats (stored in db), fallback to presence of daResult
-        const daGateReason = result.daResult
-          ? 'high_risk_keyword'  // conservative fallback label
-          : 'high_score_skip'
+        // Use the actual DA gate reason returned by AgentManager (evaluateDAGate result)
+        const daGateReason = (result.daGateReason as ReviewPipelineResult['daGateReason']) ?? undefined
         return {
           reviewResult: result.reviewResult,
           daResult: result.daResult,

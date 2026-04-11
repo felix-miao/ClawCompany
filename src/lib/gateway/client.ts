@@ -285,4 +285,11 @@ export const __mockClient = {
   disconnect: () => Promise.resolve(),
   isConnected: () => true,
   sessions_send: () => {},
+} as const
+
+export const __mockClientWithJest = {
+  connect: jest.fn().mockResolvedValue(undefined),
+  disconnect: jest.fn().mockResolvedValue(undefined),
+  isConnected: jest.fn().mockReturnValue(true),
+  sessions_send: jest.fn(),
 }

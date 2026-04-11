@@ -223,6 +223,17 @@ export interface ChatMessage {
     taskId?: string
     filePath?: string
     codeLanguage?: string
+    /**
+     * For tool_result messages: the id of the corresponding tool_call message.
+     * Used by context compression to keep tool_call/result pairs together.
+     */
+    toolCallId?: string
+    /**
+     * True when this message is a compression summary produced by compressHistory().
+     * Enables incremental summarisation: instead of re-summarising from scratch,
+     * subsequent compressions update the existing summary.
+     */
+    isSummary?: boolean
   }
 }
 

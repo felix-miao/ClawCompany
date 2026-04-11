@@ -104,7 +104,7 @@ import { TaskManager } from '@/lib/tasks/manager'
 import { ChatManager } from '@/lib/chat/manager'
 import { SandboxedFileWriter } from '@/lib/security/sandbox'
 import { AgentRole, AgentResponse, AgentContext, Task } from '@/lib/core/types'
-import { __mockClient } from '@/lib/gateway/client'
+import { __mockClientWithJest as __mockClient } from '@/lib/gateway/client'
 import type { GameEvent } from '@/game/types/GameEvents'
 
 const API_KEY = 'test-api-key-12345678901234567890'
@@ -599,6 +599,8 @@ describe('Task Lifecycle E2E Integration', () => {
         taskId: 'task-1',
         taskTitle: 'Test task',
         agentId: 'pm',
+        result: 'success' as const,
+        duration: 100,
       })
 
       testStore.push({

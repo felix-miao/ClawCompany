@@ -101,12 +101,12 @@ function createMockNextUrl(urlString: string): MockNextURL {
 
 // Cookie 接口定义
 interface MockCookie {
-  get: (name: string) => string | null;
-  set: jest.Mock;
-  delete: jest.Mock;
+  get: (name: string) => { name: string; value: string } | undefined;
+  set: (name: string, value: string) => MockCookie;
+  delete: (name: string) => MockCookie;
   has: (name: string) => boolean;
-  getAll: () => Array<[string, string]>;
-  clear: () => void;
+  getAll: () => { name: string; value: string }[];
+  clear: () => MockCookie;
   size: number;
   [Symbol.iterator]: () => Iterator<[string, string]>;
 }
@@ -126,18 +126,30 @@ function createMockCookies(headers: Map<string, string>): MockCookie {
     })
   }
 
-  return {
-    get: (name: string) => cookieMap.get(name) || null,
-    set: jest.fn(),
-    delete: jest.fn(),
+  const mock: MockCookie = {
+    get: (name: string) => {
+      const value = cookieMap.get(name)
+      return value !== undefined ? { name, value } : undefined
+    },
+    set: (name: string, value: string) => {
+      cookieMap.set(name, value)
+      return mock
+    },
+    delete: (name: string) => {
+      cookieMap.delete(name)
+      return mock
+    },
     has: (name: string) => cookieMap.has(name),
-    getAll: () => Array.from(cookieMap.entries()),
+    getAll: () => Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value })),
     clear: () => {
       cookieMap.clear()
+      return mock
     },
     size: cookieMap.size,
     [Symbol.iterator]: () => cookieMap.entries(),
   }
+
+  return mock
 }
 
 // NextRequest 扩展接口

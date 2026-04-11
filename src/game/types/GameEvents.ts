@@ -126,6 +126,7 @@ export interface TaskVisualizationCompletedEvent extends BaseGameEvent {
   type: 'task:completed';
   agentId: string;
   taskId: string;
+  taskTitle?: string;
   result: 'success' | 'failure' | 'partial';
   duration: number;
 }
