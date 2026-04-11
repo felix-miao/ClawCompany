@@ -16,7 +16,7 @@ interface UseEventStreamResult {
 }
 
 // All named SSE event types from GameEvents.ts
-const NAMED_EVENT_TYPES: GameEventType[] = [
+const NAMED_EVENT_TYPES: (GameEventType | 'ping')[] = [
   'agent:status-change',
   'agent:task-assigned',
   'agent:task-completed',
@@ -40,11 +40,16 @@ const NAMED_EVENT_TYPES: GameEventType[] = [
   'workflow:iteration-complete',
   'cost:update',
   'cost:budget-exceeded',
+  // Server heartbeat — keeps the stale-detection timer alive
+  'ping',
 ];
 
 const MIN_BACKOFF_MS = 3000;  // 3s initial retry delay
 const MAX_BACKOFF_MS = 30000;
 const MAX_RETRIES = 5;        // give up after 5 consecutive failures
+// Stale-connection detection: if no SSE frame arrives for this long, force-reconnect.
+// The server sends a `ping` event every 25 s, so 60 s is a safe threshold.
+const STALE_TIMEOUT_MS = 60_000;
 
 export function useEventStream(
   store: DashboardStore,
@@ -60,6 +65,9 @@ export function useEventStream(
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastEventTimestampRef = useRef<number | null>(null);
   const unmountedRef = useRef(false);
+  // Stale-connection detection: tracks wall-clock time of the last received frame.
+  const lastEventWallTimeRef = useRef<number>(Date.now());
+  const staleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const connect = useCallback(() => {
     if (unmountedRef.current) return;
@@ -89,6 +97,28 @@ export function useEventStream(
       setIsConnected(true);
       setIsReconnecting(false);
       retryCountRef.current = 0;
+      // Reset stale wall-clock on fresh open
+      lastEventWallTimeRef.current = Date.now();
+      // Start stale-connection watchdog
+      if (staleTimerRef.current) clearInterval(staleTimerRef.current);
+      staleTimerRef.current = setInterval(() => {
+        if (unmountedRef.current) return;
+        const silenceMs = Date.now() - lastEventWallTimeRef.current;
+        if (silenceMs >= STALE_TIMEOUT_MS) {
+          // Connection is stale — force reconnect
+          es.close();
+          eventSourceRef.current = null;
+          if (staleTimerRef.current) {
+            clearInterval(staleTimerRef.current);
+            staleTimerRef.current = null;
+          }
+          setIsConnected(false);
+          setIsReconnecting(true);
+          retryTimerRef.current = setTimeout(() => {
+            if (!unmountedRef.current) connect();
+          }, MIN_BACKOFF_MS);
+        }
+      }, STALE_TIMEOUT_MS);
       storeRef.current.processEvent({
         type: 'connection:open',
         timestamp: Date.now(),
@@ -99,6 +129,7 @@ export function useEventStream(
     // Handle generic (unnamed) messages
     es.onmessage = (event: MessageEvent) => {
       if (unmountedRef.current) return;
+      lastEventWallTimeRef.current = Date.now();
       // Track the SSE id field for Last-Event-ID reconnect
       if (event.lastEventId) {
         const ts = parseInt(event.lastEventId, 10);
@@ -115,6 +146,7 @@ export function useEventStream(
     for (const eventType of NAMED_EVENT_TYPES) {
       es.addEventListener(eventType, (event: MessageEvent) => {
         if (unmountedRef.current) return;
+        lastEventWallTimeRef.current = Date.now();
         // Track the SSE id field for Last-Event-ID reconnect
         if (event.lastEventId) {
           const ts = parseInt(event.lastEventId, 10);
@@ -133,6 +165,11 @@ export function useEventStream(
       setIsConnected(false);
       es.close();
       eventSourceRef.current = null;
+      // Clear stale watchdog — it fires on onerror too, avoid double reconnect
+      if (staleTimerRef.current) {
+        clearInterval(staleTimerRef.current);
+        staleTimerRef.current = null;
+      }
 
       if (retryCountRef.current >= MAX_RETRIES) {
         // Exhausted retries — stop reconnecting
@@ -171,6 +208,10 @@ export function useEventStream(
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
+      }
+      if (staleTimerRef.current) {
+        clearInterval(staleTimerRef.current);
+        staleTimerRef.current = null;
       }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();

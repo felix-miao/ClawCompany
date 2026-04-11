@@ -113,7 +113,10 @@ export async function GET(request: NextRequest) {
 
         const keepalive = setInterval(() => {
           try {
-            controller.enqueue(encoder.encode(`: ping\n\n`));
+            // Named event so clients can track it for stale-connection detection.
+            // A comment (": ping") keeps proxies alive but EventSource won't fire it;
+            // a named event reaches the client listener and resets the stale timer.
+            controller.enqueue(encoder.encode(`event: ping\ndata: {}\n\n`));
           } catch {
             clearInterval(keepalive);
             unsubscribe();
