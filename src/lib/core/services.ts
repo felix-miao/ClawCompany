@@ -10,7 +10,7 @@ import { GitManager } from '../git/manager'
 import { LLMFactory } from '../llm/factory'
 import { OpenClawGatewayClient } from '../gateway/client'
 import { OpenClawAgentExecutor } from '../gateway/executor'
-import { GameEventStore } from '../../game/data/GameEventStore'
+import { GameEventStore, getGameEventStore } from '../../game/data/GameEventStore'
 import type { LLMProvider } from '../llm/types'
 
 export const Services = {
@@ -89,7 +89,7 @@ export function createAppContainer(rootDir?: string): Container {
   })
 
   container.register<GameEventStore>(Services.GameEventStore, () => {
-    return new GameEventStore()
+    return getGameEventStore()
   })
 
   container.register<Orchestrator>(Services.Orchestrator, (c) => {

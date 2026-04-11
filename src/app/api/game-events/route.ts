@@ -55,67 +55,86 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const lastEventId = request.headers.get('Last-Event-ID') || url.searchParams.get('since');
 
-  const stream = new ReadableStream({
-    start(controller) {
-      const poller = getSessionPoller(store);
-      if (!poller.isRunning()) {
-        poller.start();
-      }
+  let connectionReleased = false;
+  function safeReleaseConnection() {
+    if (!connectionReleased) {
+      connectionReleased = true;
+      releaseConnection(ip);
+    }
+  }
 
-      const sendEvent = (data: unknown, eventType?: string, id?: string) => {
-        let message = `data: ${JSON.stringify(data)}\n`;
-        if (eventType) message = `event: ${eventType}\n${message}`;
-        if (id) message += `id: ${id}\n`;
-        message += '\n';
-        controller.enqueue(encoder.encode(message));
-      };
+  let stream: ReadableStream;
+  try {
+    stream = new ReadableStream({
+      start(controller) {
+        const poller = getSessionPoller(store);
+        if (!poller.isRunning()) {
+          poller.start();
+        }
 
-      sendEvent(
-        { type: 'connection:open', timestamp: Date.now(), url: request.url },
-        'connection',
-        String(Date.now())
-      );
+        const sendEvent = (data: unknown, eventType?: string, id?: string) => {
+          let message = `data: ${JSON.stringify(data)}\n`;
+          if (eventType) message = `event: ${eventType}\n${message}`;
+          if (id) message += `id: ${id}\n`;
+          message += '\n';
+          controller.enqueue(encoder.encode(message));
+        };
 
-      if (lastEventId) {
-        const since = parseInt(lastEventId, 10);
-        if (!isNaN(since)) {
-          const missedEvents = store.getEvents(since);
-          for (const event of missedEvents) {
-            sendEvent(event, event.type, String(event.timestamp));
+        sendEvent(
+          { type: 'connection:open', timestamp: Date.now(), url: request.url },
+          'connection',
+          String(Date.now())
+        );
+
+        if (lastEventId) {
+          const since = parseInt(lastEventId, 10);
+          if (!isNaN(since)) {
+            const missedEvents = store.getEvents(since);
+            for (const event of missedEvents) {
+              sendEvent(event, event.type, String(event.timestamp));
+            }
           }
         }
-      }
 
-      const unsubscribe = store.subscribe((event) => {
-        try {
-          sendEvent(event, event.type, String(event.timestamp));
-        } catch {
-          unsubscribe();
-        }
-      });
+        const unsubscribe = store.subscribe((event) => {
+          try {
+            sendEvent(event, event.type, String(event.timestamp));
+          } catch {
+            unsubscribe();
+          }
+        });
 
-      const keepalive = setInterval(() => {
-        try {
-          controller.enqueue(encoder.encode(': keepalive\n\n'));
-        } catch {
+        const keepalive = setInterval(() => {
+          try {
+            controller.enqueue(encoder.encode(': keepalive\n\n'));
+          } catch {
+            clearInterval(keepalive);
+            unsubscribe();
+          }
+        }, 30000);
+
+        // 3. 断开时清理连接计数
+        request.signal.addEventListener('abort', () => {
           clearInterval(keepalive);
           unsubscribe();
-        }
-      }, 30000);
-
-      // 3. 断开时清理连接计数
-      request.signal.addEventListener('abort', () => {
-        clearInterval(keepalive);
-        unsubscribe();
-        releaseConnection(ip);
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
-      });
-    },
-  });
+          safeReleaseConnection();
+          try {
+            controller.close();
+          } catch {
+            // already closed
+          }
+        });
+      },
+      cancel() {
+        // Ensure connection is released if the stream is cancelled for any reason
+        safeReleaseConnection();
+      },
+    });
+  } catch (err) {
+    // If stream construction itself throws, release the acquired connection slot
+    safeReleaseConnection();
+    throw err;
+  }
 
   return new Response(stream, {
     headers: {
