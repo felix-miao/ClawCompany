@@ -692,7 +692,7 @@ export class OfficeScene extends Phaser.Scene {
       // 使用增强的角色创建方法，传入正确的纹理 key
       const agent = this.createEnhancedAgent(x, y, color, config, textureKey);
 
-      const controller = new AnimationController(agent, color);
+      const controller = new AnimationController(agent, config.role);
       agent.setAnimationController(controller);
       controller.forcePlay('idle');
 

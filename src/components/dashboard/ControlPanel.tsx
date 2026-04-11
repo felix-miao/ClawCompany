@@ -5,10 +5,10 @@ import { useState, useCallback } from 'react';
 import { GameEvent } from '@/game/types/GameEvents';
 
 const AGENTS = [
-  { id: 'alice', name: 'Alice' },
-  { id: 'bob', name: 'Bob' },
-  { id: 'charlie', name: 'Charlie' },
-  { id: 'diana', name: 'Diana' },
+  { id: 'pm-agent', name: 'PM' },
+  { id: 'dev-agent', name: 'Dev' },
+  { id: 'review-agent', name: 'Reviewer' },
+  { id: 'test-agent', name: 'Tester' },
 ];
 
 const STATUSES = ['idle', 'busy', 'working', 'offline'];
@@ -19,7 +19,7 @@ interface ControlPanelProps {
 }
 
 export function ControlPanel({ onSendEvent }: ControlPanelProps) {
-  const [selectedAgent, setSelectedAgent] = useState('alice');
+  const [selectedAgent, setSelectedAgent] = useState('pm-agent');
   const [selectedStatus, setSelectedStatus] = useState('working');
   const [selectedEmotion, setSelectedEmotion] = useState('happy');
   const [taskDescription, setTaskDescription] = useState('');
