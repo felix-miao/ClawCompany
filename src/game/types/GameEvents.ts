@@ -15,10 +15,14 @@ export type GameEventType =
   | 'task:completed'
   | 'task:failed'
   | 'task:handover'
+  | 'task:submitted'
+  | 'task:started'
   | 'openclaw:send'
   | 'pm:analysis-complete'
   | 'dev:iteration-start'
   | 'review:rejected'
+  | 'workflow:started'
+  | 'workflow:completed'
   | 'workflow:iteration-complete'
   | 'cost:update'
   | 'cost:budget-exceeded';
@@ -196,6 +200,34 @@ export interface CostBudgetExceededEvent extends BaseGameEvent {
     budget: number;
     overage: number;
   };
+}
+
+export interface TaskSubmittedEvent extends BaseGameEvent {
+  type: 'task:submitted';
+  taskId: string;
+  title: string;
+  description?: string;
+  userId: string;
+}
+
+export interface TaskStartedEvent extends BaseGameEvent {
+  type: 'task:started';
+  taskId: string;
+  taskTitle?: string;
+  agentId?: string;
+}
+
+export interface WorkflowStartedEvent extends BaseGameEvent {
+  type: 'workflow:started';
+  userMessage: string;
+}
+
+export interface WorkflowCompletedEvent extends BaseGameEvent {
+  type: 'workflow:completed';
+  success: boolean;
+  completed?: number;
+  total?: number;
+  failed?: number;
 }
 
 export type GameEvent =
