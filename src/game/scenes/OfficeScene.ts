@@ -39,7 +39,7 @@ import { OnboardingManager, OnboardingPhase } from '../systems/OnboardingManager
 import { EventBus } from '../systems/EventBus';
 import { ShadowRenderer } from '../sprites/ShadowRenderer';
 import { RoleVisuals } from '../sprites/RoleVisuals';
-import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask, Platform } from '../types/OfficeTypes';
+import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 import { OfficeDecoration } from '../sprites/OfficeMapGenerator';
 
 import type { AgentConfig } from '../../types/agent-config';
@@ -51,6 +51,8 @@ const AGENT_CONFIGS: AgentConfig[] = [
   { id: 'review-agent', name: 'Reviewer', role: 'Code Reviewer', emoji: '🔍', color: '#96ceb4', systemPrompt: '', runtime: 'subagent' },
   { id: 'test-agent', name: 'Tester', role: 'QA Engineer', emoji: '🧪', color: '#ff6b6b', systemPrompt: '', runtime: 'subagent' },
 ];
+
+import { TinyTownLoader } from '../sprites/TinyTownLoader';
 
 export class OfficeScene extends Phaser.Scene {
   private agents: AgentCharacter[] = [];
@@ -120,6 +122,10 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Register all default character + environment textures synchronously
+    // so they are available when create() runs (avoids missing-texture placeholders).
+    const loader = new TinyTownLoader(this);
+    loader.preloadSync();
   }
 
   private getDefaultTilemapData(): TilemapData {
@@ -712,65 +718,62 @@ export class OfficeScene extends Phaser.Scene {
   private createPlatforms(): void {
     if (!this.tilemapData) return;
 
-    // 使用角色精灵系统获取办公室资产
-    const spriteSystem = this.characterSpriteSystem;
-
     this.tilemapData.platforms.forEach((platform) => {
       const x = platform.x * TILE_SIZE + (platform.width * TILE_SIZE) / 2;
       const y = platform.y * TILE_SIZE + (platform.height * TILE_SIZE) / 2;
       const width = platform.width * TILE_SIZE;
       const height = Math.max(platform.height * TILE_SIZE, 4);
 
-      let assetType = 'floor';
-      if (platform.type === 'desk') {
-        assetType = 'desk';
+      // ── Draw the platform as a Graphics object (no async texture dependency) ──
+      const gfx = this.add.graphics();
+
+      if (platform.type === 'desk' || platform.type === 'chair') {
+        // Warm wood-brown desk surface with highlight edge
+        gfx.fillStyle(0x5c3d1e, 1);
+        gfx.fillRoundedRect(-width / 2, -height / 2, width, height, 4);
+        gfx.lineStyle(1, 0x8b6340, 1);
+        gfx.strokeRoundedRect(-width / 2, -height / 2, width, height, 4);
+        // Monitor screen on desk
+        if (platform.type === 'desk' && width >= 64) {
+          gfx.fillStyle(0x1a2a3a, 1);
+          gfx.fillRect(-12, -height / 2 - 12, 24, 12);
+          gfx.lineStyle(1, 0x45b7d1, 0.7);
+          gfx.strokeRect(-12, -height / 2 - 12, 24, 12);
+          gfx.fillStyle(0x45b7d1, 0.15);
+          gfx.fillRect(-10, -height / 2 - 10, 20, 8);
+        }
       } else if (platform.type.includes('wall')) {
-        assetType = 'wall';
-      }
-
-      const assetKey = spriteSystem.getOfficeAsset(assetType);
-      
-      // 创建平台精灵
-      const platformSprite = this.platforms.create(x, y, assetKey);
-      platformSprite.setOrigin(0.5, 0.5);
-      
-      // 根据平台类型调整大小
-      if (assetType === 'desk') {
-        platformSprite.setDisplaySize(width, height);
+        // Cool slate-gray wall
+        gfx.fillStyle(0x3a4a5a, 1);
+        gfx.fillRect(-width / 2, -height / 2, width, height);
+        gfx.lineStyle(1, 0x4a5a6a, 1);
+        gfx.strokeRect(-width / 2, -height / 2, width, height);
+        // Brick-line pattern every 16px
+        gfx.lineStyle(1, 0x2a3a4a, 0.5);
+        for (let yy = -height / 2 + 16; yy < height / 2; yy += 16) {
+          gfx.moveTo(-width / 2, yy);
+          gfx.lineTo(width / 2, yy);
+        }
+        gfx.strokePath();
       } else {
-        platformSprite.setDisplaySize(width, height);
+        // Floor – dark tile
+        gfx.fillStyle(0x252d3a, 1);
+        gfx.fillRect(-width / 2, -height / 2, width, height);
+        gfx.lineStyle(1, 0x2e3a4a, 0.6);
+        gfx.strokeRect(-width / 2, -height / 2, width, height);
       }
-      
-      platformSprite.refreshBody();
 
-      // 添加平台装饰
-      this.addPlatformDecoration(platform, x, y, width, height);
+      gfx.setPosition(x, y);
+      gfx.setDepth(0);
+      this.decorationGraphics.push(gfx);
+
+      // ── Invisible physics body for collision ──────────────────────────────
+      const body = this.physics.add.image(x, y, '__DEFAULT') as Phaser.Physics.Arcade.Image;
+      body.setAlpha(0);
+      body.setDisplaySize(width, height);
+      body.refreshBody();
+      this.platforms.add(body, true);
     });
-  }
-
-  private addPlatformDecoration(platform: Platform, x: number, y: number, width: number, height: number): void {
-    // 为平台添加装饰效果
-    if (platform.type === 'desk') {
-      // 添加桌面装饰
-      const decoration = this.add.graphics();
-      decoration.fillStyle(0x8B4513, 0.3);
-      decoration.fillRect(-width / 2 + 4, -height / 2 + 4, width - 8, height - 8);
-      decoration.lineStyle(2, 0x654321, 0.5);
-      decoration.strokeRect(-width / 2 + 4, -height / 2 + 4, width - 8, height - 8);
-      decoration.setPosition(x, y);
-      decoration.setDepth(1);
-      this.decorationGraphics.push(decoration);
-    } else if (platform.type.includes('wall')) {
-      // 添加墙壁装饰
-      const decoration = this.add.graphics();
-      decoration.fillStyle(0xFFFFFF, 0.1);
-      decoration.fillRect(-width / 2 + 2, -height / 2 + 2, width - 4, height - 4);
-      decoration.lineStyle(1, 0xDDDDDD, 0.3);
-      decoration.strokeRect(-width / 2 + 2, -height / 2 + 2, width - 4, height - 4);
-      decoration.setPosition(x, y);
-      decoration.setDepth(1);
-      this.decorationGraphics.push(decoration);
-    }
   }
 
   private createAgents(): void {

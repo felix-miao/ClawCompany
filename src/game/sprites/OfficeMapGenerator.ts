@@ -277,16 +277,9 @@ export class OfficeMapGenerator {
   }
 
   createOfficeBackground(): void {
-    // 创建办公室背景
-    const background = this.scene.add.graphics();
-    background.fillStyle(0xf0f0f0, 1);
-    background.fillRect(0, 0, this.scene.cameras.main.width, this.scene.cameras.main.height);
-    background.setDepth(0);
-
-    // 添加渐变效果
-    const gradient = this.scene.add.graphics();
-    gradient.fillStyle(0xe0e0e0, 0.3);
-    gradient.fillRect(0, 0, this.scene.cameras.main.width, 100);
-    gradient.setDepth(1);
+    // No-op: background is handled by drawOfficeBackground() in OfficeScene
+    // and by the Phaser backgroundColor config (#1a1a2e).
+    // We intentionally do NOT draw a light-gray fill here as it would
+    // overwrite the dark background.
   }
 }

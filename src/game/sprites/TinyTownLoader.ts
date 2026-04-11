@@ -18,6 +18,15 @@ export class TinyTownLoader {
     };
   }
 
+  /**
+   * Synchronously register all default textures + animations.
+   * Call this from a Phaser Scene's preload() so textures are ready before create().
+   */
+  preloadSync(): void {
+    this.createDefaultCharacterSprites();
+    this.createDefaultEnvironmentTiles();
+  }
+
   async loadResources(): Promise<void> {
     console.log('🚀 开始加载 Tiny Town 资源...');
     
