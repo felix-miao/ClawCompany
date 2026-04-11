@@ -43,6 +43,11 @@ export class ReviewAgent extends BaseAgent {
         message: data.message || '代码审查完成',
         status: data.approved ? 'success' : 'need_input',
         nextAgent: data.approved ? undefined : 'dev',
+        metadata: {
+          score: data.score ?? null,
+          approved: data.approved,
+          suggestions: data.suggestions ?? [],
+        },
       }
     }
 

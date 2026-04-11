@@ -15,6 +15,8 @@
     "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.8.0",
     "framer-motion": "^12.36.0",
     "next": "^16.2.2",
     "phaser": "^3.90.0",

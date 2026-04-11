@@ -17,6 +17,7 @@ import { OrchestratorError, AppError, isAppError, FileSystemError, ErrorCategory
 import { AgentEventBus, AgentEventType } from './agent-event-bus'
 import { UnifiedRetry } from './unified-retry'
 import { getGameEventStore } from '@/game/data/GameEventStore'
+import { DPScoreStore, buildDPScoreRecord } from '../analytics/dp-score-store'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -391,6 +392,10 @@ export abstract class BaseOrchestrator {
 
       cb.broadcast('review', reviewResponse.message)
 
+      // ─── DP Score 持久化 ─────────────────────────────────────
+      this.persistDPScore(task, reviewResponse)
+      // ─────────────────────────────────────────────────────────
+
       if (reviewResponse.status === 'success') {
         this.markTaskCompleted(task, cb, completedTaskIds, 'review')
         // Emit workflow:iteration-complete on approval
@@ -433,6 +438,39 @@ export abstract class BaseOrchestrator {
       })
       context = { ...reviewContext, reviewFeedback: reviewResponse.message }
       cb.updateTaskStatus(task.id, 'in_progress')
+    }
+  }
+
+  /**
+   * 将本次 review 的 DP Score 持久化到 SQLite
+   * - critic_score: Review Agent 在 metadata.score 中提供的分数（可能为 null）
+   * - dpScorePenalty: 默认 1.0（Independence Check 尚未集成进主流程时使用）
+   */
+  private persistDPScore(task: Task, reviewResponse: AgentResponse): void {
+    try {
+      const criticScore = typeof reviewResponse.metadata?.score === 'number'
+        ? reviewResponse.metadata.score as number
+        : 70 // 无明确分数时保守默认值
+
+      const record = buildDPScoreRecord(
+        task.id,
+        task.assignedTo ?? 'dev',
+        criticScore,
+        1.0,  // Independence Check 惩罚因子，当前默认 1.0（后续集成 runIndependenceCheck 时替换）
+      )
+
+      DPScoreStore.getInstance().save(record)
+      this.logInfo('DP Score persisted', {
+        taskId: task.id,
+        dpScore: record.dp_score,
+        criticScore: record.critic_score,
+      })
+    } catch (err) {
+      // 持久化失败不影响主流程
+      this.logWarn('Failed to persist DP Score', {
+        taskId: task.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 
