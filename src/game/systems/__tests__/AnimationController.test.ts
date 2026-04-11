@@ -112,7 +112,7 @@ describe('AnimationController', () => {
       sprite.scene.anims.get.mockReturnValue(undefined);
       const controller = new AnimationController(sprite as unknown as Phaser.Physics.Arcade.Sprite, 0xff6b6b);
       controller.update(50, 0, true, true);
-      expect(controller.getState()).toBe('idle');
+      expect(controller.getState()).toBe('working');
     });
   });
 

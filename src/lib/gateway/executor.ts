@@ -1,4 +1,4 @@
-import { OpenClawGatewayClient, SpawnOptions, SpawnResult, SendResult, getGatewayClient } from './client'
+import { OpenClawGatewayClient, SpawnOptions, SpawnResult, SendResult, getGatewayClient, createGatewayClient } from './client'
 import { sanitizeUserInput } from '../utils/prompt-sanitizer'
 import * as path from 'path'
 
@@ -256,26 +256,26 @@ Provide your review with APPROVED or NEEDS_CHANGES verdict.`
   }
 }
 
-let defaultExecutor: OpenClawAgentExecutor | null = null
+let _agentExecutor: OpenClawAgentExecutor | null = null
 
-export function getAgentExecutor(): OpenClawAgentExecutor {
-  if (!defaultExecutor) {
-    defaultExecutor = new OpenClawAgentExecutor()
-  }
-  return defaultExecutor
+export function createAgentExecutor(client?: OpenClawGatewayClient): OpenClawAgentExecutor {
+  const resolvedClient = client || createGatewayClient()
+  return new OpenClawAgentExecutor(resolvedClient)
 }
 
-export function setAgentExecutor(executor: OpenClawAgentExecutor | null): void {
-  defaultExecutor = executor
+export function getAgentExecutor(): OpenClawAgentExecutor {
+  if (!_agentExecutor) {
+    _agentExecutor = createAgentExecutor()
+  }
+  return _agentExecutor
 }
 
 export function resetAgentExecutor(): void {
-  if (defaultExecutor) {
-    defaultExecutor.disconnect().catch(console.error)
-    defaultExecutor = null
-  }
+  _agentExecutor = null
 }
 
-export function createAgentExecutor(client?: OpenClawGatewayClient): OpenClawAgentExecutor {
-  return new OpenClawAgentExecutor(client)
+export function setAgentExecutor(executor: OpenClawAgentExecutor): void {
+  _agentExecutor = executor
 }
+
+export { createGatewayClient } from './client'

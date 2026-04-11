@@ -251,31 +251,26 @@ export class OpenClawGatewayClient {
   }
 }
 
-let defaultClient: OpenClawGatewayClient | null = null
-
-export function getGatewayClient(): OpenClawGatewayClient {
-  if (!defaultClient) {
-    const url = process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789'
-    const token = process.env.OPENCLAW_GATEWAY_TOKEN
-    defaultClient = new OpenClawGatewayClient(url, { token })
-  }
-  return defaultClient
-}
-
-export function setGatewayClient(client: OpenClawGatewayClient | null): void {
-  defaultClient = client
-}
-
-export function resetGatewayClient(): void {
-  if (defaultClient) {
-    defaultClient.disconnect().catch(console.error)
-    defaultClient = null
-  }
-}
+let _gatewayClient: OpenClawGatewayClient | null = null
 
 export function createGatewayClient(url?: string, options?: GatewayOptions): OpenClawGatewayClient {
   return new OpenClawGatewayClient(
     url || process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789',
     { token: process.env.OPENCLAW_GATEWAY_TOKEN, ...options },
   )
+}
+
+export function getGatewayClient(): OpenClawGatewayClient {
+  if (!_gatewayClient) {
+    _gatewayClient = createGatewayClient()
+  }
+  return _gatewayClient
+}
+
+export function resetGatewayClient(): void {
+  _gatewayClient = null
+}
+
+export function setGatewayClient(client: OpenClawGatewayClient): void {
+  _gatewayClient = client
 }

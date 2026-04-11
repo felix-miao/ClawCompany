@@ -28,39 +28,36 @@
 
 ### 待修复
 
-- [ ] **#003 [P0][GAME] AgentCharacter 角色是纯色方块，无帧动画**
-  - **文件**: `src/game/characters/AgentCharacter.ts` (369-384行)
-  - **问题**: createAgent() 仍用 graphics.fillRoundedRect 生成纯色方块，无 spritesheet，无 scene.anims.create()
-  - **修复**: 程序化绘制像素小人 + idle/walk/work 三套基础帧动画
+- [x] ~~#003 [P0][GAME] AgentCharacter 角色是纯色方块，无帧动画~~ → commit 603b79b 已实现程序化像素小人 + idle/walk/work 帧动画
 
-- [ ] **#006 [P0][HYGIENE] MEMORY.md.backup 包含个人信息提交进公开仓库**
-  - **文件**: `MEMORY.md.backup.20260320_094004` (已删但 git 历史仍在)
-  - **修复**: git filter-repo 清理历史 + .gitignore 添加 *.backup
+- [code-complete] **#006 [P0][HYGIENE] MEMORY.md.backup 包含个人信息提交进公开仓库** → commits 616db1e, 499aaa3
+  - **已完成**: .gitignore 添加 *.backup，删除 metrics-aggregator.ts.backup
+  - **需人工**: 仍需执行 git history rewrite + force-push（origin: git@github.com:felix-miao/ClawCompany.git；本地当前未安装 git-filter-repo）
 
-- [ ] **#067 [P0][API] game-events GET 端点完全无认证保护**
+- [code-complete] **#067 [P0][API] game-events GET 端点完全无认证保护** → commit 7eb6e0b
   - **文件**: `src/app/api/game-events/route.ts` (第8行)
   - **问题**: GET 无 withAuth 包裹，POST 有认证但 GET 没有
   - **修复**: GET 加 withAuth 包裹
 
-- [ ] **#068 [P0][LIB] 全局单例在 Serverless 环境下状态污染**
+- [code-complete] **#068 [P0][LIB] 全局单例在 Serverless 环境下状态污染**
   - **文件**: GameEventStore.ts, session-poller.ts, executor.ts, client.ts, services.ts
   - **问题**: 5处模块级全局单例，并发请求共享状态
-  - **修复**: 删除全局单例导出，通过 DI Container 按请求创建实例
+  - **修复**: 默认路径改为 factory / DI 优先的按请求创建；仅保留测试/兼容层需要的显式 singleton helper
 
-- [ ] **#069 [P0][LIB] ChatManager 无消息数量上限，内存无界增长**
+- [code-complete] **#069 [P0][LIB] ChatManager 无消息数量上限，内存无界增长**
   - **文件**: `src/lib/chat/manager.ts` (31行)
   - **修复**: 加 maxMessages 参数（默认500），超出滚动删除
 
-- [ ] **#070 [P0][LIB] api/client.ts fetch 无超时控制**
+- [code-complete] **#070 [P0][LIB] api/client.ts fetch 无超时控制**
   - **文件**: `src/lib/api/client.ts` (50行/68行)
   - **修复**: AbortController + setTimeout 包裹 fetch
 
-- [ ] **#141 [P0][SEC] Prompt Injection via Unfiltered User Message**
+- [code-complete] **#141 [P0][SEC] Prompt Injection via Unfiltered User Message**
   - **文件**: `src/app/api/agent/route.ts` (26行/71行)
   - **问题**: userMessage 直接传给 LLM，无 sanitize 调用
-  - **修复**: 添加 prompt injection 检测层
+  - **修复**: 导入 `sanitizeUserInput`，在调用 LLM provider 前对 userMessage 进行 sanitization
 
-- [ ] **#142 [P0][SEC] AI 生成代码自动写入磁盘无人工审核**
+- [code-complete] **#142 [P0][SEC] AI 生成代码自动写入磁盘无人工审核**
   - **文件**: `src/lib/security/sandbox.ts` (169-176行)
   - **问题**: validateContent 检测到危险模式仅警告不阻断，allowed 永为 true
   - **修复**: 危险内容检测时必须阻断写入

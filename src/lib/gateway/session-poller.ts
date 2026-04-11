@@ -153,18 +153,22 @@ export class SessionPollerService {
   }
 }
 
-let instance: SessionPollerService | null = null
+let defaultPoller: SessionPollerService | null = null
+
+export function createSessionPoller(store: GameEventStore, sync?: SessionSyncService): SessionPollerService {
+  return new SessionPollerService(store, sync ?? new SessionSyncService())
+}
 
 export function getSessionPoller(store: GameEventStore, sync?: SessionSyncService): SessionPollerService {
-  if (!instance) {
-    instance = new SessionPollerService(store, sync ?? new SessionSyncService())
+  if (!defaultPoller) {
+    defaultPoller = createSessionPoller(store, sync)
   }
-  return instance
+  return defaultPoller
 }
 
 export function resetSessionPoller(): void {
-  if (instance) {
-    instance.stop()
-    instance = null
+  if (defaultPoller) {
+    defaultPoller.stop()
+    defaultPoller = null
   }
 }

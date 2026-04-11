@@ -15,9 +15,14 @@ jest.mock('phaser', () => {
     destroy: jest.fn(),
   };
 
+  const graphicsInstances: any[] = [];
   const mockScene = {
     add: {
-      graphics: jest.fn(() => ({ ...mockGraphics })),
+      graphics: jest.fn(() => {
+        const instance = { ...mockGraphics };
+        graphicsInstances.push(instance);
+        return instance;
+      }),
     },
     anims: {
       create: jest.fn(),
@@ -28,12 +33,12 @@ jest.mock('phaser', () => {
     default: {
       GameObjects: { Graphics: jest.fn() },
     },
-    __mocks: { mockScene, mockGraphics },
+    __mocks: { mockScene, mockGraphics, graphicsInstances },
   };
 });
 
 const Phaser = require('phaser');
-const { mockScene } = Phaser.__mocks;
+const { mockScene, graphicsInstances } = Phaser.__mocks;
 
 describe('CharacterSprites', () => {
   let sprites: CharacterSprites;
@@ -128,6 +133,44 @@ describe('CharacterSprites', () => {
         (call: any[]) => call[0].key && call[0].key.includes('work')
       );
       expect(workCall).toBeDefined();
+    });
+  });
+
+  describe('procedural pixel character generation', () => {
+    it('should generate idle animation with 2 distinct frames', () => {
+      sprites.generate();
+      
+      const idleCall = mockScene.anims.create.mock.calls.find(
+        (call: any[]) => call[0].key && call[0].key.includes('idle')
+      );
+      expect(idleCall[0].frames).toHaveLength(2);
+    });
+
+    it('should generate walk animation with 4 frames', () => {
+      sprites.generate();
+      
+      const walkCall = mockScene.anims.create.mock.calls.find(
+        (call: any[]) => call[0].key && call[0].key.includes('walk')
+      );
+      expect(walkCall[0].frames).toHaveLength(4);
+    });
+
+    it('should generate work animation with 3 frames', () => {
+      sprites.generate();
+      
+      const workCall = mockScene.anims.create.mock.calls.find(
+        (call: any[]) => call[0].key && call[0].key.includes('work')
+      );
+      expect(workCall[0].frames).toHaveLength(3);
+    });
+
+    it('should use frame keys that include color identifier', () => {
+      sprites.generate();
+      
+      const idleCall = mockScene.anims.create.mock.calls.find(
+        (call: any[]) => call[0].key && call[0].key.includes('idle')
+      );
+      expect(idleCall[0].frames[0].key).toContain(String(config.color));
     });
   });
 

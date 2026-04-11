@@ -1,4 +1,4 @@
-import { OpenClawGatewayClient, SpawnOptions, SpawnResult, getGatewayClient, resetGatewayClient } from '../client'
+import { OpenClawGatewayClient, SpawnOptions, SpawnResult, getGatewayClient, resetGatewayClient, createGatewayClient } from '../client'
 
 class MockWebSocket {
   static instances: MockWebSocket[] = []
@@ -432,5 +432,26 @@ describe('getGatewayClient / resetGatewayClient singleton', () => {
     expect(c).toBeInstanceOf(OpenClawGatewayClient)
 
     process.env.OPENCLAW_GATEWAY_URL = originalUrl
+  })
+})
+
+describe('Request Isolation - createGatewayClient factory', () => {
+  it('createGatewayClient should return a new instance each time', () => {
+    const client1 = createGatewayClient()
+    const client2 = createGatewayClient()
+    expect(client1).not.toBe(client2)
+  })
+
+  it('different client instances should have independent WebSocket state', () => {
+    const client1 = new OpenClawGatewayClient('ws://localhost:1')
+    const client2 = new OpenClawGatewayClient('ws://localhost:2')
+
+    expect(client1.isConnected()).toBe(false)
+    expect(client2.isConnected()).toBe(false)
+  })
+
+  it('createGatewayClient with custom url should use that url', () => {
+    const client = createGatewayClient('ws://custom:8888')
+    expect(client).toBeInstanceOf(OpenClawGatewayClient)
   })
 })

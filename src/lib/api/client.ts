@@ -1,32 +1,12 @@
-// API 客户端 - 与后端交互
-
 import { Message, Task } from '../core/types'
-import { 
-  validateChatResponse, 
-  validateChatHistoryResponse, 
-  APIError 
+import {
+  validateChatResponse,
+  validateChatHistoryResponse,
+  APIError,
 } from './type-utils'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
-const DEFAULT_TIMEOUT_MS = 30_000
-
-/** Creates a fetch call wrapped with AbortController timeout (P0-fix #070) */
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
-): Promise<Response> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const response = await fetch(url, { ...options, signal: controller.signal })
-    clearTimeout(timeoutId)
-    return response
-  } catch (error) {
-    clearTimeout(timeoutId)
-    throw error
-  }
-}
+export const REQUEST_TIMEOUT_MS = 10000
 
 export interface ChatResponse {
   success: boolean
@@ -47,9 +27,28 @@ export interface ChatHistoryResponse {
   }>
 }
 
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${REQUEST_TIMEOUT_MS}ms`)
+    }
+
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 export async function sendMessage(message: string): Promise<ChatResponse> {
   try {
-    // 验证输入
     if (!message || typeof message !== 'string') {
       return {
         success: false,
@@ -82,7 +81,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
     if (error instanceof Error && error.name === 'AbortError') {
       return {
         success: false,
-        error: `Request timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`,
+        error: `Request timeout (${REQUEST_TIMEOUT_MS / 1000}s)`,
       }
     }
     console.error('Failed to send message:', error)

@@ -164,16 +164,17 @@ export class SandboxedFileWriter {
       }
     }
 
-    const warnings: string[] = []
-
     for (const pattern of DANGEROUS_PATTERNS) {
       if (pattern.test(content)) {
-        return { allowed: false, reason: `Content contains dangerous pattern: ${pattern.source}` }
+        return {
+          allowed: false,
+          reason: `Content contains potentially dangerous pattern: ${pattern.source}`,
+        }
       }
       pattern.lastIndex = 0
     }
 
-    return { allowed: true, warnings }
+    return { allowed: true }
   }
 
   async writeFile(filePath: string, content: string): Promise<SandboxWriteResult> {

@@ -8,11 +8,9 @@ export class ChatManager {
   private messages: Message[] = []
   private messageMap: Map<string, Message> = new Map()
   private sessionId: string
-  private readonly maxMessages: number
+  private maxMessages: number
 
-  /** @param sessionId - session identifier (default: 'default')
-   *  @param maxMessages - max messages to retain in memory (0 = unlimited, default: 500)
-   */
+
   constructor(sessionId: string = 'default', maxMessages: number = 500) {
     this.sessionId = sessionId
     this.maxMessages = maxMessages
@@ -43,6 +41,12 @@ export class ChatManager {
 
     this.messages.push(message)
     this.messageMap.set(message.id, message)
+    while (this.messages.length > this.maxMessages) {
+      const removed = this.messages.shift()
+      if (removed) {
+        this.messageMap.delete(removed.id)
+      }
+    }
     return message
   }
 

@@ -1,4 +1,4 @@
-import { ChatManager } from '../manager'
+import { ChatManager, createChatManager } from '../manager'
 
 describe('ChatManager', () => {
   let cm: ChatManager
@@ -17,6 +17,71 @@ describe('ChatManager', () => {
       const manager = new ChatManager()
       const json = JSON.parse(manager.toJSON())
       expect(json.sessionId).toBe('default')
+    })
+
+    it('accepts maxMessages parameter', () => {
+      const manager = new ChatManager('session', 100)
+      for (let i = 0; i < 150; i++) {
+        manager.addMessage('user', `msg_${i}`)
+      }
+      expect(manager.getHistory()).toHaveLength(100)
+    })
+
+    it('defaults maxMessages to 500', () => {
+      const manager = new ChatManager('session')
+      for (let i = 0; i < 600; i++) {
+        manager.addMessage('user', `msg_${i}`)
+      }
+      expect(manager.getHistory()).toHaveLength(500)
+    })
+
+    it('forwards maxMessages through createChatManager', () => {
+      const manager = createChatManager('session', 2)
+      manager.addMessage('user', 'first')
+      manager.addMessage('user', 'second')
+      manager.addMessage('user', 'third')
+
+      expect(manager.getHistory().map(message => message.content)).toEqual(['second', 'third'])
+    })
+  })
+
+  describe('maxMessages rolling behavior', () => {
+    it('removes oldest messages when exceeding maxMessages', () => {
+      const manager = new ChatManager('session', 3)
+      manager.addMessage('user', 'first')
+      manager.addMessage('pm', 'second')
+      manager.addMessage('dev', 'third')
+      manager.addMessage('review', 'fourth')
+
+      const history = manager.getHistory()
+      expect(history).toHaveLength(3)
+      expect(history[0].content).toBe('second')
+      expect(history[1].content).toBe('third')
+      expect(history[2].content).toBe('fourth')
+    })
+
+    it('keeps messageMap in sync after rolling deletion', () => {
+      const manager = new ChatManager('session', 2)
+      const msg1 = manager.addMessage('user', 'first')
+      const msg2 = manager.addMessage('pm', 'second')
+      const msg3 = manager.addMessage('dev', 'third')
+
+      expect(manager.getMessage(msg1.id)).toBeUndefined()
+      expect(manager.getMessage(msg2.id)).toBeDefined()
+      expect(manager.getMessage(msg3.id)).toBeDefined()
+    })
+
+    it('works with getRecentMessages after rolling deletion', () => {
+      const manager = new ChatManager('session', 5)
+      for (let i = 0; i < 10; i++) {
+        manager.addMessage('user', `msg_${i}`)
+      }
+
+      const recent = manager.getRecentMessages(3)
+      expect(recent).toHaveLength(3)
+      expect(recent[0].content).toBe('msg_7')
+      expect(recent[1].content).toBe('msg_8')
+      expect(recent[2].content).toBe('msg_9')
     })
   })
 
@@ -322,7 +387,6 @@ describe('ChatManager', () => {
     let perfCm: ChatManager
 
     beforeEach(() => {
-      // Use maxMessages=0 (unlimited) for performance tests
       perfCm = new ChatManager('perf-session', 0)
       for (let i = 0; i < MESSAGE_COUNT; i++) {
         perfCm.addMessage('user', `message_${i}`)
