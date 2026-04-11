@@ -69,7 +69,7 @@
   - **修复**: 添加 GitHub Actions workflow（lint → build → test）
   - **文件**: `.github/workflows/ci.yml`
 
-- [ ] **#176 [P0][PERF] SSE 连接数无限制，服务器资源耗尽风险**
+- [code-complete] **#176 [P0][PERF] SSE 连接数无限制，服务器资源耗尽风险** → commit b8b82e5
   - **文件**: `src/app/api/game-events/route.ts`
   - **修复**: 添加 MAX_SSE_CONNECTIONS=100，超出返回 503
 
