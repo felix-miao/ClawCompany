@@ -65,8 +65,9 @@
 - [code-complete] **#159 [P0][TEST] 函数覆盖率不足，核心逻辑测试盲区多**
   - **修复**: 设置覆盖率阈值 Functions ≥ 80%，补充未覆盖函数测试
 
-- [ ] **#160 [P0][TEST] 无 CI 流水线，测试从不自动运行**
+- [code-complete] **#160 [P0][TEST] 无 CI 流水线，测试从不自动运行**
   - **修复**: 添加 GitHub Actions workflow（lint → build → test）
+  - **文件**: `.github/workflows/ci.yml`
 
 - [ ] **#176 [P0][PERF] SSE 连接数无限制，服务器资源耗尽风险**
   - **文件**: `src/app/api/game-events/route.ts`
