@@ -73,7 +73,7 @@
   - **文件**: `src/app/api/game-events/route.ts`
   - **修复**: 添加 MAX_SSE_CONNECTIONS=100，超出返回 503
 
-- [ ] **#178 [P0][PERF] DashboardStore.events 用 Array.shift() O(n)，高频性能崩溃**
+- [code-complete] **#178 [P0][PERF] DashboardStore.events 用 Array.shift() O(n)，高频性能崩溃** → commit 611af89
   - **文件**: `src/game/data/DashboardStore.ts` (71行)
   - **修复**: 仿照 GameEventStore 改用环形缓冲区
 
