@@ -257,79 +257,90 @@ describe('SandboxedFileWriter', () => {
       expect(result.allowed).toBe(true)
     })
 
-    it('should detect null bytes', () => {
+    it('should block null bytes', () => {
       const result = writer.validateContent('file\x00.txt')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toBeDefined()
     })
 
-    it('should detect eval() usage', () => {
+    it('should detect eval() usage as warning', () => {
       const result = writer.validateContent('eval("malicious code")')
       expect(result.allowed).toBe(true)
+      expect(result.warnings?.some(w => w.includes('eval'))).toBe(true)
     })
 
-    it('should detect Function() constructor', () => {
+    it('should detect Function() constructor as warning', () => {
       const result = writer.validateContent('Function("return this")()')
       expect(result.allowed).toBe(true)
+      expect(result.warnings?.some(w => w.includes('Function'))).toBe(true)
     })
 
-    it('should detect process.env access', () => {
+    it('should detect process.env access as warning', () => {
       const result = writer.validateContent('const key = process.env.SECRET')
       expect(result.allowed).toBe(true)
+      expect(result.warnings?.some(w => w.includes('process'))).toBe(true)
     })
 
-    it('should detect require("child_process")', () => {
+    it('should block require("child_process")', () => {
       const result = writer.validateContent('require("child_process")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('child_process')
     })
 
-    it('should detect require("fs")', () => {
+    it('should detect require("fs") as warning', () => {
       const result = writer.validateContent('require("fs")')
       expect(result.allowed).toBe(true)
     })
 
-    it('should detect require("fs/promises")', () => {
+    it('should detect require("fs/promises") as warning', () => {
       const result = writer.validateContent('require("fs/promises")')
       expect(result.allowed).toBe(true)
     })
 
-    it('should detect import from child_process', () => {
+    it('should block import from child_process', () => {
       const result = writer.validateContent('import { exec } from "child_process"')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('child_process')
     })
 
-    it('should detect import from fs', () => {
+    it('should detect import from fs as warning', () => {
       const result = writer.validateContent('import fs from "fs"')
       expect(result.allowed).toBe(true)
     })
 
-    it('should detect import from fs/promises', () => {
+    it('should detect import from fs/promises as warning', () => {
       const result = writer.validateContent('import { readFile } from "fs/promises"')
       expect(result.allowed).toBe(true)
     })
 
-    it('should detect exec() call', () => {
+    it('should detect exec() call as warning', () => {
       const result = writer.validateContent('exec("rm -rf /")')
       expect(result.allowed).toBe(true)
+      expect(result.warnings?.some(w => w.includes('exec'))).toBe(true)
     })
 
-    it('should detect execSync() call', () => {
+    it('should block execSync() call', () => {
       const result = writer.validateContent('execSync("rm -rf /")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('execSync')
     })
 
-    it('should detect spawn() call', () => {
+    it('should detect spawn() call as warning', () => {
       const result = writer.validateContent('spawn("bash", ["-c", "whoami"])')
       expect(result.allowed).toBe(true)
+      expect(result.warnings?.some(w => w.includes('spawn'))).toBe(true)
     })
 
-    it('should detect spawnSync() call', () => {
+    it('should block spawnSync() call', () => {
       const result = writer.validateContent('spawnSync("bash")')
-      expect(result.allowed).toBe(true)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('spawnSync')
     })
 
-    it('should detect script tags', () => {
+    it('should detect script tags as warning', () => {
       const result = writer.validateContent('<script>alert("xss")</script>')
       expect(result.allowed).toBe(true)
+      expect(result.warnings?.some(w => w.includes('script'))).toBe(true)
     })
 
     it('should calculate byte size correctly for unicode content', () => {

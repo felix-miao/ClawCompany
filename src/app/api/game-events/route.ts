@@ -36,9 +36,38 @@ function releaseConnection(ip: string): void {
 
 // ── GET：SSE 端点（需认证 + 连接限制）───────────────────────
 export async function GET(request: NextRequest) {
-  // 1. API Key 认证（与 POST 保持一致）
-  const authError = requireApiKey(request);
-  if (authError) return authError;
+  // 1. API Key 认证（SSE 兼容模式）
+  // EventSource 无法发送自定义 Header，因此同时支持：
+  //   - Header: X-Api-Key / Authorization: Bearer <key>
+  //   - Query param: ?token=<key>
+  // 若 AGENT_API_KEY 未配置（本地开发），跳过认证。
+  const apiKey = process.env.AGENT_API_KEY;
+  if (apiKey) {
+    const url = new URL(request.url);
+    const queryToken = url.searchParams.get('token');
+    const headerKey =
+      request.headers.get('x-api-key') ||
+      request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+    const providedKey = queryToken || headerKey;
+
+    if (!providedKey) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // timing-safe compare
+    const { timingSafeEqual } = await import('crypto');
+    const a = Buffer.from(providedKey);
+    const b = Buffer.from(apiKey);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      return new Response(JSON.stringify({ success: false, error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
 
   // 2. per-IP 连接数限制（最多 5 个并发 SSE 连接）
   const ip = getClientId(request);

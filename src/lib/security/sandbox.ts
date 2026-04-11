@@ -39,6 +39,16 @@ const DANGEROUS_PATTERNS = [
   /\bspawnSync\s*\(/,
 ]
 
+// Patterns that are critical enough to BLOCK the write entirely.
+// These indicate attempts to execute arbitrary commands or escape the sandbox.
+const BLOCKED_PATTERNS: { pattern: RegExp; reason: string }[] = [
+  { pattern: /\brequire\s*\(\s*['"]child_process['"]\s*\)/, reason: 'require("child_process") is not allowed' },
+  { pattern: /\bimport\s+.*\bfrom\s+['"]child_process['"]/, reason: 'import from "child_process" is not allowed' },
+  { pattern: /\bexecSync\s*\(/, reason: 'execSync() is not allowed' },
+  { pattern: /\bspawnSync\s*\(/, reason: 'spawnSync() is not allowed' },
+  { pattern: /\0/, reason: 'Null byte in content is not allowed' },
+]
+
 const MAX_FILE_SIZE = 1024 * 1024 // 1MB
 const SANDBOX_DIR = 'output'
 
@@ -162,6 +172,15 @@ export class SandboxedFileWriter {
         allowed: false,
         reason: `Content exceeds maximum size of ${this.maxFileSize} bytes (got ${byteSize})`,
       }
+    }
+
+    // Check critical patterns first — these BLOCK the write entirely.
+    for (const { pattern, reason } of BLOCKED_PATTERNS) {
+      if (pattern.test(content)) {
+        pattern.lastIndex = 0
+        return { allowed: false, reason }
+      }
+      pattern.lastIndex = 0
     }
 
     const warnings: string[] = []

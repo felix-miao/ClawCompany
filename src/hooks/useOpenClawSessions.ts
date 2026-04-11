@@ -38,8 +38,11 @@ export function useOpenClawSessions(store: DashboardStore): UseOpenClawSessionsR
 
   const fetchData = useCallback(async () => {
     try {
+      // Use NEXT_PUBLIC_AGENT_API_KEY if available; fall back to a placeholder
+      // so the header is always present (server skips auth when key is unconfigured).
+      const apiKey = process.env.NEXT_PUBLIC_AGENT_API_KEY || 'dashboard'
       const response = await fetch('/api/openclaw/sessions', {
-        headers: { 'x-api-key': 'dashboard' },
+        headers: { 'x-api-key': apiKey },
       })
       const data: SessionsResponse = await response.json()
 
