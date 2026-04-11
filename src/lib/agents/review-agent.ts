@@ -2,6 +2,8 @@ import { BaseAgent } from '../core/base-agent'
 import { Task, AgentResponse, AgentContext, DEFAULT_ROLE_DEFINITIONS, AgentRoleDefinition } from '../core/types'
 import { ReviewAgentResponseSchema } from './schemas'
 import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
+import { VerifyTool, VerifyInput, VerifyOutput } from '../tools/verify-tool'
+import { ToolResult } from '../tools/types'
 
 export class ReviewAgent extends BaseAgent {
   private roleDefinition: AgentRoleDefinition

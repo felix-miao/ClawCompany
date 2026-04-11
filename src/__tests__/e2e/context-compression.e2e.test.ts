@@ -178,7 +178,7 @@ describe('E2E: Context Compression Integration', () => {
       for (let i = 0; i < RECENT_KEEP; i++) {
         expect(result[i + 1].id).toBe(origRecent[i].id)
         // Verify order is preserved
-        expect(result[i + 1].timestamp.getTime()).toBeLessThanOrEqual(
+        expect(result[i + 1]!.timestamp.getTime()).toBeLessThanOrEqual(
           result[i + 2]?.timestamp?.getTime() ?? Infinity
         )
       }

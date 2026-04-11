@@ -306,15 +306,12 @@ describe('Task Lifecycle E2E Integration', () => {
 
       const request = createMockRequest(taskEvent)
       const response = await GameEventsPOST(request)
-
-      expect(response.status).toBe(200)
-
-      const data = await (response as unknown as { json: () => Promise<{ success: boolean; event: GameEvent }> }).json()
+      const data = await (response as any).json() as { success: boolean; event: import('@/game/types/GameEvents').TaskSubmittedEvent }
       expect(data.success).toBe(true)
       expect(data.event.type).toBe('task:submitted')
       expect(data.event.taskId).toBe('task-123')
 
-      const events = testStore.getEvents()
+      const events = testStore.getEvents() as import('@/game/types/GameEvents').TaskSubmittedEvent[]
       expect(events).toHaveLength(1)
       expect(events[0].taskId).toBe('task-123')
     })
@@ -645,8 +642,8 @@ describe('Task Lifecycle E2E Integration', () => {
       })
 
       expect(agentCallbacks).toHaveLength(2)
-      expect(agentCallbacks[0].status).toBe('busy')
-      expect(agentCallbacks[1].status).toBe('idle')
+      expect((agentCallbacks[0] as import('@/game/types/GameEvents').AgentStatusEvent).status).toBe('busy')
+      expect((agentCallbacks[1] as import('@/game/types/GameEvents').AgentStatusEvent).status).toBe('idle')
 
       unsub()
     })

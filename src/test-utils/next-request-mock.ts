@@ -99,17 +99,8 @@ function createMockNextUrl(urlString: string): MockNextURL {
   return mockNextUrl
 }
 
-// Cookie 接口定义
-interface MockCookie {
-  get: (name: string) => { name: string; value: string } | undefined;
-  set: (name: string, value: string) => MockCookie;
-  delete: (name: string) => MockCookie;
-  has: (name: string) => boolean;
-  getAll: () => { name: string; value: string }[];
-  clear: () => MockCookie;
-  size: number;
-  [Symbol.iterator]: () => Iterator<[string, string]>;
-}
+// Cookie 接口定义 - 使用 any 类型以避免复杂的 RequestCookies 类型兼容问题
+type MockCookie = any
 
 // 创建cookies mock
 function createMockCookies(headers: Map<string, string>): MockCookie {
@@ -133,17 +124,14 @@ function createMockCookies(headers: Map<string, string>): MockCookie {
     },
     set: (name: string, value: string) => {
       cookieMap.set(name, value)
-      return mock
     },
     delete: (name: string) => {
-      cookieMap.delete(name)
-      return mock
+      return cookieMap.delete(name)
     },
     has: (name: string) => cookieMap.has(name),
     getAll: () => Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value })),
     clear: () => {
       cookieMap.clear()
-      return mock
     },
     size: cookieMap.size,
     [Symbol.iterator]: () => cookieMap.entries(),
@@ -152,36 +140,8 @@ function createMockCookies(headers: Map<string, string>): MockCookie {
   return mock
 }
 
-// NextRequest 扩展接口
-interface MockNextRequest extends Request {
-  headers: Headers;
-  cookies: MockCookie;
-  nextUrl: MockNextURL;
-  page: {
-    pathname: string;
-    searchParams: URLSearchParams;
-  };
-  ua: {
-    getBrowserName: () => string;
-    getOSName: () => string;
-    getDeviceType: () => string;
-  };
-  geo: {
-    country?: string;
-    region?: string;
-    city?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  ip?: string;
-  host: string;
-  protocol: string;
-  url: string;
-  clone: () => MockNextRequest;
-  text: () => Promise<string>;
-  json: () => Promise<Record<string, unknown>>;
-  arrayBuffer: () => Promise<ArrayBuffer>;
-}
+// NextRequest 扩展接口 - 使用 any 类型以避免复杂的 NextRequest 类型兼容问题
+type MockNextRequest = any
 
 // 创建NextRequest mock
 function createMockNextRequest(options: MockRequestOptions = {}): MockNextRequest {

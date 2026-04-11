@@ -193,10 +193,10 @@ describe('/api/agent', () => {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }))
-    storage.addMessageToConversation.mockImplementation((conv: { messages: Array<unknown> }, msg: { agentId: string; agentName: string; content: string }) => ({
+    storage.addMessageToConversation.mockImplementation(((conv: import('@/lib/storage/manager').Conversation, msg: import('@/lib/storage/manager').Message) => ({
       ...conv,
       messages: [...conv.messages, msg]
-    }))
+    })) as any)
     storage.loadAgent.mockResolvedValue({
       id: 'pm-agent',
       name: 'PM Claw',
@@ -332,8 +332,8 @@ describe('/api/agent', () => {
     it('should list agents successfully', async () => {
       const storage = getMockStorageManager()
       storage.listAgents.mockResolvedValue([
-        { id: 'pm-agent', name: 'PM Claw' },
-        { id: 'dev-agent', name: 'Dev Claw' }
+        { id: 'pm-agent', name: 'PM Claw' } as any,
+        { id: 'dev-agent', name: 'Dev Claw' } as any
       ])
 
       const request = createMockRequest({
@@ -354,9 +354,14 @@ describe('/api/agent', () => {
       storage.loadAgent.mockResolvedValue({
         id: 'pm-agent',
         name: 'PM Claw',
+        role: 'pm',
+        emoji: '🤖',
+        color: '#123456',
         systemPrompt: 'You are PM Claw',
-        runtime: 'subagent'
-      })
+        runtime: 'subagent',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      } as any)
 
       const request = createMockRequest({
         method: 'GET',
@@ -486,11 +491,11 @@ describe('/api/agent', () => {
       const existingConv = {
         id: 'existing-conv-456',
         title: 'Existing',
-        messages: [{ agentId: 'user', agentName: 'You', content: 'Previous msg' }],
+        messages: [{ id: 'msg-1', agentId: 'user', agentName: 'You', content: 'Previous msg', timestamp: '2024-01-01T00:00:00.000Z' }],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
-      storage.loadConversation.mockResolvedValue(existingConv)
+      storage.loadConversation.mockResolvedValue(existingConv as any)
 
       const request = createMockRequest({
         method: 'POST',
