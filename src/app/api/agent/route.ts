@@ -60,6 +60,14 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
 
   let agentMessage: string
 
+  // Build conversation history for LLM (all messages except the last one we just added,
+  // since we'll append the current userMessage explicitly as the final turn).
+  // Maps storage messages to LLM roles: agentId='user' → 'user', everything else → 'assistant'.
+  const historyMessages = conversation.messages.slice(0, -1).map(m => ({
+    role: (m.agentId === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+    content: m.content,
+  }))
+
   if (useMock) {
     await new Promise(resolve => setTimeout(resolve, 800))
     agentMessage = generateMockResponse(agentId, userMessage)
@@ -68,7 +76,8 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
     if (llmProvider) {
       agentMessage = await llmProvider.chat([
         { role: 'system', content: agentConfig.systemPrompt },
-        { role: 'user', content: userMessage }
+        ...historyMessages,
+        { role: 'user', content: userMessage },
       ])
     } else {
       await new Promise(resolve => setTimeout(resolve, 800))

@@ -482,6 +482,12 @@ export abstract class BaseOrchestrator {
       const arbiterResponse = pipelineResult.arbiterResult
       const daResponse = pipelineResult.daResult
 
+      // Guard against null/undefined review result (edge case: mock/agent returned nothing)
+      if (!reviewResponse) {
+        this.markTaskFailed(task, cb, 'review', 'Review agent returned null response')
+        return
+      }
+
       if (pipelineResult.daTriggered) {
         this.logInfo('DA triggered in review pipeline', {
           taskId: task.id,
