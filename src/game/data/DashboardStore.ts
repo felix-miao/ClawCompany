@@ -275,7 +275,7 @@ export class DashboardStore {
       agentId: event.agentId,
       taskType: event.taskType,
       description: event.description,
-      assignedAt: event.timestamp,
+      assignedAt: event.timestamp ?? Date.now(),
     });
   }
 
@@ -313,7 +313,7 @@ export class DashboardStore {
       remainingBudget,
       budgetExceeded: existing?.budgetExceeded ?? false,
       overage: existing?.overage ?? 0,
-      lastUpdated: event.timestamp,
+      lastUpdated: event.timestamp ?? Date.now(),
     });
   }
 
@@ -330,7 +330,7 @@ export class DashboardStore {
       remainingBudget: 0,
       budgetExceeded: true,
       overage,
-      lastUpdated: event.timestamp,
+      lastUpdated: event.timestamp ?? Date.now(),
     });
   }
 

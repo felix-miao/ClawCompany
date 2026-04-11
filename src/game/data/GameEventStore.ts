@@ -158,7 +158,7 @@ export class GameEventStore {
   getEvents(since?: number): GameEvent[] {
     const all = this.ring.toArray();
     if (!since) return all;
-    return all.filter(e => e.timestamp > since);
+    return all.filter(e => (e.timestamp ?? 0) > since);
   }
 
   getEventsByType(type: GameEventType): GameEvent[] {

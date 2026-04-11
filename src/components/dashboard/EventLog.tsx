@@ -68,7 +68,7 @@ export function EventLog({ events, maxDisplay = 100 }: EventLogProps) {
               className="flex items-start gap-2 py-1 px-2 rounded hover:bg-dark-50/30 text-xs"
             >
               <span className="text-gray-500 font-mono shrink-0">
-                {formatTime(event.timestamp)}
+                {formatTime(event.timestamp ?? Date.now())}
               </span>
               <span className={`font-mono shrink-0 ${EVENT_COLORS[event.type] ?? 'text-gray-400'}`}>
                 {event.type}

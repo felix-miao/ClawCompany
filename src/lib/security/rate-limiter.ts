@@ -37,7 +37,8 @@ interface RedisBackend {
   fetchTimestamps(key: string, now: number, windowStart: number): Promise<number[]>;
 }
 
-function buildRedisBackend(redis: import('ioredis').default): RedisBackend {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildRedisBackend(redis: any): RedisBackend {
   return {
     async recordAndFetch(key, now, windowStart, windowMs) {
       const pipe = redis.pipeline();
@@ -51,12 +52,14 @@ function buildRedisBackend(redis: import('ioredis').default): RedisBackend {
       pipe.pexpire(key, windowMs * 2);
       const results = await pipe.exec();
       const members: string[] = (results?.[2]?.[1] as string[]) ?? [];
-      return members.map(m => parseInt(m.split('-')[0], 10));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return members.map((m: any) => parseInt(m.split('-')[0], 10));
     },
     async fetchTimestamps(key, _now, windowStart) {
       // zrangebyscore returns members with score > windowStart
       const members = await redis.zrangebyscore(key, windowStart + 1, '+inf');
-      return members.map(m => parseInt(m.split('-')[0], 10));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return members.map((m: any) => parseInt(m.split('-')[0], 10));
     },
   };
 }

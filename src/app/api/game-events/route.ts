@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
   }
 
   let stream: ReadableStream;
+  let cleanup: () => void;
   try {
     stream = new ReadableStream({
       start(controller) {
@@ -119,7 +120,7 @@ export async function GET(request: NextRequest) {
           }
         }, SSE_HEARTBEAT_INTERVAL_MS);
 
-        const cleanup = () => {
+        cleanup = () => {
           clearInterval(keepalive);
           unsubscribe();
           safeReleaseConnection();
@@ -134,7 +135,7 @@ export async function GET(request: NextRequest) {
         request.signal.addEventListener('abort', cleanup);
       },
       cancel() {
-        cleanup();
+        cleanup?.();
       },
     });
   } catch (err) {

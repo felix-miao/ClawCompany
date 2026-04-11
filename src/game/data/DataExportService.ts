@@ -111,7 +111,7 @@ export class DataExportService {
     if (filters) {
       if (filters.dateRange) {
         events = events.filter(event =>
-          event.timestamp >= filters.dateRange!.start && event.timestamp <= filters.dateRange!.end
+          (event.timestamp ?? 0) >= filters.dateRange!.start && (event.timestamp ?? 0) <= filters.dateRange!.end
         );
       }
 

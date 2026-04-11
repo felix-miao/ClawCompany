@@ -106,7 +106,7 @@ export function useEventStream(
       }
       const gameEvent = parseGameEvent(event.data);
       if (gameEvent) {
-        lastEventTimestampRef.current = gameEvent.timestamp;
+        if (gameEvent.timestamp != null) lastEventTimestampRef.current = gameEvent.timestamp;
         storeRef.current.processEvent(gameEvent);
       }
     };
@@ -122,7 +122,7 @@ export function useEventStream(
         }
         const gameEvent = parseGameEvent(event.data);
         if (gameEvent) {
-          lastEventTimestampRef.current = gameEvent.timestamp;
+          if (gameEvent.timestamp != null) lastEventTimestampRef.current = gameEvent.timestamp;
           storeRef.current.processEvent(gameEvent);
         }
       });
