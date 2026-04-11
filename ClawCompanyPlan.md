@@ -52,10 +52,10 @@
   - **文件**: `src/lib/api/client.ts` (50行/68行)
   - **修复**: AbortController + setTimeout 包裹 fetch
 
-- [ ] **#141 [P0][SEC] Prompt Injection via Unfiltered User Message**
+- [code-complete] **#141 [P0][SEC] Prompt Injection via Unfiltered User Message**
   - **文件**: `src/app/api/agent/route.ts` (26行/71行)
   - **问题**: userMessage 直接传给 LLM，无 sanitize 调用
-  - **修复**: 添加 prompt injection 检测层
+  - **修复**: 导入 `sanitizeUserInput`，在调用 LLM provider 前对 userMessage 进行 sanitization
 
 - [ ] **#142 [P0][SEC] AI 生成代码自动写入磁盘无人工审核**
   - **文件**: `src/lib/security/sandbox.ts` (169-176行)
