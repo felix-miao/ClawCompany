@@ -24,6 +24,7 @@ jest.mock('@/lib/storage/manager', () => {
 
 jest.mock('@/lib/security/rate-limiter', () => ({
   check: jest.fn(() => ({ allowed: true, remaining: 60, limit: 100, resetAt: Date.now() + 60000, retryAfter: 0 })),
+  getRemaining: jest.fn(() => 60),
 }))
 
 jest.mock('@/lib/security/utils', () => ({

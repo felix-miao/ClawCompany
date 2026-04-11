@@ -14,8 +14,12 @@ describe('Orchestrator - Edge Cases', () => {
 
   const fastRetry = { maxRetries: 1, initialDelay: 1, maxDelay: 10, backoffMultiplier: 1 }
 
-  beforeEach(() => {
+  afterEach(() => {
     jest.resetAllMocks()
+  })
+
+  beforeEach(() => {
+    jest.clearAllMocks()
     orchestrator = new Orchestrator('test-edge', fastRetry)
 
     ;(chatManager.sendUserMessage as jest.Mock).mockImplementation(() => {})
@@ -177,7 +181,7 @@ describe('Orchestrator - Edge Cases', () => {
             { title: 'T2', description: 'T2', assignedTo: 'dev', dependencies: [], files: [] },
           ],
         }))
-        .mockImplementation(async () => {
+        .mockImplementationOnce(async () => {
           await new Promise(r => setTimeout(r, 200))
           return { message: 'done', files: [] }
         })
