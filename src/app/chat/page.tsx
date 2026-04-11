@@ -8,6 +8,23 @@ import remarkGfm from 'remark-gfm'
 import { Message, Task } from '@/lib/core/types'
 import { sendMessage, getChatHistory } from '@/lib/api/client'
 
+async function cancelTask(taskId: string): Promise<boolean> {
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_API_KEY ?? ''
+    const res = await fetch(`/api/tasks/${taskId}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+      },
+    })
+    const data = await res.json()
+    return data.data?.cancelled === true
+  } catch {
+    return false
+  }
+}
+
 const agentConfig = {
   user: {
     name: 'You',
@@ -58,6 +75,7 @@ export default function ChatPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [cancellingTasks, setCancellingTasks] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -158,6 +176,22 @@ export default function ChatPage() {
       e.preventDefault()
       handleSend()
     }
+  }
+
+  const handleCancelTask = async (taskId: string) => {
+    setCancellingTasks(prev => new Set(prev).add(taskId))
+    const success = await cancelTask(taskId)
+    if (success) {
+      // Optimistically update the task status in UI
+      setTasks(prev => prev.map(t =>
+        t.id === taskId ? { ...t, status: 'cancelled' as const } : t
+      ))
+    }
+    setCancellingTasks(prev => {
+      const next = new Set(prev)
+      next.delete(taskId)
+      return next
+    })
   }
 
   return (
@@ -300,15 +334,30 @@ export default function ChatPage() {
                       task.status === 'completed' ? 'bg-green-500' :
                       task.status === 'in_progress' ? 'bg-yellow-500' :
                       task.status === 'review' ? 'bg-purple-500' :
+                      task.status === 'cancelled' ? 'bg-red-400' :
                       'bg-gray-500'
                     }`} />
-                    <span className="text-sm font-medium text-white">{task.title}</span>
+                    <span className="text-sm font-medium text-white flex-1">{task.title}</span>
                   </div>
                   <p className="text-xs text-gray-400 mb-2">{task.description}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span>{task.assignedTo}</span>
-                    <span>•</span>
-                    <span>{task.status}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>{task.assignedTo}</span>
+                      <span>•</span>
+                      <span className={task.status === 'cancelled' ? 'text-red-400' : ''}>
+                        {task.status}
+                      </span>
+                    </div>
+                    {(task.status === 'in_progress' || task.status === 'review' || task.status === 'pending') && (
+                      <button
+                        onClick={() => handleCancelTask(task.id)}
+                        disabled={cancellingTasks.has(task.id)}
+                        className="text-xs px-2 py-0.5 rounded bg-red-800/60 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-red-200 transition-colors"
+                        title="Cancel this task"
+                      >
+                        {cancellingTasks.has(task.id) ? '取消中…' : '✕ Cancel'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

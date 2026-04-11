@@ -1,12 +1,13 @@
 import { TaskStatus } from '../core/types'
 
 const VALID_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  pending: ['pending', 'in_progress', 'failed'],
-  in_progress: ['in_progress', 'pending', 'review', 'failed', 'awaiting_human_review'],
-  review: ['review', 'pending', 'in_progress', 'completed', 'failed', 'awaiting_human_review'],
-  awaiting_human_review: ['awaiting_human_review', 'in_progress', 'completed', 'failed'],
+  pending: ['pending', 'in_progress', 'failed', 'cancelled'],
+  in_progress: ['in_progress', 'pending', 'review', 'failed', 'awaiting_human_review', 'cancelled'],
+  review: ['review', 'pending', 'in_progress', 'completed', 'failed', 'awaiting_human_review', 'cancelled'],
+  awaiting_human_review: ['awaiting_human_review', 'in_progress', 'completed', 'failed', 'cancelled'],
   completed: ['completed', 'in_progress'],
   failed: ['failed', 'pending', 'in_progress'],
+  cancelled: ['cancelled'],
 }
 
 export interface TransitionResult {

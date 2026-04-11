@@ -123,8 +123,13 @@ function makeBridgedTool(
     async execute(input: Record<string, unknown>) {
       return bridge.execute({ tool: toolName, params: input })
     },
-    formatResult(result) {
-      return bridge.formatResult(result)
+    formatResult(result: { success: boolean; data?: unknown; error?: string }) {
+      if (!result.success || !result.data) {
+        return `[openclaw_bridge error] ${result.error}`
+      }
+      const raw = result.data as { raw?: unknown }
+      if (typeof raw.raw === 'string') return raw.raw
+      return JSON.stringify(raw.raw, null, 2)
     },
   }
 }

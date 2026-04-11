@@ -11,7 +11,7 @@ import {
 } from './types'
 
 export class DefaultAgentToolRegistry implements AgentToolRegistry {
-  private tools = new Map<string, AgentTool>()
+  private tools = new Map<string, AgentTool<Record<string, unknown>, unknown>>()
 
   register(tool: AgentTool): void {
     if (this.tools.has(tool.name)) {

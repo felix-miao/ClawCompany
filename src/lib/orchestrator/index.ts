@@ -89,6 +89,7 @@ export class Orchestrator extends BaseOrchestrator {
   private deps: OrchestratorDependencies
   private currentPMAnalysis: string = ''
   private checkpoints: CheckpointService = CheckpointService.getInstance()
+  private abortController: AbortController | null = null
 
   constructor(
     projectId: string = 'default',
@@ -175,6 +176,10 @@ export class Orchestrator extends BaseOrchestrator {
     this.failedTasks = []
     this.currentPMAnalysis = ''
 
+    // Create a fresh AbortController for this workflow run
+    this.abortController = new AbortController()
+    const signal = this.abortController.signal
+
     const cb = this.getCallbacks()
 
     this.logInfo('Workflow started', { userMessage })
@@ -193,6 +198,14 @@ export class Orchestrator extends BaseOrchestrator {
         this.checkpoints.saveError(initialTask.id, 'PM task failed after all retries')
         this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
+      }
+
+      // ─── Kill switch: check abort after PM ────────────────────
+      if (signal.aborted) {
+        cb.updateTaskStatus(initialTask.id, 'cancelled')
+        this.checkpoints.saveError(initialTask.id, 'Workflow cancelled by user')
+        this.emitWorkflowFailed({ reason: 'Workflow cancelled by user' })
+        return this.createErrorResponse('Workflow cancelled by user', cb, initialTask.id)
       }
       // Capture PM analysis for injection into dev context.
       // Sanitize before storing to prevent prompt injection payloads that were
@@ -289,6 +302,18 @@ export class Orchestrator extends BaseOrchestrator {
       this.obs.perf.setGauge('orchestrator.tasks.active', subTaskIds.length)
 
       for (const levelTaskIds of taskLevels) {
+        // ─── Kill switch: check before each level ─────────────
+        if (signal.aborted) {
+          // Mark all remaining tasks as cancelled
+          for (const id of subTaskIds) {
+            const t = cb.getTask(id)
+            if (t && t.status !== 'completed' && t.status !== 'failed' && t.status !== 'cancelled') {
+              try { cb.updateTaskStatus(id, 'cancelled') } catch { /* ignore transition errors */ }
+            }
+          }
+          break
+        }
+
         const levelTasks = levelTaskIds
           .map((id) => sortedTasks.find((t) => t.id === id))
           .filter((t): t is Task => t !== undefined)
@@ -356,6 +381,24 @@ export class Orchestrator extends BaseOrchestrator {
 
   abortWorkflow(): void {
     this.taskQueue.abort()
+  }
+
+  /**
+   * Cancel the currently running workflow gracefully.
+   * Signals the AbortController so that in-flight levels complete
+   * their current agent round, then the workflow stops and marks
+   * remaining tasks as 'cancelled'.
+   */
+  cancelWorkflow(): void {
+    if (this.abortController) {
+      this.abortController.abort()
+    }
+    // Also drain the task queue so no new levels start
+    this.taskQueue.abort()
+  }
+
+  isCancelled(): boolean {
+    return this.abortController?.signal.aborted ?? false
   }
 
   getTaskQueueStats() {
