@@ -7,6 +7,7 @@ import { AgentStatusPanel } from "@/components/dashboard/AgentStatusPanel";
 import { EventLog } from "@/components/dashboard/EventLog";
 import { ControlPanel } from "@/components/dashboard/ControlPanel";
 import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetricsPanel";
+import { CostPanel } from "@/components/dashboard/CostPanel";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSessions } from "@/hooks/useOpenClawSessions";
@@ -22,7 +23,7 @@ import { Logger } from "@/lib/core/logger";
 export default function DashboardPage() {
   const store = useMemo(() => new DashboardStore(), []);
   const { isConnected, isReconnecting } = useEventStream(store);
-  const { agents, events, stats } = useDashboardStore(store);
+  const { agents, events, stats, cost } = useDashboardStore(store);
   useOpenClawSessions(store);
   const { metrics: openClawMetrics, source: openClawSource } = useOpenClawMetrics();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +65,21 @@ export default function DashboardPage() {
       }
     },
     [store]
+  );
+
+  const handleBudgetChange = useCallback(
+    async (newBudget: number) => {
+      try {
+        await fetch("/api/budget", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ budget: newBudget }),
+        });
+      } catch {
+        // Budget API may not be available; silent fail
+      }
+    },
+    []
   );
 
   return (
@@ -117,6 +133,7 @@ export default function DashboardPage() {
         <aside className="w-80 border-l border-dark-100 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <AgentStatusPanel agents={agents} />
+            <CostPanel cost={cost} onBudgetChange={handleBudgetChange} />
             <PerformanceMetricsPanel metricsAggregator={metricsAggregator} openClawMetrics={openClawMetrics} openClawSource={openClawSource} />
             <EventLog events={events} />
           </div>

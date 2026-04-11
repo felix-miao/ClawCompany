@@ -2,13 +2,14 @@
 
 import { useSyncExternalStore, useRef } from 'react';
 
-import { DashboardStore, AgentInfo, DashboardStats } from '@/game/data/DashboardStore';
+import { DashboardStore, AgentInfo, DashboardStats, CostSummary } from '@/game/data/DashboardStore';
 import { GameEvent } from '@/game/types/GameEvents';
 
 export interface DashboardState {
   agents: AgentInfo[];
   events: GameEvent[];
   stats: DashboardStats;
+  cost: CostSummary;
 }
 
 export function useDashboardStore(store: DashboardStore): DashboardState {
@@ -29,12 +30,18 @@ export function useDashboardStore(store: DashboardStore): DashboardState {
       agents: store.getAgents(),
       events: store.getEvents(),
       stats: store.getStats(),
+      cost: store.getCostSummary(),
     };
     cacheRef.current = snapshot;
     return snapshot;
   };
 
-  const emptyState: DashboardState = { agents: [], events: [], stats: { totalEvents: 0, activeTasks: 0, sessionCount: 0, completedSessionCount: 0, connected: false } };
+  const emptyState: DashboardState = {
+    agents: [],
+    events: [],
+    stats: { totalEvents: 0, activeTasks: 0, sessionCount: 0, completedSessionCount: 0, connected: false },
+    cost: { sessions: new Map(), totalTokens: 0, totalCostUsd: 0, activeBudget: 0, activeRemaining: 0, budgetExceeded: false },
+  };
 
   return useSyncExternalStore(subscribe, getSnapshot, () => emptyState);
 }

@@ -168,4 +168,49 @@ describe('useEventStream', () => {
 
     expect(result.current.isReconnecting).toBe(true);
   });
+
+  it('should stop reconnecting after MAX_RETRIES (5) consecutive errors', () => {
+    jest.useFakeTimers();
+    const store = new DashboardStore();
+    const { result } = renderHook(() => useEventStream(store));
+
+    // Exhaust all 5 retry attempts
+    for (let i = 0; i < 5; i++) {
+      const es = MockEventSource.instances[MockEventSource.instances.length - 1];
+      act(() => { es.simulateError(); });
+      act(() => { jest.runAllTimers(); });
+    }
+
+    // 6th error — should not schedule another reconnect
+    const es = MockEventSource.instances[MockEventSource.instances.length - 1];
+    act(() => { es.simulateError(); });
+
+    expect(result.current.isReconnecting).toBe(false);
+    jest.useRealTimers();
+  });
+
+  it('should append ?since= with last event id on reconnect', () => {
+    jest.useFakeTimers();
+    const store = new DashboardStore();
+    renderHook(() => useEventStream(store));
+
+    // Simulate receiving an event with a timestamp
+    const es = MockEventSource.instances[0];
+    act(() => {
+      es.simulateMessage(JSON.stringify({
+        type: 'agent:status-change',
+        agentId: 'pm-agent',
+        status: 'working',
+        timestamp: 1234567890,
+      }));
+    });
+
+    // Trigger reconnect
+    act(() => { es.simulateError(); });
+    act(() => { jest.runAllTimers(); });
+
+    const reconnectUrl = MockEventSource.instances[MockEventSource.instances.length - 1].url;
+    expect(reconnectUrl).toContain('since=1234567890');
+    jest.useRealTimers();
+  });
 });

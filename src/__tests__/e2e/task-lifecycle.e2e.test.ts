@@ -58,9 +58,14 @@ describe('Task Lifecycle E2E', () => {
       writeFile: jest.fn().mockResolvedValue({ success: true, warnings: [] }),
       readFile: jest.fn(),
       deleteFile: jest.fn(),
-      listFiles: jest.fn().mockResolvedValue([]),
+      listFiles: jest.fn().mockResolvedValue({ success: true, files: [] }),
       exists: jest.fn().mockResolvedValue(false),
-    } as jest.Mocked<SandboxedFileWriter>
+      validatePath: jest.fn().mockReturnValue({ allowed: true, sanitizedPath: 'test' }),
+      validateContent: jest.fn().mockReturnValue({ allowed: true }),
+      readAllowed: jest.fn().mockResolvedValue({ success: true }),
+      getSandboxDir: jest.fn().mockReturnValue('/sandbox'),
+      getAllowedExtensions: jest.fn().mockReturnValue(['.js', '.ts', '.tsx']),
+    } as unknown as jest.Mocked<SandboxedFileWriter>
 
     jest.spyOn(realTaskManager, 'updateTaskStatus').mockImplementation(
       (taskId: string, status: string) => {

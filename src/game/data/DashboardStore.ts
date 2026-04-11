@@ -5,6 +5,8 @@ import {
   TaskAssignedEvent,
   TaskCompletedEvent,
   EmotionChangeEvent,
+  CostUpdateEvent,
+  CostBudgetExceededEvent,
 } from '../types/GameEvents';
 
 export interface AgentInfo {
@@ -22,6 +24,29 @@ export interface ActiveTask {
   taskType: string;
   description: string;
   assignedAt: number;
+}
+
+export interface SessionCostInfo {
+  sessionId: string;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+  model: string;
+  budget: number;
+  remainingBudget: number;
+  budgetExceeded: boolean;
+  overage: number;
+  lastUpdated: number;
+}
+
+export interface CostSummary {
+  sessions: Map<string, SessionCostInfo>;
+  totalTokens: number;
+  totalCostUsd: number;
+  activeBudget: number;
+  activeRemaining: number;
+  budgetExceeded: boolean;
 }
 
 export interface SessionProgress {
@@ -51,6 +76,7 @@ export class DashboardStore {
   private agents: Map<string, AgentInfo> = new Map();
   private events: GameEvent[] = [];
   private activeTasks: Map<string, ActiveTask> = new Map();
+  private costSessions: Map<string, SessionCostInfo> = new Map();
   private sessionCount = 0;
   private completedSessionCount = 0;
   private latestProgress: SessionProgress | null = null;
@@ -103,6 +129,12 @@ export class DashboardStore {
       case 'connection:close':
       case 'connection:error':
         this.connected = false;
+        break;
+      case 'cost:update':
+        this.handleCostUpdate(event);
+        break;
+      case 'cost:budget-exceeded':
+        this.handleBudgetExceeded(event);
         break;
     }
 
@@ -166,6 +198,33 @@ export class DashboardStore {
     };
   }
 
+  getCostSummary(): CostSummary {
+    let totalTokens = 0;
+    let totalCostUsd = 0;
+    let activeBudget = 0;
+    let activeRemaining = 0;
+    let budgetExceeded = false;
+
+    for (const session of this.costSessions.values()) {
+      totalTokens += session.totalTokens;
+      totalCostUsd += session.estimatedCostUsd;
+      if (session.budget > activeBudget) {
+        activeBudget = session.budget;
+        activeRemaining = session.remainingBudget;
+      }
+      if (session.budgetExceeded) budgetExceeded = true;
+    }
+
+    return {
+      sessions: new Map(this.costSessions),
+      totalTokens,
+      totalCostUsd,
+      activeBudget,
+      activeRemaining,
+      budgetExceeded,
+    };
+  }
+
   loadAgents(agents: AgentInfo[]): void {
     const newMap = new Map<string, AgentInfo>()
     for (const agent of agents) {
@@ -190,6 +249,7 @@ export class DashboardStore {
     }
     this.events = [];
     this.activeTasks.clear();
+    this.costSessions.clear();
     this.sessionCount = 0;
     this.completedSessionCount = 0;
     this.latestProgress = null;
@@ -237,6 +297,41 @@ export class DashboardStore {
     if (agent) {
       agent.emotion = event.emotion;
     }
+  }
+
+  private handleCostUpdate(event: CostUpdateEvent): void {
+    const { sessionId, tokens, estimatedCostUsd, model, budget, remainingBudget } = event.payload;
+    const existing = this.costSessions.get(sessionId);
+    this.costSessions.set(sessionId, {
+      sessionId,
+      totalTokens: tokens.totalTokens,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      estimatedCostUsd,
+      model,
+      budget,
+      remainingBudget,
+      budgetExceeded: existing?.budgetExceeded ?? false,
+      overage: existing?.overage ?? 0,
+      lastUpdated: event.timestamp,
+    });
+  }
+
+  private handleBudgetExceeded(event: CostBudgetExceededEvent): void {
+    const { sessionId, tokens, estimatedCostUsd, model, budget, overage } = event.payload;
+    this.costSessions.set(sessionId, {
+      sessionId,
+      totalTokens: tokens.totalTokens,
+      inputTokens: tokens.inputTokens,
+      outputTokens: tokens.outputTokens,
+      estimatedCostUsd,
+      model,
+      budget,
+      remainingBudget: 0,
+      budgetExceeded: true,
+      overage,
+      lastUpdated: event.timestamp,
+    });
   }
 
   private notify(): void {

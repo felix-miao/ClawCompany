@@ -42,8 +42,9 @@ const NAMED_EVENT_TYPES: GameEventType[] = [
   'cost:budget-exceeded',
 ];
 
-const MIN_BACKOFF_MS = 1000;
+const MIN_BACKOFF_MS = 3000;  // 3s initial retry delay
 const MAX_BACKOFF_MS = 30000;
+const MAX_RETRIES = 5;        // give up after 5 consecutive failures
 
 export function useEventStream(
   store: DashboardStore,
@@ -63,9 +64,11 @@ export function useEventStream(
   const connect = useCallback(() => {
     if (unmountedRef.current) return;
 
-    // Build URL with ?since= for resume after disconnect.
-    // API key auth is NOT needed from the client: /api/game-events is a same-origin
-    // Next.js route. AGENT_API_KEY is validated server-side only (POST writes).
+    // Build URL with ?since= carrying the last known event id.
+    // The browser EventSource API doesn't support custom request headers, so we
+    // pass the id as a query param; the server accepts it as the fallback for
+    // the native Last-Event-ID header (which the browser sends automatically on
+    // reconnect when the previous EventSource received an `id:` field).
     const buildUrl = (base: string, since?: number): string => {
       const params = new URLSearchParams();
       if (since !== undefined) params.set('since', String(since));
@@ -96,6 +99,11 @@ export function useEventStream(
     // Handle generic (unnamed) messages
     es.onmessage = (event: MessageEvent) => {
       if (unmountedRef.current) return;
+      // Track the SSE id field for Last-Event-ID reconnect
+      if (event.lastEventId) {
+        const ts = parseInt(event.lastEventId, 10);
+        if (!isNaN(ts)) lastEventTimestampRef.current = ts;
+      }
       const gameEvent = parseGameEvent(event.data);
       if (gameEvent) {
         lastEventTimestampRef.current = gameEvent.timestamp;
@@ -107,6 +115,11 @@ export function useEventStream(
     for (const eventType of NAMED_EVENT_TYPES) {
       es.addEventListener(eventType, (event: MessageEvent) => {
         if (unmountedRef.current) return;
+        // Track the SSE id field for Last-Event-ID reconnect
+        if (event.lastEventId) {
+          const ts = parseInt(event.lastEventId, 10);
+          if (!isNaN(ts)) lastEventTimestampRef.current = ts;
+        }
         const gameEvent = parseGameEvent(event.data);
         if (gameEvent) {
           lastEventTimestampRef.current = gameEvent.timestamp;
@@ -121,7 +134,18 @@ export function useEventStream(
       es.close();
       eventSourceRef.current = null;
 
-      // Exponential backoff: 1s → 2s → 4s → 8s → … → max 30s
+      if (retryCountRef.current >= MAX_RETRIES) {
+        // Exhausted retries — stop reconnecting
+        setIsReconnecting(false);
+        storeRef.current.processEvent({
+          type: 'connection:error',
+          timestamp: Date.now(),
+          message: `SSE gave up after ${MAX_RETRIES} retries`,
+        } as never);
+        return;
+      }
+
+      // Exponential backoff: 3s → 6s → 12s → 24s → 30s (capped)
       const backoffMs = Math.min(
         MIN_BACKOFF_MS * Math.pow(2, retryCountRef.current),
         MAX_BACKOFF_MS
