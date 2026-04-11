@@ -21,6 +21,7 @@ import { AgentEventBus, AgentEventType } from './agent-event-bus'
 import { UnifiedRetry } from './unified-retry'
 import { getGameEventStore } from '@/game/data/GameEventStore'
 import { DPScoreStore, buildDPScoreRecord } from '../analytics/dp-score-store'
+import { TraceLogger } from '../analytics/trace-logger'
 import { CheckpointService } from '../tasks/checkpoint-service'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
@@ -76,6 +77,7 @@ export abstract class BaseOrchestrator {
     perf: PerformanceMonitor
     errors: ErrorTracker
     eventBus: AgentEventBus
+    trace: TraceLogger
   }
   protected logCount: number = 0
   private capturedLogs: LogEntry[] = []
@@ -94,6 +96,7 @@ export abstract class BaseOrchestrator {
       perf: observability?.performanceMonitor ?? new PerformanceMonitor(),
       errors: observability?.errorTracker ?? new ErrorTracker(),
       eventBus: observability?.eventBus ?? new AgentEventBus(),
+      trace: TraceLogger.getInstance(),
     }
   }
 
@@ -140,6 +143,7 @@ export abstract class BaseOrchestrator {
     callbacks: OrchestratorCallbacks,
     context: AgentContext,
   ): Promise<AgentResponse | null> {
+    const traceStart = Date.now()
     const result = await this.retry.execute(
       async () => {
         const timerId = this.obs.perf.startTimer(`agent.${role}`)
@@ -192,8 +196,35 @@ export abstract class BaseOrchestrator {
       }
     )
 
+    const duration_ms = Date.now() - traceStart
+    const agentResp = result.success ? (result.result as AgentResponse) : null
+    const usage = agentResp?.metadata?.usage as { promptTokens?: number; completionTokens?: number; totalTokens?: number } | undefined
+
+    // ─── Persist trace event ────────────────────────────────────
+    try {
+      this.obs.trace.record({
+        task_id: task.id,
+        agent: role,
+        started_at: traceStart,
+        duration_ms,
+        prompt_tokens: usage?.promptTokens ?? 0,
+        completion_tokens: usage?.completionTokens ?? 0,
+        total_tokens: usage?.totalTokens ?? 0,
+        review_result: agentResp ? agentResp.status : 'error',
+        metadata: { taskTitle: task.title, assignedTo: task.assignedTo },
+      })
+    } catch (traceErr) {
+      // Non-fatal: trace write errors must never break the main flow
+      this.logWarn('[Trace] Failed to record trace event', {
+        taskId: task.id,
+        role,
+        error: traceErr instanceof Error ? traceErr.message : String(traceErr),
+      })
+    }
+    // ───────────────────────────────────────────────────────────
+
     if (result.success) {
-      return result.result as AgentResponse
+      return agentResp
     }
 
     return null
