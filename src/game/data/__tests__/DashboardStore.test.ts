@@ -483,6 +483,207 @@ describe('DashboardStore', () => {
     });
   });
 
+  describe('iteration and rework tracking', () => {
+    it('should track dev:iteration-start events', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-iter', description: 'Task with iterations', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 200,
+        taskId: 'task-iter',
+        iteration: 1,
+        hasFeedback: false,
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 300,
+        taskId: 'task-iter',
+        iteration: 2,
+        hasFeedback: true,
+      });
+
+      const task = store.getTaskHistoryById('task-iter');
+      expect(task).toBeDefined();
+      expect(task?.iterationCount).toBe(2);
+    });
+
+    it('should track review:rejected events and store feedback', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-reject', description: 'Task to be rejected', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 200,
+        taskId: 'task-reject',
+        iteration: 1,
+        hasFeedback: false,
+      });
+
+      store.processEvent({
+        type: 'review:rejected',
+        timestamp: 300,
+        taskId: 'task-reject',
+        iteration: 1,
+        feedback: 'Missing unit tests for the new API endpoint',
+      });
+
+      const task = store.getTaskHistoryById('task-reject');
+      expect(task?.rejectionCount).toBe(1);
+      expect(task?.lastReviewFeedback).toBe('Missing unit tests for the new API endpoint');
+    });
+
+    it('should track multiple rejections', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-multi-reject', description: 'Task with multiple rejections', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'review:rejected',
+        timestamp: 200,
+        taskId: 'task-multi-reject',
+        iteration: 1,
+        feedback: 'First round feedback',
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 250,
+        taskId: 'task-multi-reject',
+        iteration: 2,
+        hasFeedback: true,
+      });
+
+      store.processEvent({
+        type: 'review:rejected',
+        timestamp: 300,
+        taskId: 'task-multi-reject',
+        iteration: 2,
+        feedback: 'Second round feedback - still missing tests',
+      });
+
+      const task = store.getTaskHistoryById('task-multi-reject');
+      expect(task?.rejectionCount).toBe(2);
+      expect(task?.iterationCount).toBe(2);
+      expect(task?.lastReviewFeedback).toBe('Second round feedback - still missing tests');
+    });
+
+    it('should mark task as in rework when iteration > 1', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-rework', description: 'Task in rework', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 200,
+        taskId: 'task-rework',
+        iteration: 1,
+        hasFeedback: false,
+      });
+
+      store.processEvent({
+        type: 'review:rejected',
+        timestamp: 300,
+        taskId: 'task-rework',
+        iteration: 1,
+        feedback: 'Code quality issues',
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 400,
+        taskId: 'task-rework',
+        iteration: 2,
+        hasFeedback: true,
+      });
+
+      const task = store.getTaskHistoryById('task-rework');
+      expect(task?.isInRework).toBe(true);
+      expect(task?.iterationCount).toBe(2);
+    });
+
+    it('should track workflow:iteration-complete with approved status', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-approved', description: 'Task to be approved', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 200,
+        taskId: 'task-approved',
+        iteration: 1,
+        hasFeedback: false,
+      });
+
+      store.processEvent({
+        type: 'workflow:iteration-complete',
+        timestamp: 300,
+        taskId: 'task-approved',
+        totalIterations: 1,
+        approved: true,
+      });
+
+      const task = store.getTaskHistoryById('task-approved');
+      expect(task?.lastApproved).toBe(true);
+    });
+
+    it('should handle review rejection followed by approved iteration', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-retry', description: 'Task with retry then approved', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'review:rejected',
+        timestamp: 200,
+        taskId: 'task-retry',
+        iteration: 1,
+        feedback: 'Initial rejection',
+      });
+
+      store.processEvent({
+        type: 'dev:iteration-start',
+        timestamp: 250,
+        taskId: 'task-retry',
+        iteration: 2,
+        hasFeedback: true,
+      });
+
+      store.processEvent({
+        type: 'workflow:iteration-complete',
+        timestamp: 300,
+        taskId: 'task-retry',
+        totalIterations: 2,
+        approved: true,
+      });
+
+      const task = store.getTaskHistoryById('task-retry');
+      expect(task?.rejectionCount).toBe(1);
+      expect(task?.iterationCount).toBe(2);
+      expect(task?.lastApproved).toBe(true);
+    });
+  });
+
   describe('task history timeline', () => {
     it('should derive a task timeline from visualization events', () => {
       store.processEvent({

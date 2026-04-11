@@ -10,6 +10,9 @@ import {
   TaskVisualizationFailedEvent,
   TaskVisualizationHandoverEvent,
   TaskVisualizationProgressEvent,
+  DevIterationStartEvent,
+  ReviewRejectedEvent,
+  WorkflowIterationCompleteEvent,
 } from '../types/GameEvents';
 
 class RingBuffer {
@@ -124,6 +127,11 @@ export interface TaskHistory {
   status: TaskExecutionStatus;
   recentEvents: GameEvent[];
   failureSummary?: string;
+  iterationCount?: number;
+  rejectionCount?: number;
+  isInRework?: boolean;
+  lastReviewFeedback?: string;
+  lastApproved?: boolean;
 }
 
 export interface SessionProgress {
@@ -157,6 +165,42 @@ const DEFAULT_PHASE_AGENT_NAMES: Partial<Record<TaskPhase, string>> = {
 };
 
 type ChangeCallback = () => void;
+
+type IterationLikeEvent = DevIterationStartEvent | ReviewRejectedEvent | WorkflowIterationCompleteEvent;
+
+function getEventPayload<T extends Record<string, unknown>>(event: IterationLikeEvent): T | undefined {
+  return ((event as { payload?: T }).payload);
+}
+
+function getTaskIdFromIterationEvent(event: IterationLikeEvent): string | undefined {
+  const payload = getEventPayload<{ taskId?: string }>(event);
+  return payload?.taskId ?? (event as { taskId?: string }).taskId;
+}
+
+function getIterationFromEvent(event: DevIterationStartEvent | ReviewRejectedEvent): number | undefined {
+  const payload = getEventPayload<{ iteration?: number }>(event);
+  return payload?.iteration ?? (event as { iteration?: number }).iteration;
+}
+
+function getFeedbackFromEvent(event: ReviewRejectedEvent): string | undefined {
+  const payload = getEventPayload<{ feedback?: string }>(event);
+  return payload?.feedback ?? (event as { feedback?: string }).feedback;
+}
+
+function getHasFeedbackFromEvent(event: DevIterationStartEvent): boolean {
+  const payload = getEventPayload<{ hasFeedback?: boolean }>(event);
+  return payload?.hasFeedback ?? (event as { hasFeedback?: boolean }).hasFeedback ?? false;
+}
+
+function getTotalIterationsFromEvent(event: WorkflowIterationCompleteEvent): number | undefined {
+  const payload = getEventPayload<{ totalIterations?: number }>(event);
+  return payload?.totalIterations ?? (event as { totalIterations?: number }).totalIterations;
+}
+
+function getApprovedFromEvent(event: WorkflowIterationCompleteEvent): boolean {
+  const payload = getEventPayload<{ approved?: boolean }>(event);
+  return payload?.approved ?? (event as { approved?: boolean }).approved ?? false;
+}
 
 function normalizeAgentKey(agentId?: string | null): string {
   return agentId?.trim().toLowerCase().replace(/_/g, '-') ?? '';
@@ -265,6 +309,24 @@ export class DashboardStore {
       case 'connection:error':
         this.connected = false;
         break;
+      case 'dev:iteration-start': {
+        this.handleDevIterationStart(event);
+        const taskId = getTaskIdFromIterationEvent(event);
+        if (taskId) this.trackTaskEvent(taskId, event);
+        break;
+      }
+      case 'review:rejected': {
+        this.handleReviewRejected(event);
+        const taskId = getTaskIdFromIterationEvent(event);
+        if (taskId) this.trackTaskEvent(taskId, event);
+        break;
+      }
+      case 'workflow:iteration-complete': {
+        this.handleWorkflowIterationComplete(event);
+        const taskId = getTaskIdFromIterationEvent(event);
+        if (taskId) this.trackTaskEvent(taskId, event);
+        break;
+      }
     }
 
     this.notify();
@@ -460,6 +522,66 @@ export class DashboardStore {
     });
 
     this.startPhase(task, toPhase, event.timestamp, event.toAgentId, event.description);
+  }
+
+  private handleVisualizationTaskProgress(event: TaskVisualizationProgressEvent): void {
+    const description = this.activeTasks.get(event.taskId)?.description
+      ?? this.taskHistoryMap.get(event.taskId)?.description
+      ?? event.taskId;
+    const task = this.ensureTaskHistory(event.taskId, description, event.timestamp);
+    const phase = inferPhaseFromAgent(event.agentId) ?? task.currentPhase;
+
+    this.startPhase(task, phase, event.timestamp, event.agentId, description);
+    task.updatedAt = event.timestamp;
+  }
+
+  private handleDevIterationStart(event: DevIterationStartEvent): void {
+    const taskId = getTaskIdFromIterationEvent(event);
+    if (!taskId) return;
+
+    const iteration = getIterationFromEvent(event) ?? 1;
+    const description = this.taskHistoryMap.get(taskId)?.description ?? taskId;
+    const task = this.ensureTaskHistory(taskId, description, event.timestamp);
+
+    task.iterationCount = Math.max(task.iterationCount ?? 0, iteration);
+    task.isInRework = iteration > 1 || getHasFeedbackFromEvent(event) || (task.rejectionCount ?? 0) > 0;
+    task.lastApproved = false;
+
+    this.startPhase(task, 'developer', event.timestamp, event.agentId ?? 'dev-agent', description);
+  }
+
+  private handleReviewRejected(event: ReviewRejectedEvent): void {
+    const taskId = getTaskIdFromIterationEvent(event);
+    if (!taskId) return;
+
+    const description = this.taskHistoryMap.get(taskId)?.description ?? taskId;
+    const task = this.ensureTaskHistory(taskId, description, event.timestamp);
+    const iteration = getIterationFromEvent(event) ?? task.iterationCount ?? 1;
+    const feedback = getFeedbackFromEvent(event);
+
+    task.iterationCount = Math.max(task.iterationCount ?? 0, iteration);
+    task.rejectionCount = (task.rejectionCount ?? 0) + 1;
+    task.isInRework = true;
+    task.lastReviewFeedback = feedback;
+    task.lastApproved = false;
+
+    this.startPhase(task, 'reviewer', event.timestamp, event.agentId ?? 'review-agent', description);
+    this.finishPhase(task, 'reviewer', event.timestamp, 'failed');
+  }
+
+  private handleWorkflowIterationComplete(event: WorkflowIterationCompleteEvent): void {
+    const taskId = getTaskIdFromIterationEvent(event);
+    if (!taskId) return;
+
+    const totalIterations = getTotalIterationsFromEvent(event) ?? this.taskHistoryMap.get(taskId)?.iterationCount ?? 1;
+    const approved = getApprovedFromEvent(event);
+    const description = this.taskHistoryMap.get(taskId)?.description ?? taskId;
+    const task = this.ensureTaskHistory(taskId, description, event.timestamp);
+
+    task.iterationCount = Math.max(task.iterationCount ?? 0, totalIterations);
+    task.lastApproved = approved;
+    task.isInRework = totalIterations > 1 ? true : task.isInRework ?? false;
+    task.updatedAt = event.timestamp;
   }
 
   private handleVisualizationTaskCompleted(event: TaskVisualizationCompletedEvent): void {

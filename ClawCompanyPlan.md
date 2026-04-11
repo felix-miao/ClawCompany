@@ -90,7 +90,7 @@
 
 ## P0 - Dashboard 实时任务追踪（产品可见）
 
-- [ ] **#P0-DASH-TRADITIONAL Dashboard 增加传统任务追踪视图（与游戏引擎可视化并存）**
+- [code-complete] **#P0-DASH-TRADITIONAL Dashboard 增加传统任务追踪视图（与游戏引擎可视化并存）**
   - **目标**: 除了 Phaser 办公室动画外，再提供一个传统 dashboard 视图，能实时看清“某一个任务当前走到哪一步了”
   - **展示原则**:
     1. **一眼看懂单个任务状态**：当前在哪个 agent（sidekick / pm / developer / tester / reviewer）
@@ -127,7 +127,8 @@
   - **当前进展**:
     - 2026-04-11（Developer 第 1 轮增量）✅ 已完成最小 timeline 入口与基础任务追踪：Dashboard 新增 `Timeline View` 切换；`DashboardStore` 可从现有 task/game events 派生任务阶段历史；传统视图可选任务并显示步骤条、开始/结束时间、负责人、当前卡点；`useDashboardStore` 同步修复为基于 store version 刷新，避免 `loadAgents` 这类非 event 更新不触发 UI 刷新。
     - 2026-04-12（Developer 第 2 轮增量）✅ 已完成详情面板增强：`DashboardStore` 现在保留每个任务的 recent events 与 failure summary；`TraditionalTaskView` 新增当前阶段说明、最近事件日志、错误摘要、最后更新时间与 live 状态，并把 handover / waiting 文案映射成可读 agent 名称而不是裸 `agentId`；同时兼容旧 mock / 旧数据缺少 `recentEvents` 的情况，避免切到 Timeline View 时崩溃。commit: `f446508`。
-    - 下一轮优先：继续做第 3 轮“实时更新 / 失败态 / 卡点展示”——补更明确的停滞检测、失败阶段高亮、以及基于 progress/session 的实时卡点信号，减少用户靠事件列表自己推断状态的成本。
+    - 2026-04-12（Developer 第 3 轮增量）✅ 已完成实时更新 / 失败态 / 卡点展示：`DashboardStore` 补齐 `task:progress`、`dev:iteration-start`、`review:rejected`、`workflow:iteration-complete` 的派生追踪，并兼容事件字段既可能在 `payload` 内，也可能是扁平字段；`TraditionalTaskView` 现在会突出显示停滞 / 活跃 / 等待他人 / 失败 / 返工 / 已通过等状态，展示等待时长、最近进展、最新 review 反馈，并把失败 / 打回 / 停滞任务排到更前面，减少用户靠事件列表自己推断卡点的成本。
+    - 后续可选增强：继续做第 4 轮“汇总卡片 / 筛选 / 历史回看”，把 attention-first 的任务列表扩展成更强的全局概览。
   - **验收标准**:
     - 提交一个真实任务后，用户能在非游戏界面里实时看到任务推进到哪一步
     - 任务失败时，能在传统视图中直接看到失败阶段和错误摘要
