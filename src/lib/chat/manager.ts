@@ -8,9 +8,11 @@ export class ChatManager {
   private messages: Message[] = []
   private messageMap: Map<string, Message> = new Map()
   private sessionId: string
+  private maxMessages: number
 
-  constructor(sessionId: string = 'default') {
+  constructor(sessionId: string = 'default', maxMessages: number = 500) {
     this.sessionId = sessionId
+    this.maxMessages = maxMessages
   }
 
   addMessage(
@@ -30,6 +32,12 @@ export class ChatManager {
 
     this.messages.push(message)
     this.messageMap.set(message.id, message)
+    while (this.messages.length > this.maxMessages) {
+      const removed = this.messages.shift()
+      if (removed) {
+        this.messageMap.delete(removed.id)
+      }
+    }
     return message
   }
 
@@ -105,8 +113,8 @@ export class ChatManager {
   }
 }
 
-export function createChatManager(sessionId?: string): ChatManager {
-  return new ChatManager(sessionId)
+export function createChatManager(sessionId?: string, maxMessages?: number): ChatManager {
+  return new ChatManager(sessionId, maxMessages)
 }
 
 /** @deprecated Use DI container or createChatManager() instead */

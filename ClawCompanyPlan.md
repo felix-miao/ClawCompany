@@ -44,7 +44,7 @@
   - **问题**: 5处模块级全局单例，并发请求共享状态
   - **修复**: 默认路径改为 factory / DI 优先的按请求创建；仅保留测试/兼容层需要的显式 singleton helper
 
-- [ ] **#069 [P0][LIB] ChatManager 无消息数量上限，内存无界增长**
+- [code-complete] **#069 [P0][LIB] ChatManager 无消息数量上限，内存无界增长**
   - **文件**: `src/lib/chat/manager.ts` (31行)
   - **修复**: 加 maxMessages 参数（默认500），超出滚动删除
 
