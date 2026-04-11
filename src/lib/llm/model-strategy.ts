@@ -15,6 +15,14 @@
  * Task complexity escalation (PM only):
  *   Simple  (< 50 chars AND no complexity keywords) → keeps Haiku
  *   Complex (has security/performance/architecture keywords) → escalates to Sonnet
+ *
+ * MoA Temperature Differentiation (per agent role):
+ *   pm / dev          → 0.7  (Proposer: high diversity, creative output)
+ *   review            → 0.6  (Critic: analytical, slightly lower entropy)
+ *   devil-advocate    → 0.8  (DA: maximum contrarianism enforced)
+ *   arbiter           → 0.3  (Arbiter: low temperature for consistent verdicts)
+ *
+ *   Override via LLM_TEMPERATURE env var (applies globally to all roles).
  */
 
 export const CLAUDE_HAIKU = 'claude-3-5-haiku-20241022'
@@ -40,6 +48,35 @@ const MODEL_DEFAULTS: Record<AgentModelRole, string> = {
   review: CLAUDE_HAIKU, // code review — Haiku handles well
   'devil-advocate': CLAUDE_SONNET, // adversarial reasoning — needs depth
   arbiter: CLAUDE_SONNET,          // final verdict — needs depth
+}
+
+// ─── Per-role temperature defaults (MoA differentiation) ──────────────────
+
+/**
+ * Default temperatures per agent role following MoA theory:
+ *   - Proposers (pm, dev) get 0.7 for creative diversity
+ *   - Critic (review) gets 0.6 for analytical but slightly varied output
+ *   - Devil's Advocate gets 0.8 — highest entropy to force contrarianism
+ *   - Arbiter gets 0.3 — low temperature for consistent, decisive verdicts
+ */
+export const TEMPERATURE_DEFAULTS: Record<AgentModelRole, number> = {
+  pm: 0.7,              // Proposer: high diversity
+  dev: 0.7,             // Proposer: high diversity
+  review: 0.6,          // Critic: analytical balance
+  'devil-advocate': 0.8, // DA: max contrarianism
+  arbiter: 0.3,          // Arbiter: consistency / determinism
+}
+
+/**
+ * Return the temperature to use for a given agent role.
+ *
+ * If LLM_TEMPERATURE env var is set, it overrides all roles (backward compat).
+ * Otherwise returns the MoA-tuned per-role default.
+ */
+export function getTemperatureForAgent(role: AgentModelRole): number {
+  const envTemp = process.env.LLM_TEMPERATURE
+  if (envTemp) return parseFloat(envTemp)
+  return TEMPERATURE_DEFAULTS[role]
 }
 
 // ─── Complexity escalation keywords ────────────────────────────────────────

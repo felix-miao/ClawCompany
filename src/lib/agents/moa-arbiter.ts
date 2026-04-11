@@ -39,6 +39,7 @@ import { ArbiterDecision, ArbiterVerdict } from './arbiter-agent'
 import { sanitizeTaskPrompt } from '../utils/prompt-sanitizer'
 import { z } from 'zod'
 import { extractJSONObject } from '../utils/json-parser'
+import { getTemperatureForAgent } from '../llm/model-strategy'
 
 // ─── MoA 内部类型 ─────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ export class MoAArbiter extends ArbiterAgent {
         provider: 'anthropic',
         apiKey: anthropicKey,
         model: secondaryModel,
-        temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
+        temperature: getTemperatureForAgent('arbiter'),
         maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '2000', 10),
       })
     }
@@ -186,7 +187,7 @@ export class MoAArbiter extends ArbiterAgent {
         provider: 'openai',
         apiKey: openaiKey,
         model: secondaryModel,
-        temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
+        temperature: getTemperatureForAgent('arbiter'),
         maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '2000', 10),
       })
     }
@@ -199,7 +200,7 @@ export class MoAArbiter extends ArbiterAgent {
         provider: 'openai',
         apiKey: openaiKey,
         model: gptModel,
-        temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
+        temperature: getTemperatureForAgent('arbiter'),
         maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '2000', 10),
       })
     }

@@ -6,7 +6,7 @@ import { GLMProvider } from './glm'
 import { MockProvider } from './mock'
 import { GatewayProvider } from './gateway'
 import { AnthropicProvider } from './anthropic'
-import { AgentModelRole, getModelForAgent, describeModelStrategy } from './model-strategy'
+import { AgentModelRole, getModelForAgent, describeModelStrategy, getTemperatureForAgent } from './model-strategy'
 
 export class LLMFactory {
   static createProvider(config: LLMConfig): LLMProvider {
@@ -142,17 +142,17 @@ export function getLLMProviderForAgent(
   if (process.env.USE_MOCK_LLM === 'true') return getLLMProvider()
 
   const model = getModelForAgent(role, taskDescription)
-  const cacheKey = model
+  const temperature = getTemperatureForAgent(role)
+  const cacheKey = `${role}:${model}`
 
   if (agentProviderCache.has(cacheKey)) {
     return agentProviderCache.get(cacheKey)!
   }
 
-  const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.7')
   const maxTokens = parseInt(process.env.LLM_MAX_TOKENS || '2000', 10)
   const cacheTTL = (process.env.ANTHROPIC_CACHE_TTL as '5m' | '1h') || '5m'
 
-  console.log(`[LLM Factory] Agent "${role}" → model: ${model}`)
+  console.log(`[LLM Factory] Agent "${role}" → model: ${model}, temperature: ${temperature}`)
 
   const provider = LLMFactory.createProvider({
     provider: 'anthropic',
