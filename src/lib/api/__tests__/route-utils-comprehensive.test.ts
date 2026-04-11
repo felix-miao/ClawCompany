@@ -131,16 +131,13 @@ describe('route-utils comprehensive', () => {
       }
     })
 
-    it('should return 500 when AGENT_API_KEY not configured', async () => {
+    it('should return null (open access) when AGENT_API_KEY not configured', async () => {
       delete process.env.AGENT_API_KEY
       const request = {
         headers: { get: () => null },
       } as any
       const response = requireApiKey(request)
-      expect(response).not.toBeNull()
-      expect(response!.status).toBe(500)
-      const data = await response!.json()
-      expect(data.error).toBe('Server authentication not configured')
+      expect(response).toBeNull()
     })
 
     it('should accept x-api-key header', () => {

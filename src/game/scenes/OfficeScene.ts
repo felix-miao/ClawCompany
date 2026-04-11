@@ -111,10 +111,11 @@ export class OfficeScene extends Phaser.Scene {
   private officeMapGenerator!: OfficeMapGenerator;
 
   private roomPositions: Record<string, { x: number; y: number }> = {
-    'pm-office': { x: 350, y: 280 },
-    'dev-studio': { x: 150, y: 400 },
-    'test-lab': { x: 550, y: 400 },
-    'review-center': { x: 650, y: 280 },
+    // Pixel centres matching drawOfficeBackground() room zones
+    'pm-office':     { x: 140, y: 160 },
+    'dev-studio':    { x: 400, y: 160 },
+    'review-center': { x: 660, y: 160 },
+    'test-lab':      { x: 400, y: 460 },
   };
 
   constructor() {
@@ -129,25 +130,26 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   private getDefaultTilemapData(): TilemapData {
+    // Agent spawn positions are in pixel space (not tile space) and match the
+    // room centres drawn by drawOfficeBackground().
+    // Room layout (pixels):
+    //   PM Office:     x=40..240,  y=60..220   → centre (140, 160)
+    //   Dev Studio:    x=300..500, y=60..220   → centre (400, 160)
+    //   Review Center: x=560..760, y=60..220   → centre (660, 160)
+    //   Test Lab:      x=300..500, y=380..540  → centre (400, 460)
+    //
+    // workstation x/y are pixel coords (TILE_SIZE=1 for this config).
     return {
-      width: 20,
-      height: 15,
-      tileSize: 32,
+      width: 800,
+      height: 600,
+      tileSize: 1,   // pixel-space: x/y in workstations are already pixels
       workstations: [
-        { id: 'ws1', x: 4, y: 8, label: 'Dev1', status: 'idle' as const, taskType: 'coding' },
-        { id: 'ws2', x: 8, y: 8, label: 'Dev2', status: 'idle' as const, taskType: 'testing' },
-        { id: 'ws3', x: 12, y: 8, label: 'PM', status: 'idle' as const, taskType: 'meeting' },
-        { id: 'ws4', x: 16, y: 8, label: 'Review', status: 'idle' as const, taskType: 'review' },
+        { id: 'ws-pm',       x: 140, y: 170, label: 'PM',       status: 'idle' as const, taskType: 'meeting' },
+        { id: 'ws-dev',      x: 400, y: 170, label: 'Dev',      status: 'idle' as const, taskType: 'coding' },
+        { id: 'ws-reviewer', x: 660, y: 170, label: 'Reviewer', status: 'idle' as const, taskType: 'review' },
+        { id: 'ws-tester',   x: 400, y: 460, label: 'Tester',   status: 'idle' as const, taskType: 'testing' },
       ],
-      platforms: [
-        { x: 0, y: 14, width: 20, height: 1, type: 'floor' },
-        { x: 0, y: 0, width: 1, height: 14, type: 'wall_left' },
-        { x: 19, y: 0, width: 1, height: 14, type: 'wall_right' },
-        { x: 2, y: 9, width: 4, height: 0.5, type: 'desk' },
-        { x: 6, y: 9, width: 4, height: 0.5, type: 'desk' },
-        { x: 10, y: 9, width: 4, height: 0.5, type: 'desk' },
-        { x: 14, y: 9, width: 4, height: 0.5, type: 'desk' },
-      ],
+      platforms: [],  // no physics platforms — agents use free pathfinding
     };
   }
 
@@ -197,10 +199,8 @@ export class OfficeScene extends Phaser.Scene {
       
       this.tilemapData = this.getDefaultTilemapData();
 
-      // 立即同步绘制办公室背景（不依赖 async generateEnhancedOfficeMap）
+      // Draw the full office background synchronously (rooms, desks, grid)
       this.drawOfficeBackground();
-
-      this.generateEnhancedOfficeMap();
 
       this.platforms = this.physics.add.staticGroup();
       this.particleSystem = new ParticleSystem();
@@ -258,7 +258,6 @@ export class OfficeScene extends Phaser.Scene {
       });
       
       this.createPlatforms();
-      this.createDecorations();
       this.createNavigationMesh();
       this.createAgents();
       this.taskHandoverSystem = new TaskHandoverSystem(this.agentMap, this.eventBus);
@@ -796,8 +795,9 @@ export class OfficeScene extends Phaser.Scene {
       // (64×64 pixel art with idle/walk/work animations keyed as `${roleKey}-idle` etc.)
       const textureKey = `character-${roleKey}`;
 
-      const x = ws.x * TILE_SIZE + TILE_SIZE / 2;
-      const y = (ws.y - 1) * TILE_SIZE;
+      // Workstation x/y are already pixel coordinates (tileSize=1)
+      const x = ws.x;
+      const y = ws.y;
 
       const agent = this.createEnhancedAgent(x, y, 0xffffff, config, textureKey);
 
@@ -1366,10 +1366,8 @@ export class OfficeScene extends Phaser.Scene {
     const workstation = this.findWorkstationByTaskType(taskType);
     if (!workstation) return;
 
-    const worldX = workstation.x * TILE_SIZE + TILE_SIZE / 2;
-    const worldY = (workstation.y - 1) * TILE_SIZE;
-
-    agent.moveTo(worldX, worldY, () => {
+    // Workstation x/y are pixel coordinates (tileSize=1)
+    agent.moveTo(workstation.x, workstation.y, () => {
       agent.setWorking(true);
     });
   }

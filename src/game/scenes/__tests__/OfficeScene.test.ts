@@ -503,11 +503,11 @@ describe('OfficeScene logic', () => {
       expect(data.tileSize).toBeGreaterThan(0);
     });
 
-    it('should return tilemap data with platforms', () => {
+    it('should return tilemap data with platforms array (may be empty — visuals handled by drawOfficeBackground)', () => {
       const scene = new OfficeScene();
       const data = (scene as any).getDefaultTilemapData();
       expect(data.platforms).toBeDefined();
-      expect(data.platforms.length).toBeGreaterThan(0);
+      expect(Array.isArray(data.platforms)).toBe(true);
     });
 
     it('should return tilemap data with workstations covering all task types', () => {
@@ -526,7 +526,7 @@ describe('OfficeScene logic', () => {
       const scene = new OfficeScene();
       const data = (scene as any).getDefaultTilemapData();
       expect(data).not.toBeNull();
-      expect(data.platforms.length).toBeGreaterThan(0);
+      expect(Array.isArray(data.platforms)).toBe(true);
       data.platforms.forEach((p: any) => {
         expect(typeof p.x).toBe('number');
         expect(typeof p.y).toBe('number');
@@ -540,7 +540,7 @@ describe('OfficeScene logic', () => {
       const scene = new OfficeScene();
       (scene as any).tilemapData = (scene as any).getDefaultTilemapData();
       expect((scene as any).tilemapData).not.toBeNull();
-      expect((scene as any).tilemapData.platforms.length).toBeGreaterThan(0);
+      expect(Array.isArray((scene as any).tilemapData.platforms)).toBe(true);
       expect((scene as any).tilemapData.workstations.length).toBeGreaterThan(0);
     });
 

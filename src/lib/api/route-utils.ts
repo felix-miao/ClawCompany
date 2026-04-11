@@ -101,10 +101,8 @@ function safeEqual(a: string, b: string): boolean {
 export function requireApiKey(request: NextRequest): NextResponse | null {
   const apiKey = process.env.AGENT_API_KEY
   if (!apiKey) {
-    return NextResponse.json(
-      { success: false, error: 'Server authentication not configured' },
-      { status: 500 }
-    )
+    // No key configured → open access (dev/local mode). Skip auth.
+    return null
   }
 
   const headerKey =

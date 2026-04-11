@@ -88,6 +88,47 @@
 
 ---
 
+## P0 - Dashboard 实时任务追踪（产品可见）
+
+- [ ] **#P0-DASH-TRADITIONAL Dashboard 增加传统任务追踪视图（与游戏引擎可视化并存）**
+  - **目标**: 除了 Phaser 办公室动画外，再提供一个传统 dashboard 视图，能实时看清“某一个任务当前走到哪一步了”
+  - **展示原则**:
+    1. **一眼看懂单个任务状态**：当前在哪个 agent（sidekick / pm / developer / tester / reviewer）
+    2. **实时更新**：跟随 SSE / game-events / session 状态变化自动刷新
+    3. **既能看当前，也能回看历史**：任务完成后仍可查看完整流转记录
+    4. **游戏视图是氛围感，传统视图是信息密度**：两者并存，不互相替代
+  - **建议设计**:
+    - 左侧：任务列表（标题、优先级、当前状态、当前负责人、最后更新时间）
+    - 中间：单任务步骤条 / 时间线
+      - `submitted -> pm_analysis -> planning -> developer -> tester -> reviewer -> done/failed`
+    - 右侧：详情面板
+      - 当前 agent
+      - 当前阶段说明
+      - 最近事件日志
+      - 相关 session / 产出物 / 错误信息
+    - 顶部：汇总卡片（进行中 / 等待中 / 已完成 / 失败）
+  - **最少交付**:
+    1. Dashboard 中新增“传统任务视图 / Timeline View”入口
+    2. 能选中某个任务并看到完整步骤条
+    3. 每一步显示开始时间、完成时间、负责人、状态
+    4. 如果卡住，明确显示卡在哪个 agent / 哪个阶段
+    5. 与现有 game-events / DashboardStore / sessions 数据打通，避免造第二套假数据
+  - **建议迭代顺序（TDD）**:
+    - 第 1 轮：先补任务阶段数据模型 / mock / store 映射测试，再做最小可用 timeline
+    - 第 2 轮：补单任务详情面板（当前阶段、负责人、最近事件）
+    - 第 3 轮：补实时更新 / 失败态 / 卡点展示
+    - 第 4 轮：补汇总卡片、筛选、可回看历史
+    - 每一轮都要问自己：还有没有更清楚、更少噪音、更能定位卡点的展示方式
+  - **文件建议**:
+    - `src/app/dashboard/*`
+    - `src/components/dashboard/*`
+    - `src/game/data/DashboardStore.ts`
+    - `src/app/api/game-events/route.ts`（如需补事件字段）
+  - **验收标准**:
+    - 提交一个真实任务后，用户能在非游戏界面里实时看到任务推进到哪一步
+    - 任务失败时，能在传统视图中直接看到失败阶段和错误摘要
+    - 任务完成后，能回看完整时间线
+
 ## P1 - 应该修复（High）
 
 - [ ] **#007 `/api/chat` 与 `/api/agent` 职责重叠** → 明确分工

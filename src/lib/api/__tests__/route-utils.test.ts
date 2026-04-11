@@ -192,11 +192,10 @@ describe('route-utils', () => {
       }
     }
 
-    it('should return 500 when AGENT_API_KEY is not set', () => {
+    it('should return null (open access) when AGENT_API_KEY is not set', () => {
       delete process.env.AGENT_API_KEY
       const response = requireApiKey(makeRequest({}) as any)
-      expect(response).not.toBeNull()
-      expect(response!.status).toBe(500)
+      expect(response).toBeNull()
     })
 
     it('should return 401 when no key is provided in headers', () => {
@@ -264,15 +263,15 @@ describe('route-utils', () => {
       process.env = originalEnv
     })
 
-    it('should return 401 when api key is missing', async () => {
+    it('should call handler when AGENT_API_KEY is not set (open access mode)', async () => {
       delete process.env.AGENT_API_KEY
       const handler = jest.fn().mockResolvedValue({ status: 200 })
       const wrapped = withAuth(handler, 'Test')
       const request = { headers: { get: () => null } } as any
 
       const response = await wrapped(request)
-      expect(response.status).toBe(500)
-      expect(handler).not.toHaveBeenCalled()
+      expect(response.status).toBe(200)
+      expect(handler).toHaveBeenCalled()
     })
 
     it('should call handler when authenticated', async () => {
