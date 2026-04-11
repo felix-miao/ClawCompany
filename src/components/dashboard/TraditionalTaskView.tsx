@@ -1,8 +1,41 @@
 'use client';
 
+import { GameEvent } from '@/game/types/GameEvents';
 import { useEffect, useMemo, useState } from 'react';
 
 import { TaskHistory, TASK_PHASE_LABELS } from '@/game/data/DashboardStore';
+
+type EventSummary = {
+  text: string;
+  type: string;
+};
+
+function summarizeEvent(event: GameEvent): EventSummary | null {
+  switch (event.type) {
+    case 'task:assigned':
+      return { text: '分配', type: event.type };
+    case 'task:handover':
+      const toAgent = event.toAgentId?.includes('review') ? 'Reviewer'
+        : event.toAgentId?.includes('test') ? 'Tester'
+        : event.toAgentId?.includes('dev') ? 'Developer'
+        : event.toAgentId ?? 'unknown';
+      return { text: `交接给 ${toAgent}`, type: event.type };
+    case 'task:progress':
+      return { text: event.currentAction?.slice(0, 30) || '进行中', type: event.type };
+    case 'task:completed':
+      return { text: event.result === 'success' ? '完成' : `完成(${event.result})`, type: event.type };
+    case 'task:failed':
+      return { text: '失败', type: event.type };
+    case 'agent:status-change':
+      return { text: `状态: ${event.status}`, type: event.type };
+    case 'agent:task-assigned':
+      return { text: '开始处理', type: event.type };
+    case 'agent:task-completed':
+      return { text: event.result === 'failure' ? '处理失败' : '处理完成', type: event.type };
+    default:
+      return null;
+  }
+}
 
 interface TraditionalTaskViewProps {
   tasks: TaskHistory[];
@@ -40,6 +73,15 @@ function getTaskStatusLabel(task: TaskHistory): string {
 function getCurrentBlocker(task: TaskHistory): string {
   if (task.status !== 'in_progress') {
     return task.status === 'failed' ? '任务已失败，等待处理' : '任务已完成';
+  }
+
+  const lastEvent = (task.recentEvents ?? [])[(task.recentEvents ?? []).length - 1];
+  if (lastEvent?.type === 'task:handover' && lastEvent.toAgentId) {
+    const waitingOn = lastEvent.toAgentId.includes('review') ? 'Reviewer'
+      : lastEvent.toAgentId.includes('test') ? 'Tester'
+      : lastEvent.toAgentId.includes('dev') ? 'Developer'
+      : lastEvent.toAgentId;
+    return `等待 ${waitingOn} 处理`;
   }
 
   const phaseLabel = TASK_PHASE_LABELS[task.currentPhase];
@@ -157,6 +199,61 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
             <div className="text-xs text-gray-500 mb-1">当前卡点</div>
             <div className="text-sm text-primary-200">{getCurrentBlocker(selectedTask)}</div>
           </div>
+
+          {selectedTask.status === 'in_progress' && (
+            <div className="p-4 border-b border-dark-100">
+              <div className="text-xs text-gray-500 mb-2">当前阶段说明</div>
+              <div className="text-sm text-gray-300">
+                正在处理任务：{TASK_PHASE_LABELS[selectedTask.currentPhase]} · {selectedTask.currentAgentName ?? 'Unassigned'}
+              </div>
+            </div>
+          )}
+
+          {selectedTask.status === 'in_progress' && (
+            <div className="p-4 border-b border-dark-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-gray-500 mb-1">最后更新</div>
+                  <div className="text-sm text-gray-300">{formatTime(selectedTask.updatedAt)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-500 mb-1">状态</div>
+                  <div className="text-sm text-green-300 flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    进行中
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {(selectedTask.recentEvents ?? []).length > 0 && (
+            <div className="p-4 border-b border-dark-100">
+              <div className="text-xs text-gray-500 mb-2">最近事件</div>
+              <div className="space-y-2">
+                {(selectedTask.recentEvents ?? []).slice(-3).map((event, idx) => {
+                  const summary = summarizeEvent(event);
+                  if (!summary) return null;
+                  return (
+                    <div key={idx} className="text-xs text-gray-400 flex items-center gap-2">
+                      <span className="text-gray-500">{formatTime(event.timestamp)}</span>
+                      <span className="text-gray-300">{summary.text}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {selectedTask.failureSummary && (
+            <div className="p-4 border-b border-dark-100 bg-red-500/5">
+              <div className="text-xs text-gray-500 mb-2">错误摘要</div>
+              <div className="text-sm text-red-300">{selectedTask.failureSummary}</div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {selectedTask.phases.map((phase) => (

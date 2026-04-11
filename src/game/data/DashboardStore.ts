@@ -9,6 +9,7 @@ import {
   TaskVisualizationCompletedEvent,
   TaskVisualizationFailedEvent,
   TaskVisualizationHandoverEvent,
+  TaskVisualizationProgressEvent,
 } from '../types/GameEvents';
 
 class RingBuffer {
@@ -121,6 +122,8 @@ export interface TaskHistory {
   completedAt?: number;
   result?: 'success' | 'failure' | 'partial';
   status: TaskExecutionStatus;
+  recentEvents: GameEvent[];
+  failureSummary?: string;
 }
 
 export interface SessionProgress {
@@ -213,24 +216,34 @@ export class DashboardStore {
         break;
       case 'agent:task-assigned':
         this.handleTaskAssigned(event);
+        this.trackTaskEvent(event.taskId, event);
         break;
       case 'agent:task-completed':
         this.handleTaskCompleted(event);
+        this.trackTaskEvent(event.taskId, event);
         break;
       case 'agent:emotion-change':
         this.handleEmotionChange(event);
         break;
       case 'task:assigned':
         this.handleVisualizationTaskAssigned(event);
+        this.trackTaskEvent(event.task.id, event);
         break;
       case 'task:handover':
         this.handleVisualizationTaskHandover(event);
+        this.trackTaskEvent(event.taskId, event);
         break;
       case 'task:completed':
         this.handleVisualizationTaskCompleted(event);
+        this.trackTaskEvent(event.taskId, event);
         break;
       case 'task:failed':
         this.handleVisualizationTaskFailed(event);
+        this.trackTaskEvent(event.taskId, event);
+        break;
+      case 'task:progress':
+        this.handleVisualizationTaskProgress(event);
+        this.trackTaskEvent(event.taskId, event);
         break;
       case 'session:started':
         this.sessionCount++;
@@ -501,6 +514,7 @@ export class DashboardStore {
       createdAt: timestamp,
       updatedAt: timestamp,
       status: 'in_progress',
+      recentEvents: [],
     };
 
     this.taskHistoryMap.set(taskId, task);
@@ -579,6 +593,20 @@ export class DashboardStore {
     task.updatedAt = timestamp;
     task.result = result;
     task.status = result === 'failure' ? 'failed' : 'completed';
+  }
+
+  private trackTaskEvent(taskId: string, event: GameEvent): void {
+    const task = this.taskHistoryMap.get(taskId);
+    if (!task) return;
+
+    task.recentEvents.push(event);
+    if (task.recentEvents.length > 5) {
+      task.recentEvents = task.recentEvents.slice(-5);
+    }
+
+    if (event.type === 'task:failed') {
+      task.failureSummary = event.error;
+    }
   }
 
   private completePriorPhases(task: TaskHistory, phase: TaskPhase, timestamp: number): void {

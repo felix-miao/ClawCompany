@@ -336,6 +336,153 @@ describe('DashboardStore', () => {
     });
   });
 
+  describe('task history recent events', () => {
+    it('should track recent events for each task', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-events', description: 'Test task', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'agent:status-change',
+        timestamp: 150,
+        agentId: 'pm-agent',
+        status: 'working',
+      });
+
+      store.processEvent({
+        type: 'task:handover',
+        timestamp: 200,
+        fromAgentId: 'pm-agent',
+        toAgentId: 'dev-agent',
+        taskId: 'task-events',
+        description: 'Test task',
+      });
+
+      store.processEvent({
+        type: 'agent:status-change',
+        timestamp: 250,
+        agentId: 'dev-agent',
+        status: 'working',
+      });
+
+      const task = store.getTaskHistoryById('task-events');
+      expect(task?.recentEvents).toBeDefined();
+      expect(task?.recentEvents?.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('should include error in recent events for failed tasks', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'dev-agent',
+        task: { id: 'task-fail', description: 'Failing task', taskType: 'bugfix' },
+      });
+
+      store.processEvent({
+        type: 'task:failed',
+        timestamp: 200,
+        agentId: 'dev-agent',
+        taskId: 'task-fail',
+        error: 'compilation error: undefined variable',
+      });
+
+      const task = store.getTaskHistoryById('task-fail');
+      expect(task?.status).toBe('failed');
+      expect(task?.recentEvents).toBeDefined();
+      const errorEvent = task?.recentEvents?.find(e => e.type === 'task:failed');
+      expect(errorEvent).toBeDefined();
+    });
+
+    it('should limit recent events to last 5 per task', () => {
+      const store2 = new DashboardStore(100);
+
+      store2.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-many', description: 'Many events task', taskType: 'feature' },
+      });
+
+      for (let i = 0; i < 10; i++) {
+        store2.processEvent({
+          type: 'agent:status-change',
+          timestamp: 200 + i * 10,
+          agentId: 'pm-agent',
+          status: i % 2 === 0 ? 'working' : 'idle',
+        });
+      }
+
+      const task = store2.getTaskHistoryById('task-many');
+      expect(task?.recentEvents?.length).toBeLessThanOrEqual(5);
+    });
+  });
+
+  describe('task failure summary', () => {
+    it('should derive failure summary from failed task events', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'dev-agent',
+        task: { id: 'task-fail-summary', description: 'Test failure', taskType: 'bugfix' },
+      });
+
+      store.processEvent({
+        type: 'task:failed',
+        timestamp: 200,
+        agentId: 'dev-agent',
+        taskId: 'task-fail-summary',
+        error: 'Test failed: assertion error in test suite',
+      });
+
+      const task = store.getTaskHistoryById('task-fail-summary');
+      expect(task?.failureSummary).toBeDefined();
+      expect(task?.failureSummary).toContain('Test failed');
+    });
+
+    it('should show error details for failed reviewer stage', () => {
+      store.processEvent({
+        type: 'task:assigned',
+        timestamp: 100,
+        agentId: 'pm-agent',
+        task: { id: 'task-review-fail', description: 'Code review task', taskType: 'feature' },
+      });
+
+      store.processEvent({
+        type: 'task:handover',
+        timestamp: 150,
+        fromAgentId: 'pm-agent',
+        toAgentId: 'dev-agent',
+        taskId: 'task-review-fail',
+        description: 'Code review task',
+      });
+
+      store.processEvent({
+        type: 'task:handover',
+        timestamp: 200,
+        fromAgentId: 'dev-agent',
+        toAgentId: 'review-agent',
+        taskId: 'task-review-fail',
+        description: 'Code review task',
+      });
+
+      store.processEvent({
+        type: 'task:failed',
+        timestamp: 250,
+        agentId: 'review-agent',
+        taskId: 'task-review-fail',
+        error: 'Security vulnerability detected in auth module',
+      });
+
+      const task = store.getTaskHistoryById('task-review-fail');
+      expect(task?.status).toBe('failed');
+      expect(task?.failureSummary).toBeDefined();
+      expect(task?.failureSummary).toContain('Security vulnerability');
+    });
+  });
+
   describe('task history timeline', () => {
     it('should derive a task timeline from visualization events', () => {
       store.processEvent({

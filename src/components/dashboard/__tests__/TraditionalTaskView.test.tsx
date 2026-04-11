@@ -22,6 +22,7 @@ const buildTask = (overrides: Partial<TaskHistory> = {}): TaskHistory => ({
     { phase: 'reviewer', label: 'Reviewer', agentId: 'review-agent', agentName: 'Reviewer Claw', status: 'pending' },
     { phase: 'done', label: 'Done', agentId: null, agentName: null, status: 'pending' },
   ],
+  recentEvents: [],
   ...overrides,
 });
 
@@ -65,5 +66,93 @@ describe('TraditionalTaskView', () => {
     expect(screen.getByText('Selected Task')).toBeInTheDocument();
     expect(screen.getAllByText('补失败态展示')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Reviewer')[0]).toBeInTheDocument();
+  });
+
+  it('should display current phase description when task is in progress', () => {
+    render(<TraditionalTaskView tasks={[buildTask()]} />);
+
+    expect(screen.getByText('当前阶段说明')).toBeInTheDocument();
+    expect(screen.getByText(/正在处理任务/i)).toBeInTheDocument();
+  });
+
+  it('should display recent events section', () => {
+    const taskWithRecentEvents = buildTask({
+      recentEvents: [
+        { type: 'task:assigned', timestamp: 100, agentId: 'pm-agent' },
+        { type: 'task:handover', timestamp: 200, fromAgentId: 'pm-agent', toAgentId: 'dev-agent', taskId: 'task-1', description: 'test' },
+      ],
+    });
+    render(<TraditionalTaskView tasks={[taskWithRecentEvents]} />);
+
+    expect(screen.getByText('最近事件')).toBeInTheDocument();
+  });
+
+  it('should display failure summary for failed tasks', () => {
+    const failedTask = buildTask({
+      status: 'failed',
+      currentPhase: 'done',
+      failureSummary: 'compilation error: undefined variable x',
+      recentEvents: [
+        { type: 'task:failed', timestamp: 300, agentId: 'dev-agent', taskId: 'task-1', error: 'compilation error: undefined variable x' },
+      ],
+    });
+    render(<TraditionalTaskView tasks={[failedTask]} />);
+
+    expect(screen.getByText('错误摘要')).toBeInTheDocument();
+    expect(screen.getByText(/compilation error/i)).toBeInTheDocument();
+  });
+
+  it('should display readable event summaries instead of raw event types', () => {
+    const taskWithEvents = buildTask({
+      recentEvents: [
+        { type: 'task:assigned', timestamp: 100, agentId: 'pm-agent', task: { id: 'task-1', description: 'Test task', taskType: 'feature' } },
+        { type: 'task:handover', timestamp: 200, fromAgentId: 'pm-agent', toAgentId: 'dev-agent', taskId: 'task-1', description: 'Test task' },
+        { type: 'task:progress', timestamp: 300, agentId: 'dev-agent', taskId: 'task-1', progress: 50, currentAction: 'implementing feature' },
+      ],
+    });
+    render(<TraditionalTaskView tasks={[taskWithEvents]} />);
+
+    expect(screen.getByText('分配')).toBeInTheDocument();
+    expect(screen.getByText(/交接给/i)).toBeInTheDocument();
+    expect(screen.getByText(/进行中/i)).toBeInTheDocument();
+  });
+
+  it('should display last update time and live status for in-progress tasks', () => {
+    const taskWithTime = buildTask({
+      updatedAt: Date.now(),
+      currentPhase: 'developer',
+    });
+    render(<TraditionalTaskView tasks={[taskWithTime]} />);
+
+    expect(screen.getByText('最后更新')).toBeInTheDocument();
+    expect(screen.getByText('进行中')).toBeInTheDocument();
+  });
+
+  it('should display waiting status when task is waiting on another agent', () => {
+    const taskWaiting = buildTask({
+      currentPhase: 'developer',
+      status: 'in_progress',
+      recentEvents: [
+        { type: 'task:handover', timestamp: 100, fromAgentId: 'dev-agent', toAgentId: 'review-agent', taskId: 'task-1', description: 'Task' },
+      ],
+    });
+    render(<TraditionalTaskView tasks={[taskWaiting]} />);
+
+    expect(screen.getByText(/等待/i)).toBeInTheDocument();
+    expect(screen.getByText(/等待 Reviewer 处理/i)).toBeInTheDocument();
+  });
+
+  it('should map agent IDs to readable names in handover events', () => {
+    const taskWaitingReviewer = buildTask({
+      currentPhase: 'developer',
+      status: 'in_progress',
+      recentEvents: [
+        { type: 'task:handover', timestamp: 100, fromAgentId: 'dev-agent', toAgentId: 'review-agent', taskId: 'task-1', description: 'Task' },
+      ],
+    });
+    render(<TraditionalTaskView tasks={[taskWaitingReviewer]} />);
+
+    expect(screen.queryByText(/等待 review-agent 处理/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/等待 Reviewer 处理/i)).toBeInTheDocument();
   });
 });
