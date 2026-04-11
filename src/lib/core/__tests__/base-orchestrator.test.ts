@@ -591,12 +591,15 @@ describe('BaseOrchestrator - executeSingleTask', () => {
           files: [
             { path: 'src/feature.ts', content: 'export const feature = 1', action: 'create' as const },
           ],
-        })
-        .mockResolvedValueOnce({
+        }),
+      executeReviewPipeline: jest.fn().mockResolvedValue({
+        reviewResult: {
           agent: 'review' as AgentRole,
           message: 'Approved',
           status: 'success' as const,
-        }),
+        },
+        daTriggered: false,
+      }),
       saveFile: jest.fn().mockImplementation(async (path: string, content: string) => {
         savedFiles.push({ path, content })
       }),
@@ -614,7 +617,8 @@ describe('BaseOrchestrator - executeSingleTask', () => {
       allFiles,
     )
 
-    expect(callbacks.executeAgent).toHaveBeenCalledTimes(2)
+    expect(callbacks.executeAgent).toHaveBeenCalledTimes(1) // only dev
+    expect(callbacks.executeReviewPipeline).toHaveBeenCalledTimes(1)
     expect(callbacks.broadcast).toHaveBeenCalledWith('dev', 'Implemented')
     expect(callbacks.broadcast).toHaveBeenCalledWith('review', 'Approved')
     expect(savedFiles).toEqual([{ path: 'src/feature.ts', content: 'export const feature = 1' }])
@@ -725,15 +729,11 @@ describe('BaseOrchestrator - executeSingleTask', () => {
       updatedAt: new Date(),
     }
 
-    let callCount = 0
     const callbacks = makeMockCallbacks({
-      executeAgent: jest.fn().mockImplementation(async () => {
-        callCount++
-        if (callCount === 1) {
-          return { agent: 'dev' as AgentRole, message: 'Done', status: 'success' as const }
-        }
-        throw new Error('Review agent crashed')
+      executeAgent: jest.fn().mockResolvedValue({
+        agent: 'dev' as AgentRole, message: 'Done', status: 'success' as const,
       }),
+      executeReviewPipeline: jest.fn().mockRejectedValue(new Error('Review pipeline crashed')),
     })
 
     const orchestrator = new TestOrchestrator(callbacks, { maxRetries: 0, initialDelay: 1, maxDelay: 1, backoffMultiplier: 1 })
@@ -769,17 +769,19 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     }
 
     const callbacks = makeMockCallbacks({
-      executeAgent: jest.fn()
-        .mockResolvedValueOnce({
-          agent: 'dev' as AgentRole,
-          message: 'Done',
-          status: 'success' as const,
-        })
-        .mockResolvedValueOnce({
+      executeAgent: jest.fn().mockResolvedValue({
+        agent: 'dev' as AgentRole,
+        message: 'Done',
+        status: 'success' as const,
+      }),
+      executeReviewPipeline: jest.fn().mockResolvedValue({
+        reviewResult: {
           agent: 'review' as AgentRole,
           message: 'Needs fixes',
           status: 'error' as const,
-        }),
+        },
+        daTriggered: false,
+      }),
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
@@ -795,7 +797,8 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     )
 
     expect(completedTaskIds.has('dev-task-5')).toBe(false)
-    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-5', 'failed')
+    // After MAX_ITERATIONS review rejections, task enters HITL (awaiting_human_review)
+    expect(callbacks.updateTaskStatus).toHaveBeenCalledWith('dev-task-5', 'awaiting_human_review')
     expect(callbacks.updateTaskStatus).not.toHaveBeenCalledWith('dev-task-5', 'pending')
 
     const events = orchestrator.getEventBus().getHistory()
@@ -803,8 +806,9 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     expect(failedEvents.length).toBeGreaterThanOrEqual(1)
     expect(['dev', 'review']).toContain(failedEvents[0].agentRole)
 
-    const obs = orchestrator.getObservability()
-    expect(obs.errorSummary.total).toBeGreaterThan(0)
+    // HITL path (awaiting_human_review) emits task:failed events via event bus
+    // but does not increment obs.errors; verify task was not completed
+    expect(completedTaskIds.has('dev-task-5')).toBe(false)
   })
 
   it('should handle unexpected errors in task execution', async () => {
@@ -904,17 +908,19 @@ describe('BaseOrchestrator - executeSingleTask', () => {
     }
 
     const callbacks = makeMockCallbacks({
-      executeAgent: jest.fn()
-        .mockResolvedValueOnce({
-          agent: 'dev' as AgentRole,
-          message: 'Done',
-          status: 'success' as const,
-        })
-        .mockResolvedValueOnce({
+      executeAgent: jest.fn().mockResolvedValueOnce({
+        agent: 'dev' as AgentRole,
+        message: 'Done',
+        status: 'success' as const,
+      }),
+      executeReviewPipeline: jest.fn().mockResolvedValue({
+        reviewResult: {
           agent: 'review' as AgentRole,
           message: 'Approved',
           status: 'success' as const,
-        }),
+        },
+        daTriggered: false,
+      }),
     })
 
     const orchestrator = new TestOrchestrator(callbacks)
@@ -931,9 +937,9 @@ describe('BaseOrchestrator - executeSingleTask', () => {
 
     const events = orchestrator.getEventBus().getHistory()
     const startedEvents = events.filter(e => e.type === 'task:started' && e.taskId === 'dev-task-6')
-    expect(startedEvents.length).toBe(2)
+    // Review now goes through executeReviewPipeline, so only dev emits task:started
+    expect(startedEvents.length).toBe(1)
     expect(startedEvents[0].agentRole).toBe('dev')
-    expect(startedEvents[1].agentRole).toBe('review')
   })
 
   it('should increment orchestrator.tasks.completed on success', async () => {

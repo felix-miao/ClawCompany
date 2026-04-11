@@ -180,7 +180,7 @@ export interface FileChange {
 }
 
 export interface AgentResponse {
-  agent: AgentRole
+  agent?: AgentRole
   message: string
   tasks?: (Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { status?: TaskStatus })[]
   files?: FileChange[]
@@ -204,6 +204,12 @@ export interface AgentContext {
    * Agents can optionally include these in their prompts for continuity.
    */
   memoryHints?: string[]
+  /**
+   * Historical review context block (Markdown) injected from ReviewMemoryStore.
+   * Prepended to the Reviewer's user prompt to surface recurring issues from
+   * past reviews across tasks.
+   */
+  reviewHistoryContext?: string
 }
 
 export interface ChatMessage {

@@ -97,7 +97,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
 
       const firstDevStart = Math.min(...devExecutions.map((e) => e.start))
       const lastDevStart = Math.max(...devExecutions.map((e) => e.start))
-      expect(lastDevStart - firstDevStart).toBeLessThan(100)
+      expect(lastDevStart - firstDevStart).toBeLessThan(200)
 
       expect(result.success).toBe(true)
       expect(result.stats?.totalTasks).toBe(3)

@@ -2,7 +2,7 @@
  * Devil's Advocate Agent 单元测试
  */
 
-import { DevilAdvocateAgent, shouldTriggerDA, Challenge } from '../devil-advocate-agent'
+import { DevilAdvocateAgent, shouldTriggerDA, evaluateDAGate, Challenge } from '../devil-advocate-agent'
 import { Task, AgentContext } from '../../core/types'
 
 // ─── Test Fixtures ─────────────────────────────────────────────
@@ -110,7 +110,8 @@ describe('shouldTriggerDA', () => {
       dependencies: [],
       files: [],
     }
-    expect(shouldTriggerDA(task, { approved: true, score: 80 })).toBe(false)
+    // score=80 falls in 60-85 sampling range; pass random=0.5 (>0.3) to ensure deterministic skip
+    expect(evaluateDAGate(task, { approved: true, score: 80 }, undefined, 0.5).trigger).toBe(false)
   })
 
   it('包含 auth 关键词应触发 DA', () => {
@@ -151,7 +152,7 @@ describe('DevilAdvocateAgent', () => {
 
   it('应该能实例化', () => {
     expect(agent).toBeDefined()
-    expect(agent.role).toBe('review')
+    expect(agent.role).toBe('devil-advocate')
     expect(agent.name).toBe("Devil's Advocate Claw")
   })
 

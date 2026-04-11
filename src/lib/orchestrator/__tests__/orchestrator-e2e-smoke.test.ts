@@ -155,7 +155,7 @@ describe('Orchestrator E2E Smoke Test — PM → Dev → Review happy path', () 
     const devResponse: AgentResponse = {
       message: 'Dev: implemented hello.ts',
       tasks: [],
-      files: [{ path: 'src/hello.ts', content: 'export function hello() { return "Hello World" }' }],
+      files: [{ path: 'src/hello.ts', content: 'export function hello() { return "Hello World" }', action: 'create' as const }],
       status: 'success',
     }
 

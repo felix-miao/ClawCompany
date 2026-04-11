@@ -82,11 +82,17 @@ export class ReviewAgent extends BaseAgent {
 
     const base = `## 任务信息\n${sanitizeTaskPrompt(task)}\n\n## 审查范围\n请对刚才实现的代码进行全面审查。`
 
+    // Prepend historical review context when available (from ReviewMemoryStore)
+    const historyContext = context?.reviewHistoryContext ?? ''
+    const historySection = historyContext
+      ? `\n\n${historyContext}`
+      : ''
+
     if (codeContent) {
-      return `${base}\n\n## Code to Review:\n${codeContent}\n\n请开始审查。`
+      return `${base}${historySection}\n\n## Code to Review:\n${codeContent}\n\n请开始审查。`
     }
 
-    return `${base}\n\n请开始审查。`
+    return `${base}${historySection}\n\n请开始审查。`
   }
 
   private getSystemPrompt(): string {

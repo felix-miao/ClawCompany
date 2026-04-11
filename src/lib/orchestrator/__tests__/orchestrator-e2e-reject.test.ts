@@ -149,7 +149,7 @@ describe('Orchestrator E2E — Review REJECT with rollback', () => {
     const devResponse: AgentResponse = {
       message: 'Dev: fixed',
       tasks: [],
-      files: [{ path: 'src/fix.ts', content: 'export const fix = () => {}' }],
+      files: [{ path: 'src/fix.ts', content: 'export const fix = () => {}', action: 'modify' as const }],
       status: 'success',
     }
 

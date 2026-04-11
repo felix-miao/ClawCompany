@@ -725,13 +725,13 @@ describe('Orchestrator - 错误处理和重试机制', () => {
 
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'in_progress')
       expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'review')
-      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'failed')
+      // After max iterations of review rejection, task enters HITL (awaiting_human_review)
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'awaiting_human_review')
       expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'pending')
       expect(taskManager.updateTaskStatus).not.toHaveBeenCalledWith('dev-1', 'completed')
       expect(result.success).toBe(false)
-      expect(result.failedTasks).toBeDefined()
-      expect(result.failedTasks!.length).toBeGreaterThanOrEqual(1)
-      expect(result.failedTasks!.some(ft => ft.taskId === 'dev-1')).toBe(true)
+      // HITL path: task is awaiting human review, not recorded in failedTasks
+      // The workflow fails because the task was not completed
     })
   })
 

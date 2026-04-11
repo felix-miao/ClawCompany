@@ -24,6 +24,7 @@ import { getGameEventStore } from '@/game/data/GameEventStore'
 import { DPScoreStore, buildDPScoreRecord } from '../analytics/dp-score-store'
 import { TraceLogger } from '../analytics/trace-logger'
 import { CheckpointService } from '../tasks/checkpoint-service'
+import { ReviewMemoryStore, buildReviewHistoryContext } from '../tasks/review-memory-store'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxRetries: 3,
@@ -86,6 +87,8 @@ export abstract class BaseOrchestrator {
   private snapshotManager: FileSnapshotManager | null = null
   /** Working memory — lazily initialized */
   private workingMemory: WorkingMemory | null = null
+  /** Review memory (FTS5) — lazily initialized */
+  private reviewMemory: ReviewMemoryStore | null = null
   /** Current session ID for memory scoping */
   protected sessionId: string = `session-${Date.now()}`
 
@@ -437,6 +440,20 @@ export abstract class BaseOrchestrator {
     }
   }
 
+  /** Lazily initialise ReviewMemoryStore (FTS5). Returns null on failure (non-fatal). */
+  private getReviewMemory(): ReviewMemoryStore | null {
+    if (this.reviewMemory) return this.reviewMemory
+    try {
+      this.reviewMemory = ReviewMemoryStore.getInstance()
+      return this.reviewMemory
+    } catch (err) {
+      this.logWarn('[ReviewMemory] Failed to initialize', {
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return null
+    }
+  }
+
   /**
    * Store a memory entry for the current session.
    * Silently no-ops if memory system is unavailable.
@@ -550,10 +567,14 @@ export abstract class BaseOrchestrator {
       // Rebuild context so review can see newly saved files
       const reviewContext = await this.buildContext(cb)
 
+      // ─── Inject historical review context (FTS5) ──────────────
+      const reviewContextWithHistory = this.buildReviewContextWithHistory(task, reviewContext)
+      // ─────────────────────────────────────────────────────────
+
       // ─── Review Pipeline（含 DA 智能门控）─────────────────────
       let pipelineResult: ReviewPipelineResult
       try {
-        pipelineResult = await cb.executeReviewPipeline(task, reviewContext)
+        pipelineResult = await cb.executeReviewPipeline(task, reviewContextWithHistory)
       } catch {
         this.markTaskFailed(task, cb, 'review', 'Review pipeline threw an error')
         return
@@ -587,6 +608,10 @@ export abstract class BaseOrchestrator {
 
       // ─── DP Score 持久化（基于 Review score）─────────────────
       this.persistDPScore(task, reviewResponse)
+      // ─────────────────────────────────────────────────────────
+
+      // ─── Review Memory 索引（FTS5 跨任务学习）────────────────
+      this.indexReviewMemory(task, reviewResponse)
       // ─────────────────────────────────────────────────────────
 
       // DA FATAL 判定：基本假设错误，不应继续迭代 → 转 HITL
@@ -659,7 +684,7 @@ export abstract class BaseOrchestrator {
         iteration,
         feedback: finalResponse.message.slice(0, 200),
       })
-      context = { ...reviewContext, reviewFeedback: finalResponse.message }
+      context = { ...reviewContextWithHistory, reviewFeedback: finalResponse.message }
       cb.updateTaskStatus(task.id, 'in_progress')
     }
   }
@@ -694,6 +719,55 @@ export abstract class BaseOrchestrator {
         taskId: task.id,
         error: err instanceof Error ? err.message : String(err),
       })
+    }
+  }
+
+  /**
+   * Index review results into the FTS5 ReviewMemoryStore for cross-task learning.
+   * Non-fatal: failures are logged as warnings.
+   */
+  private indexReviewMemory(task: Task, reviewResponse: AgentResponse): void {
+    try {
+      const store = this.getReviewMemory()
+      if (!store) return
+      const filePaths = task.files ?? []
+      store.index(task.id, {
+        message: reviewResponse.message,
+        metadata: reviewResponse.metadata,
+      }, filePaths)
+      this.logInfo('[ReviewMemory] Indexed review issues', { taskId: task.id })
+    } catch (err) {
+      this.logWarn('[ReviewMemory] Failed to index review', {
+        taskId: task.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  /**
+   * Build an augmented AgentContext with `reviewHistoryContext` injected from
+   * the FTS5 ReviewMemoryStore. Non-fatal: returns base context on failure.
+   */
+  private buildReviewContextWithHistory(task: Task, baseContext: AgentContext): AgentContext {
+    try {
+      const store = this.getReviewMemory()
+      if (!store) return baseContext
+      // Only inject if there's any indexed history to surface
+      if (store.getTotalCount() === 0) return baseContext
+      const historyCtx = buildReviewHistoryContext(
+        store,
+        task.title + ' ' + task.description.slice(0, 200),
+        task.files ?? [],
+        5,
+      )
+      if (!historyCtx) return baseContext
+      return { ...baseContext, reviewHistoryContext: historyCtx }
+    } catch (err) {
+      this.logWarn('[ReviewMemory] Failed to build history context', {
+        taskId: task.id,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      return baseContext
     }
   }
 
