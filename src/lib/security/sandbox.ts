@@ -37,6 +37,36 @@ const DANGEROUS_PATTERNS = [
   /\bexecSync\s*\(/,
   /\bspawn\s*\(/,
   /\bspawnSync\s*\(/,
+
+  // ── Python dangerous patterns ──────────────────────────────────────────────
+  /\bos\.system\s*\(/,
+  /\bsubprocess\.(call|run|Popen|check_output|getoutput|getstatusoutput)\s*\(/,
+  /\bimport\s+subprocess\b/,
+  /\bfrom\s+subprocess\s+import\b/,
+  /\bexec\s*\(.*compile/,
+  /\b__import__\s*\(/,
+  /\bpickle\.(load|loads)\s*\(/,
+  /\beval\s*\(/,
+  /\bexecfile\s*\(/,
+
+  // ── Shell / Bash dangerous patterns ───────────────────────────────────────
+  /`[^`]*`/,                         // backtick command substitution
+  /\$\([^)]*\)/,                      // $(command) substitution
+  /\bcurl\s+.*\|\s*(ba)?sh\b/i,       // curl | sh / curl | bash
+  /\bwget\s+.*\|\s*(ba)?sh\b/i,       // wget | sh / wget | bash
+  /\bchmod\s+[0-7]*\+x\b/,           // chmod +x (making scripts executable)
+  /\brm\s+-rf?\b/,                    // rm -rf
+  /\bdd\s+if=/,                       // dd if=... (disk operations)
+  /\b(nc|ncat|netcat)\s+/,           // netcat / reverse shells
+  /\b(python|python3|ruby|perl)\s+-[ce]\s+/,  // inline eval execution
+  /\bbase64\s+-d\b.*\|\s*(ba)?sh\b/i, // base64 -d | sh
+
+  // ── HTML / XSS dangerous patterns ────────────────────────────────────────
+  /javascript\s*:/gi,                 // javascript: URI
+  /on(load|error|click|mouse\w+|key\w+|focus|blur|submit|change|input|drag\w*|touch\w*)\s*=/gi, // inline event handlers
+  /data\s*:\s*text\/html/gi,          // data:text/html URIs
+  /<!--[\s\S]*?-->/g,                 // HTML comments (may hide payloads)
+  /\bvbscript\s*:/gi,                 // VBScript URI
 ]
 
 // Patterns that are critical enough to BLOCK the write entirely.
@@ -47,6 +77,20 @@ const BLOCKED_PATTERNS: { pattern: RegExp; reason: string }[] = [
   { pattern: /\bexecSync\s*\(/, reason: 'execSync() is not allowed' },
   { pattern: /\bspawnSync\s*\(/, reason: 'spawnSync() is not allowed' },
   { pattern: /\0/, reason: 'Null byte in content is not allowed' },
+
+  // ── Python ─────────────────────────────────────────────────────────────────
+  { pattern: /\bos\.system\s*\(/, reason: 'os.system() is not allowed' },
+  { pattern: /\bsubprocess\.(Popen|check_output|getoutput)\s*\(/, reason: 'subprocess execution is not allowed' },
+  { pattern: /\bpickle\.(load|loads)\s*\(/, reason: 'pickle deserialization is not allowed' },
+
+  // ── Shell ───────────────────────────────────────────────────────────────────
+  { pattern: /\bcurl\s+.*\|\s*(ba)?sh\b/i, reason: 'curl piped to shell is not allowed' },
+  { pattern: /\bwget\s+.*\|\s*(ba)?sh\b/i, reason: 'wget piped to shell is not allowed' },
+  { pattern: /\bbase64\s+-d\b.*\|\s*(ba)?sh\b/i, reason: 'base64 decode piped to shell is not allowed' },
+
+  // ── HTML ────────────────────────────────────────────────────────────────────
+  { pattern: /javascript\s*:/gi, reason: 'javascript: URI is not allowed' },
+  { pattern: /\bvbscript\s*:/gi, reason: 'vbscript: URI is not allowed' },
 ]
 
 const MAX_FILE_SIZE = 1024 * 1024 // 1MB

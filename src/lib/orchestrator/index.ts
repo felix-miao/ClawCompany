@@ -8,6 +8,7 @@ import { SandboxedFileWriter } from '../security/sandbox'
 import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError, FileSystemError } from '../core/errors'
+import { sanitizePMAnalysis } from '../utils/prompt-sanitizer'
 import { SubTaskSchema } from '../agents/schemas'
 import { UnifiedRetry } from '../core/unified-retry'
 import { getGameEventStore } from '@/game/data/GameEventStore'
@@ -193,8 +194,12 @@ export class Orchestrator extends BaseOrchestrator {
         this.emitWorkflowFailed({ reason: 'PM task failed after all retries' })
         return this.createErrorResponse('PM task failed after all retries', cb, initialTask.id)
       }
-      // Capture PM analysis for injection into dev context (Fix 3)
-      this.currentPMAnalysis = (pmResponse.metadata?.pmAnalysis as string) || ''
+      // Capture PM analysis for injection into dev context.
+      // Sanitize before storing to prevent prompt injection payloads that were
+      // embedded in the original user request from propagating via PM output.
+      this.currentPMAnalysis = sanitizePMAnalysis(
+        (pmResponse.metadata?.pmAnalysis as string) || ''
+      )
       const pmCompletedIds = new Set<string>()
       this.markTaskCompleted(initialTask, cb, pmCompletedIds, 'pm')
 
