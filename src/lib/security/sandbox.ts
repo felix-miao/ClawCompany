@@ -10,9 +10,9 @@ const ALLOWED_EXTENSIONS = new Set([
   '.txt', '.csv',
   '.yaml', '.yml', '.toml',
   '.svg', '.xml',
-  '.env', '.env.local', '.env.development', '.env.production',
+  // '.env', '.env.local', '.env.development', '.env.production', // removed: env files should not be allowed
   '.gitignore', '.eslintrc', '.prettierrc',
-  '.sh', '.bash',
+  // '.sh', '.bash', // removed: shell scripts should not be allowed
   '.py', '.rb', '.go', '.rs', '.java',
   '.sql',
   '.graphql', '.gql',
@@ -168,7 +168,7 @@ export class SandboxedFileWriter {
 
     for (const pattern of DANGEROUS_PATTERNS) {
       if (pattern.test(content)) {
-        warnings.push(`Content contains potentially dangerous pattern: ${pattern.source}`)
+        return { allowed: false, reason: `Content contains dangerous pattern: ${pattern.source}` }
       }
       pattern.lastIndex = 0
     }

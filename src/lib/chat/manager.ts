@@ -8,9 +8,14 @@ export class ChatManager {
   private messages: Message[] = []
   private messageMap: Map<string, Message> = new Map()
   private sessionId: string
+  private readonly maxMessages: number
 
-  constructor(sessionId: string = 'default') {
+  /** @param sessionId - session identifier (default: 'default')
+   *  @param maxMessages - max messages to retain in memory (0 = unlimited, default: 500)
+   */
+  constructor(sessionId: string = 'default', maxMessages: number = 500) {
     this.sessionId = sessionId
+    this.maxMessages = maxMessages
   }
 
   addMessage(
@@ -26,6 +31,14 @@ export class ChatManager {
       type,
       timestamp: new Date(),
       metadata
+    }
+
+    // Evict oldest message when cap is reached (P0-fix #069: unbounded growth)
+    if (this.maxMessages > 0 && this.messages.length >= this.maxMessages) {
+      const removed = this.messages.shift()
+      if (removed) {
+        this.messageMap.delete(removed.id)
+      }
     }
 
     this.messages.push(message)
@@ -105,8 +118,8 @@ export class ChatManager {
   }
 }
 
-export function createChatManager(sessionId?: string): ChatManager {
-  return new ChatManager(sessionId)
+export function createChatManager(sessionId?: string, maxMessages?: number): ChatManager {
+  return new ChatManager(sessionId, maxMessages)
 }
 
 /** @deprecated Use DI container or createChatManager() instead */

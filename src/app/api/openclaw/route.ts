@@ -41,7 +41,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
 
     const data = await response.json()
     const sessionKey = data.sessionKey
-    console.log('[OpenClaw API] Session spawned:', sessionKey)
+    console.log('[OpenClaw API] Session spawned')
 
     // P0-B fix: immediately return sessionKey instead of blocking 60s poll.
     // Frontend should listen for results via the /api/game-events SSE stream,

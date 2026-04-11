@@ -8,6 +8,25 @@ import {
 } from './type-utils'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
+const DEFAULT_TIMEOUT_MS = 30_000
+
+/** Creates a fetch call wrapped with AbortController timeout (P0-fix #070) */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    throw error
+  }
+}
 
 export interface ChatResponse {
   success: boolean
@@ -45,7 +64,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
       }
     }
 
-    const response = await fetch(`${API_BASE}/api/chat`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,6 +79,12 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
     const data = await response.json()
     return validateChatResponse(data)
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: `Request timeout (${DEFAULT_TIMEOUT_MS / 1000}s)`,
+      }
+    }
     console.error('Failed to send message:', error)
     return {
       success: false,
@@ -70,7 +95,7 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
 
 export async function getChatHistory(): Promise<ChatHistoryResponse> {
   try {
-    const response = await fetch(`${API_BASE}/api/chat`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/chat`, {
       method: 'GET',
     })
 
@@ -81,6 +106,14 @@ export async function getChatHistory(): Promise<ChatHistoryResponse> {
     const data = await response.json()
     return validateChatHistoryResponse(data)
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('getChatHistory: request timeout')
+      return {
+        tasks: [],
+        chatHistory: [],
+        agents: [],
+      }
+    }
     console.error('Failed to get chat history:', error)
     return {
       tasks: [],

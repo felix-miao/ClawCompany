@@ -28,11 +28,12 @@ describe('API Client', () => {
 
       const result = await sendMessage('Hello')
 
-      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', {
+      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: 'Hello' }),
-      })
+        signal: expect.any(AbortSignal),
+      }))
       expect(result.success).toBe(true)
       expect(result.message).toBe('Hello from AI')
     })
@@ -185,7 +186,7 @@ describe('API Client', () => {
 
       const result = await getChatHistory()
 
-      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', { method: 'GET' })
+      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.objectContaining({ method: 'GET', signal: expect.any(AbortSignal) }))
       expect(result.tasks).toHaveLength(1)
       expect(result.chatHistory).toHaveLength(1)
       expect(result.agents).toHaveLength(1)
@@ -233,10 +234,76 @@ describe('API Client', () => {
 
       await getChatHistoryWithUrl()
 
-      expect(localFetchSpy).toHaveBeenCalledWith('https://api.example.com/api/chat', { method: 'GET' })
+      expect(localFetchSpy).toHaveBeenCalledWith('https://api.example.com/api/chat', expect.objectContaining({ method: 'GET' }))
 
       delete process.env.NEXT_PUBLIC_API_URL
       jest.resetModules()
+    })
+  })
+
+  describe('timeout handling (P0-fix #070)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    it('sendMessage: returns timeout error when fetch hangs', async () => {
+      // fetch that never resolves
+      fetchSpy.mockImplementationOnce((_url, options) => {
+        return new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted.')
+            err.name = 'AbortError'
+            reject(err)
+          })
+        })
+      })
+
+      const promise = sendMessage('hello')
+      // Fast-forward past the 30s timeout
+      jest.advanceTimersByTime(31_000)
+      const result = await promise
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('timeout')
+    })
+
+    it('getChatHistory: returns empty arrays when fetch hangs', async () => {
+      fetchSpy.mockImplementationOnce((_url, options) => {
+        return new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted.')
+            err.name = 'AbortError'
+            reject(err)
+          })
+        })
+      })
+
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+      const promise = getChatHistory()
+      jest.advanceTimersByTime(31_000)
+      const result = await promise
+
+      expect(result.tasks).toEqual([])
+      expect(result.chatHistory).toEqual([])
+      expect(result.agents).toEqual([])
+      consoleSpy.mockRestore()
+    })
+
+    it('sendMessage: passes signal to fetch options', async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, message: 'ok', tasks: [], chatHistory: [] }),
+      } as Response)
+
+      await sendMessage('test')
+
+      // Verify signal was included in fetch options
+      const callOptions = fetchSpy.mock.calls[0][1] as RequestInit
+      expect(callOptions.signal).toBeDefined()
+      expect(callOptions.signal).toBeInstanceOf(AbortSignal)
     })
   })
 })

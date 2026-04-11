@@ -65,6 +65,41 @@ describe('ChatManager', () => {
       expect(cm.addMessage('dev', 'd').agent).toBe('dev')
       expect(cm.addMessage('review', 'r').agent).toBe('review')
     })
+
+    it('evicts oldest message when maxMessages limit is reached (P0-fix #069)', () => {
+      const limited = new ChatManager('test', 3)
+      const m1 = limited.addMessage('user', 'msg1')
+      const m2 = limited.addMessage('user', 'msg2')
+      const m3 = limited.addMessage('user', 'msg3')
+      // At cap now; adding another should evict m1
+      limited.addMessage('user', 'msg4')
+
+      const history = limited.getHistory()
+      expect(history).toHaveLength(3)
+      expect(history[0].content).toBe('msg2')
+      expect(history[2].content).toBe('msg4')
+      // Evicted message no longer in messageMap
+      expect(limited.getMessage(m1.id)).toBeUndefined()
+      // Remaining messages still accessible
+      expect(limited.getMessage(m2.id)).toBeDefined()
+      expect(limited.getMessage(m3.id)).toBeDefined()
+    })
+
+    it('does not evict when maxMessages is 0 (unlimited)', () => {
+      const unlimited = new ChatManager('test', 0)
+      for (let i = 0; i < 600; i++) {
+        unlimited.addMessage('user', `msg${i}`)
+      }
+      expect(unlimited.getHistory()).toHaveLength(600)
+    })
+
+    it('default maxMessages is 500 — stops growing at cap', () => {
+      const defaultCm = new ChatManager()
+      for (let i = 0; i < 510; i++) {
+        defaultCm.addMessage('user', `msg${i}`)
+      }
+      expect(defaultCm.getHistory()).toHaveLength(500)
+    })
   })
 
   describe('getMessage', () => {
@@ -284,25 +319,28 @@ describe('ChatManager', () => {
 
   describe('getMessage performance', () => {
     const MESSAGE_COUNT = 10000
+    let perfCm: ChatManager
 
     beforeEach(() => {
+      // Use maxMessages=0 (unlimited) for performance tests
+      perfCm = new ChatManager('perf-session', 0)
       for (let i = 0; i < MESSAGE_COUNT; i++) {
-        cm.addMessage('user', `message_${i}`)
+        perfCm.addMessage('user', `message_${i}`)
       }
     })
 
     it('uses Map-based O(1) lookup for getMessage', () => {
-      const lastMsg = cm.getHistory()[MESSAGE_COUNT - 1]
+      const lastMsg = perfCm.getHistory()[MESSAGE_COUNT - 1]
       const start = performance.now()
       for (let i = 0; i < 1000; i++) {
-        cm.getMessage(lastMsg.id)
+        perfCm.getMessage(lastMsg.id)
       }
       const mapTime = performance.now() - start
 
-      const firstMsg = cm.getHistory()[0]
+      const firstMsg = perfCm.getHistory()[0]
       const start2 = performance.now()
       for (let i = 0; i < 1000; i++) {
-        cm.getMessage(firstMsg.id)
+        perfCm.getMessage(firstMsg.id)
       }
       const firstTime = performance.now() - start2
 
@@ -311,20 +349,20 @@ describe('ChatManager', () => {
     })
 
     it('lookups for last message are not slower than first message', () => {
-      const firstMsg = cm.getHistory()[0]
-      const lastMsg = cm.getHistory()[MESSAGE_COUNT - 1]
+      const firstMsg = perfCm.getHistory()[0]
+      const lastMsg = perfCm.getHistory()[MESSAGE_COUNT - 1]
 
       const iterations = 500
 
       const startFirst = performance.now()
       for (let i = 0; i < iterations; i++) {
-        cm.getMessage(firstMsg.id)
+        perfCm.getMessage(firstMsg.id)
       }
       const firstTime = performance.now() - startFirst
 
       const startLast = performance.now()
       for (let i = 0; i < iterations; i++) {
-        cm.getMessage(lastMsg.id)
+        perfCm.getMessage(lastMsg.id)
       }
       const lastTime = performance.now() - startLast
 
@@ -333,8 +371,8 @@ describe('ChatManager', () => {
 
     it('returns correct message from large dataset', () => {
       const middleIndex = Math.floor(MESSAGE_COUNT / 2)
-      const middleMsg = cm.getHistory()[middleIndex]
-      const found = cm.getMessage(middleMsg.id)
+      const middleMsg = perfCm.getHistory()[middleIndex]
+      const found = perfCm.getMessage(middleMsg.id)
 
       expect(found).toBeDefined()
       expect(found!.content).toBe(`message_${middleIndex}`)
@@ -343,7 +381,7 @@ describe('ChatManager', () => {
     it('handles non-existent IDs efficiently', () => {
       const start = performance.now()
       for (let i = 0; i < 1000; i++) {
-        cm.getMessage(`nonexistent_${i}`)
+        perfCm.getMessage(`nonexistent_${i}`)
       }
       const elapsed = performance.now() - start
 
@@ -351,14 +389,14 @@ describe('ChatManager', () => {
     })
 
     it('map stays in sync after clearHistory', () => {
-      const msg = cm.addMessage('user', 'after-clear-test')
-      cm.clearHistory()
-      expect(cm.getMessage(msg.id)).toBeUndefined()
+      const msg = perfCm.addMessage('user', 'after-clear-test')
+      perfCm.clearHistory()
+      expect(perfCm.getMessage(msg.id)).toBeUndefined()
     })
 
     it('map stays in sync after fromJSON', () => {
-      cm.addMessage('user', 'serialized')
-      const json = cm.toJSON()
+      perfCm.addMessage('user', 'serialized')
+      const json = perfCm.toJSON()
       const restored = ChatManager.fromJSON(json)
       const history = restored.getHistory()
 

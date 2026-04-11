@@ -403,6 +403,14 @@ export abstract class BaseOrchestrator {
         return
       }
 
+      // Review rejected — emit before incrementing iteration (so value reflects current round)
+      getGameEventStore().push({
+        type: 'review:rejected',
+        agentId: 'review-agent',
+        timestamp: Date.now(),
+        payload: { taskId: task.id, iteration, feedback: reviewResponse.message ?? '' },
+      })
+
       // Review not approved — check if we should iterate
       iteration++
       if (iteration >= MAX_ITERATIONS) {
@@ -416,14 +424,6 @@ export abstract class BaseOrchestrator {
         })
         return
       }
-
-      // Review rejected — emit before retrying
-      getGameEventStore().push({
-        type: 'review:rejected',
-        agentId: 'review-agent',
-        timestamp: Date.now(),
-        payload: { taskId: task.id, iteration, feedback: reviewResponse.message ?? '' },
-      })
 
       // Pass review feedback into the next dev iteration
       this.logInfo('Review not approved, retrying dev with feedback', {
