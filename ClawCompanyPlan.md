@@ -48,7 +48,7 @@
   - **文件**: `src/lib/chat/manager.ts` (31行)
   - **修复**: 加 maxMessages 参数（默认500），超出滚动删除
 
-- [ ] **#070 [P0][LIB] api/client.ts fetch 无超时控制**
+- [code-complete] **#070 [P0][LIB] api/client.ts fetch 无超时控制**
   - **文件**: `src/lib/api/client.ts` (50行/68行)
   - **修复**: AbortController + setTimeout 包裹 fetch
 

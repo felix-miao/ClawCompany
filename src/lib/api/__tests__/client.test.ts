@@ -1,15 +1,17 @@
-import { sendMessage, getChatHistory } from '../client'
+import { REQUEST_TIMEOUT_MS, sendMessage, getChatHistory } from '../client'
 
 describe('API Client', () => {
   let fetchSpy: jest.SpiedFunction<typeof fetch>
 
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.useRealTimers()
     globalThis.fetch = jest.fn() as any
     fetchSpy = jest.spyOn(globalThis, 'fetch')
   })
 
   afterEach(() => {
+    jest.useRealTimers()
     fetchSpy.mockRestore()
   })
 
@@ -28,11 +30,12 @@ describe('API Client', () => {
 
       const result = await sendMessage('Hello')
 
-      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', {
+      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: 'Hello' }),
-      })
+        signal: expect.any(AbortSignal),
+      }))
       expect(result.success).toBe(true)
       expect(result.message).toBe('Hello from AI')
     })
@@ -63,7 +66,6 @@ describe('API Client', () => {
       const result = await sendMessage('')
 
       expect(result.success).toBe(false)
-      // 空字符串在输入验证阶段就被拦截，不会到达 API
       expect(result.error).toBe('Message must be a non-empty string')
       consoleSpy.mockRestore()
     })
@@ -150,10 +152,64 @@ describe('API Client', () => {
 
       await sendMessageWithUrl('Hello')
 
-      expect(localFetchSpy).toHaveBeenCalledWith('https://api.example.com/api/chat', expect.any(Object))
+      expect(localFetchSpy).toHaveBeenCalledWith('https://api.example.com/api/chat', expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }))
 
       delete process.env.NEXT_PUBLIC_API_URL
       jest.resetModules()
+    })
+
+    it('should return error on timeout', async () => {
+      jest.useFakeTimers()
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      fetchSpy.mockImplementationOnce(
+        (_url: string | URL | Request, options?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+          const signal = options?.signal as AbortSignal | undefined
+
+          signal?.addEventListener('abort', () => {
+            reject(new DOMException('Request aborted', 'AbortError'))
+          }, { once: true })
+        })
+      )
+
+      const resultPromise = sendMessage('test')
+      await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+      const result = await resultPromise
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain('timeout')
+      consoleSpy.mockRestore()
+    })
+
+    it('should clear timeout on successful response', async () => {
+      const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout')
+      const mockResponse = { success: true, message: 'OK', tasks: [], chatHistory: [] }
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response)
+
+      await sendMessage('test')
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      clearTimeoutSpy.mockRestore()
+    })
+
+    it('should clear timeout on error response', async () => {
+      const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout')
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      fetchSpy.mockRejectedValueOnce(new Error('Network error'))
+
+      const result = await sendMessage('test')
+
+      expect(result.success).toBe(false)
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      consoleSpy.mockRestore()
+      clearTimeoutSpy.mockRestore()
     })
   })
 
@@ -185,7 +241,10 @@ describe('API Client', () => {
 
       const result = await getChatHistory()
 
-      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', { method: 'GET' })
+      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
+        method: 'GET',
+        signal: expect.any(AbortSignal),
+      }))
       expect(result.tasks).toHaveLength(1)
       expect(result.chatHistory).toHaveLength(1)
       expect(result.agents).toHaveLength(1)
@@ -233,10 +292,71 @@ describe('API Client', () => {
 
       await getChatHistoryWithUrl()
 
-      expect(localFetchSpy).toHaveBeenCalledWith('https://api.example.com/api/chat', { method: 'GET' })
+      expect(localFetchSpy).toHaveBeenCalledWith('https://api.example.com/api/chat', expect.objectContaining({
+        method: 'GET',
+        signal: expect.any(AbortSignal),
+      }))
 
       delete process.env.NEXT_PUBLIC_API_URL
       jest.resetModules()
+    })
+
+    it('should return empty arrays on timeout', async () => {
+      jest.useFakeTimers()
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      fetchSpy.mockImplementationOnce(
+        (_url: string | URL | Request, options?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+          const signal = options?.signal as AbortSignal | undefined
+
+          signal?.addEventListener('abort', () => {
+            reject(new DOMException('Request aborted', 'AbortError'))
+          }, { once: true })
+        })
+      )
+
+      const resultPromise = getChatHistory()
+      await jest.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS)
+      const result = await resultPromise
+
+      expect(result).toEqual({
+        tasks: [],
+        chatHistory: [],
+        agents: [],
+      })
+      consoleSpy.mockRestore()
+    })
+
+    it('should clear timeout on successful response', async () => {
+      const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout')
+
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ tasks: [], chatHistory: [], agents: [] }),
+      } as Response)
+
+      await getChatHistory()
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      clearTimeoutSpy.mockRestore()
+    })
+
+    it('should clear timeout on error response', async () => {
+      const clearTimeoutSpy = jest.spyOn(globalThis, 'clearTimeout')
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+
+      fetchSpy.mockRejectedValueOnce(new Error('Network error'))
+
+      const result = await getChatHistory()
+
+      expect(result).toEqual({
+        tasks: [],
+        chatHistory: [],
+        agents: [],
+      })
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+      consoleSpy.mockRestore()
+      clearTimeoutSpy.mockRestore()
     })
   })
 })
