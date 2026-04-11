@@ -1,8 +1,7 @@
 import { timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { RateLimiter } from '@/lib/security/utils'
-import { check as slidingWindowCheck } from '@/lib/security/rate-limiter'
+import { check as slidingWindowCheck, getRemaining as getRateLimitRemaining } from '@/lib/security/rate-limiter'
 import { isAppError, AppError, ErrorCategory, ErrorSeverity } from '@/lib/core/errors'
 import { logger } from '@/lib/core/logger'
 
@@ -99,21 +98,27 @@ export function errorResponse(error: unknown, status?: number, context?: string)
 
 export function successResponse(data: Record<string, unknown>, request?: NextRequest): NextResponse {
   const response: Record<string, unknown> = { success: true, ...data }
+
   if (request) {
     const clientId = getClientId(request)
-    response.remaining = RateLimiter.getRemaining(clientId)
+    // Use getRemaining (non-consuming) — the token was already consumed by checkRateLimit/withRateLimit
+    const remaining = getRateLimitRemaining(clientId)
+    response.remaining = remaining
   }
-  
+
   const nextResponse = NextResponse.json(response)
-  
+
   if (request) {
     const clientId = getClientId(request)
-    const result = slidingWindowCheck(clientId)
-    nextResponse.headers.set('X-RateLimit-Limit', String(result.limit))
-    nextResponse.headers.set('X-RateLimit-Remaining', String(result.remaining))
-    nextResponse.headers.set('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)))
+    // Re-use getRemaining for headers — no extra token consumed
+    const remaining = getRateLimitRemaining(clientId)
+    const stats = { limit: 10, windowMs: 60000 }
+    nextResponse.headers.set('X-RateLimit-Limit', String(stats.limit))
+    nextResponse.headers.set('X-RateLimit-Remaining', String(remaining))
+    // Reset = now + remaining window (approximate; accurate reset is tracked in check())
+    nextResponse.headers.set('X-RateLimit-Reset', String(Math.ceil((Date.now() + stats.windowMs) / 1000)))
   }
-  
+
   return nextResponse
 }
 

@@ -48,12 +48,7 @@ import { check as slidingWindowCheck } from '@/lib/security/rate-limiter'
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
-interface MockRequestOptions {
-  url?: string
-  noAuth?: boolean
-  headers?: Record<string, string>
-  body?: Record<string, unknown> | string
-}
+import { createMockNextRequest as createMockRequest } from '@/test-utils/next-request-mock'
 
 // 使用统一的 MockRequest 格式
 function createMockRequest(options?: MockRequestOptions) {

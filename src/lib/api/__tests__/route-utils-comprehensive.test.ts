@@ -11,6 +11,7 @@ import {
 } from '../route-utils'
 
 import { RateLimiter } from '@/lib/security/utils'
+import * as rateLimiterModule from '@/lib/security/rate-limiter'
 import { AppError, ValidationError, AgentError, LLMError, GatewayError, ErrorCategory, ErrorSeverity } from '@/lib/core/errors'
 import { logger } from '@/lib/core/logger'
 
@@ -28,6 +29,16 @@ jest.mock('@/lib/security/utils', () => ({
     isAllowed: jest.fn(() => true),
     getRemaining: jest.fn(() => 60),
   },
+}))
+
+jest.mock('@/lib/security/rate-limiter', () => ({
+  check: jest.fn((_ip: string) => ({
+    allowed: true,
+    remaining: 9,
+    limit: 10,
+    resetAt: Date.now() + 60000,
+  })),
+  getRemaining: jest.fn(() => 9),
 }))
 
 describe('route-utils comprehensive', () => {
@@ -335,7 +346,7 @@ describe('route-utils comprehensive', () => {
 
   describe('successResponse', () => {
     it('should include remaining when request provided', () => {
-      ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(42)
+      ;(rateLimiterModule.getRemaining as jest.Mock).mockReturnValue(42)
       const request = {
         headers: { get: (n: string) => n === 'x-forwarded-for' ? '1.2.3.4' : null },
       } as any
@@ -351,8 +362,13 @@ describe('route-utils comprehensive', () => {
 
   describe('checkRateLimit', () => {
     it('should return 429 with remaining count', async () => {
-      ;(RateLimiter.isAllowed as jest.Mock).mockReturnValue(false)
-      ;(RateLimiter.getRemaining as jest.Mock).mockReturnValue(0)
+      ;(rateLimiterModule.check as jest.Mock).mockReturnValue({
+        allowed: false,
+        remaining: 0,
+        limit: 10,
+        resetAt: Date.now() + 60000,
+        retryAfter: 30,
+      })
       const request = {
         headers: { get: () => '1.2.3.4' },
       } as any

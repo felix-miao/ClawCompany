@@ -30,12 +30,13 @@ jest.mock('@/lib/security/utils', () => ({
 }))
 
 jest.mock('@/lib/security/rate-limiter', () => ({
-  check: jest.fn((ip: string) => ({
+  check: jest.fn((_ip: string) => ({
     allowed: true,
     remaining: 9,
     limit: 10,
     resetAt: Date.now() + 60000,
   })),
+  getRemaining: jest.fn(() => 9),
 }))
 
 jest.mock('@/lib/core/logger', () => ({

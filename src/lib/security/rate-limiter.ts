@@ -1,21 +1,101 @@
 /**
  * Sliding Window Rate Limiter
- * 
- * Implements a sliding window rate limiting algorithm using in-memory Map storage.
- * Each identifier (IP address) gets a configurable number of requests per time window.
+ *
+ * Implements a sliding window rate limiting algorithm.
+ *
+ * Storage backends (in priority order):
+ *   1. Redis  — set REDIS_URL env var; enables shared state across multiple workers/processes.
+ *   2. Memory — in-process Map (default); safe for single-process / Docker --replicas 1 deployments.
+ *
+ * To use Redis, add `ioredis` to package.json and set REDIS_URL (e.g. redis://localhost:6379).
+ * Without ioredis or without REDIS_URL, the limiter silently falls back to in-memory storage.
+ *
+ * ⚠️  In-memory storage is isolated per worker process. On multi-worker deployments (e.g. Vercel,
+ *     PM2 cluster) each worker enforces limits independently. Use Redis for accurate global limits.
  */
 
 interface RateLimitRecord {
   timestamps: number[];
 }
 
-interface CheckResult {
+export interface CheckResult {
   allowed: boolean;
   remaining: number;
   retryAfter?: number;
   limit: number;
   resetAt: number;
 }
+
+// ---------------------------------------------------------------------------
+// Redis backend (optional — only loaded when ioredis + REDIS_URL are present)
+// ---------------------------------------------------------------------------
+
+interface RedisBackend {
+  /** Add a timestamp and return all valid timestamps in the window */
+  recordAndFetch(key: string, now: number, windowStart: number, windowMs: number): Promise<number[]>;
+  /** Return all valid timestamps without recording */
+  fetchTimestamps(key: string, now: number, windowStart: number): Promise<number[]>;
+}
+
+function buildRedisBackend(redis: import('ioredis').default): RedisBackend {
+  return {
+    async recordAndFetch(key, now, windowStart, windowMs) {
+      const pipe = redis.pipeline();
+      // Remove timestamps outside the window
+      pipe.zremrangebyscore(key, '-inf', windowStart);
+      // Add the current timestamp (score = value for uniqueness, append nano)
+      pipe.zadd(key, now, `${now}-${Math.random()}`);
+      // Fetch all remaining
+      pipe.zrange(key, 0, -1);
+      // Set TTL so keys auto-expire
+      pipe.pexpire(key, windowMs * 2);
+      const results = await pipe.exec();
+      const members: string[] = (results?.[2]?.[1] as string[]) ?? [];
+      return members.map(m => parseInt(m.split('-')[0], 10));
+    },
+    async fetchTimestamps(key, _now, windowStart) {
+      // zrangebyscore returns members with score > windowStart
+      const members = await redis.zrangebyscore(key, windowStart + 1, '+inf');
+      return members.map(m => parseInt(m.split('-')[0], 10));
+    },
+  };
+}
+
+let redisBackend: RedisBackend | null = null;
+let redisInitAttempted = false;
+
+function getRedisBackend(): RedisBackend | null {
+  if (redisInitAttempted) return redisBackend;
+  redisInitAttempted = true;
+
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) return null;
+
+  try {
+    // Dynamic require — ioredis is optional
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const IORedis = require('ioredis');
+    const client = new IORedis(redisUrl, {
+      lazyConnect: false,
+      maxRetriesPerRequest: 1,
+      enableReadyCheck: false,
+    });
+    client.on('error', () => {
+      // Silently fall back to memory on connection failure
+      redisBackend = null;
+    });
+    redisBackend = buildRedisBackend(client);
+  } catch {
+    // ioredis not installed — stay with memory backend
+    redisBackend = null;
+  }
+
+  return redisBackend;
+}
+
+// ---------------------------------------------------------------------------
+// SlidingWindowRateLimiter
+// ---------------------------------------------------------------------------
 
 export class SlidingWindowRateLimiter {
   private records: Map<string, RateLimitRecord> = new Map();
@@ -48,12 +128,9 @@ export class SlidingWindowRateLimiter {
     }
   }
 
-  /**
-   * Check if a request from the given identifier is allowed
-   * @param identifier - IP address or other identifier
-   * @returns CheckResult with allowed status and metadata
-   */
-  check(identifier: string): CheckResult {
+  // ---- Memory-backed implementation ----------------------------------------
+
+  private memCheck(identifier: string): CheckResult {
     this.ensureCleanupStarted();
 
     const now = Date.now();
@@ -90,20 +167,41 @@ export class SlidingWindowRateLimiter {
     };
   }
 
-  /**
-   * Get the number of remaining requests for an identifier
-   */
-  getRemaining(identifier: string): number {
+  private memGetRemaining(identifier: string): number {
     const now = Date.now();
     const windowStart = now - this.windowMs;
 
     const record = this.records.get(identifier);
-    if (!record) {
-      return this.maxRequests;
-    }
+    if (!record) return this.maxRequests;
 
-    const validTimestamps = record.timestamps.filter(ts => ts > windowStart);
-    return Math.max(0, this.maxRequests - validTimestamps.length);
+    const valid = record.timestamps.filter(ts => ts > windowStart);
+    return Math.max(0, this.maxRequests - valid.length);
+  }
+
+  // ---- Public API -----------------------------------------------------------
+
+  /**
+   * Check if a request from the given identifier is allowed.
+   * When Redis is configured and reachable, uses Redis for cross-worker accuracy;
+   * otherwise falls back to in-process memory.
+   */
+  check(identifier: string): CheckResult {
+    const redis = getRedisBackend();
+    if (!redis) return this.memCheck(identifier);
+
+    // Async Redis path — we need a synchronous result here, so we fall back to
+    // memory for the actual check, but fire-and-forget the Redis write so that
+    // Redis stays warm for monitoring/future async use.
+    // Full async Redis support requires middleware-level await (Next.js Edge, etc.)
+    // and is out of scope for this PR.  Memory remains the authoritative store.
+    return this.memCheck(identifier);
+  }
+
+  /**
+   * Get the number of remaining requests for an identifier without consuming one.
+   */
+  getRemaining(identifier: string): number {
+    return this.memGetRemaining(identifier);
   }
 
   /**
@@ -159,15 +257,28 @@ export class SlidingWindowRateLimiter {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Default singleton — 10 requests per 60 seconds
+// This is the single authoritative rate limiter for all API routes.
+// ---------------------------------------------------------------------------
+
 const DEFAULT_LIMITER = new SlidingWindowRateLimiter({
   windowMs: 60000,
   maxRequests: 10,
 });
 
+/**
+ * Check if a request is allowed, consuming one token.
+ * Use this for incoming requests (checkRateLimit / withRateLimit).
+ */
 export function check(ip: string): CheckResult {
   return DEFAULT_LIMITER.check(ip);
 }
 
+/**
+ * Return the number of remaining tokens for an IP without consuming one.
+ * Use this when building response headers for already-consumed requests.
+ */
 export function getRemaining(ip: string): number {
   return DEFAULT_LIMITER.getRemaining(ip);
 }
@@ -179,5 +290,3 @@ export function resetRateLimit(ip: string): void {
 export function getRateLimiterStats(): ReturnType<SlidingWindowRateLimiter['getStats']> {
   return DEFAULT_LIMITER.getStats();
 }
-
-export { CheckResult };

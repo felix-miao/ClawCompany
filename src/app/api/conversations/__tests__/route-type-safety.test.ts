@@ -36,6 +36,8 @@ jest.mock('@/lib/security/utils', () => ({
   },
 }))
 
+import { createMockNextRequest } from '@/test-utils/next-request-mock'
+
 import { POST, GET, PUT, DELETE } from '@/app/api/conversations/route'
 import { StorageManager } from '@/lib/storage/manager'
 import { InputValidator } from '@/lib/security/utils'
@@ -48,11 +50,6 @@ interface MockStorageManager {
   saveConversation: jest.Mock
   listConversations: jest.Mock
   deleteConversation: jest.Mock
-}
-
-interface MockRequest {
-  json: () => Promise<unknown>
-  headers: { get: (name: string) => string | null }
 }
 
 describe('API Route Type Safety - No any types', () => {
@@ -88,10 +85,7 @@ describe('API Route Type Safety - No any types', () => {
     ;(mockStorage.createConversation as jest.Mock).mockReturnValue(mockConversation)
     ;(mockStorage.saveConversation as jest.Mock).mockResolvedValue(undefined)
 
-    const request: MockRequest = {
-      json: async () => ({ title: 'Test Conversation' }),
-      headers: { get: () => 'test-api-key' },
-    }
+    const request = createMockNextRequest({ body: { title: 'Test Conversation' }, headers: { 'x-api-key': API_KEY } })
 
     const response = await POST(request)
 
@@ -101,10 +95,7 @@ describe('API Route Type Safety - No any types', () => {
   })
 
   it('should handle missing title with proper error typing', async () => {
-    const request: MockRequest = {
-      json: async () => ({ }),
-      headers: { get: () => 'test-api-key' },
-    }
+    const request = createMockNextRequest({ body: {}, headers: { 'x-api-key': API_KEY } })
 
     const response = await POST(request)
 
@@ -126,10 +117,7 @@ describe('API Route Type Safety - No any types', () => {
 
     ;(mockStorage.listConversations as jest.Mock).mockResolvedValue(mockConversations)
 
-    const request: MockRequest = {
-      json: async () => ({}),
-      headers: { get: () => 'test-api-key' },
-    }
+    const request = createMockNextRequest({ headers: { 'x-api-key': API_KEY } })
 
     const response = await GET(request)
 

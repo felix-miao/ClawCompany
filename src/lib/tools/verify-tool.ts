@@ -208,9 +208,10 @@ export class VerifyTool implements AgentTool<VerifyInput, VerifyOutput> {
 
     // 解析 testCases（可能是字符串 JSON 或已解析的对象）
     let testCases: VerifyTestCase[] | undefined = input.testCases
-    if (typeof (input as Record<string, unknown>).testCases === 'string') {
+    const inputAsAny = input as unknown as Record<string, unknown>
+    if (typeof inputAsAny.testCases === 'string') {
       try {
-        testCases = JSON.parse((input as Record<string, unknown>).testCases as string) as VerifyTestCase[]
+        testCases = JSON.parse(inputAsAny.testCases as string) as VerifyTestCase[]
       } catch {
         return {
           success: false,

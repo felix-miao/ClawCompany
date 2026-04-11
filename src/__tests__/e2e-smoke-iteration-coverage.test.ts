@@ -277,7 +277,7 @@ describe('E2E Smoke: Iteration Coverage (PR#4/5/7)', () => {
     // 订阅 GameEventStore 以捕获所有事件
     const store = getGameEventStore()
     const unsubscribe = store.subscribe((event) => {
-      capturedEvents.push({ type: event.type, timestamp: event.timestamp })
+      capturedEvents.push({ type: event.type, timestamp: event.timestamp! })
     })
 
     mockAgentManager.executeAgent.mockImplementation(
