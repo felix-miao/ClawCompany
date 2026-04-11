@@ -5,6 +5,7 @@ import { OpenAIProvider } from './openai'
 import { GLMProvider } from './glm'
 import { MockProvider } from './mock'
 import { GatewayProvider } from './gateway'
+import { AnthropicProvider } from './anthropic'
 
 export class LLMFactory {
   static createProvider(config: LLMConfig): LLMProvider {
@@ -16,7 +17,7 @@ export class LLMFactory {
         return new GLMProvider(config)
       
       case 'anthropic':
-        throw new Error('Anthropic provider not implemented yet')
+        return new AnthropicProvider(config, config.cacheTTL ?? '5m')
       
       default:
         throw new Error(`Unknown LLM provider: ${config.provider}`)
@@ -36,6 +37,24 @@ export class LLMFactory {
     if (useMock) {
       console.log('[LLM Factory] Using Mock Provider for demo')
       return new MockProvider()
+    }
+
+    // Anthropic Claude with prompt caching
+    const anthropicKey = process.env.ANTHROPIC_API_KEY
+    if (anthropicKey) {
+      const model = process.env.ANTHROPIC_MODEL || process.env.LLM_MODEL || 'claude-3-5-haiku-20241022'
+      const temperature = parseFloat(process.env.LLM_TEMPERATURE || '0.7')
+      const maxTokens = parseInt(process.env.LLM_MAX_TOKENS || '2000', 10)
+      const cacheTTL = (process.env.ANTHROPIC_CACHE_TTL as '5m' | '1h') || '5m'
+      console.log(`[LLM Factory] Using Anthropic Provider (${model}) with prompt caching (ttl=${cacheTTL})`)
+      return LLMFactory.createProvider({
+        provider: 'anthropic',
+        apiKey: anthropicKey,
+        model,
+        temperature,
+        maxTokens,
+        cacheTTL,
+      })
     }
 
     // 优先使用 GLM

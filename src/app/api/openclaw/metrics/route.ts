@@ -2,6 +2,16 @@ import { NextRequest } from 'next/server'
 
 import { withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
 import { SessionSyncService } from '@/lib/gateway/session-sync'
+import { cacheMetrics } from '@/lib/llm/cache-metrics'
+
+export interface PromptCacheMetrics {
+  cacheCreationInputTokens: number
+  cacheReadInputTokens: number
+  inputTokens: number
+  outputTokens: number
+  totalRequests: number
+  hitRate: number
+}
 
 export interface OpenClawMetrics {
   agents: {
@@ -21,6 +31,7 @@ export interface OpenClawMetrics {
     completionTokens: number
     totalTokens: number
   }
+  promptCache: PromptCacheMetrics
   source: 'gateway' | 'fallback'
   fetchedAt: string
 }
@@ -79,6 +90,7 @@ function buildMetrics(
       completionTokens,
       totalTokens,
     },
+    promptCache: cacheMetrics.snapshot(),
     source: 'gateway',
     fetchedAt: new Date().toISOString(),
   }
@@ -109,6 +121,7 @@ export const GET = withAuth(async (_request: NextRequest) => {
       agents: { total: 0, active: 0, idle: 0, byRole: {} },
       sessions: { total: 0, active: 0, completed: 0, failed: 0 },
       tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      promptCache: cacheMetrics.snapshot(),
       source: 'fallback',
       fetchedAt: new Date().toISOString(),
     }
