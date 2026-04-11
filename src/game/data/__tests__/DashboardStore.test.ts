@@ -444,5 +444,107 @@ describe('DashboardStore', () => {
       expect(store.getAgentById('pm-agent')?.status).toBe('idle');
       expect(store.getActiveTasks()).toEqual([]);
     });
+
+    it('should clear all events on reset', () => {
+      const maxEvents = 10;
+      const storeWithLimit = new DashboardStore(maxEvents);
+
+      for (let i = 0; i < 20; i++) {
+        storeWithLimit.processEvent({
+          type: 'agent:status-change',
+          timestamp: i,
+          agentId: 'pm-agent',
+          status: 'busy',
+        });
+      }
+
+      storeWithLimit.reset();
+
+      expect(storeWithLimit.getEvents()).toEqual([]);
+      expect(storeWithLimit.getStats().totalEvents).toBe(0);
+    });
+  });
+
+  describe('ring buffer behavior', () => {
+    it('should keep only latest N events when exceeding maxEvents', () => {
+      const maxEvents = 5;
+      const limitedStore = new DashboardStore(maxEvents);
+
+      for (let i = 0; i < 10; i++) {
+        limitedStore.processEvent({
+          type: 'agent:status-change',
+          timestamp: i,
+          agentId: 'pm-agent',
+          status: 'busy',
+        });
+      }
+
+      const events = limitedStore.getEvents();
+      expect(events).toHaveLength(maxEvents);
+
+      const timestamps = events.map(e => e.timestamp);
+      expect(timestamps).toEqual([5, 6, 7, 8, 9]);
+    });
+
+    it('should maintain chronological order after exceeding maxEvents', () => {
+      const maxEvents = 3;
+      const limitedStore = new DashboardStore(maxEvents);
+
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 100, agentId: 'pm-agent', status: 'busy' });
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 200, agentId: 'dev-agent', status: 'working' });
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 300, agentId: 'test-agent', status: 'idle' });
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 400, agentId: 'pm-agent', status: 'working' });
+
+      const events = limitedStore.getEvents();
+      expect(events).toHaveLength(3);
+      expect(events[0].timestamp).toBe(200);
+      expect(events[1].timestamp).toBe(300);
+      expect(events[2].timestamp).toBe(400);
+    });
+
+    it('should keep correct order after many events', () => {
+      const maxEvents = 50;
+      const limitedStore = new DashboardStore(maxEvents);
+
+      for (let i = 0; i < 200; i++) {
+        limitedStore.processEvent({
+          type: 'agent:status-change',
+          timestamp: i * 1000,
+          agentId: 'pm-agent',
+          status: 'busy',
+        });
+      }
+
+      const events = limitedStore.getEvents();
+      expect(events).toHaveLength(50);
+      expect(events[0].timestamp).toBe(150000);
+      expect(events[49].timestamp).toBe(199000);
+    });
+
+    it('should maintain correct order after reset and new events', () => {
+      const maxEvents = 5;
+      const limitedStore = new DashboardStore(maxEvents);
+
+      for (let i = 0; i < 10; i++) {
+        limitedStore.processEvent({
+          type: 'agent:status-change',
+          timestamp: i,
+          agentId: 'pm-agent',
+          status: 'busy',
+        });
+      }
+
+      limitedStore.reset();
+
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 1000, agentId: 'pm-agent', status: 'working' });
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 2000, agentId: 'dev-agent', status: 'busy' });
+      limitedStore.processEvent({ type: 'agent:status-change', timestamp: 3000, agentId: 'test-agent', status: 'idle' });
+
+      const events = limitedStore.getEvents();
+      expect(events).toHaveLength(3);
+      expect(events[0].timestamp).toBe(1000);
+      expect(events[1].timestamp).toBe(2000);
+      expect(events[2].timestamp).toBe(3000);
+    });
   });
 });

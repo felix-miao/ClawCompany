@@ -7,6 +7,45 @@ import {
   EmotionChangeEvent,
 } from '../types/GameEvents';
 
+class RingBuffer {
+  private buffer: (GameEvent | undefined)[];
+  private head = 0;
+  private count = 0;
+  private readonly maxEvents: number;
+
+  constructor(maxEvents: number) {
+    this.maxEvents = maxEvents;
+    this.buffer = new Array(maxEvents);
+  }
+
+  push(event: GameEvent): void {
+    this.buffer[this.head] = event;
+    this.head = (this.head + 1) % this.maxEvents;
+    if (this.count < this.maxEvents) this.count++;
+  }
+
+  toArray(): GameEvent[] {
+    if (this.count === 0) return [];
+    const result: GameEvent[] = [];
+    for (let i = 0; i < this.count; i++) {
+      const idx = (this.head - this.count + i + this.maxEvents) % this.maxEvents;
+      const item = this.buffer[idx];
+      if (item !== undefined) result.push(item);
+    }
+    return result;
+  }
+
+  clear(): void {
+    this.head = 0;
+    this.count = 0;
+    this.buffer = new Array(this.maxEvents);
+  }
+
+  length(): number {
+    return this.count;
+  }
+}
+
 export interface AgentInfo {
   id: string;
   name: string;
@@ -49,7 +88,7 @@ type ChangeCallback = () => void;
 
 export class DashboardStore {
   private agents: Map<string, AgentInfo> = new Map();
-  private events: GameEvent[] = [];
+  private ring: RingBuffer;
   private activeTasks: Map<string, ActiveTask> = new Map();
   private sessionCount = 0;
   private completedSessionCount = 0;
@@ -60,16 +99,14 @@ export class DashboardStore {
 
   constructor(maxEvents: number = 200) {
     this.maxEvents = maxEvents;
+    this.ring = new RingBuffer(maxEvents);
     for (const agent of DEFAULT_AGENTS) {
       this.agents.set(agent.id, { ...agent });
     }
   }
 
   processEvent(event: GameEvent): void {
-    this.events.push(event);
-    while (this.events.length > this.maxEvents) {
-      this.events.shift();
-    }
+    this.ring.push(event);
 
     switch (event.type) {
       case 'agent:status-change':
@@ -118,15 +155,15 @@ export class DashboardStore {
   }
 
   getEvents(): GameEvent[] {
-    return [...this.events];
+    return this.ring.toArray();
   }
 
   getEventsByType(type: GameEventType): GameEvent[] {
-    return this.events.filter(e => e.type === type);
+    return this.ring.toArray().filter(e => e.type === type);
   }
 
   getEventsByAgent(agentId: string): GameEvent[] {
-    return this.events.filter(e => e.agentId === agentId);
+    return this.ring.toArray().filter(e => e.agentId === agentId);
   }
 
   getActiveTasks(): ActiveTask[] {
@@ -151,7 +188,7 @@ export class DashboardStore {
 
   getStats(): DashboardStats {
     return {
-      totalEvents: this.events.length,
+      totalEvents: this.ring.length(),
       activeTasks: this.activeTasks.size,
       sessionCount: this.sessionCount,
       completedSessionCount: this.completedSessionCount,
@@ -188,7 +225,7 @@ export class DashboardStore {
     for (const agent of DEFAULT_AGENTS) {
       this.agents.set(agent.id, { ...agent });
     }
-    this.events = [];
+    this.ring.clear();
     this.activeTasks.clear();
     this.sessionCount = 0;
     this.completedSessionCount = 0;
