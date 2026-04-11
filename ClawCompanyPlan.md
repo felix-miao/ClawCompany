@@ -77,14 +77,14 @@
   - **文件**: `src/game/data/DashboardStore.ts` (71行)
   - **修复**: 仿照 GameEventStore 改用环形缓冲区
 
-- [ ] **#213 [P0][OPS] 完全缺失 CI/CD Pipeline**（与 #160 同一问题）
-  - **修复**: 创建 .github/workflows/ci.yml
+- [code-complete] **#213 [P0][OPS] 完全缺失 CI/CD Pipeline**（与 #160 同一问题，已合并去重）
+  - **修复**: `.github/workflows/ci.yml` 已由 #160 落地，无需重复实现
 
-- [ ] **#214 [P0][OPS] 缺少 Dockerfile 和容器化方案**
-  - **修复**: 创建多阶段 Dockerfile + docker-compose.yml
+- [code-complete] **#214 [P0][OPS] 缺少 Dockerfile 和容器化方案** → commit f57ce7f
+  - **修复**: 收口多阶段 Dockerfile + docker-compose.yml，移除 `.env` 硬依赖并补齐容器环境默认值；同时修复构建链路中的 `output/` 类型检查污染与 API Response 类型问题，`npm run build` / `docker compose config` 已通过
 
-- [ ] **#215 [P0][OPS] 本地绝对路径硬编码在 .env.example**（已确认仍存在）
-  - **修复**: PROJECT_ROOT 改为 ./generated
+- [code-complete] **#215 [P0][OPS] 本地绝对路径硬编码在 .env.example**（已核实完成）
+  - **修复**: `PROJECT_ROOT` 保持为 `./generated` 相对路径，并在容器环境映射到 `/data/generated`
 
 ---
 
