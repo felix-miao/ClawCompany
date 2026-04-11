@@ -35,6 +35,8 @@ jest.mock('@/lib/gateway/client', () => {
 import { POST } from '../route'
 import { __mockClient } from '@/lib/gateway/client'
 
+const mockClient = __mockClient as any
+
 const API_KEY = 'test-api-key-12345678901234567890'
 
 function createMockRequest(body: Record<string, unknown>, options?: { noAuth?: boolean }): any {
@@ -67,12 +69,12 @@ describe('/api/openclaw/send', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    __mockClient.connect.mockResolvedValue(undefined)
-    __mockClient.disconnect.mockResolvedValue(undefined)
+    mockClient.connect.mockResolvedValue(undefined)
+    mockClient.disconnect.mockResolvedValue(undefined)
   })
 
   it('should send message successfully', async () => {
-    __mockClient.sessions_send.mockResolvedValue({
+    mockClient.sessions_send.mockResolvedValue({
       status: 'sent',
       messageId: 'msg-123',
     })
@@ -128,7 +130,7 @@ describe('/api/openclaw/send', () => {
   })
 
   it('should handle gateway errors gracefully', async () => {
-    __mockClient.sessions_send.mockRejectedValue(new Error('Session not found'))
+    mockClient.sessions_send.mockRejectedValue(new Error('Session not found'))
 
     const request = createMockRequest({
       sessionKey: 'agent:main:subagent:nonexistent',

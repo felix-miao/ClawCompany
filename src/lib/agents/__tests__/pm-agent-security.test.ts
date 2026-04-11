@@ -4,7 +4,16 @@ import { PMAgentResponseSchema } from '../schemas'
 import { sanitizeTaskPrompt } from '../../utils/prompt-sanitizer'
 
 jest.mock('../../llm/factory', () => ({
-  getLLMProvider: jest.fn(),
+  getLLMProvider: jest.fn().mockReturnValue(null),
+  setLLMProvider: jest.fn(),
+  resetLLMProvider: jest.fn(),
+  getLLMProviderForAgent: jest.fn().mockReturnValue(null),
+  logModelStrategyOnce: jest.fn(),
+  resetAgentProviderCache: jest.fn(),
+  LLMFactory: {
+    createProvider: jest.fn().mockReturnValue(null),
+    createFromEnv: jest.fn().mockReturnValue(null),
+  },
 }))
 
 describe('PMAgent - Prompt Injection Protection', () => {

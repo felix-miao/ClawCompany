@@ -540,7 +540,7 @@ describe('/api/files', () => {
         method: 'POST',
         headers: { get: (name: string) => name === 'x-api-key' ? API_KEY : null },
         json: async () => { throw new SyntaxError('Unexpected token') }
-      }
+      } as any
 
       const response = await POST(request)
       const data = await response.json()

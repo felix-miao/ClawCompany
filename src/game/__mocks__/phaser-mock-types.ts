@@ -12,12 +12,21 @@ export interface MockPhaserScene {
 
 export interface MockPhaserSprite {
   constructor: (scene: UnknownType, x: number, y: number, texture: string) => void;
-  setBounce: (x: number, y: number) => MockPhaserSprite;
-  setCollideWorldBounds: (value: boolean) => MockPhaserSprite;
-  setDepth: (value: number) => MockPhaserSprite;
-  setSize: (width: number, height: number) => MockPhaserSprite;
-  setOffset: (x: number, y: number) => MockPhaserSprite;
+  setBounce: (x: number, y: number) => any;
+  setCollideWorldBounds: (value: boolean) => any;
+  setDepth: (value: number) => any;
+  setSize: (width: number, height: number) => any;
+  setOffset: (x: number, y: number) => any;
   body: MockPhaserBody;
+}
+class MockPhaserSpriteClass {
+  constructor(_scene: UnknownType, _x: number, _y: number, _texture: string) {}
+  setBounce(_x: number, _y: number): MockPhaserSprite { return this as unknown as MockPhaserSprite; }
+  setCollideWorldBounds(_value: boolean): MockPhaserSprite { return this as unknown as MockPhaserSprite; }
+  setDepth(_value: number): MockPhaserSprite { return this as unknown as MockPhaserSprite; }
+  setSize(_width: number, _height: number): MockPhaserSprite { return this as unknown as MockPhaserSprite; }
+  setOffset(_x: number, _y: number): MockPhaserSprite { return this as unknown as MockPhaserSprite; }
+  body: MockPhaserBody = {} as MockPhaserBody;
 }
 
 export interface MockPhaserBody {
@@ -30,28 +39,51 @@ export interface MockPhaserBody {
 
 export interface MockPhaserContainer {
   constructor: (scene: UnknownType, x: number, y: number, children: UnknownType[]) => void;
-  add: (child: UnknownType) => MockPhaserContainer;
-  remove: (child: UnknownType, destroy?: boolean) => MockPhaserContainer;
-  setVisible: (value: boolean) => MockPhaserContainer;
-  setAlpha: (value: number) => MockPhaserContainer;
+  add: (child: UnknownType) => any;
+  remove: (child: UnknownType, destroy?: boolean) => any;
+  setVisible: (value: boolean) => any;
+  setAlpha: (value: number) => any;
   destroy: () => void;
+}
+class MockPhaserContainerClass {
+  constructor(_scene: UnknownType, _x: number, _y: number, _children: UnknownType[]) {}
+  add(_child: UnknownType): MockPhaserContainer { return this as unknown as MockPhaserContainer; }
+  remove(_child: UnknownType, _destroy?: boolean): MockPhaserContainer { return this as unknown as MockPhaserContainer; }
+  setVisible(_value: boolean): MockPhaserContainer { return this as unknown as MockPhaserContainer; }
+  setAlpha(_value: number): MockPhaserContainer { return this as unknown as MockPhaserContainer; }
+  destroy(): void {}
 }
 
 export interface MockPhaserGraphics {
   constructor: (scene: UnknownType) => void;
-  fillStyle: (color: number, alpha?: number) => MockPhaserGraphics;
-  fillCircle: (x: number, y: number, radius: number) => MockPhaserGraphics;
-  lineStyle: (width: number, color: number, alpha?: number) => MockPhaserGraphics;
-  strokeCircle: (x: number, y: number, radius: number) => MockPhaserGraphics;
-  clear: () => MockPhaserGraphics;
+  fillStyle: (color: number, alpha?: number) => any;
+  fillCircle: (x: number, y: number, radius: number) => any;
+  lineStyle: (width: number, color: number, alpha?: number) => any;
+  strokeCircle: (x: number, y: number, radius: number) => any;
+  clear: () => any;
   destroy: () => void;
+}
+class MockPhaserGraphicsClass {
+  constructor(_scene: UnknownType) {}
+  fillStyle(_color: number, _alpha?: number): MockPhaserGraphics { return this as unknown as MockPhaserGraphics; }
+  fillCircle(_x: number, _y: number, _radius: number): MockPhaserGraphics { return this as unknown as MockPhaserGraphics; }
+  lineStyle(_width: number, _color: number, _alpha?: number): MockPhaserGraphics { return this as unknown as MockPhaserGraphics; }
+  strokeCircle(_x: number, _y: number, _radius: number): MockPhaserGraphics { return this as unknown as MockPhaserGraphics; }
+  clear(): MockPhaserGraphics { return this as unknown as MockPhaserGraphics; }
+  destroy(): void {}
 }
 
 export interface MockPhaserText {
   constructor: (scene: UnknownType, x: number, y: number, text: string, style: UnknownType) => void;
-  setText: (text: string) => MockPhaserText;
-  setOrigin: (x: number, y?: number) => MockPhaserText;
+  setText: (text: string) => any;
+  setOrigin: (x: number, y?: number) => any;
   destroy: () => void;
+}
+class MockPhaserTextClass {
+  constructor(_scene: UnknownType, _x: number, _y: number, _text: string, _style: UnknownType) {}
+  setText(_text: string): MockPhaserText { return this as unknown as MockPhaserText; }
+  setOrigin(_x: number, _y?: number): MockPhaserText { return this as unknown as MockPhaserText; }
+  destroy(): void {}
 }
 
 export interface MockPhaserGame {
@@ -73,14 +105,14 @@ export interface MockPhaser {
   Scene: MockPhaserScene;
   Physics: {
     Arcade: {
-      Sprite: typeof MockPhaserSprite;
+      Sprite: any;
     };
   };
   GameObjects: {
-    Container: typeof MockPhaserContainer;
-    Graphics: typeof MockPhaserGraphics;
-    Text: typeof MockPhaserText;
-    Sprite: typeof MockPhaserSprite;
+    Container: any;
+    Graphics: any;
+    Text: any;
+    Sprite: any;
   };
   AUTO: number;
 }

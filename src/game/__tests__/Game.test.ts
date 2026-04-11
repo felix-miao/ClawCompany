@@ -1,45 +1,14 @@
 import { Game, startGame } from '../index';
 import { gameConfig } from '../config/gameConfig';
 import { OfficeScene } from '../scenes/OfficeScene';
-import { 
-  MockPhaserScene, 
-  MockPhaserSprite, 
-  MockPhaserContainer, 
-  MockPhaserGraphics, 
-  MockPhaserText, 
-  MockPhaserGame 
-} from '../__mocks__/phaser-mock-types';
-
-// Phaser mock 类型定义 - 使用 unknown 而不是 any
-type PhaserMock = {
-  __esModule: boolean;
-  default: {
-    Game: new (config: unknown) => MockPhaserGame;
-    Scene: new (config: unknown) => MockPhaserScene;
-    AUTO: number;
-  };
-  Game: new (config: unknown) => MockPhaserGame;
-  Scene: new (config: unknown) => MockPhaserScene;
-  Physics: {
-    Arcade: {
-      Sprite: new (scene: unknown, x: number, y: number, texture: string) => MockPhaserSprite;
-    };
-  };
-  GameObjects: {
-    Container: new (scene: unknown, x: number, y: number, children: unknown[]) => MockPhaserContainer;
-    Graphics: new (scene: unknown) => MockPhaserGraphics;
-    Text: new (scene: unknown, x: number, y: number, text: string, style: unknown) => MockPhaserText;
-    Sprite: new (scene: unknown, x: number, y: number, texture: string) => MockPhaserSprite;
-  };
-  AUTO: number;
-};
+import { MockPhaserScene, MockPhaserGame } from '../__mocks__/phaser-mock-types';
 
 jest.mock('phaser', () => {
-  const SceneClass = class implements MockPhaserScene {
+  const SceneClass = class {
     constructor(_config: unknown) {}
   };
 
-  const SpriteClass = class implements MockPhaserSprite {
+  const SpriteClass = class {
     constructor(_scene: unknown, _x: number, _y: number, _texture: string) {}
     setBounce(_x: number, _y: number) { return this; }
     setCollideWorldBounds(_value: boolean) { return this; }
@@ -55,7 +24,7 @@ jest.mock('phaser', () => {
     };
   };
 
-  const ContainerClass = class implements MockPhaserContainer {
+  const ContainerClass = class {
     constructor(_scene: unknown, _x: number, _y: number, _children: unknown[]) {}
     add(_child: unknown) { return this; }
     remove(_child: unknown, _destroy?: boolean) { return this; }
@@ -64,7 +33,7 @@ jest.mock('phaser', () => {
     destroy() {}
   };
 
-  const GraphicsClass = class implements MockPhaserGraphics {
+  const GraphicsClass = class {
     constructor(_scene: unknown) {}
     fillStyle(_color: number, _alpha?: number) { return this; }
     fillCircle(_x: number, _y: number, _radius: number) { return this; }
@@ -74,7 +43,7 @@ jest.mock('phaser', () => {
     destroy() {}
   };
 
-  const TextClass = class implements MockPhaserText {
+  const TextClass = class {
     constructor(_scene: unknown, _x: number, _y: number, _text: string, _style: unknown) {}
     setText(_text: string) { return this; }
     setOrigin(_x: number, _y?: number) { return this; }
@@ -104,7 +73,7 @@ jest.mock('phaser', () => {
     CENTER_BOTH: 0,
   };
 
-  const GameClass = class implements MockPhaserGame {
+  const GameClass = class {
     type: unknown;
     parent: unknown;
     scene: unknown[];
@@ -132,14 +101,14 @@ jest.mock('phaser', () => {
     GameObjects: GameObjectsClass,
     AUTO: 0,
     Scale: ScaleClass,
-  } as PhaserMock;
+  } as any;
 });
 
 describe('Game module', () => {
   describe('Game class', () => {
     it('should be constructable with a config', () => {
       const config = { type: 0, width: 800, height: 600 };
-      const game = new Game(config);
+      const game = new Game(config) as any;
       expect(game).toBeDefined();
       expect(game.type).toBe(0);
     });
@@ -151,18 +120,18 @@ describe('Game module', () => {
 
   describe('startGame', () => {
     it('should create a Game with the given containerId as parent', () => {
-      const game = startGame('test-container');
+      const game = startGame('test-container') as any;
       expect(game).toBeDefined();
       expect(game.parent).toBe('test-container');
     });
 
     it('should include OfficeScene in the scene list', () => {
-      const game = startGame('test-container');
+      const game = startGame('test-container') as any;
       expect(game.scene).toContain(OfficeScene);
     });
 
     it('should spread gameConfig into the final config', () => {
-      const game = startGame('my-container');
+      const game = startGame('my-container') as any;
       expect(game.config.type).toBe(gameConfig.type);
     });
 

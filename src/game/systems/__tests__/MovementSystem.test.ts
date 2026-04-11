@@ -146,7 +146,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       expect(() => system.update()).not.toThrow();
@@ -164,7 +164,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.cursors.left.isDown = true;
@@ -179,7 +179,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.cursors.right.isDown = true;
@@ -194,7 +194,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.wasd.left.isDown = true;
@@ -208,7 +208,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.cursors.up.isDown = true;
@@ -223,7 +223,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.cursors.up.isDown = true;
@@ -239,7 +239,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       system.update();
@@ -253,7 +253,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.cursors.left.isDown = true;
@@ -268,7 +268,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.cursors.right.isDown = true;
@@ -282,7 +282,7 @@ describe('MovementSystem', () => {
         body: agent.body,
         flipX: false,
         setVelocityY: jest.fn(),
-      } as unknown as Phaser.Physics.Arcade.Sprite;
+      } as unknown as import('../AgentCharacter').AgentCharacter;
       
       system.setActiveAgent(mockSprite);
       scene.wasd.up.isDown = true;

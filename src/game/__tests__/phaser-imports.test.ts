@@ -28,9 +28,10 @@ describe('Phaser Import Verification', () => {
     });
 
     it('should expose Phaser.Types namespace', () => {
-      expect(Phaser.Types).toBeDefined();
-      expect(Phaser.Types.Core).toBeDefined();
-      expect(Phaser.Types.Input).toBeDefined();
+      const p = Phaser as any;
+      expect(p.Types).toBeDefined();
+      expect(p.Types?.Core).toBeDefined();
+      expect(p.Types?.Input).toBeDefined();
     });
 
     it('should expose Phaser.GameObjects namespace', () => {

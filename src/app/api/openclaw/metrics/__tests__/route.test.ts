@@ -18,7 +18,7 @@ jest.mock('@/lib/security/utils', () => ({
 }))
 
 jest.mock('@/lib/gateway/session-sync', () => {
-  const mockSync = {
+  const mockSync: any = {
     fetchAgents: jest.fn(),
     fetchSessions: jest.fn(),
     mapToAgentInfo: jest.fn(),
@@ -31,13 +31,14 @@ jest.mock('@/lib/gateway/session-sync', () => {
 
   return {
     SessionSyncService: jest.fn(() => mockSync),
-    __mockSync: mockSync,
+    mockSync,
   }
 })
 
 import { GET } from '../route'
-import { __mockSync } from '@/lib/gateway/session-sync'
+import { mockSync } from '@/lib/gateway/session-sync'
 
+const mockSyncClient = mockSync as any
 const API_KEY = 'test-api-key-12345678901234567890'
 
 function createMockRequest(options?: { noAuth?: boolean }): any {
@@ -70,8 +71,8 @@ describe('/api/openclaw/metrics', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    __mockSync.client.connect.mockResolvedValue(undefined)
-    __mockSync.client.disconnect.mockResolvedValue(undefined)
+    mockSyncClient.client.connect.mockResolvedValue(undefined)
+    mockSyncClient.client.disconnect.mockResolvedValue(undefined)
   })
 
   it('should return 401 without API key', async () => {
@@ -83,16 +84,16 @@ describe('/api/openclaw/metrics', () => {
   })
 
   it('should return real metrics when gateway is connected', async () => {
-    __mockSync.fetchAgents.mockResolvedValue([
+    mockSyncClient.fetchAgents.mockResolvedValue([
       { id: 'sidekick-claw', name: 'PM', identity: { name: 'PM Claw' } },
       { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
     ])
-    __mockSync.fetchSessions.mockResolvedValue([
+    mockSyncClient.fetchSessions.mockResolvedValue([
       { key: 's1', agentId: 'sidekick-claw', label: 'task 1', model: 'glm-5', status: 'running', endedAt: null, usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 } },
       { key: 's2', agentId: 'dev-claw', label: 'task 2', model: 'glm-5', status: 'completed', endedAt: '2026-04-10T00:00:00Z', usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 } },
       { key: 's3', agentId: 'dev-claw', label: 'task 3', model: 'glm-5', status: 'failed', endedAt: '2026-04-10T01:00:00Z' },
     ])
-    __mockSync.mapToAgentInfo.mockReturnValue([
+    mockSyncClient.mapToAgentInfo.mockReturnValue([
       { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'busy', emotion: 'neutral', currentTask: null },
       { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
     ])
@@ -121,7 +122,7 @@ describe('/api/openclaw/metrics', () => {
   })
 
   it('should return fallback metrics when gateway is unreachable', async () => {
-    __mockSync.client.connect.mockRejectedValue(new Error('Connection refused'))
+    mockSyncClient.client.connect.mockRejectedValue(new Error('Connection refused'))
 
     const request = createMockRequest()
     const response = await GET(request as any)
@@ -138,7 +139,7 @@ describe('/api/openclaw/metrics', () => {
   })
 
   it('should return fallback when fetchAgents throws', async () => {
-    __mockSync.fetchAgents.mockRejectedValue(new Error('RPC timeout'))
+    mockSyncClient.fetchAgents.mockRejectedValue(new Error('RPC timeout'))
 
     const request = createMockRequest()
     const response = await GET(request as any)
@@ -149,13 +150,13 @@ describe('/api/openclaw/metrics', () => {
   })
 
   it('should handle sessions without usage data', async () => {
-    __mockSync.fetchAgents.mockResolvedValue([
+    mockSyncClient.fetchAgents.mockResolvedValue([
       { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
     ])
-    __mockSync.fetchSessions.mockResolvedValue([
+    mockSyncClient.fetchSessions.mockResolvedValue([
       { key: 's1', agentId: 'dev-claw', label: 'task', model: 'glm-5', status: 'completed', endedAt: '2026-04-10T00:00:00Z' },
     ])
-    __mockSync.mapToAgentInfo.mockReturnValue([
+    mockSyncClient.mapToAgentInfo.mockReturnValue([
       { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
     ])
 

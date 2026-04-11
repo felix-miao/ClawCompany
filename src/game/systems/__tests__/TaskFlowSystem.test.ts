@@ -1,7 +1,7 @@
 import { TaskFlowSystem, TaskFlowState } from '../TaskFlowSystem';
 import { TaskManager } from '../TaskManager';
 import { EventBus } from '../EventBus';
-import { Task, GameTaskStatus } from '../../types/Task';
+import { Task, TaskStatus } from '../../types/Task';
 
 jest.mock('phaser', () => {
   const mockGraphics = {
@@ -98,9 +98,7 @@ jest.mock('phaser', () => {
 
   return {
     default: {
-      GameObjects: { Graphics: jest.fn() },
-      GameObjects: { Container: jest.fn() },
-      GameObjects: { Text: jest.fn() },
+      GameObjects: { Graphics: jest.fn(), Container: jest.fn(), Text: jest.fn() },
     },
     Math: {
       Distance: { Between: jest.fn().mockReturnValue(100) },
@@ -145,7 +143,7 @@ describe('TaskFlowSystem', () => {
         type: 'task:assigned' as const,
         agentId: 'alice',
         task,
-      };
+      } as any;
 
       const initialFlows = taskFlowSystem.getActiveFlows();
       taskFlowSystem.createTaskFlow(event);
@@ -159,7 +157,7 @@ describe('TaskFlowSystem', () => {
         type: 'task:assigned' as const,
         agentId: 'alice',
         task,
-      };
+      } as any;
 
       taskFlowSystem.createTaskFlow(event);
       const flows = taskFlowSystem.getActiveFlows();

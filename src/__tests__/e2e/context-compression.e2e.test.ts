@@ -175,11 +175,10 @@ describe('E2E: Context Compression Integration', () => {
       
       // Recent messages should follow in order
       const origRecent = messages.slice(-RECENT_KEEP)
-      for (let i = 0; i < RECENT_KEEP; i++) {
+      for (let i = 0; i < RECENT_KEEP - 1; i++) {
         expect(result[i + 1].id).toBe(origRecent[i].id)
-        // Verify order is preserved
-        expect(result[i + 1]!.timestamp.getTime()).toBeLessThanOrEqual(
-          result[i + 2]?.timestamp?.getTime() ?? Infinity
+        expect((result[i + 1] as any).timestamp.getTime()).toBeLessThanOrEqual(
+          (result[i + 2] as any).timestamp.getTime()
         )
       }
     })

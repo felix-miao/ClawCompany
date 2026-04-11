@@ -151,33 +151,33 @@ describe('OfficeScene logic', () => {
 
   describe('Task completion logic', () => {
     it('should detect task completion when agent near target', () => {
-      const agent = createMockAgent('a1', 100, 200);
+      const agent = createMockAgent('a1', 100, 200) as any;
       agent.getTargetPosition = jest.fn(() => ({ x: 105, y: 205 }));
 
       const targetPos = agent.getTargetPosition();
-      const dx = Math.abs(agent.x - targetPos!.x);
-      const dy = Math.abs(agent.y - targetPos!.y);
+      const dx = Math.abs(agent.x - (targetPos as any).x);
+      const dy = Math.abs(agent.y - (targetPos as any).y);
       expect(dx < 20 && dy < 20).toBe(true);
     });
 
     it('should not complete when agent far from target', () => {
-      const agent = createMockAgent('a1', 100, 200);
+      const agent = createMockAgent('a1', 100, 200) as any;
       agent.getTargetPosition = jest.fn(() => ({ x: 500, y: 400 }));
 
       const targetPos = agent.getTargetPosition();
-      const dx = Math.abs(agent.x - targetPos!.x);
-      const dy = Math.abs(agent.y - targetPos!.y);
+      const dx = Math.abs(agent.x - (targetPos as any).x);
+      const dy = Math.abs(agent.y - (targetPos as any).y);
       expect(dx < 20 && dy < 20).toBe(false);
     });
 
     it('should handle returning tasks', () => {
-      const agent = createMockAgent('a1', 100, 200);
+      const agent = createMockAgent('a1', 100, 200) as any;
       agent.getOriginalPosition = jest.fn(() => ({ x: 105, y: 205 }));
 
       const original = agent.getOriginalPosition();
       expect(original).not.toBeNull();
-      const dx = Math.abs(agent.x - original!.x);
-      const dy = Math.abs(agent.y - original!.y);
+      const dx = Math.abs(agent.x - (original as any).x);
+      const dy = Math.abs(agent.y - (original as any).y);
       expect(dx < 20 && dy < 20).toBe(true);
     });
 

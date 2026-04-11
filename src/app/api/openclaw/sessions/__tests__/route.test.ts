@@ -18,7 +18,7 @@ jest.mock('@/lib/security/utils', () => ({
 }))
 
 jest.mock('@/lib/gateway/session-sync', () => {
-  const mockSync = {
+  const mockSync: any = {
     fetchAgents: jest.fn(),
     fetchSessions: jest.fn(),
     mapToAgentInfo: jest.fn(),
@@ -31,13 +31,14 @@ jest.mock('@/lib/gateway/session-sync', () => {
 
   return {
     SessionSyncService: jest.fn(() => mockSync),
-    __mockSync: mockSync,
+    mockSync,
   }
 })
 
 import { GET } from '../route'
-import { __mockSync } from '@/lib/gateway/session-sync'
+import { mockSync } from '@/lib/gateway/session-sync'
 
+const mockSyncClient = mockSync as any
 const API_KEY = 'test-api-key-12345678901234567890'
 
 function createMockRequest(options?: { noAuth?: boolean }): any {
@@ -70,8 +71,8 @@ describe('/api/openclaw/sessions', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    __mockSync.client.connect.mockResolvedValue(undefined)
-    __mockSync.client.disconnect.mockResolvedValue(undefined)
+    mockSyncClient.client.connect.mockResolvedValue(undefined)
+    mockSyncClient.client.disconnect.mockResolvedValue(undefined)
   })
 
   it('should return 401 without API key', async () => {
@@ -90,11 +91,11 @@ describe('/api/openclaw/sessions', () => {
       { key: 's1', agentId: 'sidekick-claw', label: 'test', model: 'glm-5', status: 'completed', endedAt: '2026-04-10T00:00:00Z' },
     ]
 
-    __mockSync.fetchAgents.mockResolvedValue([
+    mockSyncClient.fetchAgents.mockResolvedValue([
       { id: 'sidekick-claw', name: 'PM', identity: { name: 'PM Claw' } },
     ])
-    __mockSync.fetchSessions.mockResolvedValue(sessions)
-    __mockSync.mapToAgentInfo.mockReturnValue(agents)
+    mockSyncClient.fetchSessions.mockResolvedValue(sessions)
+    mockSyncClient.mapToAgentInfo.mockReturnValue(agents)
 
     const request = createMockRequest()
     const response = await GET(request as any)
@@ -109,8 +110,8 @@ describe('/api/openclaw/sessions', () => {
   })
 
   it('should return fallback data when gateway is unreachable', async () => {
-    __mockSync.client.connect.mockRejectedValue(new Error('Connection refused'))
-    __mockSync.getDefaultAgents.mockReturnValue([
+    mockSyncClient.client.connect.mockRejectedValue(new Error('Connection refused'))
+    mockSyncClient.getDefaultAgents.mockReturnValue([
       { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
     ])
 
@@ -126,8 +127,8 @@ describe('/api/openclaw/sessions', () => {
   })
 
   it('should return fallback data when fetchAgents throws', async () => {
-    __mockSync.fetchAgents.mockRejectedValue(new Error('RPC timeout'))
-    __mockSync.getDefaultAgents.mockReturnValue([
+    mockSyncClient.fetchAgents.mockRejectedValue(new Error('RPC timeout'))
+    mockSyncClient.getDefaultAgents.mockReturnValue([
       { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
     ])
 

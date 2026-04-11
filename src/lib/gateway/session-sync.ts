@@ -100,3 +100,16 @@ export class SessionSyncService {
 export function getDefaultAgents(): AgentInfo[] {
   return DEFAULT_AGENTS.map(a => ({ ...a }))
 }
+
+export const __mockSync = {
+  fetchAgents: async () => [],
+  fetchSessions: async () => [],
+  mapToAgentInfo: () => [],
+  getDefaultAgents: () => [],
+  client: {
+    connect: async () => {},
+    disconnect: async () => {},
+  },
+}
+
+export const mockSync = __mockSync

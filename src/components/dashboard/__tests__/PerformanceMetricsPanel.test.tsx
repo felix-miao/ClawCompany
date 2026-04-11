@@ -7,7 +7,7 @@ import { MetricsAggregator } from '@/lib/core/metrics-aggregator'
 // Mock MetricsAggregator
 jest.mock('@/lib/core/metrics-aggregator')
 
-const mockMetricsAggregator = MetricsAggregator as jest.MockedClass<typeof MetricsAggregator>
+const mockMetricsAggregator = MetricsAggregator as any
 
 describe('PerformanceMetricsPanel', () => {
   const mockMetrics = {
@@ -47,12 +47,12 @@ describe('PerformanceMetricsPanel', () => {
 
   beforeEach(() => {
     // Reset mocks
-    mockMetricsAggregator.prototype.getCurrentMetrics.mockClear()
-    mockMetricsAggregator.prototype.startPeriodicUpdate.mockClear()
+    jest.mocked(mockMetricsAggregator.prototype).getCurrentMetrics.mockClear()
+    jest.mocked(mockMetricsAggregator.prototype).startPeriodicUpdate.mockClear()
 
     // Setup mock implementation
-    mockMetricsAggregator.prototype.getCurrentMetrics.mockReturnValue(mockMetrics)
-    mockMetricsAggregator.prototype.startPeriodicUpdate.mockImplementation((callback) => {
+    jest.mocked(mockMetricsAggregator.prototype).getCurrentMetrics.mockReturnValue(mockMetrics)
+    jest.mocked(mockMetricsAggregator.prototype).startPeriodicUpdate.mockImplementation((callback: any) => {
       // Call callback immediately
       callback(mockMetrics)
       // Return cleanup function
@@ -65,22 +65,23 @@ describe('PerformanceMetricsPanel', () => {
     const mockPerfMonitor = {
       snapshot: jest.fn(),
       getMetricEntries: jest.fn(),
-    } as jest.Mocked<{
-      snapshot: () => void
-      getMetricEntries: () => void
-    }>
+    } as any
     
     const mockErrorTracker = {
       getSummary: jest.fn(),
-    } as jest.Mocked<{
-      getSummary: () => void
-    }>
+    } as any
     
     const mockLogger = {
       info: jest.fn(),
     } as any
     
-    return new MetricsAggregator(mockPerfMonitor, mockErrorTracker, mockLogger)
+    const aggregator = new MetricsAggregator(mockPerfMonitor, mockErrorTracker, mockLogger) as any
+    aggregator.getCurrentMetrics = jest.fn().mockReturnValue(mockMetrics)
+    aggregator.startPeriodicUpdate = jest.fn().mockImplementation((callback: any) => {
+      callback(mockMetrics)
+      return () => {}
+    })
+    return aggregator
   }
 
   it('should render loading state initially', () => {

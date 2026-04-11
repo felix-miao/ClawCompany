@@ -22,7 +22,7 @@ function createMockNavMesh(): MockNavMesh {
     getNodeAt: jest.fn((x: number, y: number) => {
       const key = `${x},${y}`;
       return nodes.get(key) || null;
-    }),
+    }) as jest.Mock<(x: number, y: number) => MockNavMeshNode | null>,
     setNode: (x: number, y: number, walkable: boolean) => {
       nodes.set(`${x},${y}`, { isWalkable: walkable });
     },
@@ -40,24 +40,24 @@ describe('NavigationSystem', () => {
 
   describe('isWalkable', () => {
     it('should return false for non-walkable nodes', () => {
-      const mockMesh = createMockNavMesh();
-      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh as unknown as NavigationMesh);
+      const mockMesh = createMockNavMesh() as any;
+      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh);
 
       mockMesh.getNodeAt.mockReturnValue(null);
       expect(system.isWalkable(100, 100)).toBe(false);
     });
 
     it('should return true for walkable nodes', () => {
-      const mockMesh = createMockNavMesh();
-      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh as unknown as NavigationMesh);
+      const mockMesh = createMockNavMesh() as any;
+      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh);
 
       mockMesh.getNodeAt.mockReturnValue({ isWalkable: true });
       expect(system.isWalkable(32, 32)).toBe(true);
     });
 
     it('should return false for null nodes', () => {
-      const mockMesh = createMockNavMesh();
-      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh as unknown as NavigationMesh);
+      const mockMesh = createMockNavMesh() as any;
+      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh);
 
       mockMesh.getNodeAt.mockReturnValue(null);
       expect(system.isWalkable(9999, 9999)).toBe(false);
@@ -66,8 +66,8 @@ describe('NavigationSystem', () => {
 
   describe('findNearestWalkablePosition', () => {
     it('should return the current position if walkable', () => {
-      const mockMesh = createMockNavMesh();
-      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh as unknown as NavigationMesh);
+      const mockMesh = createMockNavMesh() as any;
+      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh);
 
       mockMesh.getNodeAt.mockReturnValue({ isWalkable: true });
       const result = system.findNearestWalkablePosition(32, 32);
@@ -75,8 +75,8 @@ describe('NavigationSystem', () => {
     });
 
     it('should search adjacent positions', () => {
-      const mockMesh = createMockNavMesh();
-      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh as unknown as NavigationMesh);
+      const mockMesh = createMockNavMesh() as any;
+      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh);
 
       let callCount = 0;
       mockMesh.getNodeAt.mockImplementation(() => {
@@ -90,8 +90,8 @@ describe('NavigationSystem', () => {
     });
 
     it('should return null when no walkable position found', () => {
-      const mockMesh = createMockNavMesh();
-      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh as unknown as NavigationMesh);
+      const mockMesh = createMockNavMesh() as any;
+      const system = new NavigationSystem(createMockScene() as unknown as Phaser.Scene, mockMesh);
 
       mockMesh.getNodeAt.mockReturnValue({ isWalkable: false });
       const result = system.findNearestWalkablePosition(0, 0);
