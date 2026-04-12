@@ -364,8 +364,9 @@ describe('Chat API', () => {
       const response = await POST(request)
       const data = await response.json()
 
-      expect(response.status).toBe(200)
-      expect(data).not.toHaveProperty('agentId')
+      expect(response.status).toBe(400)
+      expect(data.error).toContain('/api/chat 不接受 agentId 参数')
+      expect(data.error).toContain('/api/agent')
     })
   })
 

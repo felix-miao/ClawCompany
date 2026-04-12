@@ -153,22 +153,32 @@ export class SessionPollerService {
   }
 }
 
-let defaultPoller: SessionPollerService | null = null
 
 export function createSessionPoller(store: GameEventStore, sync?: SessionSyncService): SessionPollerService {
   return new SessionPollerService(store, sync ?? new SessionSyncService())
 }
 
+// ── 进程级单例（HMR 安全）──────────────────────────────────────────────────────
+//
+// Next.js dev 模式下，每次热重载都会重新执行本模块，module-level 变量被重置。
+// 使用 globalThis 存储单例，确保 HMR 后能找到并停掉旧的 poller，
+// 避免多个 setInterval 并发运行导致 listener 无限堆积。
+//
+declare global {
+  // eslint-disable-next-line no-var
+  var __sessionPoller: SessionPollerService | undefined
+}
+
 export function getSessionPoller(store: GameEventStore, sync?: SessionSyncService): SessionPollerService {
-  if (!defaultPoller) {
-    defaultPoller = createSessionPoller(store, sync)
+  if (!globalThis.__sessionPoller) {
+    globalThis.__sessionPoller = createSessionPoller(store, sync)
   }
-  return defaultPoller
+  return globalThis.__sessionPoller
 }
 
 export function resetSessionPoller(): void {
-  if (defaultPoller) {
-    defaultPoller.stop()
-    defaultPoller = null
+  if (globalThis.__sessionPoller) {
+    globalThis.__sessionPoller.stop()
+    globalThis.__sessionPoller = undefined
   }
 }

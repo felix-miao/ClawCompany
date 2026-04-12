@@ -115,6 +115,10 @@ const handleGet = async (request: NextRequest) => {
           cleanup();
         }
       }, 30000);
+      // unref 让 keepalive timer 不阻止 Node.js 进程退出（HMR 友好）
+      if (typeof keepalive === 'object' && keepalive !== null && 'unref' in keepalive) {
+        (keepalive as { unref(): void }).unref();
+      }
 
       const cleanup = () => {
         if (cleanedUp) return;
@@ -137,7 +141,12 @@ const handleGet = async (request: NextRequest) => {
       // 断开时清理连接计数
       request.signal.addEventListener('abort', () => {
         cleanup();
-      });
+      }, { once: true });
+    },
+    // cancel() 在浏览器关闭 / 导航离开时由 ReadableStream 主动触发
+    cancel() {
+      // cleanup 已经是幂等的，但 cancel() 不在 start() 的闭包内无法直接调用。
+      // 依赖 abort signal 完成清理；这里只是一个额外保障占位。
     },
   });
 

@@ -8,7 +8,11 @@ export const ChatRequestSchema = z.object({
     .refine(val => val.trim().length > 0, '消息不能为空')
     .max(10000, '消息不能超过 10000 字符'),
   taskId: z.string().optional(),
-})
+}).strict()
+  .refine(
+    (data) => !('agentId' in data),
+    { message: '/api/chat 不接受 agentId 参数，请使用 /api/agent' }
+  )
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>
 

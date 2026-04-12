@@ -57,14 +57,25 @@ class RingBuffer {
 
 const EVENT_CHANNEL = 'game:event';
 
-/**
- * Module-level emitter singleton — shared across all getGameEventStore() calls
- * within the same Node.js process (worker). This ensures SSE subscribers and
- * event publishers communicate through the same emitter even if called from
- * different request handlers in the same worker.
- */
-const processEmitter = new EventEmitter();
-processEmitter.setMaxListeners(500); // Allow many SSE connections
+// ── 进程级 EventEmitter（HMR 安全）──────────────────────────────────────────
+//
+// Next.js dev 热重载会重新执行本模块，module-level 变量被丢弃，旧 emitter 上
+// 已注册的 listeners 永远无法 unsubscribe，导致 async_hooks Map 无限增长。
+// 将 emitter 存在 globalThis 上，确保 HMR 后复用同一个 emitter 实例。
+//
+declare global {
+  // eslint-disable-next-line no-var
+  var __gameEventEmitter: EventEmitter | undefined
+}
+
+if (!globalThis.__gameEventEmitter) {
+  const emitter = new EventEmitter();
+  emitter.setMaxListeners(200);
+  globalThis.__gameEventEmitter = emitter;
+}
+
+// 本地引用，类型安全
+const processEmitter: EventEmitter = globalThis.__gameEventEmitter!;
 
 // ── Redis Pub/Sub transport (multi-worker, optional) ──────────────────────────
 
@@ -202,25 +213,34 @@ export class GameEventStore {
   }
 }
 
-// ── Factory function (per-request instance) ────────────────────────────────────────────────
-
-let defaultStore: GameEventStore | null = null;
+// ── Factory function ────────────────────────────────────────────────────────
 
 export function createGameEventStore(maxEvents?: number): GameEventStore {
   return new GameEventStore(maxEvents);
 }
 
+// ── 进程级单例（HMR 安全）──────────────────────────────────────────────────────
+//
+// Next.js dev 热重载会重新执行本模块，module-level 变量被丢弃。
+// 将 defaultStore 存在 globalThis 上，HMR 后仍能复用同一个 store，
+// 避免新旧两个 store 同时持有 processEmitter listeners 造成无限堆积。
+//
+declare global {
+  // eslint-disable-next-line no-var
+  var __gameEventStore: GameEventStore | undefined
+}
+
 export function getGameEventStore(): GameEventStore {
-  if (!defaultStore) {
-    defaultStore = createGameEventStore();
+  if (!globalThis.__gameEventStore) {
+    globalThis.__gameEventStore = createGameEventStore();
   }
-  return defaultStore;
+  return globalThis.__gameEventStore;
 }
 
 export function setGameEventStore(store: GameEventStore): void {
-  defaultStore = store;
+  globalThis.__gameEventStore = store;
 }
 
 export function resetGameEventStore(): void {
-  defaultStore = null;
+  globalThis.__gameEventStore = undefined;
 }
