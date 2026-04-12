@@ -396,5 +396,39 @@ describe('Chat API', () => {
       expect(data1.taskId).toBe('task-A')
       expect(data2.taskId).toBe('task-B')
     })
+
+    it('POST /api/chat 应该将项目状态注入到 Agent Context（#228）', async () => {
+      const mockOrchestrator = {
+        executeUserRequest: jest.fn(() => Promise.resolve({
+          success: true,
+          messages: [
+            { agent: 'user', content: '创建登录页面', timestamp: new Date().toISOString() },
+            { agent: 'pm', content: '需求分析完成', timestamp: new Date().toISOString() },
+          ],
+          tasks: [
+            { id: 'task-1', title: '创建表单', status: 'completed', assignedTo: 'dev', files: [] },
+          ],
+          files: [],
+          stats: { totalTasks: 1, successfulTasks: 1, failedTasks: 0, totalRetries: 0, executionTime: 100 },
+        })),
+        getStatus: jest.fn(() => ({
+          projectId: 'test-project',
+          tasks: [
+            { id: 'task-1', title: '创建表单', status: 'completed', assignedTo: 'dev', files: [] },
+            { id: 'task-2', title: '添加验证', status: 'pending', assignedTo: 'dev', files: [] },
+          ],
+          messages: [],
+          stats: { total: 2, pending: 1, in_progress: 0, review: 0, completed: 1 },
+        })),
+        reset: jest.fn(),
+      }
+
+      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(mockOrchestrator.executeUserRequest).toHaveBeenCalledWith('创建登录页面', { taskId: undefined })
+    })
   })
 })
