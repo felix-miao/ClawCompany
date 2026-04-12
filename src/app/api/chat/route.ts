@@ -30,11 +30,13 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   return successResponse({
     apiSource: '/api/chat',
     workflowType: 'orchestrator',
+    agentType: 'orchestrator',
     taskId,
     message: result.messages[result.messages.length - 1]?.content,
     tasks: result.tasks,
     chatHistory: result.messages,
     files: result.files,
+    stats: result.stats,
   }, request)
 }, 'Chat API'))
 

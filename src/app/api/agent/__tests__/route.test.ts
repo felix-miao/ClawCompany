@@ -1121,5 +1121,70 @@ export function Test() { return <div>test</div> }
       expect(response.status).toBe(400)
       expect(data.error).toBeDefined()
     })
+
+    it('POST /api/agent 应该返回确定性字段集（message, conversationId, agentId, agentName, drafts, apiSource, agentType）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).toHaveProperty('message')
+      expect(data).toHaveProperty('conversationId')
+      expect(data).toHaveProperty('agentId')
+      expect(data).toHaveProperty('agentName')
+      expect(data).toHaveProperty('drafts')
+      expect(data).toHaveProperty('apiSource')
+      expect(data).toHaveProperty('agentType')
+      expect(data).not.toHaveProperty('tasks')
+      expect(data).not.toHaveProperty('chatHistory')
+      expect(data).not.toHaveProperty('files')
+      expect(data).not.toHaveProperty('workflowType')
+      expect(data).not.toHaveProperty('taskId')
+    })
+
+    it('POST /api/agent agentType 应该是 "single"（标识单 agent 对话）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.agentType).toBe('single')
+      expect(data.apiSource).toBe('/api/agent')
+    })
+
+    it('POST /api/agent draft 字段仅 dev-agent 返回', async () => {
+      const pmRequest = createMockRequest({
+        method: 'POST',
+        body: { agentId: 'pm-agent', userMessage: 'Hello' }
+      })
+      const pmResponse = await POST(pmRequest)
+      const pmData = await pmResponse.json()
+
+      expect(pmData.drafts).toEqual([])
+
+      const devRequest = createMockRequest({
+        method: 'POST',
+        body: { agentId: 'dev-agent', userMessage: 'Create login' }
+      })
+      const devResponse = await POST(devRequest)
+      const devData = await devResponse.json()
+
+      expect(devData).toHaveProperty('drafts')
+      expect(Array.isArray(devData.drafts)).toBe(true)
+    })
   })
 })

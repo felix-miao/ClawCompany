@@ -33,44 +33,48 @@ jest.mock('@/lib/security/utils', () => ({
   },
 }))
 
-jest.mock('@/lib/core/services', () => {
-  const orchestratorMock = {
-    executeUserRequest: jest.fn(() => Promise.resolve({
-      success: true,
-      messages: [
-        { agent: 'user', content: '创建登录页面', timestamp: new Date().toISOString() },
-        { agent: 'pm', content: '好的！我已经分析了需求。\n我将其拆分为以下 2 个子任务：', timestamp: new Date().toISOString() },
-        { agent: 'dev', content: '我已完成创建表单组件的实现。', timestamp: new Date().toISOString() },
-        { agent: 'review', content: '代码审查报告 - 审查通过', timestamp: new Date().toISOString() },
-      ],
-      tasks: [
-        { id: 'task-1', title: '创建表单组件', status: 'completed', assignedTo: 'dev' },
-        { id: 'task-2', title: '添加表单验证', status: 'completed', assignedTo: 'dev' },
-      ],
-      files: [],
-      stats: {
-        totalTasks: 2,
-        successfulTasks: 2,
-        failedTasks: 0,
-        totalRetries: 0,
-        executionTime: 1500,
-      },
-    })),
-    getStatus: jest.fn(() => ({
-      projectId: 'default',
-      tasks: [],
-      messages: [],
-      stats: { total: 0, pending: 0, in_progress: 0, review: 0, completed: 0 },
-    })),
-    reset: jest.fn(),
-  }
-  return {
-    Services: { Orchestrator: Symbol('Orchestrator') },
-    getDefaultContainer: jest.fn(() => ({
-      resolve: jest.fn(() => orchestratorMock),
-    })),
-  }
-})
+const orchestratorMock = {
+  executeUserRequest: jest.fn(() => Promise.resolve({
+    success: true,
+    messages: [
+      { agent: 'user', content: '创建登录页面', timestamp: new Date().toISOString() },
+      { agent: 'pm', content: '好的！我已经分析了需求。\n我将其拆分为以下 2 个子任务：', timestamp: new Date().toISOString() },
+      { agent: 'dev', content: '我已完成创建表单组件的实现。', timestamp: new Date().toISOString() },
+      { agent: 'review', content: '代码审查报告 - 审查通过', timestamp: new Date().toISOString() },
+    ],
+    tasks: [
+      { id: 'task-1', title: '创建表单组件', status: 'completed', assignedTo: 'dev' },
+      { id: 'task-2', title: '添加表单验证', status: 'completed', assignedTo: 'dev' },
+    ],
+    files: [],
+    stats: {
+      totalTasks: 2,
+      successfulTasks: 2,
+      failedTasks: 0,
+      totalRetries: 0,
+      executionTime: 1500,
+    },
+  })),
+  getStatus: jest.fn(() => ({
+    projectId: 'default',
+    tasks: [],
+    messages: [],
+    stats: { total: 0, pending: 0, in_progress: 0, review: 0, completed: 0 },
+  })),
+  reset: jest.fn(),
+}
+
+const mockResolve = jest.fn(() => orchestratorMock)
+
+jest.mock('@/lib/core/services', () => ({
+  Services: { Orchestrator: Symbol('Orchestrator') },
+  getDefaultContainer: jest.fn(() => ({
+    resolve: mockResolve,
+  })),
+}))
+
+globalThis.__orchestratorMock = orchestratorMock
+globalThis.__mockResolve = mockResolve
 
 import { POST, GET } from '../route'
 
@@ -368,6 +372,49 @@ describe('Chat API', () => {
       expect(data.error).toContain('/api/chat 不接受 agentId 参数')
       expect(data.error).toContain('/api/agent')
     })
+
+    it('POST /api/chat 应该返回确定性字段集（tasks, chatHistory, files, workflowType, apiSource, taskId）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).toHaveProperty('tasks')
+      expect(data).toHaveProperty('chatHistory')
+      expect(data).toHaveProperty('files')
+      expect(data).toHaveProperty('workflowType')
+      expect(data).toHaveProperty('apiSource')
+      expect(data).toHaveProperty('taskId')
+      expect(data).not.toHaveProperty('conversationId')
+      expect(data).not.toHaveProperty('agentId')
+      expect(data).not.toHaveProperty('drafts')
+    })
+
+    it('POST /api/chat workflowType 应该是 "orchestrator"（标识聚合工作流）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试工作流' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.workflowType).toBe('orchestrator')
+      expect(data.apiSource).toBe('/api/chat')
+    })
+
+    it('POST /api/chat 响应应包含 stats（任务执行统计）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.tasks).toBeDefined()
+      expect(Array.isArray(data.tasks)).toBe(true)
+      data.tasks.forEach((task: { id: string; title: string; status: string; assignedTo: string }) => {
+        expect(task).toHaveProperty('id')
+        expect(task).toHaveProperty('title')
+        expect(task).toHaveProperty('status')
+        expect(task).toHaveProperty('assignedTo')
+      })
+    })
   })
 
   describe('POST /api/chat - System Prompt 上下文注入', () => {
@@ -398,37 +445,14 @@ describe('Chat API', () => {
     })
 
     it('POST /api/chat 应该将项目状态注入到 Agent Context（#228）', async () => {
-      const mockOrchestrator = {
-        executeUserRequest: jest.fn(() => Promise.resolve({
-          success: true,
-          messages: [
-            { agent: 'user', content: '创建登录页面', timestamp: new Date().toISOString() },
-            { agent: 'pm', content: '需求分析完成', timestamp: new Date().toISOString() },
-          ],
-          tasks: [
-            { id: 'task-1', title: '创建表单', status: 'completed', assignedTo: 'dev', files: [] },
-          ],
-          files: [],
-          stats: { totalTasks: 1, successfulTasks: 1, failedTasks: 0, totalRetries: 0, executionTime: 100 },
-        })),
-        getStatus: jest.fn(() => ({
-          projectId: 'test-project',
-          tasks: [
-            { id: 'task-1', title: '创建表单', status: 'completed', assignedTo: 'dev', files: [] },
-            { id: 'task-2', title: '添加验证', status: 'pending', assignedTo: 'dev', files: [] },
-          ],
-          messages: [],
-          stats: { total: 2, pending: 1, in_progress: 0, review: 0, completed: 1 },
-        })),
-        reset: jest.fn(),
-      }
+      const mock = globalThis.__orchestratorMock as typeof orchestratorMock
 
       const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(mockOrchestrator.executeUserRequest).toHaveBeenCalledWith('创建登录页面', { taskId: undefined })
+      expect(mock.executeUserRequest).toHaveBeenCalledWith('创建登录页面', { taskId: undefined })
     })
   })
 })
