@@ -66,6 +66,8 @@ const EVENT_CHANNEL = 'game:event';
 declare global {
   // eslint-disable-next-line no-var
   var __gameEventEmitter: EventEmitter | undefined
+  // eslint-disable-next-line no-var
+  var __diagTimerStarted: boolean | undefined
 }
 
 if (!globalThis.__gameEventEmitter) {
@@ -76,6 +78,36 @@ if (!globalThis.__gameEventEmitter) {
 
 // 本地引用，类型安全
 const processEmitter: EventEmitter = globalThis.__gameEventEmitter!;
+
+// ── [DIAG] 周期性打印 async_hooks Map 大小，追踪泄漏趋势 ─────────────────────
+// async_hooks 内部用一个 Map 追踪每个 async context，Map 无限增长会触发
+// "RangeError: Map maximum size exceeded"。
+// 这里每 60 秒打印一次，帮助确认崩溃前增长曲线和哪类 async 操作是来源。
+if (process.env.NODE_ENV === 'development' && typeof process !== 'undefined') {
+  if (!globalThis.__diagTimerStarted) {
+    globalThis.__diagTimerStarted = true;
+    const diagTimer = setInterval(() => {
+      const listenerCount = processEmitter.listenerCount(EVENT_CHANNEL);
+      // process._getActiveHandles() 返回活跃句柄（timers/sockets 等）数量
+      const activeHandles = (process as NodeJS.Process & { _getActiveHandles?: () => unknown[] })
+        ._getActiveHandles?.()?.length ?? -1;
+      const activeRequests = (process as NodeJS.Process & { _getActiveRequests?: () => unknown[] })
+        ._getActiveRequests?.()?.length ?? -1;
+      const mem = process.memoryUsage();
+      console.log(
+        `[DIAG] emitter.listeners=${listenerCount}` +
+        ` activeHandles=${activeHandles}` +
+        ` activeRequests=${activeRequests}` +
+        ` heapUsed=${Math.round(mem.heapUsed / 1024 / 1024)}MB` +
+        ` heapTotal=${Math.round(mem.heapTotal / 1024 / 1024)}MB`
+      );
+    }, 60_000);
+    // unref 不阻止进程退出
+    if (typeof diagTimer === 'object' && diagTimer !== null && 'unref' in diagTimer) {
+      (diagTimer as { unref(): void }).unref();
+    }
+  }
+}
 
 // ── Redis Pub/Sub transport (multi-worker, optional) ──────────────────────────
 
@@ -176,8 +208,17 @@ export class GameEventStore {
    */
   subscribe(callback: EventCallback): () => void {
     processEmitter.on(EVENT_CHANNEL, callback);
+    const countAfter = processEmitter.listenerCount(EVENT_CHANNEL);
+    // [DIAG] 每次 subscribe 打印当前 listener 数，帮助发现泄漏
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[GameEventStore] subscribe → listenerCount=${countAfter}`);
+    }
     return () => {
       processEmitter.off(EVENT_CHANNEL, callback);
+      const countAfterUnsub = processEmitter.listenerCount(EVENT_CHANNEL);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[GameEventStore] unsubscribe → listenerCount=${countAfterUnsub}`);
+      }
     };
   }
 

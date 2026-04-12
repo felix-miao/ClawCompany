@@ -272,7 +272,7 @@ describe('schemas', () => {
 
   describe('strict mode - reject extra fields', () => {
     it('ChatRequestSchema should reject extra fields (strict mode)', () => {
-      const result = ChatRequestSchema.strict().safeParse({
+      const result = ChatRequestSchema.safeParse({
         message: 'Hello',
         agentId: 'pm-agent',
       })
@@ -280,7 +280,7 @@ describe('schemas', () => {
     })
 
     it('ChatRequestSchema should reject extra fields: userMessage', () => {
-      const result = ChatRequestSchema.strict().safeParse({
+      const result = ChatRequestSchema.safeParse({
         message: 'Hello',
         userMessage: 'test',
       })
@@ -306,7 +306,7 @@ describe('schemas', () => {
     })
 
     it('ChatRequestSchema should reject extra fields including agentId', () => {
-      const result = ChatRequestSchema.strict().safeParse({
+      const result = ChatRequestSchema.safeParse({
         message: 'Hello',
         agentId: 'pm-agent',
       })
@@ -314,7 +314,7 @@ describe('schemas', () => {
     })
 
     it('should provide helpful error message mentioning the extra field', () => {
-      const result = ChatRequestSchema.strict().safeParse({
+      const result = ChatRequestSchema.safeParse({
         message: 'Hello',
         agentId: 'pm-agent',
       })

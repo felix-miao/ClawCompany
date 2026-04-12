@@ -3,16 +3,23 @@ import type { NextResponse } from 'next/server'
 
 import { errorResponse } from './route-utils'
 
-export const ChatRequestSchema = z.object({
+// Base object schema — 暴露给需要调用 .strict() 的测试
+export const ChatRequestBaseSchema = z.object({
   message: z.string()
     .refine(val => val.trim().length > 0, '消息不能为空')
     .max(10000, '消息不能超过 10000 字符'),
   taskId: z.string().optional(),
-}).strict()
+  agentId: z.string().optional(),
+})
+
+// 应用层 schema — 拒绝 agentId 并给出友好消息，其他未知字段由 base strict 处理
+export const ChatRequestSchema = ChatRequestBaseSchema
+  .strict()
   .refine(
-    (data) => !('agentId' in data),
+    (data) => data.agentId === undefined,
     { message: '/api/chat 不接受 agentId 参数，请使用 /api/agent' }
   )
+  .transform(({ agentId: _agentId, ...rest }) => rest)
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>
 

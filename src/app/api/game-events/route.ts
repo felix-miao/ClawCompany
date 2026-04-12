@@ -70,6 +70,10 @@ const handleGet = async (request: NextRequest) => {
     start(controller) {
       const poller = getSessionPoller(store);
       sseSubscriberCount += 1;
+      // [DIAG] 每次 SSE 连接建立时打印计数，帮助确认连接是否正常释放
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[SSE] open  ip=${ip} sseSubscriberCount=${sseSubscriberCount} totalConnections=${totalConnections} pollerRunning=${poller.isRunning()}`);
+      }
       if (!poller.isRunning()) {
         poller.start();
       }
@@ -130,6 +134,10 @@ const handleGet = async (request: NextRequest) => {
         sseSubscriberCount = Math.max(0, sseSubscriberCount - 1);
         if (sseSubscriberCount === 0) {
           poller.stop();
+        }
+        // [DIAG] 连接关闭时打印计数，如果 close 从未出现说明 abort 事件没有触发
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[SSE] close ip=${ip} sseSubscriberCount=${sseSubscriberCount} totalConnections=${totalConnections} pollerRunning=${poller.isRunning()}`);
         }
         try {
           controller.close();
