@@ -67,10 +67,13 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   }))
   const projectState = getProjectStateSummary(taskManager, chatMessages)
 
+  const currentTask = parsed.data.taskId ? taskManager.getTask(parsed.data.taskId) : undefined
+
   const dynamicContext = buildAgentContext({
     agentConfig,
     conversationId: conversation.id,
     taskId: parsed.data.taskId,
+    currentTask,
     projectState
   })
 

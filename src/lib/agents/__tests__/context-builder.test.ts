@@ -160,3 +160,67 @@ describe('getProjectStateSummary', () => {
     expect(summary.recentMessages).toHaveLength(2)
   })
 })
+
+describe('context injection with taskId', () => {
+  const mockAgentConfig: PersistedAgentConfig = {
+    id: 'pm-agent',
+    name: 'PM Claw',
+    role: 'pm',
+    emoji: '📋',
+    color: '#3B82F6',
+    systemPrompt: 'You are PM Claw',
+    runtime: 'subagent',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+
+  it('should include currentTask when taskId is provided and task exists in manager', () => {
+    const mockTaskManager = {
+      getTask: (taskId: string) => {
+        if (taskId === 'task-active') {
+          return {
+            id: 'task-active',
+            title: 'Implement login feature',
+            description: 'Create login form with validation',
+            status: 'in_progress' as const,
+            assignedTo: 'dev' as const,
+            dependencies: ['task-base'],
+            files: [],
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }
+        }
+        return undefined
+      }
+    } as any
+
+    const input: AgentContextInput = {
+      agentConfig: mockAgentConfig,
+      taskId: 'task-active',
+      currentTask: mockTaskManager.getTask('task-active')
+    }
+    const context = buildAgentContext(input)
+
+    expect(context).toContain('## 当前任务')
+    expect(context).toContain('Implement login feature')
+    expect(context).toContain('in_progress')
+    expect(context).toContain('task-base')
+  })
+
+  it('should not include currentTask section when taskId provided but task not found', () => {
+    const mockTaskManager = {
+      getTask: () => undefined
+    } as any
+
+    const input: AgentContextInput = {
+      agentConfig: mockAgentConfig,
+      taskId: 'nonexistent-task',
+      currentTask: undefined
+    }
+    const context = buildAgentContext(input)
+
+    expect(context).toContain('## 当前会话上下文')
+    expect(context).toContain('nonexistent-task')
+    expect(context).not.toContain('## 当前任务')
+  })
+})

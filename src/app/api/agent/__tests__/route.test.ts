@@ -100,6 +100,36 @@ jest.mock('@/lib/git/manager', () => {
   }
 })
 
+jest.mock('@/lib/core/services', () => {
+  ;(global as Record<string, unknown>).__mockTaskManager__ = {
+    getStats: () => ({ total: 5, pending: 2, inProgress: 1, completed: 2, failed: 0, review: 0 }),
+    getAllTasks: () => [],
+    getTask: (taskId: string) => {
+      if (taskId === 'task-123' || taskId === 'task-456') {
+        return {
+          id: taskId,
+          title: 'Test task',
+          description: 'Test description',
+          status: 'in_progress' as const,
+          assignedTo: 'dev' as const,
+          dependencies: [],
+          files: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      }
+      return undefined
+    },
+    projectId: 'test-project'
+  }
+  return {
+    Services: { TaskManager: 'TaskManager' },
+    getDefaultContainer: jest.fn(() => ({
+      resolve: jest.fn(() => (global as Record<string, unknown>).__mockTaskManager__)
+    }))
+  }
+})
+
 jest.mock('@/lib/security/utils', () => ({
   InputValidator: {
     validateAgentId: (id: string) => /^[a-z0-9-]+$/.test(id),
@@ -677,6 +707,92 @@ describe('/api/agent', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.message).toBe('LLM generated response')
+
+      setLLMProvider(null)
+      process.env.USE_MOCK_LLM = originalMock
+    })
+
+    it('should inject project state summary into system prompt', async () => {
+      const originalMock = process.env.USE_MOCK_LLM
+      delete process.env.USE_MOCK_LLM
+
+      const mockChatFn = jest.fn().mockResolvedValue('Response')
+      setLLMProvider(createMockLLMProvider(mockChatFn))
+
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      await POST(request)
+
+      expect(mockChatFn).toHaveBeenCalled()
+      const [[messages]] = mockChatFn.mock.calls
+      const systemMessage = messages.find((m: { role: string }) => m.role === 'system')?.content
+
+      expect(systemMessage).toContain('## 当前会话上下文')
+      expect(systemMessage).toContain('## 项目状态摘要')
+
+      setLLMProvider(null)
+      process.env.USE_MOCK_LLM = originalMock
+    })
+
+    it('should inject task context when taskId is provided', async () => {
+      const originalMock = process.env.USE_MOCK_LLM
+      delete process.env.USE_MOCK_LLM
+
+      const mockChatFn = jest.fn().mockResolvedValue('Response')
+      setLLMProvider(createMockLLMProvider(mockChatFn))
+
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Check task status',
+          taskId: 'task-123'
+        }
+      })
+
+      await POST(request)
+
+      expect(mockChatFn).toHaveBeenCalled()
+      const [[messages]] = mockChatFn.mock.calls
+      const systemMessage = messages.find((m: { role: string }) => m.role === 'system')?.content
+
+      expect(systemMessage).toContain('task-123')
+
+      setLLMProvider(null)
+      process.env.USE_MOCK_LLM = originalMock
+    })
+
+    it('should include key diagnostic fields in system prompt', async () => {
+      const originalMock = process.env.USE_MOCK_LLM
+      delete process.env.USE_MOCK_LLM
+
+      const mockChatFn = jest.fn().mockResolvedValue('Response')
+      setLLMProvider(createMockLLMProvider(mockChatFn))
+
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello',
+          taskId: 'task-456'
+        }
+      })
+
+      await POST(request)
+
+      expect(mockChatFn).toHaveBeenCalled()
+      const [[messages]] = mockChatFn.mock.calls
+      const systemMessage = messages.find((m: { role: string }) => m.role === 'system')?.content
+
+      expect(systemMessage).toContain('会话ID')
+      expect(systemMessage).toContain('任务ID')
+      expect(systemMessage).toContain('task-456')
 
       setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
