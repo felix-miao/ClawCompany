@@ -4,6 +4,7 @@ export function resolveTitleDependencies(tasks: Task[]): Task[] {
   if (tasks.length === 0) return []
 
   const titleToId = new Map<string, string>()
+  const slugToId = new Map<string, string>()
   const idSet = new Set<string>()
 
   for (const task of tasks) {
@@ -13,9 +14,19 @@ export function resolveTitleDependencies(tasks: Task[]): Task[] {
     }
   }
 
+  for (const task of tasks) {
+    const taskWithSlug = task as Task & { slug?: string }
+    if (taskWithSlug.slug && !slugToId.has(taskWithSlug.slug)) {
+      slugToId.set(taskWithSlug.slug, task.id)
+    }
+  }
+
   return tasks.map((task) => {
     const resolvedDeps = task.dependencies.map((dep) => {
       if (idSet.has(dep)) return dep
+
+      const slugMappedId = slugToId.get(dep)
+      if (slugMappedId) return slugMappedId
 
       const mappedId = titleToId.get(dep)
       if (mappedId) return mappedId

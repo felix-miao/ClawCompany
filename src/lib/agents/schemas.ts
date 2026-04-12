@@ -8,6 +8,7 @@ export const SubTaskSchema = z.object({
     (val) => Array.isArray(val) ? val : [],
     z.array(z.string())
   ),
+  slug: z.string().min(1).optional(),
 })
 
 export const PMAgentResponseSchema = z.object({

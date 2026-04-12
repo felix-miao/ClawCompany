@@ -22,6 +22,7 @@ interface ValidatedSubTask {
   assignedTo: 'dev' | 'review' | 'tester'
   dependencies: string[]
   files?: string[]
+  slug?: string
 }
 
 export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
@@ -209,6 +210,9 @@ export class Orchestrator extends BaseOrchestrator {
           taskData.dependencies,
           taskData.files ?? [],
         )
+        if (taskData.slug) {
+          ;(task as Task & { slug: string }).slug = taskData.slug
+        }
         subTasks.push(task)
       }
 

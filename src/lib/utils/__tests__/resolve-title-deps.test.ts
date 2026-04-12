@@ -110,4 +110,68 @@ describe('resolveTitleDependencies', () => {
     expect(result[2].dependencies).toEqual([])
     expect(result[3].dependencies).toEqual(['dev-1', 'dev-3'])
   })
+
+  it('should resolve slug-based dependencies before title', () => {
+    const task1 = makeTask({ id: 'dev-1', title: '创建表单组件', dependencies: [] })
+    const task2 = makeTask({ id: 'dev-2', title: '添加表单验证', dependencies: ['create-form-component'] })
+
+    const task1WithSlug = task1 as Task & { slug: string }
+    task1WithSlug.slug = 'create-form-component'
+
+    const result = resolveTitleDependencies([task1WithSlug, task2])
+
+    expect(result[1].dependencies).toEqual(['dev-1'])
+  })
+
+  it('should resolve slug dependency even when title changes', () => {
+    const task1 = makeTask({ id: 'dev-1', title: '旧标题', dependencies: [] })
+    const task2 = makeTask({ id: 'dev-2', title: '依赖任务', dependencies: ['create-form-component'] })
+
+    const task1WithSlug = task1 as Task & { slug: string }
+    task1WithSlug.slug = 'create-form-component'
+
+    const result = resolveTitleDependencies([task1WithSlug, task2])
+
+    expect(result[1].dependencies).toEqual(['dev-1'])
+  })
+
+  it('should fallback to title if slug not found', () => {
+    const task1 = makeTask({ id: 'dev-1', title: '表单组件', dependencies: [] })
+    const task2 = makeTask({ id: 'dev-2', title: '验证任务', dependencies: ['表单组件'] })
+
+    const task1WithSlug = task1 as Task & { slug: string }
+    task1WithSlug.slug = 'some-other-slug'
+
+    const result = resolveTitleDependencies([task1WithSlug, task2])
+
+    expect(result[1].dependencies).toEqual(['dev-1'])
+  })
+
+  it('should handle external slug dependency gracefully', () => {
+    const task1 = makeTask({ id: 'dev-1', title: '本地任务', dependencies: ['external-slug'] })
+
+    const result = resolveTitleDependencies([task1])
+
+    expect(result[0].dependencies).toEqual(['external-slug'])
+  })
+
+  it('should handle undefined slug gracefully', () => {
+    const task1 = makeTask({ id: 'dev-1', title: '任务1', dependencies: [] })
+    const task2 = makeTask({ id: 'dev-2', title: '任务2', dependencies: ['task-1-slug'] })
+
+    const result = resolveTitleDependencies([task1, task2])
+
+    expect(result[1].dependencies).toEqual(['task-1-slug'])
+  })
+
+  it('should log warning for unresolvable dependency', () => {
+    const task1 = makeTask({ id: 'dev-1', title: 'Task', dependencies: ['non-existent-dep'] })
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation()
+    const result = resolveTitleDependencies([task1])
+
+    warnSpy.mockRestore()
+
+    expect(result[0].dependencies).toEqual(['non-existent-dep'])
+  })
 })

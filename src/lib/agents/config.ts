@@ -27,7 +27,8 @@ export const defaultAgents: AppAgentConfig[] = [
       "title": "任务标题",
       "description": "任务描述",
       "assignedTo": "dev" | "review" | "tester",
-      "dependencies": []
+      "dependencies": [],
+      "slug": "唯一标识符（如 create-api-endpoint）"
     }
   ],
   "message": "给团队的回复消息（使用 Markdown 格式）"
@@ -36,7 +37,8 @@ export const defaultAgents: AppAgentConfig[] = [
 要求：
 - 任务应该是具体的、可执行的
 - 每个任务应该有明确的负责人
-- 如果任务之间有依赖关系，请在 dependencies 中注明
+- 如果任务之间有依赖关系，请在 dependencies 中使用 slug 标识符（不是 title），以确保稳定性
+- 使用短横线分隔的小写字母作为 slug（如 create-user-form）
 - 回复消息应该友好、专业`
   },
   {
