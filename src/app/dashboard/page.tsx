@@ -152,43 +152,53 @@ export default function DashboardPage() {
         {/* Left: canvas fills available space */}
         <div className="flex-1 flex flex-col p-4 gap-3 min-w-0 overflow-hidden">
           {activeView === "game" ? (
-            <div className="glass rounded-2xl p-2 border border-dark-100 flex-1 flex items-center justify-center overflow-hidden">
-              <div
-                className="relative rounded-xl overflow-hidden w-full h-full"
-                style={{ aspectRatio: "12/7" }}
-              >
+            <>
+              <div className="glass rounded-2xl p-2 border border-dark-100 flex-1 flex items-center justify-center overflow-hidden">
                 <div
-                  id="dashboard-game-container"
-                  ref={containerRef}
-                  className="w-full h-full"
-                />
+                  className="relative rounded-xl overflow-hidden w-full h-full"
+                  style={{ aspectRatio: "12/7" }}
+                >
+                  <div
+                    id="dashboard-game-container"
+                    ref={containerRef}
+                    className="w-full h-full"
+                  />
 
-                {isGameLoading && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2" />
-                      <p className="text-gray-300 text-sm">Loading office...</p>
+                  {isGameLoading && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-2" />
+                        <p className="text-gray-300 text-sm">Loading office...</p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {gameError && (
-                  <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
-                    <div className="text-center p-4">
-                      <div className="text-red-400 text-2xl mb-2">⚠️</div>
-                      <p className="text-red-300 text-sm mb-1">加载失败</p>
-                      <p className="text-gray-400 text-xs mb-3">{gameError}</p>
-                      <button
-                        onClick={() => window.location.reload()}
-                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded text-sm text-white transition-colors"
-                      >
-                        重新加载
-                      </button>
+                  {gameError && (
+                    <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+                      <div className="text-center p-4">
+                        <div className="text-red-400 text-2xl mb-2">⚠️</div>
+                        <p className="text-red-300 text-sm mb-1">加载失败</p>
+                        <p className="text-gray-400 text-xs mb-3">{gameError}</p>
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded text-sm text-white transition-colors"
+                        >
+                          重新加载
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* Hint bar */}
+              <div className="flex items-center gap-3 text-xs text-gray-500 shrink-0">
+                <span>
+                  <kbd className="px-1.5 py-0.5 bg-dark-50 border border-dark-100 rounded font-mono">Click</kbd>
+                  {" "}角色 → 查看任务详情
+                </span>
+              </div>
+            </>
           ) : (
             <TraditionalTaskView tasks={taskHistory} />
           )}
