@@ -145,6 +145,39 @@ export default function TeamChatPage() {
     }
   }
 
+  const sendWorkflowRequest = async (message: string) => {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    })
+
+    const result = await response.json()
+    if (result.success) {
+      return result
+    } else {
+      throw new Error(result.error)
+    }
+  }
+
+  const sendOpenClawRequest = async (message: string) => {
+    const response = await fetch('/api/openclaw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'orchestrate',
+        userRequest: message
+      })
+    })
+
+    const result = await response.json()
+    if (result.success || result.status === 'started') {
+      return result
+    } else {
+      throw new Error(result.error)
+    }
+  }
+
   const addMessage = (agent: AgentConfig, content: string) => {
     const { files } = parseCodeFiles(content)
     setMessages(prev => [...prev, {
@@ -174,60 +207,59 @@ export default function TeamChatPage() {
     )
 
     try {
-      const pmAgent = agents.find(a => a.id === 'pm-agent')!
-      addMessage(pmAgent, '正在分析需求...')
-      
-      const pmStartTime = Date.now()
-      const pmResponse = await callAgent(pmAgent, userMessage)
-      const pmDuration = ((Date.now() - pmStartTime) / 1000).toFixed(1)
-      
-      const pmPlaceholder = '正在分析需求...'
-      setMessages(prev => prev.map(m =>
-        m.agentId === 'pm-agent' && m.content === pmPlaceholder
-          ? { ...m, content: pmResponse + `\n\n⏱️ 用时：${pmDuration}秒` }
-          : m
-      ))
+      if (mode === 'openclaw') {
+        addMessage(
+          { id: 'system', name: 'System', role: 'system', emoji: '🔧', color: '#F97316', systemPrompt: '', runtime: 'subagent' },
+          '正在通过 OpenClaw 聚合工作流处理...'
+        )
 
-      const devAgent = agents.find(a => a.id === 'dev-agent')!
-      addMessage(devAgent, '正在实现功能...')
-      
-      const devStartTime = Date.now()
-      const devResponse = await callAgent(
-        devAgent,
-        `用户需求：${userMessage}\n\nPM 分析：${pmResponse}\n\n请实现这个功能，生成完整的代码。`
-      )
-      const devDuration = ((Date.now() - devStartTime) / 1000).toFixed(1)
-      
-      const devPlaceholder = '正在实现功能...'
-      setMessages(prev => prev.map(m =>
-        m.agentId === 'dev-agent' && m.content === devPlaceholder
-          ? { ...m, content: devResponse + `\n\n⏱️ 用时：${devDuration}秒` }
-          : m
-      ))
+        const result = await sendOpenClawRequest(userMessage)
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 
-      const reviewAgent = agents.find(a => a.id === 'review-agent')!
-      addMessage(reviewAgent, '正在审查代码...')
-      
-      const reviewStartTime = Date.now()
-      const reviewResponse = await callAgent(
-        reviewAgent,
-        `审查以下代码实现：\n\n用户需求：${userMessage}\n\n代码：\n${devResponse}`
-      )
-      const reviewDuration = ((Date.now() - reviewStartTime) / 1000).toFixed(1)
-      
-      const reviewPlaceholder = '正在审查代码...'
-      setMessages(prev => prev.map(m =>
-        m.agentId === 'review-agent' && m.content === reviewPlaceholder
-          ? { ...m, content: reviewResponse + `\n\n⏱️ 用时：${reviewDuration}秒` }
-          : m
-      ))
+        setMessages(prev => prev.map(m =>
+          m.content.includes('正在通过 OpenClaw')
+            ? { ...m, content: `OpenClaw 工作流已启动\n\n⏱️ 用时：${duration}秒\n\n状态：${result.status || 'completed'}` }
+            : m
+        ))
 
-      const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
+        addMessage(
+          { id: 'system', name: 'System', role: 'system', emoji: '🎉', color: '#F97316', systemPrompt: '', runtime: 'subagent' },
+          `OpenClaw 工作流完成！\n\n📊 性能统计：\n• 总用时: ${duration}秒`
+        )
+      } else {
+        addMessage(
+          { id: 'system', name: 'System', role: 'system', emoji: '🔧', color: '#3B82F6', systemPrompt: '', runtime: 'subagent' },
+          '正在通过 GLM 聚合工作流处理...'
+        )
 
-      addMessage(
-        { id: 'system', name: 'System', role: 'system', emoji: '🎉', color: '#FF5833', systemPrompt: '', runtime: 'subagent' },
-        `团队协作完成！\n\n📊 性能统计：\n• PM Claw: ${pmDuration}秒\n• Dev Claw: ${devDuration}秒\n• Reviewer Claw: ${reviewDuration}秒\n• 总用时: ${totalDuration}秒`
-      )
+        const workflowResult = await sendWorkflowRequest(userMessage)
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1)
+
+        setMessages(prev => prev.map(m =>
+          m.content.includes('正在通过 GLM')
+            ? { ...m, content: `GLM 工作流已完成\n\n⏱️ 用时：${duration}秒` }
+            : m
+        ))
+
+        const pmAgent = agents.find(a => a.id === 'pm-agent')!
+        const devAgent = agents.find(a => a.id === 'dev-agent')!
+        const reviewAgent = agents.find(a => a.id === 'review-agent')!
+
+        if (workflowResult.phases?.pm) {
+          addMessage(pmAgent, workflowResult.phases.pm.message || 'PM 分析完成')
+        }
+        if (workflowResult.phases?.dev) {
+          addMessage(devAgent, workflowResult.phases.dev.message || '开发完成')
+        }
+        if (workflowResult.phases?.review) {
+          addMessage(reviewAgent, workflowResult.phases.review.message || '审查完成')
+        }
+
+        addMessage(
+          { id: 'system', name: 'System', role: 'system', emoji: '🎉', color: '#3B82F6', systemPrompt: '', runtime: 'subagent' },
+          `团队协作完成！\n\n📊 性能统计：\n• 总用时: ${duration}秒`
+        )
+      }
 
     } catch (error) {
       console.error('Error:', error)

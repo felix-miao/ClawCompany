@@ -62,7 +62,7 @@ describe('DashboardPage', () => {
 
   it('should render game loading overlay initially', () => {
     render(<DashboardPage />);
-    expect(screen.getByText('正在加载虚拟办公室...')).toBeInTheDocument();
+    expect(screen.getByText('Loading office...')).toBeInTheDocument();
   });
 
   it('should render back link', () => {
@@ -93,7 +93,8 @@ describe('DashboardPage', () => {
 
   it('should render keyboard shortcuts', () => {
     render(<DashboardPage />);
-    expect(screen.getByText('🎮 键盘操作')).toBeInTheDocument();
+    // Keyboard shortcuts removed in display-only mode; verify control panel is present instead
+    expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
   it('should render trigger test task button', () => {

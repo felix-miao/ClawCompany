@@ -1,1441 +1,409 @@
+/**
+ * OfficeScene — read-only display scene.
+ *
+ * Responsibilities:
+ *  - Draw the office background (rooms, desks, grid)
+ *  - Render one character sprite per agent at their room position
+ *  - Reflect task state (idle / working) via animation
+ *  - Allow clicking a character to show task detail
+ *  - Expose the public API surface consumed by Game, SceneEventBridge, triggerTestTask
+ *
+ * Deliberately excluded: player movement, keyboard controls, physics platforms,
+ * pathfinding, joystick, tutorial, sound, decorators, history/statistics panels.
+ */
 import * as Phaser from 'phaser';
 
 import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
-import { CharacterSprites } from '../sprites/CharacterSprites';
-import { TILE_SIZE } from '../config/gameConfig';
-import { DebugOverlay } from '../utils/DebugOverlay';
-import { MovementSystem } from '../systems/MovementSystem';
 import { AnimationController } from '../systems/AnimationController';
-import { CharacterSpriteSystem } from '../sprites/CharacterSpriteSystem';
-import { OfficeMapGenerator } from '../sprites/OfficeMapGenerator';
-import { NavigationMesh } from '../data/NavigationMesh';
-import { PathfindingSystem } from '../systems/PathfindingSystem';
-import { NavigationSystem } from '../systems/NavigationSystem';
 import { SceneEventBridge, SceneActions } from '../systems/SceneEventBridge';
 import { EmotionType } from '../systems/EmotionSystem';
-import { ParticleSystem, ParticleEffectType } from '../systems/ParticleSystem';
-import { PerformanceMonitor } from '../systems/PerformanceMonitor';
-import { MemoryManager } from '../systems/MemoryManager';
-import { RenderOptimizer } from '../systems/RenderOptimizer';
-import { ThrottleSystem } from '../systems/ThrottleSystem';
-import { SoundSystem, SoundType } from '../systems/SoundSystem';
-import { AudioManager } from '../systems/AudioManager';
-import { PhaserSoundAdapter } from '../systems/PhaserSoundAdapter';
-import { TargetMarker } from '../ui/TargetMarker';
-import { OfficeDecorator } from '../ui/OfficeDecorator';
-import { TaskManager } from '../systems/TaskManager';
-import { TaskHandoverSystem } from '../systems/TaskHandoverSystem';
-import { TaskFlowSystem } from '../systems/TaskFlowSystem';
-import { TaskVisualizer } from '../ui/TaskVisualizer';
-import { TaskHistoryPanel } from '../ui/TaskHistoryPanel';
-import { AgentHistoryPanel } from '../ui/AgentHistoryPanel';
-import { TaskStatisticsPanel } from '../ui/TaskStatisticsPanel';
-import { SmartTaskVisualizer, DisplayMode } from '../ui/SmartTaskVisualizer';
-import { StatusAnimationSystem } from '../ui/StatusAnimationSystem';
-import { VirtualJoystick } from '../ui/VirtualJoystick';
-import { TutorialOverlay } from '../ui/TutorialOverlay';
-import { InteractiveTutorial, InteractiveStepType } from '../ui/InteractiveTutorial';
-import { OnboardingManager, OnboardingPhase } from '../systems/OnboardingManager';
-import { EventBus } from '../systems/EventBus';
-import { ShadowRenderer } from '../sprites/ShadowRenderer';
+import { ParticleEffectType } from '../systems/ParticleSystem';
 import { RoleVisuals } from '../sprites/RoleVisuals';
-import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
-import { OfficeDecoration } from '../sprites/OfficeMapGenerator';
-
+import { ShadowRenderer } from '../sprites/ShadowRenderer';
+import { EventBus } from '../systems/EventBus';
+import { TaskManager } from '../systems/TaskManager';
+import { TaskVisualizer } from '../ui/TaskVisualizer';
+import { TinyTownLoader } from '../sprites/TinyTownLoader';
 import type { AgentConfig } from '../../types/agent-config';
+import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
+
 export type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 
+// ── Agent definitions ────────────────────────────────────────────────────────
 const AGENT_CONFIGS: AgentConfig[] = [
-  { id: 'pm-agent', name: 'PM', role: 'Project Manager', emoji: '📋', color: '#45b7d1', systemPrompt: '', runtime: 'subagent' },
-  { id: 'dev-agent', name: 'Dev', role: 'Developer', emoji: '👨‍💻', color: '#4ecdc4', systemPrompt: '', runtime: 'subagent' },
-  { id: 'review-agent', name: 'Reviewer', role: 'Code Reviewer', emoji: '🔍', color: '#96ceb4', systemPrompt: '', runtime: 'subagent' },
-  { id: 'test-agent', name: 'Tester', role: 'QA Engineer', emoji: '🧪', color: '#ff6b6b', systemPrompt: '', runtime: 'subagent' },
+  { id: 'pm-agent',     name: 'PM',       role: 'Project Manager', emoji: '📋', color: '#45b7d1', systemPrompt: '', runtime: 'subagent' },
+  { id: 'dev-agent',    name: 'Dev',      role: 'Developer',       emoji: '👨‍💻', color: '#4ecdc4', systemPrompt: '', runtime: 'subagent' },
+  { id: 'review-agent', name: 'Reviewer', role: 'Code Reviewer',   emoji: '🔍', color: '#96ceb4', systemPrompt: '', runtime: 'subagent' },
+  { id: 'test-agent',   name: 'Tester',   role: 'QA Engineer',     emoji: '🧪', color: '#ff6b6b', systemPrompt: '', runtime: 'subagent' },
 ];
 
-import { TinyTownLoader } from '../sprites/TinyTownLoader';
+// Short role key → texture / animation prefix registered by TinyTownLoader
+const AGENT_ROLE_KEY: Record<string, string> = {
+  'pm-agent':     'pm',
+  'dev-agent':    'dev',
+  'review-agent': 'reviewer',
+  'test-agent':   'tester',
+};
+
+// ── Room layout (pixel coords, canvas 1200×700) ──────────────────────────────
+// These must stay in sync with drawOfficeBackground().
+const ROOM_CENTRES: Record<string, { x: number; y: number }> = {
+  'pm-office':     { x: 200,  y: 220 },
+  'dev-studio':    { x: 600,  y: 220 },
+  'review-center': { x: 1000, y: 220 },
+  'test-lab':      { x: 600,  y: 530 },
+};
+
+// Map agent id → room
+const AGENT_ROOM: Record<string, string> = {
+  'pm-agent':     'pm-office',
+  'dev-agent':    'dev-studio',
+  'review-agent': 'review-center',
+  'test-agent':   'test-lab',
+};
 
 export class OfficeScene extends Phaser.Scene {
+  // ── State ──────────────────────────────────────────────────────────────────
   private agents: AgentCharacter[] = [];
   private agentMap: Map<string, AgentCharacter> = new Map();
-  private platforms!: Phaser.Physics.Arcade.StaticGroup;
-  private debugOverlay!: DebugOverlay;
-  private movementSystem!: MovementSystem;
-  private navigationSystem!: NavigationSystem;
-  private tilemapData: TilemapData | null = null;
-  private workstationMap: Map<string, Workstation> = new Map();
-  private navMesh!: NavigationMesh;
-  private pathfindingSystem!: PathfindingSystem;
-  private activeTasks: Map<string, ActiveTask> = new Map();
-  private selectedAgentIndex: number = 0;
   private nameLabels: Map<string, Phaser.GameObjects.Text> = new Map();
-  private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
-  private eventBridge: SceneEventBridge | null = null;
-  private particleSystem!: ParticleSystem;
-  private particleEmitters: Map<string, Phaser.GameObjects.Particles.ParticleEmitter> = new Map();
-  private particleTextures: Map<string, string> = new Map();
-  private performanceMonitor!: PerformanceMonitor;
-  private memoryManager!: MemoryManager;
-  private renderOptimizer!: RenderOptimizer;
-  private throttleSystem!: ThrottleSystem;
-  private lastOptimizationCheck: number = 0;
-  private static readonly OPTIMIZATION_CHECK_INTERVAL = 5000;
-  private static readonly MAX_PARTICLE_EMITTERS = 20;
-  private static readonly STALE_EMITTER_AGE = 3000;
-  private soundSystem!: SoundSystem;
-  private audioManager!: AudioManager;
-  private soundAdapter!: PhaserSoundAdapter;
-  private targetMarker!: TargetMarker;
-  private officeDecorator!: OfficeDecorator;
-  private shadowRenderer!: ShadowRenderer;
-  private roleVisuals!: RoleVisuals;
   private shadowGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map();
-  private cachedShadowOffsetY: number = 0;
-  private decorationGraphics: Phaser.GameObjects.GameObject[] = [];
-  private virtualJoystick!: VirtualJoystick;
-  private tutorialOverlay!: TutorialOverlay;
-  private interactiveTutorial!: InteractiveTutorial;
-  private onboardingManager!: OnboardingManager;
-  private taskTimer: Phaser.Time.TimerEvent | null = null;
-  private workstationTimer: Phaser.Time.TimerEvent | null = null;
+  private roleVisuals!: RoleVisuals;
+  private shadowRenderer!: ShadowRenderer;
+  private eventBridge: SceneEventBridge | null = null;
   private eventBus!: EventBus;
   private taskManager!: TaskManager;
-  private taskHandoverSystem!: TaskHandoverSystem;
-  private taskFlowSystem!: TaskFlowSystem;
   private taskVisualizer!: TaskVisualizer;
-  private historyPanel!: TaskHistoryPanel;
-  private agentHistoryPanel!: AgentHistoryPanel;
-  private statisticsPanel!: TaskStatisticsPanel;
-  private smartTaskVisualizer!: SmartTaskVisualizer;
-  private statusAnimationSystem!: StatusAnimationSystem;
-  private characterSpriteSystem!: CharacterSpriteSystem;
-  private officeMapGenerator!: OfficeMapGenerator;
+  private tilemapData: TilemapData | null = null;
 
-  private roomPositions: Record<string, { x: number; y: number }> = {
-    // Pixel centres matching drawOfficeBackground() room zones
-    'pm-office':     { x: 140, y: 160 },
-    'dev-studio':    { x: 400, y: 160 },
-    'review-center': { x: 660, y: 160 },
-    'test-lab':      { x: 400, y: 460 },
-  };
+  // Particle textures (minimal, for task-complete celebrations)
+  private particleEmitters: Map<string, Phaser.GameObjects.Particles.ParticleEmitter> = new Map();
+  private static readonly MAX_PARTICLE_EMITTERS = 10;
+
+  private static readonly PM_AGENT_ID = 'pm-agent';
+  private static readonly TEST_TASKS = [
+    '写一个个人博客网站，包含首页、关于我、文章列表三个页面，使用 Next.js 和 Tailwind CSS',
+    '为用户登录模块编写单元测试，覆盖正常登录、密码错误、账户锁定三种场景',
+    '审查 src/lib/gateway/client.ts 的代码质量，关注错误处理和资源释放',
+    '组织迭代规划会议，讨论下一版本的功能优先级和排期',
+    '实现一个 REST API 端点 /api/health，返回服务状态和当前时间',
+  ];
 
   constructor() {
     super({ key: 'OfficeScene' });
   }
 
+  // ── Lifecycle ────────────────────────────────────────────────────────────────
+
   preload(): void {
-    // Register all default character + environment textures synchronously
-    // so they are available when create() runs (avoids missing-texture placeholders).
-    const loader = new TinyTownLoader(this);
-    loader.preloadSync();
-  }
-
-  private getDefaultTilemapData(): TilemapData {
-    // Agent spawn positions are in pixel space (not tile space) and match the
-    // room centres drawn by drawOfficeBackground().
-    // Room layout (pixels):
-    //   PM Office:     x=40..240,  y=60..220   → centre (140, 160)
-    //   Dev Studio:    x=300..500, y=60..220   → centre (400, 160)
-    //   Review Center: x=560..760, y=60..220   → centre (660, 160)
-    //   Test Lab:      x=300..500, y=380..540  → centre (400, 460)
-    //
-    // workstation x/y are pixel coords (TILE_SIZE=1 for this config).
-    return {
-      width: 800,
-      height: 600,
-      tileSize: 1,   // pixel-space: x/y in workstations are already pixels
-      workstations: [
-        { id: 'ws-pm',       x: 140, y: 170, label: 'PM',       status: 'idle' as const, taskType: 'meeting' },
-        { id: 'ws-dev',      x: 400, y: 170, label: 'Dev',      status: 'idle' as const, taskType: 'coding' },
-        { id: 'ws-reviewer', x: 660, y: 170, label: 'Reviewer', status: 'idle' as const, taskType: 'review' },
-        { id: 'ws-tester',   x: 400, y: 460, label: 'Tester',   status: 'idle' as const, taskType: 'testing' },
-      ],
-      platforms: [],  // no physics platforms — agents use free pathfinding
-    };
-  }
-
-  private createParticleTexture(): void {
-    const graphics = this.add.graphics();
-    graphics.fillStyle(0x00ff00, 1);
-    graphics.fillCircle(4, 4, 4);
-    graphics.generateTexture('particle', 8, 8);
-    graphics.destroy();
-
-    const celebrationGraphics = this.add.graphics();
-    celebrationGraphics.fillStyle(0xffffff, 1);
-    celebrationGraphics.fillRect(0, 0, 6, 6);
-    celebrationGraphics.lineStyle(1, 0xffdd00, 0.5);
-    celebrationGraphics.strokeRect(0, 0, 6, 6);
-    celebrationGraphics.generateTexture('particle-rect', 6, 6);
-    celebrationGraphics.destroy();
-
-    const errorGraphics = this.add.graphics();
-    errorGraphics.fillStyle(0xff4444, 1);
-    errorGraphics.fillCircle(3, 3, 3);
-    errorGraphics.generateTexture('particle-error', 6, 6);
-    errorGraphics.destroy();
-
-    const sparkleGraphics = this.add.graphics();
-    sparkleGraphics.fillStyle(0xffdd00, 1);
-    sparkleGraphics.fillCircle(3, 3, 3);
-    sparkleGraphics.generateTexture('particle-sparkle', 6, 6);
-    sparkleGraphics.destroy();
-
-    this.particleTextures.set('celebration', 'particle-rect');
-    this.particleTextures.set('error', 'particle-error');
-    this.particleTextures.set('task-complete', 'particle');
-    this.particleTextures.set('work-start', 'particle');
-    this.particleTextures.set('sparkle', 'particle-sparkle');
+    // Register all character + environment textures synchronously before create().
+    new TinyTownLoader(this).preloadSync();
   }
 
   create(): void {
-    try {
-      console.log('🏢 创建虚拟办公室场景...');
-      
-      // 初始化角色精灵系统
-      this.characterSpriteSystem = new CharacterSpriteSystem(this);
-      // 初始化办公室地图生成器
-      this.officeMapGenerator = new OfficeMapGenerator(this);
-      this.createParticleTexture();
-      
-      this.tilemapData = this.getDefaultTilemapData();
+    const W = this.scale.width  || 1200;
+    const H = this.scale.height || 700;
 
-      // Draw the full office background synchronously (rooms, desks, grid)
-      this.drawOfficeBackground();
+    this.roleVisuals   = new RoleVisuals();
+    this.shadowRenderer = new ShadowRenderer();
+    this.eventBus      = new EventBus();
+    this.taskManager   = new TaskManager(this.eventBus);
+    this.taskVisualizer = new TaskVisualizer(this, this.taskManager);
 
-      this.platforms = this.physics.add.staticGroup();
-      this.particleSystem = new ParticleSystem();
-      this.performanceMonitor = new PerformanceMonitor({
-        targetFPS: 60,
-        sampleSize: 60,
-        warningThreshold: 0.8,
-        criticalThreshold: 0.5,
-      });
-      this.memoryManager = new MemoryManager({
-        maxTrackedResources: 200,
-        memoryBudgetMB: 10,
-      });
-      this.renderOptimizer = new RenderOptimizer({
-        viewportWidth: Number(this.scale.width) || 800,
-        viewportHeight: Number(this.scale.height) || 600,
-        cullingMargin: 64,
-        lodDistances: { near: 200, medium: 500, far: 800 },
-      });
-      this.throttleSystem = new ThrottleSystem();
-      this.soundSystem = new SoundSystem();
-      this.audioManager = new AudioManager();
-      this.soundAdapter = new PhaserSoundAdapter(this.soundSystem, this.audioManager);
-      this.shadowRenderer = new ShadowRenderer();
-      this.cachedShadowOffsetY = this.shadowRenderer.getShadowDimensions(32, 32).offsetY;
-      this.roleVisuals = new RoleVisuals();
-      this.officeDecorator = new OfficeDecorator();
-      this.targetMarker = new TargetMarker(this);
-      this.eventBus = new EventBus();
-      this.taskManager = new TaskManager(this.eventBus);
-      this.taskVisualizer = new TaskVisualizer(this, this.taskManager);
-      this.historyPanel = new TaskHistoryPanel(this, this.taskManager.getHistoryStore());
-      this.historyPanel.setPosition(10, 10);
-      this.agentHistoryPanel = new AgentHistoryPanel(this, this.taskManager.getHistoryStore());
-      this.agentHistoryPanel.setPosition(this.cameras.main.width - 310, 10);
-      this.statisticsPanel = new TaskStatisticsPanel(this, this.taskManager.getStatisticsStore());
-      this.statisticsPanel.setPosition(340, 10);
-      
-      // 初始化智能任务可视化系统
-      this.smartTaskVisualizer = new SmartTaskVisualizer(this, this.taskManager, {
-        maxDisplayDistance: 200,
-        autoHideDelay: 5000,
-        animationDuration: 300,
-      });
-      
-      // 初始化状态动画系统
-      this.statusAnimationSystem = new StatusAnimationSystem(this);
-      this.particles = this.add.particles(0, 0, 'particle', {
-        speed: { min: 20, max: 50 },
-        scale: { start: 0.4, end: 0 },
-        lifespan: 600,
-        blendMode: 'ADD',
-        frequency: -1,
-        emitting: false,
-      });
-      
-      this.createPlatforms();
-      this.createNavigationMesh();
-      this.createAgents();
-      this.taskHandoverSystem = new TaskHandoverSystem(this.agentMap, this.eventBus);
-      this.taskFlowSystem = new TaskFlowSystem(this, this.taskManager, this.eventBus);
-      this.setupCollisions();
-      this.setupDebug();
-      this.setupWorkstationStatus();
-      this.movementSystem = new MovementSystem(this);
-      if (this.agents.length > 0) {
-        this.movementSystem.setActiveAgent(this.agents[0]);
-      }
-      this.setupKeyboard();
-      this.setupTaskSystem();
-      this.setupEventBridge();
-      this.setupSoundEventListeners();
-      this.setupVirtualJoystick();
-      
-      console.log('✅ 虚拟办公室场景创建成功');
-    } catch (error) {
-      console.error('❌ 虚拟办公室场景创建失败:', error);
-      this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 
-        '场景加载失败，请刷新页面重试', {
-          fontSize: '18px',
-          color: '#ff4444',
-          align: 'center'
-        }).setOrigin(0.5);
-    }
+    // Build a minimal tilemapData so external callers have something to query
+    this.tilemapData = this.buildTilemapData();
+
+    this.createParticleTexture();
+    this.drawOfficeBackground(W, H);
+    this.createAgents();
+    this.setupClickHandler();
+    this.setupEventBridge();
+
+    console.log('✅ OfficeScene (display-only) created');
   }
 
-  /**
-   * Synchronously paint a readable office floor plan so the canvas is never
-   * empty while the async map-generator runs.
-   *
-   * Layout (800 × 600):
-   *   - dark navy floor fills the entire canvas
-   *   - four coloured room zones
-   *   - four desk strips (one per agent workstation)
-   *   - subtle grid lines so the space reads as a room
-   */
-  private drawOfficeBackground(): void {
-    const W = 800;
-    const H = 600;
+  update(): void {
+    // Sync name labels and shadows to follow agent positions
+    this.nameLabels.forEach((label, id) => {
+      const agent = this.agentMap.get(id);
+      if (agent) label.setPosition(agent.x, agent.y + 36);
+    });
+    this.shadowGraphics.forEach((gfx, id) => {
+      const agent = this.agentMap.get(id);
+      if (agent) gfx.setPosition(agent.x, agent.y + 8);
+    });
+    this.agents.forEach(a => a.update());
+    this.taskVisualizer.update();
+  }
 
-    // ── Floor ──────────────────────────────────────────────────────────────
+  // ── Background ───────────────────────────────────────────────────────────────
+
+  private drawOfficeBackground(W: number, H: number): void {
+    // Dark floor + grid
     const floor = this.add.graphics();
     floor.fillStyle(0x1e2235, 1);
     floor.fillRect(0, 0, W, H);
+    floor.lineStyle(1, 0x2a3050, 0.5);
+    for (let x = 0; x <= W; x += 40) { floor.moveTo(x, 0); floor.lineTo(x, H); }
+    for (let y = 0; y <= H; y += 40) { floor.moveTo(0, y); floor.lineTo(W, y); }
+    floor.strokePath();
     floor.setDepth(-10);
 
-    // Grid lines (every 40px)
-    floor.lineStyle(1, 0x2a3050, 0.6);
-    for (let x = 0; x <= W; x += 40) {
-      floor.moveTo(x, 0); floor.lineTo(x, H);
-    }
-    for (let y = 0; y <= H; y += 40) {
-      floor.moveTo(0, y); floor.lineTo(W, y);
-    }
-    floor.strokePath();
+    // Outer border
+    const border = this.add.graphics();
+    border.lineStyle(3, 0x4a5568, 1);
+    border.strokeRect(2, 2, W - 4, H - 4);
+    border.setDepth(-9);
 
-    // ── Outer walls ────────────────────────────────────────────────────────
-    const walls = this.add.graphics();
-    walls.lineStyle(4, 0x4a5568, 1);
-    walls.strokeRect(2, 2, W - 4, H - 4);
-    walls.setDepth(-9);
-
-    // ── Room zones ─────────────────────────────────────────────────────────
-    const rooms: { x: number; y: number; w: number; h: number; color: number; label: string; emoji: string }[] = [
-      { x: 40,  y: 60,  w: 200, h: 160, color: 0x1a3a4a, label: 'PM Office',        emoji: '📋' },
-      { x: 300, y: 60,  w: 200, h: 160, color: 0x1a3a2a, label: 'Dev Studio',       emoji: '💻' },
-      { x: 560, y: 60,  w: 200, h: 160, color: 0x3a1a2a, label: 'Review Center',    emoji: '🔍' },
-      { x: 300, y: 380, w: 200, h: 160, color: 0x3a2a1a, label: 'Test Lab',         emoji: '🧪' },
+    // Room definitions — keep centres in sync with ROOM_CENTRES
+    const rooms = [
+      { x: 60,  y: 60,  w: 280, h: 310, color: 0x1a3a4a, label: 'PM Office',     emoji: '📋', room: 'pm-office' },
+      { x: 460, y: 60,  w: 280, h: 310, color: 0x1a3a2a, label: 'Dev Studio',    emoji: '💻', room: 'dev-studio' },
+      { x: 860, y: 60,  w: 280, h: 310, color: 0x3a1a2a, label: 'Review Center', emoji: '🔍', room: 'review-center' },
+      { x: 460, y: 400, w: 280, h: 250, color: 0x2a1a3a, label: 'Test Lab',      emoji: '🧪', room: 'test-lab' },
     ];
 
     const roomGfx = this.add.graphics();
     roomGfx.setDepth(-8);
 
     rooms.forEach(r => {
-      // Room fill
       roomGfx.fillStyle(r.color, 1);
-      roomGfx.fillRoundedRect(r.x, r.y, r.w, r.h, 8);
-      // Room border
-      roomGfx.lineStyle(2, 0x4a5580, 0.8);
-      roomGfx.strokeRoundedRect(r.x, r.y, r.w, r.h, 8);
+      roomGfx.fillRect(r.x, r.y, r.w, r.h);
+      roomGfx.lineStyle(2, 0x4a5580, 0.9);
+      roomGfx.strokeRect(r.x, r.y, r.w, r.h);
 
       // Room label
-      this.add.text(r.x + r.w / 2, r.y + 16, `${r.emoji} ${r.label}`, {
-        fontSize: '12px',
-        color: '#94a3b8',
-        fontStyle: 'bold',
+      this.add.text(r.x + r.w / 2, r.y + 18, `${r.emoji} ${r.label}`, {
+        fontSize: '14px', color: '#94a3b8', fontStyle: 'bold',
       }).setOrigin(0.5, 0).setDepth(-7);
-    });
 
-    // ── Desk strips (match workstation positions in getDefaultTilemapData) ──
-    // ws: x=4,y=8  x=8,y=8  x=12,y=8  x=16,y=8  (TILE_SIZE=32)
-    const deskPositions = [
-      { cx: 4  * 32 + 16, cy: 8 * 32 },   // Dev1 workstation
-      { cx: 8  * 32 + 16, cy: 8 * 32 },   // Dev2 workstation
-      { cx: 12 * 32 + 16, cy: 8 * 32 },   // PM workstation
-      { cx: 16 * 32 + 16, cy: 8 * 32 },   // Review workstation
-    ];
-
-    const desks = this.add.graphics();
-    desks.setDepth(-7);
-    deskPositions.forEach(d => {
-      // Desk surface
-      desks.fillStyle(0x4a3728, 1);
-      desks.fillRoundedRect(d.cx - 44, d.cy - 12, 88, 24, 4);
-      desks.lineStyle(1, 0x6b4f3a, 1);
-      desks.strokeRoundedRect(d.cx - 44, d.cy - 12, 88, 24, 4);
+      // Desk at centre-bottom of room
+      const cx = ROOM_CENTRES[r.room].x;
+      const cy = ROOM_CENTRES[r.room].y;
+      const deskGfx = this.add.graphics();
+      deskGfx.setDepth(-6);
+      deskGfx.fillStyle(0x4a3728, 1);
+      deskGfx.fillRect(cx - 52, cy + 24, 104, 22);
+      deskGfx.lineStyle(1, 0x6b4f3a, 1);
+      deskGfx.strokeRect(cx - 52, cy + 24, 104, 22);
       // Monitor
-      desks.fillStyle(0x1a1f2e, 1);
-      desks.fillRect(d.cx - 14, d.cy - 28, 28, 18);
-      desks.lineStyle(1, 0x45b7d1, 0.6);
-      desks.strokeRect(d.cx - 14, d.cy - 28, 28, 18);
-      // Monitor glow
-      desks.fillStyle(0x45b7d1, 0.15);
-      desks.fillRect(d.cx - 12, d.cy - 26, 24, 14);
+      deskGfx.fillStyle(0x1a1f2e, 1);
+      deskGfx.fillRect(cx - 14, cy + 6, 28, 18);
+      deskGfx.lineStyle(1, 0x45b7d1, 0.8);
+      deskGfx.strokeRect(cx - 14, cy + 6, 28, 18);
+      deskGfx.fillStyle(0x45b7d1, 0.18);
+      deskGfx.fillRect(cx - 12, cy + 8, 24, 14);
     });
 
-    // ── Path between rooms (subtle dotted lines) ───────────────────────────
-    const paths = this.add.graphics();
-    paths.setDepth(-8);
-    paths.lineStyle(1, 0x3a4060, 0.5);
-    // Horizontal corridor
-    paths.moveTo(240, 300); paths.lineTo(560, 300);
-    // Vertical connections
-    paths.moveTo(400, 220); paths.lineTo(400, 380);
-    paths.strokePath();
+    // Corridor lines
+    const corridors = this.add.graphics();
+    corridors.setDepth(-9);
+    corridors.lineStyle(1, 0x3a4060, 0.4);
+    corridors.moveTo(340, 375); corridors.lineTo(460, 375);
+    corridors.moveTo(740, 375); corridors.lineTo(860, 375);
+    corridors.moveTo(600, 370); corridors.lineTo(600, 400);
+    corridors.strokePath();
   }
 
-  private generateEnhancedOfficeMap(): void {
-    console.log('🗺️ 生成增强办公室地图...');
-    
-    // 生成办公室地图
-    this.officeMapGenerator.generateOffice().then(officeData => {
-      console.log('✅ 办公室地图生成完成');
-      
-      // 更新 tilemapData
-      this.tilemapData = {
-        width: 20,
-        height: 15,
-        tileSize: 32,
-        workstations: officeData.workstations,
-        platforms: officeData.platforms
-      };
-      
-      // 创建背景
-      this.officeMapGenerator.createOfficeBackground();
-      
-      // 创建装饰
-      this.createEnhancedDecorations(officeData.decorations);
-      
-    }).catch(error => {
-      console.warn('⚠️ 办公室地图生成失败，使用默认配置:', error);
-      this.tilemapData = this.getDefaultTilemapData();
-    });
-  }
-
-  private createEnhancedDecorations(decorations: OfficeDecoration[]): void {
-    console.log('🎨 创建增强装饰...');
-    
-    // 使用办公室装饰器创建装饰
-    decorations.forEach(decoration => {
-      const asset = this.officeMapGenerator.getDecorationAsset(decoration.type);
-      
-      if (asset) {
-        const sprite = this.add.image(
-          decoration.x * 32 + 16,
-          decoration.y * 32 + 16,
-          asset
-        );
-        sprite.setOrigin(0.5);
-        sprite.setDepth(decoration.y + 1);
-        this.decorationGraphics.push(sprite);
-      }
-    });
-  }
-
-  private createNavigationMesh(): void {
-    if (!this.tilemapData) return;
-
-    this.navMesh = NavigationMesh.fromTilemap({
-      width: this.tilemapData.width,
-      height: this.tilemapData.height,
-      platforms: this.tilemapData.platforms,
-    });
-
-    this.pathfindingSystem = new PathfindingSystem(this, this.navMesh);
-    this.navigationSystem = new NavigationSystem(this, this.navMesh);
-
-    this.tilemapData.platforms.forEach((platform) => {
-      if (platform.height <= 0.5) {
-        this.navMesh.addPlatformNode(
-          platform.x * TILE_SIZE + (platform.width * TILE_SIZE) / 2,
-          platform.y * TILE_SIZE,
-          platform.width * TILE_SIZE
-        );
-      }
-    });
-  }
-
-  private setupTaskSystem(): void {
-  }
-
-  private triggerRandomTask(): void {
-    if (this.agents.length === 0) return;
-
-    const idleAgents = this.agents.filter(a => !this.activeTasks.has(a.agentId) && !a.isNavigatingToTarget());
-    if (idleAgents.length === 0) return;
-
-    const agent = idleAgents[Math.floor(Math.random() * idleAgents.length)];
-    const targetPositions = [
-      { x: 100, y: 400 },
-      { x: 300, y: 400 },
-      { x: 500, y: 400 },
-      { x: 700, y: 400 },
-      { x: 200, y: 250 },
-      { x: 600, y: 250 },
-    ];
-
-    const target = targetPositions[Math.floor(Math.random() * targetPositions.length)];
-
-    // 创建任务分配事件
-    this.eventBus.emit('task:assigned', {
-      type: 'task:assigned',
-      agentId: agent.agentId,
-      task: {
-        id: `${agent.agentId}_${Date.now()}`,
-        description: 'Office task',
-        taskType: this.getRandomTaskType(),
-      },
-      timestamp: Date.now()
-    });
-
-    agent.moveTo(target.x, target.y);
-    agent.setWorking(true);
-
-    this.playSound('task-assigned');
-
-    this.activeTasks.set(agent.agentId, {
-      agentId: agent.agentId,
-      targetX: target.x,
-      targetY: target.y,
-      returning: false,
-    });
-
-    // 启动任务进度
-    const taskId = `${agent.agentId}_${Date.now()}`;
-    this.eventBus.emit('task:progress', {
-      type: 'task:progress',
-      taskId: taskId,
-      agentId: agent.agentId,
-      progress: 0,
-      currentAction: 'Starting task',
-      timestamp: Date.now()
-    });
-  }
-
-  private getRandomTaskType(): string {
-    const taskTypes = ['coding', 'testing', 'meeting', 'review', 'design', 'debug', 'deploy', 'plan'];
-    return taskTypes[Math.floor(Math.random() * taskTypes.length)];
-  }
-
-  private simulateTaskProgress(agentId: string): void {
-    const progressInterval = setInterval(() => {
-      const agent = this.agentMap.get(agentId);
-      if (!agent || !agent.isWorkingState()) {
-        clearInterval(progressInterval);
-        return;
-      }
-
-      this.eventBus.emit('task:progress', {
-        type: 'task:progress',
-        taskId: `${agentId}_${Date.now()}`,
-        agentId: agentId,
-        progress: Math.random(),
-        currentAction: 'Working on task',
-        timestamp: Date.now()
-      });
-    }, 1000);
-  }
-
-  private checkTaskCompletion(): void {
-    const completed: string[] = [];
-
-    this.activeTasks.forEach((task, agentId) => {
-      const agent = this.agentMap.get(agentId);
-      if (!agent) {
-        completed.push(agentId);
-        return;
-      }
-
-      if (!task.returning) {
-        const targetPos = agent.getTargetPosition();
-        if (targetPos) {
-          const dx = Math.abs(agent.x - targetPos.x);
-          const dy = Math.abs(agent.y - targetPos.y);
-
-          if (dx < 20 && dy < 20) {
-            this.time.delayedCall(2000, () => {
-              const t = this.activeTasks.get(agentId);
-              if (t) {
-                t.returning = true;
-                agent.returnToOriginal();
-                
-                // 发送任务完成事件
-                this.eventBus.emit('task:completed', {
-                  type: 'task:completed',
-                  taskId: `${agentId}_${Date.now()}`,
-                  agentId: agentId,
-                  result: 'success',
-                  duration: 5000,
-                  timestamp: Date.now()
-                });
-                
-                agent.setWorking(false);
-              }
-            });
-          }
-        }
-      } else {
-        const original = agent.getOriginalPosition();
-        if (original) {
-          const dx = Math.abs(agent.x - original.x);
-          const dy = Math.abs(agent.y - original.y);
-
-          if (dx < 20 && dy < 20) {
-            this.playSound('task-complete');
-            completed.push(agentId);
-          }
-        }
-      }
-    });
-
-    completed.forEach(id => this.activeTasks.delete(id));
-  }
-
-  private setupKeyboard(): void {
-    this.input.keyboard!.on('keydown-SPACE', () => {
-      this.toggleActiveAgentWork();
-    });
-
-    this.input.keyboard!.on('keydown-TAB', () => {
-      this.selectedAgentIndex = (this.selectedAgentIndex + 1) % this.agents.length;
-      if (this.agents[this.selectedAgentIndex]) {
-        this.movementSystem.setActiveAgent(this.agents[this.selectedAgentIndex]);
-        this.playSound('tab-switch');
-      }
-    });
-
-    this.input.keyboard!.on('keydown-D', () => {
-      this.toggleDebug();
-    });
-
-    this.input.keyboard!.on('keydown-H', () => {
-      if (this.historyPanel.isVisible()) {
-        this.historyPanel.hide();
-      } else {
-        this.historyPanel.show();
-      }
-    });
-
-    this.input.keyboard!.on('keydown-S', () => {
-      if (this.statisticsPanel.isVisible()) {
-        this.statisticsPanel.hide();
-      } else {
-        this.statisticsPanel.show();
-      }
-    });
-
-    this.input.keyboard!.on('keydown-R', () => {
-      this.reloadScene();
-    });
-
-    this.input.keyboard!.on('keydown-P', () => {
-      this.performanceMonitor.printStats();
-    });
-
-    this.input.keyboard!.on('keydown-V', () => {
-      // 切换可视化模式
-      const currentMode = this.smartTaskVisualizer.getDisplayMode();
-      const modes = ['compact', 'detailed', 'overview', 'focus'];
-      const currentIndex = modes.indexOf(currentMode);
-      const nextMode = modes[(currentIndex + 1) % modes.length];
-      this.smartTaskVisualizer.setDisplayMode(nextMode as DisplayMode);
-      this.playSound('click');
-    });
-
-    this.input.keyboard!.on('keydown-C', () => {
-      // 切换选中状态
-      if (this.selectedAgentIndex >= 0) {
-        const selectedAgent = this.agents[this.selectedAgentIndex];
-        this.smartTaskVisualizer.selectAgent(selectedAgent.agentId);
-      } else {
-        this.smartTaskVisualizer.deselectAgent();
-      }
-      this.playSound('click');
-    });
-
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const clickedAgent = this.findAgentNear(pointer.worldX, pointer.worldY, 40);
-      if (clickedAgent) {
-        const idx = this.agents.indexOf(clickedAgent);
-        if (idx >= 0) {
-          this.selectedAgentIndex = idx;
-          this.movementSystem.setActiveAgent(clickedAgent);
-          this.playSound('click');
-
-          this.agentHistoryPanel.showForAgent(clickedAgent.agentId, clickedAgent.agentName);
-
-          const task = this.taskManager.getTaskByAgent(clickedAgent.agentId);
-          if (task) {
-            this.taskVisualizer.showTaskDetailPanel(clickedAgent.agentId, task);
-          } else {
-            this.taskVisualizer.hideTaskDetailPanel();
-          }
-        }
-      } else {
-        const agent = this.agents[this.selectedAgentIndex];
-        if (agent) {
-          agent.moveTo(pointer.worldX, pointer.worldY);
-          this.targetMarker.setTarget(pointer.worldX, pointer.worldY);
-          this.playSound('click');
-        }
-        this.taskVisualizer.hideTaskDetailPanel();
-      }
-    });
-  }
-
-  private findAgentNear(x: number, y: number, radius: number): AgentCharacter | null {
-    for (const agent of this.agents) {
-      const dx = Math.abs(agent.x - x);
-      const dy = Math.abs(agent.y - y);
-      if (dx < radius && dy < radius) {
-        return agent;
-      }
-    }
-    return null;
-  }
-
-  private toggleActiveAgentWork(): void {
-    if (!this.movementSystem) return;
-    const agent = this.agents[this.selectedAgentIndex];
-    if (!agent) return;
-
-    const isWorking = !agent.isWorkingState();
-    agent.setWorking(isWorking);
-
-    if (isWorking) {
-      this.playParticleEffect(agent.agentId, 'work-start');
-      this.playSound('work-start');
-    } else {
-      this.playSound('work-end');
-    }
-  }
-
-  private createPlatforms(): void {
-    if (!this.tilemapData) return;
-
-    this.tilemapData.platforms.forEach((platform) => {
-      const x = platform.x * TILE_SIZE + (platform.width * TILE_SIZE) / 2;
-      const y = platform.y * TILE_SIZE + (platform.height * TILE_SIZE) / 2;
-      const width = platform.width * TILE_SIZE;
-      const height = Math.max(platform.height * TILE_SIZE, 4);
-
-      // ── Draw the platform as a Graphics object (no async texture dependency) ──
-      const gfx = this.add.graphics();
-
-      if (platform.type === 'desk' || platform.type === 'chair') {
-        // Warm wood-brown desk surface with highlight edge
-        gfx.fillStyle(0x5c3d1e, 1);
-        gfx.fillRoundedRect(-width / 2, -height / 2, width, height, 4);
-        gfx.lineStyle(1, 0x8b6340, 1);
-        gfx.strokeRoundedRect(-width / 2, -height / 2, width, height, 4);
-        // Monitor screen on desk
-        if (platform.type === 'desk' && width >= 64) {
-          gfx.fillStyle(0x1a2a3a, 1);
-          gfx.fillRect(-12, -height / 2 - 12, 24, 12);
-          gfx.lineStyle(1, 0x45b7d1, 0.7);
-          gfx.strokeRect(-12, -height / 2 - 12, 24, 12);
-          gfx.fillStyle(0x45b7d1, 0.15);
-          gfx.fillRect(-10, -height / 2 - 10, 20, 8);
-        }
-      } else if (platform.type.includes('wall')) {
-        // Cool slate-gray wall
-        gfx.fillStyle(0x3a4a5a, 1);
-        gfx.fillRect(-width / 2, -height / 2, width, height);
-        gfx.lineStyle(1, 0x4a5a6a, 1);
-        gfx.strokeRect(-width / 2, -height / 2, width, height);
-        // Brick-line pattern every 16px
-        gfx.lineStyle(1, 0x2a3a4a, 0.5);
-        for (let yy = -height / 2 + 16; yy < height / 2; yy += 16) {
-          gfx.moveTo(-width / 2, yy);
-          gfx.lineTo(width / 2, yy);
-        }
-        gfx.strokePath();
-      } else {
-        // Floor – dark tile
-        gfx.fillStyle(0x252d3a, 1);
-        gfx.fillRect(-width / 2, -height / 2, width, height);
-        gfx.lineStyle(1, 0x2e3a4a, 0.6);
-        gfx.strokeRect(-width / 2, -height / 2, width, height);
-      }
-
-      gfx.setPosition(x, y);
-      gfx.setDepth(0);
-      this.decorationGraphics.push(gfx);
-
-      // ── Invisible physics body for collision ──────────────────────────────
-      const body = this.physics.add.image(x, y, '__DEFAULT') as Phaser.Physics.Arcade.Image;
-      body.setAlpha(0);
-      body.setDisplaySize(width, height);
-      body.refreshBody();
-      this.platforms.add(body, true);
-    });
-  }
+  // ── Agents ───────────────────────────────────────────────────────────────────
 
   private createAgents(): void {
-    if (!this.tilemapData) return;
-
-    // Map agent id → short role key used by TinyTownLoader animations
-    const ROLE_KEY: Record<string, string> = {
-      'pm-agent':     'pm',
-      'dev-agent':    'dev',
-      'review-agent': 'reviewer',
-      'test-agent':   'tester',
-    };
-
-    this.tilemapData.workstations.forEach((ws, index) => {
-      const config = AGENT_CONFIGS[index] ?? { id: ws.id, name: ws.label, role: ws.taskType };
-      const roleKey = ROLE_KEY[config.id] ?? 'pm';
-      const badgeConfig = this.roleVisuals.getNameBadgeConfig(config.role);
-
-      // Use the texture that TinyTownLoader registers: `character-{roleKey}`
-      // (64×64 pixel art with idle/walk/work animations keyed as `${roleKey}-idle` etc.)
+    AGENT_CONFIGS.forEach(config => {
+      const room   = AGENT_ROOM[config.id];
+      const centre = ROOM_CENTRES[room] ?? { x: 400, y: 300 };
+      const roleKey = AGENT_ROLE_KEY[config.id] ?? 'pm';
       const textureKey = `character-${roleKey}`;
+      const badge = this.roleVisuals.getNameBadgeConfig(config.role);
 
-      // Workstation x/y are already pixel coordinates (tileSize=1)
-      const x = ws.x;
-      const y = ws.y;
+      const agent = new AgentCharacter(
+        this, centre.x, centre.y, textureKey, undefined,
+        parseInt((config.color ?? '#ffffff').replace('#', ''), 16), config,
+      );
+      agent.setDisplaySize(64, 64);
+      agent.setOrigin(0.5, 0.5);
+      agent.setDepth(10);
+      agent.setCollideWorldBounds(true);
+      // No gravity, no drag — agent sits still
+      agent.setVelocity(0, 0);
 
-      const agent = this.createEnhancedAgent(x, y, 0xffffff, config, textureKey);
-
-      // AnimationController now receives the short role key so it can look up
-      // animations like "pm-idle", "dev-walk", "reviewer-work" registered by TinyTownLoader.
-      const controller = new AnimationController(agent, roleKey);
-      agent.setAnimationController(controller);
-      controller.forcePlay('idle');
-
-      agent.setPathfindingSystem(this.pathfindingSystem);
+      const ctrl = new AnimationController(agent, roleKey);
+      agent.setAnimationController(ctrl);
+      ctrl.forcePlay('idle');
 
       this.agents.push(agent);
       this.agentMap.set(agent.agentId, agent);
-      this.workstationMap.set(ws.id, ws);
 
-      const nameLabel = this.add.text(x, y + 24, config.name, {
-        fontSize: `${badgeConfig.fontSize}px`,
-        color: badgeConfig.textColor,
-        backgroundColor: `#${badgeConfig.bgColor.toString(16).padStart(6, '0')}`,
-        padding: { x: badgeConfig.padding, y: 1 },
+      // Shadow ellipse
+      const shadow = this.add.graphics();
+      const dims = this.shadowRenderer.getShadowDimensions(64, 64);
+      const col  = this.shadowRenderer.getShadowColor();
+      shadow.fillStyle(col.color, col.alpha);
+      shadow.fillEllipse(0, 0, dims.width, dims.height);
+      shadow.setPosition(centre.x, centre.y + 8);
+      shadow.setDepth(9);
+      this.shadowGraphics.set(agent.agentId, shadow);
+
+      // Name badge
+      const label = this.add.text(centre.x, centre.y + 36, config.name, {
+        fontSize: `${badge.fontSize}px`,
+        color: badge.textColor,
+        backgroundColor: `#${badge.bgColor.toString(16).padStart(6, '0')}`,
+        padding: { x: badge.padding, y: 2 },
       });
-      nameLabel.setOrigin(0.5);
-      nameLabel.setStroke(`#${badgeConfig.borderColor.toString(16).padStart(6, '0')}`, 1);
-      this.nameLabels.set(agent.agentId, nameLabel);
+      label.setOrigin(0.5);
+      label.setDepth(11);
+      this.nameLabels.set(agent.agentId, label);
+    });
+  }
 
-      // Drop shadow
-      const shadowDims = this.shadowRenderer.getShadowDimensions(64, 64);
-      const shadowGfx = this.add.graphics();
-      const shadowColor = this.shadowRenderer.getShadowColor();
-      shadowGfx.fillStyle(shadowColor.color, shadowColor.alpha);
-      shadowGfx.fillEllipse(0, 0, shadowDims.width, shadowDims.height);
-      shadowGfx.setPosition(agent.x, agent.y + shadowDims.offsetY);
-      this.shadowGraphics.set(agent.agentId, shadowGfx);
+  // ── Click handler (read-only — shows task detail) ────────────────────────────
 
-      // Role indicator (emoji above head)
-      this.addRoleIndicator(agent, config.role);
-
-      this.memoryManager.track({
-        type: 'text-label',
-        id: `label_${agent.agentId}`,
-        estimatedSize: 256,
+  private setupClickHandler(): void {
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      const clicked = this.agents.find(a => {
+        return Math.abs(a.x - pointer.worldX) < 36 && Math.abs(a.y - pointer.worldY) < 36;
       });
-    });
-
-    // Agent proximity interactions
-    this.createAgentInteractions();
-  }
-
-  private createEnhancedAgent(x: number, y: number, color: number, config: AgentConfig, characterSprite: string): AgentCharacter {
-    // 使用角色精灵创建增强的角色
-    const agent = new AgentCharacter(this, x, y, characterSprite, undefined, color, config);
-    
-    // 设置角色大小（64x64）
-    agent.setDisplaySize(64, 64);
-    agent.setOrigin(0.5, 1);
-    
-    // 设置物理属性
-    agent.setCollideWorldBounds(true);
-    agent.setBounce(0);
-    agent.setDrag(800, 800);
-    
-    // 设置初始位置
-    agent.setPosition(x, y);
-    
-    return agent;
-  }
-
-  private addRoleIndicator(agent: AgentCharacter, role: string): void {
-    // 为角色添加角色标识
-    let indicator = '';
-    switch (role.toLowerCase()) {
-      case 'project manager':
-      case 'pm':
-        indicator = '👔';
-        break;
-      case 'developer':
-      case 'dev':
-        indicator = '💻';
-        break;
-      case 'tester':
-        indicator = '🔍';
-        break;
-      case 'reviewer':
-        indicator = '📋';
-        break;
-      default:
-        indicator = '👤';
-    }
-    
-    const roleIndicator = this.add.text(agent.x, agent.y - 40, indicator, {
-      fontSize: '20px',
-    });
-    roleIndicator.setOrigin(0.5);
-    roleIndicator.setDepth(agent.depth + 2);
-    
-    // 保存引用以便更新位置
-    (agent as AgentCharacter & { roleIndicator?: Phaser.GameObjects.Text }).roleIndicator = roleIndicator;
-  }
-
-  private createAgentInteractions(): void {
-    // 创建角色间的互动效果
-    this.time.addEvent({
-      delay: 10000, // 每10秒检查一次
-      callback: () => {
-        this.checkAgentProximity();
-      },
-      loop: true,
-    });
-  }
-
-  private checkAgentProximity(): void {
-    for (let i = 0; i < this.agents.length; i++) {
-      for (let j = i + 1; j < this.agents.length; j++) {
-        const agent1 = this.agents[i];
-        const agent2 = this.agents[j];
-        
-        const distance = Phaser.Math.Distance.Between(agent1.x, agent1.y, agent2.x, agent2.y);
-        
-        if (distance < 80) {
-          // 角色靠近时的互动效果
-          this.createProximityEffect(agent1, agent2);
-        }
+      if (!clicked) {
+        this.taskVisualizer.hideTaskDetailPanel();
+        return;
       }
-    }
-  }
-
-  private createProximityEffect(agent1: AgentCharacter, agent2: AgentCharacter): void {
-    // 创建靠近时的特效
-    const midX = (agent1.x + agent2.x) / 2;
-    const midY = (agent1.y + agent2.y) / 2;
-    
-    const interactionGraphics = this.add.graphics();
-    interactionGraphics.fillStyle(0x00ff00, 0.3);
-    interactionGraphics.fillCircle(0, 0, 20);
-    interactionGraphics.setPosition(midX, midY);
-    interactionGraphics.setDepth(100);
-
-    // 添加动画效果
-    this.tweens.add({
-      targets: interactionGraphics,
-      alpha: 0,
-      scale: 2,
-      duration: 1000,
-      onComplete: () => {
-        interactionGraphics.destroy();
+      const task = this.taskManager.getTaskByAgent(clicked.agentId);
+      if (task) {
+        this.taskVisualizer.showTaskDetailPanel(clicked.agentId, task);
+      } else {
+        this.taskVisualizer.hideTaskDetailPanel();
       }
     });
-    
-    this.playSound('click');
+
+    // Pointer-over cursor feedback
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      const hovered = this.agents.some(a =>
+        Math.abs(a.x - pointer.worldX) < 36 && Math.abs(a.y - pointer.worldY) < 36
+      );
+      this.game.canvas.style.cursor = hovered ? 'pointer' : 'default';
+    });
   }
 
-  private setupInterAgentCollisions(): void {
-    for (let i = 0; i < this.agents.length; i++) {
-      for (let j = i + 1; j < this.agents.length; j++) {
-        this.physics.add.collider(this.agents[i], this.agents[j]);
-      }
-    }
-  }
-
-  private setupWorkstationStatus(): void {
-  }
-
-  private setupCollisions(): void {
-    // 无重力模式：不再需要物理碰撞
-    // Agent 使用 pathfinding 系统导航，不会穿过障碍物
-    // 如果需要边界限制，可以在 Agent 的 update 中检查
-  }
-
-  private setupDebug(): void {
-    this.debugOverlay = new DebugOverlay(this);
-  }
+  // ── Event bridge ─────────────────────────────────────────────────────────────
 
   private setupEventBridge(): void {
     const actions: SceneActions = {
-      setAgentWorking: (agentId: string, working: boolean) => {
-        const agent = this.agentMap.get(agentId);
-        if (agent) agent.setWorking(working);
+      setAgentWorking: (agentId, working) => {
+        this.agentMap.get(agentId)?.setWorking(working);
       },
-      moveAgentToRoom: (agentId: string, room: string) => {
-        if (room in this.roomPositions) {
-          this.moveAgentToRoom(agentId, room as RoomName);
+      moveAgentToRoom: (agentId, room) => {
+        // Display-only: just update animation state to reflect they're "at" a room
+        const target = ROOM_CENTRES[room];
+        if (target) {
+          const agent = this.agentMap.get(agentId);
+          agent?.moveTo(target.x, target.y);
         }
       },
-      moveAgentToPosition: (agentId: string, x: number, y: number) => {
-        this.moveToPosition(agentId, x, y);
+      moveAgentToPosition: (agentId, x, y) => {
+        this.agentMap.get(agentId)?.moveTo(x, y);
       },
-      setAgentEmotion: (agentId: string, emotion: string, duration?: number) => {
-        const agent = this.agentMap.get(agentId);
-        if (agent) agent.setEmotion(emotion as EmotionType, duration);
+      setAgentEmotion: (agentId, emotion, duration) => {
+        this.agentMap.get(agentId)?.setEmotion(emotion as EmotionType, duration);
       },
-      getAgentStatus: (agentId: string) => {
-        const agent = this.agentMap.get(agentId);
-        if (!agent) return 'offline';
-        return agent.isWorkingState() ? 'busy' : 'idle';
+      getAgentStatus: (agentId) => {
+        const a = this.agentMap.get(agentId);
+        if (!a) return 'offline';
+        return a.isWorkingState() ? 'busy' : 'idle';
       },
-      triggerParticleEffect: (agentId: string, effectType: ParticleEffectType) => {
+      triggerParticleEffect: (agentId, effectType) => {
         this.playParticleEffect(agentId, effectType);
       },
     };
-
     this.eventBridge = new SceneEventBridge(actions);
     this.eventBridge.connect();
   }
 
-  private setupSoundEventListeners(): void {
-    this.eventBus.on('task:handover', () => {
-      this.playSound('task-assigned');
-    });
+  // ── Particles (minimal) ───────────────────────────────────────────────────────
 
-    this.eventBus.on('task:failed', () => {
-      this.playSound('error');
-    });
+  private createParticleTexture(): void {
+    const g = this.add.graphics();
+    g.fillStyle(0x45b7d1, 1);
+    g.fillCircle(4, 4, 4);
+    g.generateTexture('particle', 8, 8);
+    g.destroy();
   }
 
-  private setupVirtualJoystick(): void {
-    this.virtualJoystick = new VirtualJoystick(this, {
-      x: this.cameras.main.width - 100,
-      y: this.cameras.main.height - 100,
-      radius: 80,
-      knobRadius: 35,
-      opacity: 0.7,
-      autoShow: true,
-      vibrateOnActive: true,
-    });
-
-    // 设置新手引导
-    this.setupTutorial();
-  }
-
-  private setupTutorial(): void {
-    this.onboardingManager = new OnboardingManager();
-
-    this.onboardingManager.on('phase:complete', ({ phase }) => {
-      console.log(`[Onboarding] Phase completed: ${phase}`);
-    });
-    this.onboardingManager.on('onboarding:complete', () => {
-      console.log('[Onboarding] All phases completed!');
-    });
-    this.onboardingManager.on('achievement:unlock', (achievement) => {
-      console.log(`[Onboarding] Achievement unlocked: ${achievement.icon} ${achievement.title}`);
-    });
-
-    const tutorialSteps = [
-      {
-        id: 'welcome-1',
-        title: '欢迎来到虚拟办公室！',
-        description: '在这里，AI 团队将协作完成各种任务。让我们开始学习如何使用这个系统。',
-        phase: OnboardingPhase.WELCOME,
-        type: InteractiveStepType.INFO,
-        position: { x: this.cameras.main.width / 2, y: 100 },
-      },
-      {
-        id: 'nav-move',
-        title: '角色移动',
-        description: '点击屏幕任意位置，角色会移动到该位置。你也可以使用 WASD 键控制。',
-        phase: OnboardingPhase.NAVIGATION,
-        type: InteractiveStepType.INTERACTION,
-        position: { x: 200, y: 300 },
-        interactionType: 'click',
-        targetArea: { x: 100, y: 200, width: 300, height: 200 },
-      },
-      {
-        id: 'task-view',
-        title: '任务管理',
-        description: '角色头上的气泡显示当前任务状态。点击角色可以查看任务详情。',
-        phase: OnboardingPhase.TASKS,
-        type: InteractiveStepType.INTERACTION,
-        position: { x: 600, y: 300 },
-        interactionType: 'click',
-        targetArea: { x: 500, y: 200, width: 200, height: 100 },
-      },
-      {
-        id: 'inter-joystick',
-        title: '虚拟摇杆',
-        description: '在移动设备上，可以使用右下角的虚拟摇杆控制角色移动。',
-        phase: OnboardingPhase.INTERACTION,
-        type: InteractiveStepType.HIGHLIGHT,
-        position: { x: this.cameras.main.width - 150, y: this.cameras.main.height - 150 },
-        targetArea: { x: this.cameras.main.width - 200, y: this.cameras.main.height - 200, width: 200, height: 200 },
-      },
-      {
-        id: 'complete-finish',
-        title: '开始协作！',
-        description: '现在你已经了解了基本操作。让 AI 团队开始工作吧！',
-        phase: OnboardingPhase.COMPLETE,
-        type: InteractiveStepType.INFO,
-        position: { x: this.cameras.main.width / 2, y: 100 },
-      },
-    ];
-
-    this.interactiveTutorial = new InteractiveTutorial(this, {
-      steps: tutorialSteps,
-      onComplete: () => {
-        this.onboardingManager.completeAll();
-        console.log('新手引导完成');
-      },
-      onStepComplete: (step) => {
-        this.onboardingManager.recordStepResult({
-          stepId: step.id,
-          phase: step.phase,
-          completed: true,
-          timestamp: Date.now(),
-        });
-      },
-    });
-
-    if (this.onboardingManager.isFirstTime()) {
-      this.time.delayedCall(2000, () => {
-        this.interactiveTutorial.show();
-      });
-    } else {
-      const oldTutorialSteps = [
-        {
-          title: '欢迎回来！',
-          description: '你已经完成了新手引导。点击任意位置开始工作。',
-          position: { x: this.cameras.main.width / 2, y: 100 },
-        },
-      ];
-
-      this.tutorialOverlay = new TutorialOverlay(this, {
-        title: '虚拟办公室',
-        steps: oldTutorialSteps,
-        skipButton: true,
-        onComplete: () => {
-          console.log('欢迎回来引导完成');
-        },
-      });
-
-      this.time.delayedCall(1000, () => {
-        this.tutorialOverlay.show();
-      });
-    }
-  }
-
-  getEventBridge(): SceneEventBridge | null {
-    return this.eventBridge;
-  }
-
-  getParticleSystem(): ParticleSystem {
-    return this.particleSystem;
-  }
-
-  private playParticleEffect(agentId: string, effectType: ParticleEffectType): void {
+  private playParticleEffect(agentId: string, _effectType: ParticleEffectType): void {
     if (this.particleEmitters.size >= OfficeScene.MAX_PARTICLE_EMITTERS) return;
-
     const agent = this.agentMap.get(agentId);
     if (!agent) return;
+    if (!this.add) return;
 
-    const config = this.particleSystem.getEffectConfig(effectType);
-    if (!config) return;
-
-    const texture = this.particleTextures.get(effectType) ?? 'particle';
-
-    const emitter = this.add.particles(agent.x, agent.y - 20, texture, {
-      speed: config.speed,
-      scale: config.scale,
-      lifespan: config.lifespan,
-      gravityY: config.gravityY,
-      alpha: config.alpha,
-      tint: config.tints,
-      quantity: config.quantity,
+    const emitter = this.add.particles(agent.x, agent.y - 20, 'particle', {
+      speed: { min: 30, max: 80 },
+      scale: { start: 0.5, end: 0 },
+      lifespan: 600,
       blendMode: Phaser.BlendModes.ADD,
+      quantity: 12,
       emitting: false,
     });
-
-    emitter.explode(config.quantity);
-    const emitterKey = `${agentId}_${effectType}_${Date.now()}`;
-    this.particleEmitters.set(emitterKey, emitter);
-
-    this.memoryManager.track({
-      type: 'particle-emitter',
-      id: emitterKey,
-      estimatedSize: config.quantity * 64,
-      destroy: () => emitter.destroy(),
-    });
-
-    this.time.delayedCall(config.lifespan + 200, () => {
+    emitter.explode(12);
+    const key = `${agentId}_${Date.now()}`;
+    this.particleEmitters.set(key, emitter);
+    this.time.delayedCall(800, () => {
       emitter.destroy();
-      this.particleEmitters.delete(emitterKey);
-      this.memoryManager.untrack(emitterKey);
+      this.particleEmitters.delete(key);
     });
   }
 
-  update(_time: number, delta: number): void {
-    this.performanceMonitor.recordFrame(delta);
+  // ── Internal helpers ─────────────────────────────────────────────────────────
 
-    const throttleLevel = this.performanceMonitor.getThrottleLevel();
-    const shouldUpdateAll = throttleLevel < 0.3;
-
-    if (shouldUpdateAll) {
-      this.agents.forEach((agent) => agent.update());
-    } else {
-      const cameraX = this.cameras.main.scrollX;
-      const cameraY = this.cameras.main.scrollY;
-      this.agents.forEach((agent) => {
-        const result = this.renderOptimizer.cull(
-          { x: agent.x - 16, y: agent.y - 32, width: 32, height: 32 },
-          cameraX, cameraY
-        );
-        if (result === 'visible') {
-          agent.update();
-        }
-      });
-    }
-
-    this.syncNameLabels();
-    this.syncShadows();
-    this.syncTaskVisualizer();
-    this.taskVisualizer.update();
-    
-    // 更新智能任务可视化系统
-    this.smartTaskVisualizer.update();
-    this.historyPanel.update();
-    this.agentHistoryPanel.update();
-    this.statisticsPanel.update();
-    this.taskFlowSystem.update();
-    this.movementSystem.update();
-    this.debugOverlay.update(this.agents);
-    this.checkTaskCompletion();
-    this.particleSystem.update(delta);
-    this.soundSystem.update(delta);
-    this.soundAdapter.update(delta);
-
-    const selectedAgent = this.agents[this.selectedAgentIndex];
-    if (selectedAgent && this.targetMarker.isActive()) {
-      this.targetMarker.updatePosition(selectedAgent.x, selectedAgent.y);
-    }
-
-    this.runOptimizationCheck();
+  private buildTilemapData(): TilemapData {
+    return {
+      width: this.scale?.width  || 1200,
+      height: this.scale?.height || 700,
+      tileSize: 1,
+      workstations: AGENT_CONFIGS.map(c => {
+        const room = AGENT_ROOM[c.id];
+        const pos  = ROOM_CENTRES[room] ?? { x: 0, y: 0 };
+        return { id: c.id, x: pos.x, y: pos.y, label: c.name, status: 'idle' as const, taskType: 'meeting' };
+      }),
+      platforms: [],
+    };
   }
 
-  private syncNameLabels(): void {
-    this.nameLabels.forEach((label, agentId) => {
-      const agent = this.agentMap.get(agentId);
-      if (agent) {
-        label.setPosition(agent.x, agent.y + 32);
-        label.setDepth(agent.depth + 1);
-        
-        // 更新角色指示器位置
-        const roleIndicator = (agent as AgentCharacter & { roleIndicator?: Phaser.GameObjects.Text }).roleIndicator;
-        if (roleIndicator) {
-          roleIndicator.setPosition(agent.x, agent.y - 40);
-          roleIndicator.setDepth(agent.depth + 2);
-        }
-      }
-    });
-  }
+  // ── Public API ───────────────────────────────────────────────────────────────
 
-  private syncShadows(): void {
-    const offsetY = this.cachedShadowOffsetY;
-    this.shadowGraphics.forEach((gfx, agentId) => {
-      const agent = this.agentMap.get(agentId);
-      if (agent) {
-        gfx.setPosition(agent.x, agent.y + offsetY);
-      }
-    });
-  }
-
-  private syncTaskVisualizer(): void {
-    this.agents.forEach((agent) => {
-      this.taskVisualizer.updateAgentPosition(agent.agentId, agent.x, agent.y);
-      // 更新智能任务可视化系统
-      this.smartTaskVisualizer.updateAgentPosition(agent.agentId, agent.x, agent.y);
-    });
-  }
-
-  getTaskManager(): TaskManager {
-    return this.taskManager;
-  }
-
-  getTaskVisualizer(): TaskVisualizer {
-    return this.taskVisualizer;
-  }
-
-  getHistoryPanel(): TaskHistoryPanel {
-    return this.historyPanel;
-  }
-
-  getAgentHistoryPanel(): AgentHistoryPanel {
-    return this.agentHistoryPanel;
-  }
-
-  getStatisticsPanel(): TaskStatisticsPanel {
-    return this.statisticsPanel;
-  }
-
-  getTaskHandoverSystem(): TaskHandoverSystem {
-    return this.taskHandoverSystem;
-  }
-
-  getSmartTaskVisualizer(): SmartTaskVisualizer {
-    return this.smartTaskVisualizer;
-  }
-
-  getStatusAnimationSystem(): StatusAnimationSystem {
-    return this.statusAnimationSystem;
-  }
-
-  getTaskFlowSystem(): TaskFlowSystem {
-    return this.taskFlowSystem;
-  }
-
-  private createDecorations(): void {
-    if (!this.tilemapData) return;
-
-    this.officeDecorator.autoDecorate(
-      this.tilemapData.platforms,
-      this.tilemapData.width,
-      this.tilemapData.height
-    );
-
-    const decorations = this.officeDecorator.getDecorations();
-    for (const deco of decorations) {
-      const gfx = this.add.graphics();
-      OfficeDecorator.drawDecoration(gfx, deco.type, deco.config);
-      gfx.setPosition(deco.x, deco.y);
-      gfx.setDepth(deco.config.zIndex);
-      gfx.setAlpha(0.85);
-      this.decorationGraphics.push(gfx);
-
-      this.memoryManager.track({
-        type: 'decoration',
-        id: deco.id,
-        estimatedSize: deco.config.width * deco.config.height * 4,
-      });
-    }
-  }
-
-  toggleDebug(): void {
-    if (this.physics.world.drawDebug) {
-      this.physics.world.drawDebug = false;
-    } else {
-      if (!this.physics.world.debugGraphic) {
-        this.physics.world.createDebugGraphic();
-      }
-      this.physics.world.drawDebug = true;
-    }
-  }
-
-  reloadScene(): void {
-    console.log('🔄 重新加载场景...');
-    this.scene.restart();
-  }
-
-  moveToPosition(agentId: string, targetX: number, targetY: number): void {
-    const agent = this.agentMap.get(agentId);
-    if (!agent) return;
-
-    agent.moveTo(targetX, targetY);
-  }
-
-  moveAgentToRoom(agentId: string, room: RoomName): void {
-    const agent = this.agentMap.get(agentId);
-    if (!agent) return;
-
-    const roomPos = this.roomPositions[room];
-    if (!roomPos) return;
-
-    agent.moveTo(roomPos.x, roomPos.y);
-  }
-
-  assignTask(agentId: string, taskType: TaskType): void {
-    const agent = this.agentMap.get(agentId);
-    if (!agent) return;
-
-    const workstation = this.findWorkstationByTaskType(taskType);
-    if (!workstation) return;
-
-    // Workstation x/y are pixel coordinates (tileSize=1)
-    agent.moveTo(workstation.x, workstation.y, () => {
-      agent.setWorking(true);
-    });
-  }
+  getEventBridge(): SceneEventBridge | null { return this.eventBridge; }
+  getAgents(): AgentCharacter[] { return [...this.agents]; }
+  getTaskManager(): TaskManager { return this.taskManager; }
+  getTaskVisualizer(): TaskVisualizer { return this.taskVisualizer; }
 
   getAgentById(agentId: string): AgentCharacter | undefined {
     return this.agentMap.get(agentId);
   }
 
-  getAgents(): AgentCharacter[] {
-    return [...this.agents];
+  moveAgentToRoom(agentId: string, room: RoomName): void {
+    const pos = ROOM_CENTRES[room];
+    if (pos) this.agentMap.get(agentId)?.moveTo(pos.x, pos.y);
   }
 
-  getSelectedAgent(): AgentCharacter | undefined {
-    return this.agents[this.selectedAgentIndex];
+  moveToPosition(agentId: string, x: number, y: number): void {
+    this.agentMap.get(agentId)?.moveTo(x, y);
   }
 
-  private findWorkstationByTaskType(taskType: TaskType): Workstation | undefined {
-    return this.tilemapData?.workstations.find(ws => ws.taskType === taskType);
+  assignTask(agentId: string, _taskType: TaskType): void {
+    this.agentMap.get(agentId)?.setWorking(true);
   }
-
-  getPerformanceMonitor(): PerformanceMonitor {
-    return this.performanceMonitor;
-  }
-
-  getMemoryManager(): MemoryManager {
-    return this.memoryManager;
-  }
-
-  getRenderOptimizer(): RenderOptimizer {
-    return this.renderOptimizer;
-  }
-
-  private static readonly PM_AGENT_ID = 'pm-agent';
-
-  private static readonly TEST_TASKS: { description: string }[] = [
-    { description: '写一个个人博客网站，包含首页、关于我、文章列表三个页面，使用 Next.js 和 Tailwind CSS' },
-    { description: '为用户登录模块编写单元测试，覆盖正常登录、密码错误、账户锁定三种场景' },
-    { description: '审查 src/lib/gateway/client.ts 的代码质量，关注错误处理和资源释放' },
-    { description: '组织迭代规划会议，讨论下一版本的功能优先级和排期' },
-    { description: '实现一个 REST API 端点 /api/health，返回服务状态和当前时间' },
-  ];
 
   triggerTestTask(description?: string): { agentId: string; description: string } | null {
     const pmAgent = this.agentMap.get(OfficeScene.PM_AGENT_ID);
     if (!pmAgent) return null;
 
-    if (this.activeTasks.has(pmAgent.agentId) || pmAgent.isNavigatingToTarget()) return null;
+    const taskDescription = description ??
+      OfficeScene.TEST_TASKS[Math.floor(Math.random() * OfficeScene.TEST_TASKS.length)];
 
-    const taskDescription = description ?? OfficeScene.TEST_TASKS[Math.floor(Math.random() * OfficeScene.TEST_TASKS.length)].description;
-
-    this.moveAgentToRoom(pmAgent.agentId, 'pm-office');
     pmAgent.setWorking(true);
-
-    this.activeTasks.set(pmAgent.agentId, {
-      agentId: pmAgent.agentId,
-      targetX: this.roomPositions['pm-office'].x,
-      targetY: this.roomPositions['pm-office'].y,
-      returning: false,
-    });
 
     this.eventBus.emit('task:assigned', {
       type: 'task:assigned',
       agentId: pmAgent.agentId,
-      task: {
-        id: `test-${pmAgent.agentId}-${Date.now()}`,
-        description: taskDescription,
-        taskType: 'meeting',
-      },
+      task: { id: `test-${Date.now()}`, description: taskDescription, taskType: 'meeting' },
       timestamp: Date.now(),
     });
 
@@ -1447,113 +415,17 @@ export class OfficeScene extends Phaser.Scene {
       agentRole: 'pm',
     } as import('../types/GameEvents').OpenClawSendEvent);
 
-    this.playSound('task-assigned');
+    this.playParticleEffect(pmAgent.agentId, 'work-start' as ParticleEffectType);
 
     return { agentId: pmAgent.agentId, description: taskDescription };
   }
 
-  private runOptimizationCheck(): void {
-    const now = Date.now();
-    if (now - this.lastOptimizationCheck < OfficeScene.OPTIMIZATION_CHECK_INTERVAL) return;
-    this.lastOptimizationCheck = now;
+  reloadScene(): void { this.scene.restart(); }
+  toggleDebug(): void {}   // no-op in display mode
 
-    this.cleanupParticleEmitters();
-
-    if (this.performanceMonitor.shouldThrottle()) {
-      this.cleanupStaleMemory();
-    }
-  }
-
-  private cleanupParticleEmitters(): void {
-    const staleKeys: string[] = [];
-    this.particleEmitters.forEach((emitter, key) => {
-      if (!emitter.active) {
-        staleKeys.push(key);
-        emitter.destroy();
-      }
-    });
-    staleKeys.forEach(k => this.particleEmitters.delete(k));
-
-    if (this.particleEmitters.size > OfficeScene.MAX_PARTICLE_EMITTERS) {
-      const entries = Array.from(this.particleEmitters.entries());
-      const excess = entries.slice(0, this.particleEmitters.size - OfficeScene.MAX_PARTICLE_EMITTERS);
-      for (const [key, emitter] of excess) {
-        emitter.destroy();
-        this.particleEmitters.delete(key);
-      }
-    }
-  }
-
-  private cleanupStaleMemory(): void {
-    this.memoryManager.cleanupStale(OfficeScene.STALE_EMITTER_AGE);
-  }
-
+  // Shutdown cleanup
   shutdown(): void {
-    if (this.taskTimer) {
-      this.taskTimer.remove(false);
-      this.taskTimer = null;
-    }
-    if (this.workstationTimer) {
-      this.workstationTimer.remove(false);
-      this.workstationTimer = null;
-    }
-    
-    // 清理角色指示器（在清空数组之前）
-    this.agents.forEach(agent => {
-      const roleIndicator = (agent as AgentCharacter & { roleIndicator?: Phaser.GameObjects.Text }).roleIndicator;
-      if (roleIndicator) {
-        roleIndicator.destroy();
-      }
-    });
-    
-    this.soundSystem.stopAll();
-    this.soundAdapter.stopAll();
-    this.soundAdapter.destroy();
-    this.soundSystem.destroy();
-    this.officeDecorator.destroy();
-    this.taskFlowSystem.destroy();
-    this.taskVisualizer.destroy();
-    this.historyPanel.destroy();
-    this.agentHistoryPanel.destroy();
-    this.statisticsPanel.destroy();
-    this.taskHandoverSystem.destroy();
-    this.smartTaskVisualizer.destroy();
-    this.statusAnimationSystem.clearAllAnimations();
-    this.particleSystem.clearAllEffects();
     this.eventBridge?.disconnect();
-    this.particleEmitters.forEach(e => e.destroy());
-    this.particleEmitters.clear();
-    this.shadowGraphics.forEach(g => g.destroy());
-    this.shadowGraphics.clear();
-    this.decorationGraphics.forEach(g => g.destroy());
-    this.decorationGraphics = [];
-    this.nameLabels.forEach(l => l.destroy());
-    this.nameLabels.clear();
-    this.activeTasks.clear();
-    this.agents = [];
-    this.agentMap.clear();
-  }
-
-  getSoundSystem(): SoundSystem {
-    return this.soundSystem;
-  }
-
-  getAudioManager(): AudioManager {
-    return this.audioManager;
-  }
-
-  getSoundAdapter(): PhaserSoundAdapter {
-    return this.soundAdapter;
-  }
-
-  private playSound(type: SoundType, options?: { volume?: number }): void {
-    const id = this.soundSystem.play(type, options);
-    if (id !== null) {
-      this.soundAdapter.play(type, options);
-    }
-  }
-
-  getOfficeDecorator(): OfficeDecorator {
-    return this.officeDecorator;
+    this.game.canvas.style.cursor = 'default';
   }
 }

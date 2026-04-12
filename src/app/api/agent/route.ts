@@ -3,21 +3,16 @@ import { NextRequest } from 'next/server'
 import { parseCodeBlocks } from './parse-code-blocks'
 
 import { InputValidator } from '@/lib/security/utils'
-import { SandboxedFileWriter } from '@/lib/security/sandbox'
 import { StorageManager } from '@/lib/storage/manager'
-import { GitManager } from '@/lib/git/manager'
 import { defaultAgents } from '@/lib/agents/config'
 import { PersistedAgentConfigSchema } from '@/types/agent-config'
 import type { PersistedAgentConfig } from '@/types/agent-config'
 import { withRateLimit, withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
 import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
-import { logger } from '@/lib/core/logger'
 import { sanitizeUserInput } from '@/lib/utils/prompt-sanitizer'
 
-const sandboxedWriter = new SandboxedFileWriter(process.cwd())
 const storageManager = new StorageManager()
-const gitManager = new GitManager(process.cwd())
 
 export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const body: unknown = await request.json()
@@ -86,34 +81,19 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
 
   await storageManager.saveConversation(conversation)
 
+  let drafts: Array<{ path: string; content: string }> = []
+
   if (agentId === 'dev-agent' && agentMessage.includes('```')) {
-    const files = parseCodeBlocks(agentMessage)
-    const savedFiles: string[] = []
-
-    for (const file of files) {
-      if (!InputValidator.validatePath(file.path)) continue
-
-      const result = await sandboxedWriter.writeFile(file.path, file.content)
-      if (result.success) {
-        savedFiles.push(result.path || file.path)
-        if (result.warnings && result.warnings.length > 0) {
-          logger.warn('[Sandbox] Warnings for ' + file.path, { warnings: result.warnings })
-        }
-      } else {
-        logger.error('[Sandbox] Blocked write to ' + file.path, { error: result.error })
-      }
-    }
-
-    if (savedFiles.length > 0) {
-      await gitManager.commit(`feat: ${agentConfig.name} 生成代码\n\n文件：${savedFiles.join(', ')}`)
-    }
+    drafts = parseCodeBlocks(agentMessage).filter(f => InputValidator.validatePath(f.path))
   }
 
   return successResponse({
+    agentType: 'single',
     message: agentMessage,
     conversationId: conversation.id,
     agentId: agentConfig.id,
     agentName: agentConfig.name,
+    drafts,
   }, request)
 }, 'Agent API'))
 

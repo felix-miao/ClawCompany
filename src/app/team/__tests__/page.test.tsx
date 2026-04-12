@@ -64,7 +64,7 @@ describe('Team Chat Page (/team)', () => {
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it('发送消息应该调用 API', async () => {
+    it('GLM模式发送消息应该调用 /api/chat（聚合工作流）', async () => {
       render(<TeamChatPage />)
       const input = screen.getByPlaceholderText(/输入你的需求/i)
       const sendButton = screen.getByRole('button', { name: /发送/i })
@@ -73,10 +73,49 @@ describe('Team Chat Page (/team)', () => {
       fireEvent.click(sendButton)
       
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith('/api/agent', expect.objectContaining({
+        expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: '创建登录页面' })
         }))
+      })
+    })
+
+    it('OpenClaw模式发送消息应该调用 /api/openclaw', async () => {
+      mockFetch.mockResolvedValueOnce({
+        json: async () => ({ success: true, message: 'Test response' })
+      })
+      
+      render(<TeamChatPage />)
+      
+      const openclawButton = screen.getByRole('button', { name: /OpenClaw/i })
+      fireEvent.click(openclawButton)
+      
+      const input = screen.getByPlaceholderText(/输入你的需求/i)
+      const sendButton = screen.getByRole('button', { name: /发送/i })
+      
+      fireEvent.change(input, { target: { value: '创建登录页面' } })
+      fireEvent.click(sendButton)
+      
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/openclaw', expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'orchestrate', userRequest: '创建登录页面' })
+        }))
+      })
+    })
+
+    it('切换模式后应该显示对应的API信息', async () => {
+      render(<TeamChatPage />)
+      
+      expect(screen.getByText(/GLM.*直接调用/)).toBeInTheDocument()
+      
+      const openclawButton = screen.getByRole('button', { name: /OpenClaw/i })
+      fireEvent.click(openclawButton)
+      
+      await waitFor(() => {
+        expect(screen.getByText(/OpenClaw.*集成/)).toBeInTheDocument()
       })
     })
 
@@ -113,8 +152,15 @@ describe('Team Chat Page (/team)', () => {
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 })
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalled()
+        expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
+          method: 'POST'
+        }))
       })
+    })
+
+    it('应该显示当前使用的模式（GLM或OpenClaw）', async () => {
+      render(<TeamChatPage />)
+      expect(screen.getByText(/当前模式:.*GLM.*直接调用/)).toBeInTheDocument()
     })
   })
 
@@ -141,7 +187,7 @@ describe('Team Chat Page (/team)', () => {
       fireEvent.click(sendButton)
       
       await waitFor(() => {
-        expect(screen.getByText(/正在分析需求/i)).toBeInTheDocument()
+        expect(screen.getByText(/正在通过 GLM/i)).toBeInTheDocument()
       })
     })
   })

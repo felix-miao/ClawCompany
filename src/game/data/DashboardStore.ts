@@ -155,6 +155,21 @@ const DEFAULT_AGENTS: AgentInfo[] = [
   { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null },
 ];
 
+const AGENT_ID_ALIAS_MAP: Record<string, string> = {
+  'sidekick-claw': 'pm-agent',
+  'pm-agent': 'pm-agent',
+  'dev-claw': 'dev-agent',
+  'dev-agent': 'dev-agent',
+  'reviewer-claw': 'review-agent',
+  'review-agent': 'review-agent',
+  'tester-claw': 'test-agent',
+  'test-agent': 'test-agent',
+};
+
+function getCanonicalAgentId(agentId: string): string {
+  return AGENT_ID_ALIAS_MAP[agentId] ?? agentId;
+}
+
 const DEFAULT_PHASE_AGENT_NAMES: Partial<Record<TaskPhase, string>> = {
   submitted: 'User',
   pm_analysis: 'PM',
@@ -404,13 +419,14 @@ export class DashboardStore {
   loadAgents(agents: AgentInfo[]): void {
     const newMap = new Map<string, AgentInfo>();
     for (const agent of agents) {
-      const existing = this.agents.get(agent.id);
+      const canonicalId = getCanonicalAgentId(agent.id);
+      const existing = this.agents.get(canonicalId);
       if (existing) {
         existing.name = agent.name;
         existing.role = agent.role;
         existing.status = agent.status;
       } else {
-        newMap.set(agent.id, { ...agent });
+        newMap.set(canonicalId, { ...agent, id: canonicalId });
       }
     }
     for (const [id, agent] of newMap) {

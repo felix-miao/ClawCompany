@@ -310,5 +310,16 @@ describe('Chat API', () => {
       expect(data).toHaveProperty('files')
       expect(Array.isArray(data.files)).toBe(true)
     })
+
+    it('POST 应该返回 workflowType 字段标识为聚合工作流（与 /api/agent 区分）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.workflowType).toBe('orchestrator')
+      expect(data.tasks).toBeDefined()
+      expect(data.chatHistory).toBeDefined()
+    })
   })
 })

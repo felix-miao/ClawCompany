@@ -17,8 +17,8 @@ describe('DashboardStore.loadAgents', () => {
 
     const agents = store.getAgents()
     expect(agents.length).toBeGreaterThanOrEqual(2)
-    expect(store.getAgentById('sidekick-claw')).toMatchObject({ name: 'PM Claw', role: 'pm', status: 'idle' })
-    expect(store.getAgentById('dev-claw')).toMatchObject({ name: 'Dev Claw', status: 'busy' })
+    expect(store.getAgentById('pm-agent')).toMatchObject({ name: 'PM Claw', role: 'pm', status: 'idle' })
+    expect(store.getAgentById('dev-agent')).toMatchObject({ name: 'Dev Claw', status: 'busy' })
   })
 
   it('should preserve existing agent emotion when updating', () => {
@@ -106,5 +106,32 @@ describe('DashboardStore.loadAgents', () => {
 
     expect(store.getAgentById('pm-agent')?.status).toBe('idle')
     expect(store.getEvents()).toEqual([])
+  })
+
+  it('should map gateway agent IDs to canonical IDs (alias mapping)', () => {
+    store.loadAgents([
+      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+    ])
+
+    expect(store.getAgentById('pm-agent')).toMatchObject({ name: 'PM Claw', status: 'idle' })
+    expect(store.getAgentById('dev-agent')).toMatchObject({ name: 'Dev Claw', status: 'busy' })
+  })
+
+  it('should preserve canonical ID events after gateway agent loads with alias', () => {
+    store.processEvent({
+      type: 'agent:status-change',
+      timestamp: Date.now(),
+      agentId: 'pm-agent',
+      status: 'busy',
+    })
+    const eventsBefore = store.getEventsByAgent('pm-agent')
+    expect(eventsBefore).toHaveLength(1)
+
+    store.loadAgents([
+      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+
+    expect(store.getAgentById('pm-agent')).toMatchObject({ status: 'idle' })
   })
 })

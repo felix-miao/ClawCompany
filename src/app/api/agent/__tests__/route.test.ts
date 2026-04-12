@@ -213,12 +213,16 @@ describe('/api/agent', () => {
     storage.listAgents.mockResolvedValue([])
 
     const writer = getMockSandboxedWriter()
-    writer.writeFile.mockReset()
-    writer.writeFile.mockResolvedValue({ success: true, path: 'output/test.tsx' })
+    if (writer) {
+      writer.writeFile.mockReset()
+      writer.writeFile.mockResolvedValue({ success: true, path: 'output/test.tsx' })
+    }
 
     const git = getMockGitManager()
-    git.commit.mockReset()
-    git.commit.mockResolvedValue({ success: true, commitHash: 'abc123' })
+    if (git) {
+      git.commit.mockReset()
+      git.commit.mockResolvedValue({ success: true, commitHash: 'abc123' })
+    }
   })
 
   describe('POST', () => {
@@ -576,7 +580,7 @@ describe('/api/agent', () => {
   })
 
   describe('POST - dev-agent code blocks', () => {
-    it('should parse code blocks and create files for dev-agent', async () => {
+    it('should parse code blocks and return drafts (not writeFile/git) for dev-agent', async () => {
       const storage = getMockStorageManager()
 
       storage.loadAgent.mockResolvedValue(null)
@@ -595,13 +599,9 @@ describe('/api/agent', () => {
       expect(response.status).toBe(200)
       expect(data.message).toContain('```')
 
-      const mockResponse = data.message as string
-      if (mockResponse.includes('// file:')) {
-        const writer = getMockSandboxedWriter()
-        expect(writer.writeFile).toHaveBeenCalled()
-        const git = getMockGitManager()
-        expect(git.commit).toHaveBeenCalled()
-      }
+      // SandboxedFileWriter is no longer used in route.ts (drafts mode)
+      expect(data).toHaveProperty('drafts')
+      expect(Array.isArray(data.drafts)).toBe(true)
     })
 
     it('should handle review-agent mock response', async () => {
@@ -736,12 +736,18 @@ describe('/api/agent', () => {
     })
   })
 
-  describe('POST - file creation from code blocks', () => {
-    it('should create files and commit when dev-agent response has file annotations', async () => {
+describe('POST - file creation from code blocks', () => {
+    it('should return drafts (not writeFile/git) when dev-agent response has file annotations', async () => {
       const originalMock = process.env.USE_MOCK_LLM
       delete process.env.USE_MOCK_LLM
 
-      setLLMProvider(createMockLLMProvider(jest.fn().mockResolvedValue(`## Implementation\n\n\`\`\`tsx\n// file: src/components/Test.tsx\nexport function Test() { return <div>test</div> }\n\`\`\`\n`)))
+      setLLMProvider(createMockLLMProvider(jest.fn().mockResolvedValue(`## Implementation
+
+\`\`\`tsx
+// file: src/components/Test.tsx
+export function Test() { return <div>test</div> }
+\`\`\`
+`)))
 
       const request = createMockRequest({
         method: 'POST',
@@ -757,37 +763,11 @@ describe('/api/agent', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
 
-      const writer = getMockSandboxedWriter()
-      const git = getMockGitManager()
-      expect(writer.writeFile).toHaveBeenCalled()
-      expect(git.commit).toHaveBeenCalled()
-
-      setLLMProvider(null)
-      process.env.USE_MOCK_LLM = originalMock
-    })
-
-    it('should skip files with invalid paths', async () => {
-      const originalMock = process.env.USE_MOCK_LLM
-      delete process.env.USE_MOCK_LLM
-
-      setLLMProvider(createMockLLMProvider(jest.fn().mockResolvedValue(`## Implementation\n\n\`\`\`tsx\n// file: ../etc/passwd\nmalicious code\n\`\`\`\n`)))
-
-      const request = createMockRequest({
-        method: 'POST',
-        body: {
-          agentId: 'dev-agent',
-          userMessage: 'Create something'
-        }
-      })
-
-      const response = await POST(request)
-      const data = await response.json()
-
-      expect(response.status).toBe(200)
-      expect(data.success).toBe(true)
-
-      const writer = getMockSandboxedWriter()
-      expect(writer.writeFile).not.toHaveBeenCalled()
+      // SandboxedFileWriter is no longer used in route.ts (drafts mode)
+      expect(data).toHaveProperty('drafts')
+      expect(data.drafts).toHaveLength(1)
+      expect(data.drafts[0]).toHaveProperty('path')
+      expect(data.drafts[0]).toHaveProperty('content')
 
       setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
@@ -1054,6 +1034,25 @@ describe('/api/agent', () => {
       expect(response.status).toBe(200)
       expect(data).not.toHaveProperty('tasks')
       expect(data).not.toHaveProperty('chatHistory')
+      expect(data).not.toHaveProperty('files')
+    })
+
+    it('POST /api/agent (dev-agent) 应该返回 drafts 字段（单 agent 草稿预览）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'dev-agent',
+          userMessage: 'Create login'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).toHaveProperty('drafts')
+      expect(data.agentType).toBe('single')
+      expect(data).not.toHaveProperty('tasks')
       expect(data).not.toHaveProperty('files')
     })
   })

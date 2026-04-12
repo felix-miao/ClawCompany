@@ -83,56 +83,46 @@ export class TinyTownLoader {
   }
 
   private createDefaultCharacterSprite(color: number, role: string): void {
-    const graphics = this.scene.add.graphics();
+    // All drawing MUST be in the range [0, size) so generateTexture captures it.
     const size = 64;
-    const halfSize = size / 2;
+    const g = this.scene.add.graphics();
 
-    // 绘制角色主体
-    graphics.fillStyle(color, 1);
-    graphics.fillRoundedRect(-halfSize, -size, size, size, 16);
-    
-    // 添加角色标识
-    graphics.fillStyle(0xffffff, 0.9);
-    graphics.fillRect(-halfSize + 4, -size + 4, size - 8, 16);
-    
-    // 添加角色文字
-    this.scene.add.text(0, -size + 12, role.toUpperCase(), {
-      fontSize: '10px',
-      color: '#000000',
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
+    // Body
+    g.fillStyle(color, 1);
+    g.fillRect(8, 4, size - 16, size - 8);
 
-    // 添加眼睛
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillRect(-halfSize + 12, -size + 24, 6, 6);
-    graphics.fillRect(halfSize - 18, -size + 24, 6, 6);
+    // Header band
+    g.fillStyle(0xffffff, 0.85);
+    g.fillRect(12, 8, size - 24, 14);
 
-    // 添加嘴巴
+    // Eyes
+    g.fillStyle(0x000000, 1);
+    g.fillRect(16, 28, 6, 6);
+    g.fillRect(size - 22, 28, 6, 6);
+
+    // Mouth — unique per role
+    g.fillStyle(0x111111, 1);
     if (role === 'pm') {
-      // PM - 微笑
-      graphics.lineStyle(2, 0x000000, 1);
-      graphics.arc(0, -size + 36, 8, 0.2 * Math.PI, 0.8 * Math.PI);
+      g.fillRect(20, 40, 4, 3); g.fillRect(40, 40, 4, 3);
+      g.fillRect(24, 42, 16, 3);
     } else if (role === 'dev') {
-      // Dev - 专注
-      graphics.fillRect(-4, -size + 34, 8, 2);
+      g.fillRect(20, 41, 24, 2);
     } else if (role === 'tester') {
-      // Tester - 检查
-      graphics.lineStyle(2, 0x000000, 1);
-      graphics.moveTo(-6, -size + 34);
-      graphics.lineTo(6, -size + 34);
-      graphics.moveTo(-6, -size + 38);
-      graphics.lineTo(6, -size + 38);
+      g.fillRect(20, 38, 24, 2);
+      g.fillRect(20, 44, 24, 2);
     } else {
-      // Reviewer - 思考
-      graphics.lineStyle(2, 0x000000, 1);
-      graphics.arc(0, -size + 36, 8, 0.1 * Math.PI, 0.9 * Math.PI, false);
+      g.fillRect(20, 44, 4, 3); g.fillRect(40, 44, 4, 3);
+      g.fillRect(24, 42, 16, 3);
     }
 
-    const textureName = `character-${role}`;
-    graphics.generateTexture(textureName, size, size);
-    graphics.destroy();
+    // Border
+    g.lineStyle(2, 0x00000055, 1);
+    g.strokeRect(8, 4, size - 16, size - 8);
 
-    // 创建角色动画
+    const textureName = `character-${role}`;
+    g.generateTexture(textureName, size, size);
+    g.destroy();
+
     this.createCharacterAnimations(textureName, role);
   }
 

@@ -7,11 +7,11 @@ describe('gameConfig', () => {
     });
 
     it('should have correct width', () => {
-      expect(gameConfig.width).toBe(800);
+      expect(gameConfig.width).toBe(1200);
     });
 
     it('should have correct height', () => {
-      expect(gameConfig.height).toBe(600);
+      expect(gameConfig.height).toBe(700);
     });
 
     it('should have background color', () => {
@@ -56,16 +56,16 @@ describe('gameConfig', () => {
       expect(PHYSICS_CONFIG.jumpForce).toBe(0);
     });
 
-    it('should have move speed of 200', () => {
-      expect(PHYSICS_CONFIG.moveSpeed).toBe(200);
+    it('should have move speed of 150', () => {
+      expect(PHYSICS_CONFIG.moveSpeed).toBe(150);
     });
 
-    it('should have max velocity of 300', () => {
-      expect(PHYSICS_CONFIG.maxVelocity).toBe(300);
+    it('should have max velocity of 200', () => {
+      expect(PHYSICS_CONFIG.maxVelocity).toBe(200);
     });
 
-    it('should have drag of 800', () => {
-      expect(PHYSICS_CONFIG.drag).toBe(800);
+    it('should have drag of 600', () => {
+      expect(PHYSICS_CONFIG.drag).toBe(600);
     });
   });
 
@@ -74,12 +74,12 @@ describe('gameConfig', () => {
       expect(TILE_SIZE).toBe(32);
     });
 
-    it('should have MAP_WIDTH of 20', () => {
-      expect(MAP_WIDTH).toBe(20);
+    it('should have MAP_WIDTH of 38', () => {
+      expect(MAP_WIDTH).toBe(38);
     });
 
-    it('should have MAP_HEIGHT of 15', () => {
-      expect(MAP_HEIGHT).toBe(15);
+    it('should have MAP_HEIGHT of 22', () => {
+      expect(MAP_HEIGHT).toBe(22);
     });
   });
 
