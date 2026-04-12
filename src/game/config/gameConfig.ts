@@ -6,6 +6,16 @@ export const gameConfig = {
   height: 700,
   backgroundColor: '#1a1a2e',
   parent: 'game-container',
+  // Cap at 30 FPS to reduce CPU load; the scene is ambient/decorative
+  fps: {
+    target: 30,
+    forceSetTimeOut: false,
+  },
+  // Pause the game loop when the browser tab is hidden
+  pauseOnBlur: false,
+  focusLoss: {
+    blur: false,
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

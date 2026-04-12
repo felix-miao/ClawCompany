@@ -22,12 +22,15 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const parsed = parseRequestBody(ChatRequestSchema, body)
   if ('error' in parsed) return parsed.error
 
+  const { message, taskId } = parsed.data
+
   const orchestrator = getDefaultContainer().resolve(Services.Orchestrator) as Orchestrator
-  const result = await orchestrator.executeUserRequest(parsed.data.message)
+  const result = await orchestrator.executeUserRequest(message, { taskId })
 
   return successResponse({
     apiSource: '/api/chat',
     workflowType: 'orchestrator',
+    taskId,
     message: result.messages[result.messages.length - 1]?.content,
     tasks: result.tasks,
     chatHistory: result.messages,

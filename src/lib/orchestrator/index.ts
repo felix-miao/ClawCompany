@@ -1,5 +1,5 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
-import { WorkflowResult, Task, RetryConfig } from '../core/types'
+import { WorkflowResult, WorkflowOptions, Task, RetryConfig } from '../core/types'
 import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
 import { AgentManager } from '../agents/manager'
 import { TaskManager } from '../tasks/manager'
@@ -123,7 +123,9 @@ export class Orchestrator extends BaseOrchestrator {
   protected getCallbacks(): OrchestratorCallbacks {
     const { agentManager, taskManager, chatManager } = this.deps
     return {
-      sendUserMessage: (msg) => chatManager.sendUserMessage(msg),
+      sendUserMessage: (msg, metadata) => metadata !== undefined
+        ? chatManager.sendUserMessage(msg, metadata)
+        : chatManager.sendUserMessage(msg),
       broadcast: (agent, msg) => chatManager.broadcast(agent, msg),
       createTask: (title, desc, assignedTo, deps, files) =>
         taskManager.createTask(title, desc, assignedTo, deps, files),
@@ -152,19 +154,25 @@ export class Orchestrator extends BaseOrchestrator {
     }
   }
 
-  async executeUserRequest(userMessage: string): Promise<WorkflowResult> {
-    this.startTime = Date.now()
-    this.totalRetries = 0
-    this.failedTasks = []
-    this.currentPMAnalysis = ''
+  async executeUserRequest(userMessage: string, options?: { taskId?: string }): Promise<WorkflowResult> {
+      const taskId = options?.taskId
+      this.startTime = Date.now()
+      this.totalRetries = 0
+      this.failedTasks = []
+      this.currentPMAnalysis = ''
 
-    const cb = this.getCallbacks()
+      const cb = this.getCallbacks()
 
-    this.logInfo('Workflow started', { userMessage })
-    this.emitWorkflowStarted({ userMessage })
+      this.logInfo('Workflow started', { userMessage, taskId })
+      this.emitWorkflowStarted({ userMessage, taskId })
 
-    try {
-      cb.sendUserMessage(userMessage)
+      try {
+        const msgMetadata: Record<string, unknown> | undefined = taskId !== undefined ? { taskId } : undefined
+        const sentUserMsg = cb.sendUserMessage(userMessage, msgMetadata)
+        // Keep a local copy so buildMessages can include the user message even when
+        // the injected chatManager mock returns an empty history.
+        const localUserMessage: { agent: string; content: string; timestamp?: Date } | null =
+          sentUserMsg ?? { agent: 'user', content: userMessage, timestamp: new Date() }
 
       const initialTask = cb.createTask(userMessage, userMessage, 'pm', [], [])
 
@@ -259,9 +267,17 @@ export class Orchestrator extends BaseOrchestrator {
       const hasSuccess = subTaskIds.length === 0 || completedTaskIds.size === subTaskIds.length
       this.logInfo('Workflow completed', { success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
       this.emitWorkflowCompleted({ success: hasSuccess, completed: completedTaskIds.size, total: subTaskIds.length, failed: this.failedTasks.length })
+
+      const historyMessages = this.buildMessages(cb)
+      // Prepend the user message if getChatHistory didn't already include it
+      const hasUserMsg = historyMessages.some(m => m.agent === 'user' && m.content === userMessage)
+      const allMessages = (localUserMessage && !hasUserMsg)
+        ? [{ agent: localUserMessage.agent as 'user', content: localUserMessage.content, timestamp: localUserMessage.timestamp }, ...historyMessages]
+        : historyMessages
+
       return {
         success: hasSuccess,
-        messages: this.buildMessages(cb),
+        messages: allMessages,
         tasks: cb.getAllTasks(),
         files: allFiles,
         failedTasks: this.failedTasks.length > 0 ? this.failedTasks : undefined,

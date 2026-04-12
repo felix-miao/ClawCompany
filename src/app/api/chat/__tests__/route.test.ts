@@ -340,5 +340,60 @@ describe('Chat API', () => {
       expect(data).not.toHaveProperty('conversationId')
       expect(data).not.toHaveProperty('agentId')
     })
+
+    it('POST 应该支持 taskId 参数（消息路由上下文）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试', taskId: 'task-123' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+    })
+
+    it('POST 应该返回 taskId 在响应中（用于消息路由追踪）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试', taskId: 'task-456' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.taskId).toBe('task-456')
+    })
+
+    it('POST /api/chat 不应该接受 agentId 参数（与 /api/agent 区分）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试', agentId: 'pm-agent' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).not.toHaveProperty('agentId')
+    })
+  })
+
+  describe('POST /api/chat - System Prompt 上下文注入', () => {
+    it('POST 应该注入项目状态到系统上下文（通过 Orchestrator 回调）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.tasks).toBeDefined()
+      expect(data.chatHistory).toBeDefined()
+      expect(data.chatHistory.length).toBeGreaterThan(0)
+    })
+
+    it('POST 应该通过 taskId 隔离消息路由（Task-scoped context）', async () => {
+      const request1 = createMockNextRequestWithAuth({ message: '任务A', taskId: 'task-A' }, API_KEY)
+      const request2 = createMockNextRequestWithAuth({ message: '任务B', taskId: 'task-B' }, API_KEY)
+
+      const response1 = await POST(request1)
+      const data1 = await response1.json()
+
+      const response2 = await POST(request2)
+      const data2 = await response2.json()
+
+      expect(data1.taskId).toBe('task-A')
+      expect(data2.taskId).toBe('task-B')
+    })
   })
 })

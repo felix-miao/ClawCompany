@@ -17,7 +17,9 @@ export const AgentPostRequestSchema = z.object({
   userMessage: z.string().min(1, 'Message cannot be empty').max(10000, 'Message too long (max 10000 characters)'),
   conversationId: z.string().optional(),
   taskId: z.string().optional(),
-})
+}).strict()
+
+export const AgentPostRequestSchemaStrict = AgentPostRequestSchema
 
 export type AgentPostRequest = z.infer<typeof AgentPostRequestSchema>
 

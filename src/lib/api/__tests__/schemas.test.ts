@@ -269,4 +269,59 @@ describe('schemas', () => {
       expect('error' in result).toBe(true)
     })
   })
+
+  describe('strict mode - reject extra fields', () => {
+    it('ChatRequestSchema should reject extra fields (strict mode)', () => {
+      const result = ChatRequestSchema.strict().safeParse({
+        message: 'Hello',
+        agentId: 'pm-agent',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('ChatRequestSchema should reject extra fields: userMessage', () => {
+      const result = ChatRequestSchema.strict().safeParse({
+        message: 'Hello',
+        userMessage: 'test',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('AgentPostRequestSchema should reject extra fields (strict mode)', () => {
+      const result = AgentPostRequestSchema.strict().safeParse({
+        agentId: 'pm-agent',
+        userMessage: 'Hello',
+        message: 'extra message',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('AgentPostRequestSchema should reject extra fields: message not allowed on agent schema', () => {
+      const result = AgentPostRequestSchema.strict().safeParse({
+        agentId: 'pm-agent',
+        userMessage: 'Hello',
+        message: 'extra message',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('ChatRequestSchema should reject extra fields including agentId', () => {
+      const result = ChatRequestSchema.strict().safeParse({
+        message: 'Hello',
+        agentId: 'pm-agent',
+      })
+      expect(result.success).toBe(false)
+    })
+
+    it('should provide helpful error message mentioning the extra field', () => {
+      const result = ChatRequestSchema.strict().safeParse({
+        message: 'Hello',
+        agentId: 'pm-agent',
+      })
+      if (!result.success) {
+        const firstIssue = result.error.issues[0]
+        expect(firstIssue.message).toContain('agentId')
+      }
+    })
+  })
 })

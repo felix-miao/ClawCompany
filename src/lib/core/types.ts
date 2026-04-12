@@ -133,6 +133,10 @@ export interface Task {
   updatedAt?: Date
 }
 
+export interface WorkflowOptions {
+  taskId?: string
+}
+
 export interface FileChange {
   path: string
   content: string

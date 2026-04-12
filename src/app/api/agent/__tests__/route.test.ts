@@ -1090,5 +1090,36 @@ export function Test() { return <div>test</div> }
       expect(data).not.toHaveProperty('files')
       expect(data).not.toHaveProperty('workflowType')
     })
+
+    it('POST /api/agent 不应该返回 workflowType 字段（与 /api/chat 区分）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.workflowType).toBeUndefined()
+    })
+
+    it('POST /api/agent 缺少 agentId 应该返回错误（与 /api/chat 的关键区分）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBeDefined()
+    })
   })
 })

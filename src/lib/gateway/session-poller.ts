@@ -6,7 +6,7 @@ export interface SessionPollerOptions {
   interval?: number
 }
 
-const DEFAULT_INTERVAL = 5000
+const DEFAULT_INTERVAL = 30000
 
 interface CachedAgentState {
   status: string

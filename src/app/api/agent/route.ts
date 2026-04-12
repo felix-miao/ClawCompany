@@ -11,6 +11,9 @@ import { withRateLimit, withAuth, successResponse, errorResponse } from '@/lib/a
 import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 import { sanitizeUserInput } from '@/lib/utils/prompt-sanitizer'
+import { buildAgentContext, getProjectStateSummary } from '@/lib/agents/context-builder'
+import { getDefaultContainer, Services } from '@/lib/core/services'
+import type { TaskManager } from '@/lib/tasks/manager'
 
 const storageManager = new StorageManager()
 
@@ -56,6 +59,25 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
 
   let agentMessage: string
 
+  const taskManager = getDefaultContainer().resolve<TaskManager>(Services.TaskManager)
+  const chatMessages = conversation.messages.map(m => ({
+    agent: m.agentName,
+    content: m.content,
+    timestamp: m.timestamp
+  }))
+  const projectState = getProjectStateSummary(taskManager, chatMessages)
+
+  const dynamicContext = buildAgentContext({
+    agentConfig,
+    conversationId: conversation.id,
+    taskId: parsed.data.taskId,
+    projectState
+  })
+
+  const systemPromptWithContext = agentConfig.systemPrompt
+    ? `${agentConfig.systemPrompt}\n\n${dynamicContext}`
+    : dynamicContext
+
   if (useMock) {
     await new Promise(resolve => setTimeout(resolve, 800))
     agentMessage = generateMockResponse(agentId, userMessage)
@@ -64,7 +86,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
     if (llmProvider) {
       const sanitizedMessage = sanitizeUserInput(userMessage)
       agentMessage = await llmProvider.chat([
-        { role: 'system', content: agentConfig.systemPrompt },
+        { role: 'system', content: systemPromptWithContext },
         { role: 'user', content: sanitizedMessage }
       ])
     } else {

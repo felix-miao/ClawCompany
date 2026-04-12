@@ -44,5 +44,26 @@ export function startGame(containerId: string): Game {
     parent: containerId,
     scene: [OfficeScene],
   };
-  return new Game(config);
+  const game = new Game(config);
+
+  // Pause the Phaser loop when the browser tab is hidden, resume when visible again
+  if (typeof document !== 'undefined') {
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        game.loop.sleep();
+      } else {
+        game.loop.wake();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // Clean up the listener when the game is destroyed
+    const originalDestroy = game.destroy.bind(game);
+    game.destroy = (destroyChildren?: boolean) => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      originalDestroy(destroyChildren);
+    };
+  }
+
+  return game;
 }

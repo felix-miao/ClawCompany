@@ -48,7 +48,7 @@ export class MetricsAggregator {
   private logger: Logger
   private metricsDataSource?: MetricsDataSource
   private lastMetrics: PerformanceMetrics | null = null
-  private updateIntervalMs: number = 5000
+  private updateIntervalMs: number = 30000
 
   constructor(
     perfMonitor: PerformanceMonitor,

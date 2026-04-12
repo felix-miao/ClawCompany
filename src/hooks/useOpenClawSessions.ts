@@ -26,7 +26,7 @@ interface SessionsResponse {
   error?: string
 }
 
-const POLL_INTERVAL = 10000
+const POLL_INTERVAL = 30000
 
 export function useOpenClawSessions(store: DashboardStore): UseOpenClawSessionsResult {
   const [connected, setConnected] = useState(false)

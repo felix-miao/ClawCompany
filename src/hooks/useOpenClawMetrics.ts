@@ -38,7 +38,7 @@ interface UseOpenClawMetricsResult {
   refresh: () => void
 }
 
-const POLL_INTERVAL = 10000
+const POLL_INTERVAL = 30000
 
 const FALLBACK_METRICS: OpenClawMetrics = {
   agents: { total: 0, active: 0, idle: 0, byRole: {} },

@@ -95,8 +95,8 @@ export class ChatManager {
     return this.addMessage(agent, content, 'text')
   }
 
-  sendUserMessage(content: string): Message {
-    return this.addMessage('user', content, 'text')
+  sendUserMessage(content: string, metadata?: Message['metadata']): Message {
+    return this.addMessage('user', content, 'text', metadata)
   }
 
   sendCodeMessage(agent: AgentRole, code: string, language: string = 'typescript'): Message {

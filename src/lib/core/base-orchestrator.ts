@@ -3,6 +3,7 @@ import {
   Task,
   AgentContext,
   WorkflowResult,
+  WorkflowOptions,
   WorkflowError,
   FailedTask,
   WorkflowStats,
@@ -26,7 +27,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 }
 
 export interface OrchestratorCallbacks {
-  sendUserMessage: (message: string) => void
+  sendUserMessage: (message: string, metadata?: Record<string, unknown>) => { agent: string; content: string; timestamp?: Date } | void
   broadcast: (agent: AgentRole, message: string) => void
   createTask: (title: string, description: string, assignedTo: AgentRole, deps: string[], files: string[]) => Task
   getTask: (id: string) => Task | undefined
@@ -83,7 +84,7 @@ export abstract class BaseOrchestrator {
 
   protected abstract getCallbacks(): OrchestratorCallbacks
 
-  abstract executeUserRequest(userMessage: string): Promise<WorkflowResult>
+  abstract executeUserRequest(userMessage: string, options?: WorkflowOptions): Promise<WorkflowResult>
 
   protected logInfo(message: string, context?: Record<string, unknown>): void {
     this.logCount++
