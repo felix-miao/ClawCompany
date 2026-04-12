@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 
-import { withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withAuth, successResponse } from '@/lib/api/route-utils'
 import { SessionSyncService } from '@/lib/gateway/session-sync'
+import { getOpenClawSnapshot } from '@/lib/gateway/poll-snapshot'
 
 export interface OpenClawMetrics {
   agents: {
@@ -88,12 +89,7 @@ export const GET = withAuth(async (_request: NextRequest) => {
   const sync = new SessionSyncService()
 
   try {
-    await sync['client'].connect()
-
-    const [agents, sessions] = await Promise.all([
-      sync.fetchAgents(),
-      sync.fetchSessions(),
-    ])
+    const { agents, sessions, fetchedAt } = await getOpenClawSnapshot(sync)
 
     const mappedAgents = sync.mapToAgentInfo(agents, sessions)
     const metrics = buildMetrics(
@@ -101,7 +97,7 @@ export const GET = withAuth(async (_request: NextRequest) => {
       sessions,
     )
 
-    await sync['client'].disconnect()
+    metrics.fetchedAt = new Date(fetchedAt).toISOString()
 
     return successResponse({ metrics })
   } catch (error) {

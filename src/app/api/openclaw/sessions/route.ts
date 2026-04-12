@@ -1,18 +1,14 @@
 import { NextRequest } from 'next/server'
 
-import { withAuth, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { withAuth, successResponse } from '@/lib/api/route-utils'
 import { SessionSyncService } from '@/lib/gateway/session-sync'
+import { getOpenClawSnapshot } from '@/lib/gateway/poll-snapshot'
 
 export const GET = withAuth(async (request: NextRequest) => {
   const sync = new SessionSyncService()
 
   try {
-    await sync['client'].connect()
-
-    const [agents, sessions] = await Promise.all([
-      sync.fetchAgents(),
-      sync.fetchSessions(),
-    ])
+    const { agents, sessions } = await getOpenClawSnapshot(sync)
 
     const mappedAgents = sync.mapToAgentInfo(agents, sessions)
     const sessionSummaries = sessions.map(s => ({
@@ -23,8 +19,6 @@ export const GET = withAuth(async (request: NextRequest) => {
       status: s.status,
       endedAt: s.endedAt,
     }))
-
-    await sync['client'].disconnect()
 
     return successResponse({
       agents: mappedAgents,
