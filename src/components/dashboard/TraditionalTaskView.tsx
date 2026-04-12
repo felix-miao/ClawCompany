@@ -166,6 +166,7 @@ function getAttentionBadges(task: TaskHistory): string[] {
 }
 
 type FilterType = 'attention' | 'active' | 'all' | 'waiting' | 'rework' | 'approved' | 'completed';
+type StageFilterType = 'all' | 'pm' | 'developer' | 'tester' | 'reviewer' | 'done';
 
 function isActiveTask(task: TaskHistory): boolean {
   return task.status === 'in_progress' || task.status === 'failed';
@@ -224,8 +225,33 @@ function TaskListItem({ task, selectedTaskId, onSelect, isHistory }: TaskListIte
   );
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  pm: 'PM',
+  developer: 'Dev',
+  tester: 'Tester',
+  reviewer: 'Reviewer',
+  done: 'Done',
+};
+
+const STAGE_COLORS: Record<string, string> = {
+  pm: 'bg-purple-500/10 border-purple-500/30 text-purple-200 hover:border-purple-500/50',
+  developer: 'bg-blue-500/10 border-blue-500/30 text-blue-200 hover:border-blue-500/50',
+  tester: 'bg-orange-500/10 border-orange-500/30 text-orange-200 hover:border-orange-500/50',
+  reviewer: 'bg-pink-500/10 border-pink-500/30 text-pink-200 hover:border-pink-500/50',
+  done: 'bg-green-500/10 border-green-500/30 text-green-200 hover:border-green-500/50',
+};
+
+const STAGE_BOTTLENECK_COLORS: Record<string, string> = {
+  pm: 'bg-purple-500/20 border-purple-500/50 text-purple-100 shadow-[0_0_12px_rgba(168,85,247,0.4)]',
+  developer: 'bg-blue-500/20 border-blue-500/50 text-blue-100 shadow-[0_0_12px_rgba(59,130,246,0.4)]',
+  tester: 'bg-orange-500/20 border-orange-500/50 text-orange-100 shadow-[0_0_12px_rgba(249,115,22,0.4)]',
+  reviewer: 'bg-pink-500/20 border-pink-500/50 text-pink-100 shadow-[0_0_12px_rgba(236,72,153,0.4)]',
+  done: 'bg-green-500/20 border-green-500/50 text-green-100 shadow-[0_0_12px_rgba(34,197,94,0.4)]',
+};
+
 export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
   const [filter, setFilter] = useState<FilterType>('all');
+  const [stageFilter, setStageFilter] = useState<StageFilterType>('all');
   const sortedTasks = useMemo(
     () => [...tasks].sort((a, b) => getTaskPriority(b) - getTaskPriority(a) || b.updatedAt - a.updatedAt),
     [tasks],
@@ -264,7 +290,36 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
   const isFilteredEmpty = hasFilterApplied && filteredTasks.length === 0;
   const displayTasks = isFilteredEmpty ? [] : filteredTasks.length > 0 ? filteredTasks : sortedTasks;
 
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(displayTasks[0]?.taskId ?? null);
+  const stageCounts = useMemo(() => {
+    const counts: Record<string, number> = { pm: 0, developer: 0, tester: 0, reviewer: 0, done: 0 };
+    sortedTasks.forEach(task => {
+      if (task.currentPhase === 'pm_analysis' || task.currentPhase === 'planning') {
+        counts.pm++;
+      } else if (task.currentPhase === 'developer') {
+        counts.developer++;
+      } else if (task.currentPhase === 'tester') {
+        counts.tester++;
+      } else if (task.currentPhase === 'reviewer') {
+        counts.reviewer++;
+      } else if (task.currentPhase === 'done') {
+        counts.done++;
+      }
+    });
+    return counts;
+  }, [sortedTasks]);
+
+  const displayTasksByStage = useMemo(() => {
+    if (stageFilter === 'all') return displayTasks;
+    if (stageFilter === 'pm') {
+      return displayTasks.filter(t => t.currentPhase === 'pm_analysis' || t.currentPhase === 'planning');
+    }
+    return displayTasks.filter(t => t.currentPhase === stageFilter);
+  }, [displayTasks, stageFilter]);
+
+  const hasStageFilterApplied = stageFilter !== 'all';
+  const displayTasksFinal = hasStageFilterApplied ? displayTasksByStage : displayTasks;
+
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(displayTasksFinal[0]?.taskId ?? null);
 
   useEffect(() => {
     if (!tasks.length) {
@@ -272,17 +327,17 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
       return;
     }
 
-    if (!selectedTaskId || !displayTasks.some(task => task.taskId === selectedTaskId)) {
-      const next = displayTasks[0]?.taskId ?? null;
+    if (!selectedTaskId || !displayTasksFinal.some(task => task.taskId === selectedTaskId)) {
+      const next = displayTasksFinal[0]?.taskId ?? null;
       if (next !== selectedTaskId) {
         setSelectedTaskId(next);
       }
     }
-  }, [selectedTaskId, displayTasks, tasks.length]);
+  }, [selectedTaskId, displayTasksFinal, tasks.length]);
 
   const selectedTask = useMemo(
-    () => displayTasks.find(task => task.taskId === selectedTaskId) ?? displayTasks[0] ?? null,
-    [selectedTaskId, displayTasks],
+    () => displayTasksFinal.find(task => task.taskId === selectedTaskId) ?? displayTasksFinal[0] ?? null,
+    [selectedTaskId, displayTasksFinal],
   );
 
   const hasSelectedTask = selectedTask !== null;
@@ -421,9 +476,41 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
 
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)] h-[calc(100%-5.5rem)] min-h-[460px]">
         <section className="rounded-xl border border-dark-100 bg-dark-50/30 overflow-hidden flex flex-col min-h-0">
-          <div className="px-4 py-3 border-b border-dark-100 text-sm font-medium text-gray-200">Task List</div>
+          <div className="px-4 py-3 border-b border-dark-100 flex flex-col gap-2">
+            <div className="text-sm font-medium text-gray-200">Task List</div>
+            {/* Stage filter chips */}
+            <div className="flex flex-wrap gap-1">
+              {(Object.entries(STAGE_LABELS) as [string, string][]).map(([stage, label]) => {
+                const count = stageCounts[stage] ?? 0;
+                if (count === 0) return null;
+                const isBottleneck = count >= 2 && stage !== 'done';
+                const isActive = stageFilter === stage;
+                const colorClass = isActive
+                  ? 'bg-primary-500/20 border-primary-500/40 text-primary-200'
+                  : isBottleneck
+                    ? STAGE_BOTTLENECK_COLORS[stage]
+                    : STAGE_COLORS[stage];
+                return (
+                  <button
+                    key={stage}
+                    type="button"
+                    onClick={() => setStageFilter(isActive ? 'all' : stage as StageFilterType)}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all cursor-pointer ${colorClass}`}
+                  >
+                    {label} {count > 1 && <span className="opacity-70">×{count}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="overflow-y-auto p-2 space-y-3">
             {(() => {
+              if (hasStageFilterApplied) {
+                return displayTasksFinal.map((task) => (
+                  <TaskListItem key={task.taskId} task={task} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} />
+                ));
+              }
+
               const activeTasks = filter === 'completed' || filter === 'approved' || filter === 'all'
                 ? sortedTasks.filter(t => isActiveTask(t))
                 : filteredTasks.filter(t => isActiveTask(t));
