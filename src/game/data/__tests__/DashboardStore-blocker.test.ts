@@ -62,6 +62,26 @@ describe('DashboardStore blocker signal derivation', () => {
   });
 
   describe('task progress derived from recent events', () => {
+    it('should tolerate legacy task:assigned payloads without nested task data', () => {
+      expect(() => {
+        store.processEvent({
+          type: 'task:assigned',
+          timestamp: Date.now() - 20000,
+          taskId: 'legacy-task-1',
+          description: 'Legacy payload task',
+          agentId: 'dev-agent',
+        } as any)
+      }).not.toThrow()
+
+      const task = store.getTaskHistoryById('legacy-task-1')
+      expect(task?.description).toBe('Legacy payload task')
+      expect(store.getActiveTasks()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ taskId: 'legacy-task-1', description: 'Legacy payload task' }),
+        ])
+      )
+    })
+
     it('should track progress percentage from task:progress events', () => {
       store.processEvent({
         type: 'task:assigned',

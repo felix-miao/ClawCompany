@@ -1,5 +1,5 @@
 import { EventBus } from './EventBus';
-import { GameEvent, parseGameEvent } from '../types/GameEvents';
+import { GameEvent, parseGameEvent, NAMED_GAME_EVENT_TYPES } from '../types/GameEvents';
 
 export interface LiveSessionManagerConfig {
   url?: string;
@@ -44,6 +44,12 @@ export class LiveSessionManager {
     this.eventSource.onmessage = (event: MessageEvent) => {
       this.handleMessage(event.data);
     };
+
+    for (const eventType of NAMED_GAME_EVENT_TYPES) {
+      this.eventSource.addEventListener(eventType, (event: MessageEvent) => {
+        this.handleMessage(event.data);
+      });
+    }
 
     this.eventSource.onerror = () => {
       this.eventBus.emit({

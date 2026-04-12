@@ -40,9 +40,9 @@ export class SceneEventBridge {
     connected: false,
   };
 
-  constructor(actions: SceneActions, config?: LiveSessionManagerConfig) {
+  constructor(actions: SceneActions, config?: LiveSessionManagerConfig, eventBus?: EventBus) {
     this.actions = actions;
-    this.eventBus = new EventBus();
+    this.eventBus = eventBus ?? new EventBus();
     this.sessionManager = new LiveSessionManager(this.eventBus, config);
     this.particleSystem = new ParticleSystem();
     this.registerHandlers();
@@ -169,7 +169,7 @@ export class SceneEventBridge {
   private async handleOpenClawSend(event: OpenClawSendEvent): Promise<void> {
     this.updateStats();
     try {
-      await fetch('/api/openclaw/send', {
+      const res = await fetch('/api/openclaw/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,6 +177,27 @@ export class SceneEventBridge {
           message: event.message,
         }),
       });
-    } catch {}
+
+      if (res.ok) {
+        const data = (await res.json()) as { output?: string; message?: string };
+        const output = data.output ?? data.message;
+        if (output) {
+          // Broadcast the AI reply back through /api/game-events so
+          // EventLog and DashboardStore pick it up.
+          fetch('/api/game-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'task:progress',
+              agentId: event.sessionKey,
+              taskId: `openclaw-${event.sessionKey}`,
+              progress: 50,
+              currentAction: output.slice(0, 120),
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+        }
+      }
+    } catch {/* network error — swallow silently */}
   }
 }

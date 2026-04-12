@@ -286,7 +286,10 @@ export class DashboardStore {
         break;
       case 'task:assigned':
         this.handleVisualizationTaskAssigned(event);
-        this.trackTaskEvent(event.task.id, event);
+        {
+          const taskId = event.task?.id ?? (event as unknown as { taskId?: string }).taskId;
+          if (taskId) this.trackTaskEvent(taskId, event);
+        }
         break;
       case 'task:handover':
         this.handleVisualizationTaskHandover(event);
@@ -502,14 +505,24 @@ export class DashboardStore {
   }
 
   private handleVisualizationTaskAssigned(event: TaskVisualizationAssignedEvent): void {
-    const description = event.task.description;
-    const task = this.ensureTaskHistory(event.task.id, description, event.timestamp);
+    const rawTask = event.task;
+    const fallbackEvent = event as unknown as {
+      taskId?: string;
+      description?: string;
+      taskType?: string;
+    };
+    const taskId = rawTask?.id ?? fallbackEvent.taskId;
+    if (!taskId) return;
+
+    const description = rawTask?.description ?? fallbackEvent.description ?? taskId;
+    const taskType = rawTask?.taskType ?? fallbackEvent.taskType ?? 'unknown';
+    const task = this.ensureTaskHistory(taskId, description, event.timestamp);
     const phase = inferPhaseFromAgent(event.agentId) ?? 'developer';
 
-    this.activeTasks.set(event.task.id, {
-      taskId: event.task.id,
+    this.activeTasks.set(taskId, {
+      taskId,
       agentId: event.agentId,
-      taskType: event.task.taskType,
+      taskType,
       description,
       assignedAt: event.timestamp,
     });

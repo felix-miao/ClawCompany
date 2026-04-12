@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 import { DashboardStore } from '@/game/data/DashboardStore';
-import { parseGameEvent, GameEventType } from '@/game/types/GameEvents';
+import { parseGameEvent, NAMED_GAME_EVENT_TYPES } from '@/game/types/GameEvents';
 
 interface UseEventStreamOptions {
   url?: string;
@@ -14,31 +14,6 @@ interface UseEventStreamResult {
   isConnected: boolean;
   isReconnecting: boolean;
 }
-
-// All named SSE event types from GameEvents.ts
-const NAMED_EVENT_TYPES: GameEventType[] = [
-  'agent:status-change',
-  'agent:task-assigned',
-  'agent:task-completed',
-  'agent:navigation-request',
-  'agent:emotion-change',
-  'session:started',
-  'session:completed',
-  'session:progress',
-  'connection:open',
-  'connection:close',
-  'connection:error',
-  'task:assigned',
-  'task:progress',
-  'task:completed',
-  'task:failed',
-  'task:handover',
-  'openclaw:send',
-  'pm:analysis-complete',
-  'dev:iteration-start',
-  'review:rejected',
-  'workflow:iteration-complete',
-];
 
 const MIN_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
@@ -93,7 +68,7 @@ export function useEventStream(
     };
 
     // Register listeners for all named SSE event types
-    for (const eventType of NAMED_EVENT_TYPES) {
+    for (const eventType of NAMED_GAME_EVENT_TYPES) {
       es.addEventListener(eventType, (event: MessageEvent) => {
         if (unmountedRef.current) return;
         const gameEvent = parseGameEvent(event.data);

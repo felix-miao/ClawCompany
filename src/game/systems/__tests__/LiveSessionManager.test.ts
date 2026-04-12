@@ -235,6 +235,25 @@ describe('LiveSessionManager', () => {
         task: 'Implement feature',
       }));
     });
+
+    it('should parse named SSE events delivered via addEventListener', (done) => {
+      eventBus.on('task:progress', (event) => {
+        expect(event.taskId).toBe('task-123');
+        expect(event.progress).toBe(75);
+        done();
+      });
+
+      manager.connect('/api/game-events');
+
+      const es = MockEventSource.instances[0];
+      es.simulateMessage(JSON.stringify({
+        type: 'task:progress',
+        taskId: 'task-123',
+        progress: 75,
+        currentAction: 'Running tests',
+        agentId: 'test-agent',
+      }), 'task:progress');
+    });
   });
 
   describe('reconnection', () => {

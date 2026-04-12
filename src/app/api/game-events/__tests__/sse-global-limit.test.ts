@@ -1,3 +1,5 @@
+import { ReadableStream as NodeReadableStream } from 'node:stream/web'
+
 jest.mock('next/server', () => ({
   NextRequest: class MockNextRequest {
     constructor(url: string) {}
@@ -19,12 +21,27 @@ jest.mock('@/lib/api/route-utils', () => ({
 
 jest.mock('@/lib/gateway/session-poller', () => ({
   getSessionPoller: jest.fn(() => null),
-  createSessionPoller: jest.fn(() => null),
 }))
 
-import { getConnectionStats, resetConnectionCounters, acquireConnection, releaseConnection } from '../route'
+import { getSessionPoller } from '@/lib/gateway/session-poller'
+import { GET, getConnectionStats, resetConnectionCounters, acquireConnection, releaseConnection } from '../route'
 
 describe('SSE Global Connection Limit', () => {
+  beforeAll(() => {
+    ;(globalThis as any).ReadableStream = NodeReadableStream
+    ;(globalThis as any).Response = class Response {
+      body: unknown
+      headers: unknown
+      status: number
+
+      constructor(body?: unknown, init?: { headers?: unknown; status?: number }) {
+        this.body = body
+        this.headers = init?.headers
+        this.status = init?.status ?? 200
+      }
+    }
+  })
+
   beforeEach(() => {
     resetConnectionCounters()
   })
@@ -36,6 +53,7 @@ describe('SSE Global Connection Limit', () => {
   it('should track active connections correctly', () => {
     const stats = getConnectionStats()
     expect(stats.totalConnections).toBe(0)
+    expect(stats.sseSubscriberCount).toBe(0)
   })
 
   it('should handle multiple IPs correctly', () => {
@@ -74,5 +92,33 @@ describe('SSE Global Connection Limit', () => {
     
     const overLimit = acquireConnection('192.168.1.50')
     expect(overLimit).toBe(false)
+  })
+
+  it('should stop the shared poller when the last SSE subscriber disconnects', async () => {
+    const start = jest.fn()
+    const stop = jest.fn()
+    ;(getSessionPoller as jest.Mock).mockReturnValue({
+      isRunning: () => false,
+      start,
+      stop,
+    })
+
+    const controller = new AbortController()
+    const request = {
+      url: 'http://localhost/api/game-events',
+      headers: { get: () => null },
+      signal: controller.signal,
+    } as any
+
+    await GET(request)
+
+    expect(start).toHaveBeenCalledTimes(1)
+    expect(getConnectionStats().sseSubscriberCount).toBe(1)
+
+    controller.abort()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(stop).toHaveBeenCalledTimes(1)
+    expect(getConnectionStats().sseSubscriberCount).toBe(0)
   })
 })

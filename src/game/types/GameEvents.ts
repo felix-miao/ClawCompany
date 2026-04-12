@@ -21,6 +21,30 @@ export type GameEventType =
   | 'review:rejected'
   | 'workflow:iteration-complete';
 
+export const NAMED_GAME_EVENT_TYPES: GameEventType[] = [
+  'agent:status-change',
+  'agent:task-assigned',
+  'agent:task-completed',
+  'agent:navigation-request',
+  'agent:emotion-change',
+  'session:started',
+  'session:completed',
+  'session:progress',
+  'connection:open',
+  'connection:close',
+  'connection:error',
+  'task:assigned',
+  'task:progress',
+  'task:completed',
+  'task:failed',
+  'task:handover',
+  'openclaw:send',
+  'pm:analysis-complete',
+  'dev:iteration-start',
+  'review:rejected',
+  'workflow:iteration-complete',
+];
+
 export type AgentStatus = 'idle' | 'busy' | 'working' | 'offline';
 
 export interface BaseGameEvent {

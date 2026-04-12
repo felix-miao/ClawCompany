@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 
 import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
 import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
-import { createGameEventStore, getGameEventStore } from '@/game/data/GameEventStore';
+import { getGameEventStore } from '@/game/data/GameEventStore';
 import type { GameEvent } from '@/game/types/GameEvents';
-import { getSessionPoller, createSessionPoller } from '@/lib/gateway/session-poller';
+import { getSessionPoller } from '@/lib/gateway/session-poller';
 
 // ── SSE 连接计数器 ────────────────────────────────────────────
 // ⚠️  注意：Vercel 多 Worker 环境下，此计数器仅在单个 Worker 进程内有效。
@@ -14,6 +14,7 @@ const MAX_SSE_CONNECTIONS = 100;
 const MAX_SSE_PER_IP = 5;
 const activeConnections = new Map<string, number>(); // ip → count
 let totalConnections = 0;
+let sseSubscriberCount = 0;
 
 export function acquireConnection(ip: string): boolean {
   if (totalConnections >= MAX_SSE_CONNECTIONS) return false;
@@ -37,11 +38,13 @@ export function releaseConnection(ip: string): void {
 export function resetConnectionCounters(): void {
   activeConnections.clear();
   totalConnections = 0;
+  sseSubscriberCount = 0;
 }
 
 export function getConnectionStats() {
   return {
     totalConnections,
+    sseSubscriberCount,
     activeConnections: new Map(activeConnections),
   };
 }
@@ -57,7 +60,7 @@ const handleGet = async (request: NextRequest) => {
     });
   }
 
-  const store = createGameEventStore();
+  const store = getGameEventStore();
   const encoder = new TextEncoder();
 
   const url = new URL(request.url);
@@ -65,10 +68,13 @@ const handleGet = async (request: NextRequest) => {
 
   const stream = new ReadableStream({
     start(controller) {
-      const poller = createSessionPoller(store);
+      const poller = getSessionPoller(store);
+      sseSubscriberCount += 1;
       if (!poller.isRunning()) {
         poller.start();
       }
+
+      let cleanedUp = false;
 
       const sendEvent = (data: unknown, eventType?: string, id?: string) => {
         let message = `data: ${JSON.stringify(data)}\n`;
@@ -98,7 +104,7 @@ const handleGet = async (request: NextRequest) => {
         try {
           sendEvent(event, event.type, String(event.timestamp));
         } catch {
-          unsubscribe();
+          cleanup();
         }
       });
 
@@ -106,21 +112,31 @@ const handleGet = async (request: NextRequest) => {
         try {
           controller.enqueue(encoder.encode(': keepalive\n\n'));
         } catch {
-          clearInterval(keepalive);
-          unsubscribe();
+          cleanup();
         }
       }, 30000);
 
-      // 断开时清理连接计数
-      request.signal.addEventListener('abort', () => {
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+
         clearInterval(keepalive);
         unsubscribe();
         releaseConnection(ip);
+        sseSubscriberCount = Math.max(0, sseSubscriberCount - 1);
+        if (sseSubscriberCount === 0) {
+          poller.stop();
+        }
         try {
           controller.close();
         } catch {
           // already closed
         }
+      };
+
+      // 断开时清理连接计数
+      request.signal.addEventListener('abort', () => {
+        cleanup();
       });
     },
   });

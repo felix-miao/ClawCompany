@@ -132,6 +132,10 @@ export class OfficeScene extends Phaser.Scene {
       const agent = this.agentMap.get(id);
       if (agent) gfx.setPosition(agent.x, agent.y + 8);
     });
+    // Keep TaskVisualizer agent positions up-to-date so bubbles follow agents
+    this.agentMap.forEach((agent, id) => {
+      this.taskVisualizer.updateAgentPosition(id, agent.x, agent.y);
+    });
     this.agents.forEach(a => a.update());
     this.taskVisualizer.update();
   }
@@ -292,15 +296,11 @@ export class OfficeScene extends Phaser.Scene {
         this.agentMap.get(agentId)?.setWorking(working);
       },
       moveAgentToRoom: (agentId, room) => {
-        // Display-only: just update animation state to reflect they're "at" a room
         const target = ROOM_CENTRES[room];
-        if (target) {
-          const agent = this.agentMap.get(agentId);
-          agent?.moveTo(target.x, target.y);
-        }
+        if (target) this.agentMap.get(agentId)?.tweenTo(target.x, target.y);
       },
       moveAgentToPosition: (agentId, x, y) => {
-        this.agentMap.get(agentId)?.moveTo(x, y);
+        this.agentMap.get(agentId)?.tweenTo(x, y);
       },
       setAgentEmotion: (agentId, emotion, duration) => {
         this.agentMap.get(agentId)?.setEmotion(emotion as EmotionType, duration);
@@ -314,7 +314,7 @@ export class OfficeScene extends Phaser.Scene {
         this.playParticleEffect(agentId, effectType);
       },
     };
-    this.eventBridge = new SceneEventBridge(actions);
+    this.eventBridge = new SceneEventBridge(actions, undefined, this.eventBus);
     this.eventBridge.connect();
   }
 
@@ -398,15 +398,127 @@ export class OfficeScene extends Phaser.Scene {
     const taskDescription = description ??
       OfficeScene.TEST_TASKS[Math.floor(Math.random() * OfficeScene.TEST_TASKS.length)];
 
-    pmAgent.setWorking(true);
+    const taskId = `test-${Date.now()}`;
 
-    this.eventBus.emit('task:assigned', {
-      type: 'task:assigned',
-      agentId: pmAgent.agentId,
-      task: { id: `test-${Date.now()}`, description: taskDescription, taskType: 'meeting' },
-      timestamp: Date.now(),
+    // Relay order: PM → Dev → Tester → Reviewer
+    const relay: Array<{ agentId: string; room: string; label: string; durationMs: number }> = [
+      { agentId: 'pm-agent',     room: 'pm-office',     label: 'PM 分析需求',   durationMs: 5_000 },
+      { agentId: 'dev-agent',    room: 'dev-studio',    label: 'Dev 编码实现',  durationMs: 10_000 },
+      { agentId: 'test-agent',   room: 'test-lab',      label: 'Tester 测试',   durationMs: 6_000 },
+      { agentId: 'review-agent', room: 'review-center', label: 'Reviewer 审查', durationMs: 5_000 },
+    ];
+
+    // Helper: post to /api/game-events so sidebar DashboardStore gets it
+    const postEvent = (body: object) => {
+      fetch('/api/game-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).catch(() => {/* ignore */});
+    };
+
+    // Kick off each relay step with cumulative delay
+    // Guard: this.time is undefined in Jest environment
+    if (!this.time) {
+      // In test env: just emit the first task:assigned immediately so tests can verify
+      this.eventBus.emit({
+        type: 'openclaw:send',
+        timestamp: Date.now(),
+        sessionKey: pmAgent.agentId,
+        message: taskDescription,
+        agentRole: 'pm',
+      } as import('../types/GameEvents').OpenClawSendEvent);
+      return { agentId: pmAgent.agentId, description: taskDescription };
+    }
+
+    let cumulativeDelay = 0;
+    relay.forEach((step, idx) => {
+      const agent = this.agentMap.get(step.agentId);
+      if (!agent) return;
+
+      // --- Step start ---
+      this.time.delayedCall(cumulativeDelay, () => {
+        const centre = ROOM_CENTRES[step.room];
+
+        // Move agent back to their own room (they start there already, but
+        // tween gives visual confirmation)
+        agent.tweenTo(centre.x, centre.y);
+        agent.setWorking(true);
+        agent.setEmotion('focused' as EmotionType, 3000);
+        this.playParticleEffect(step.agentId, 'work-start' as ParticleEffectType);
+
+        // Register / update task in TaskManager for TaskVisualizer
+        this.eventBus.emit('task:assigned', {
+          type: 'task:assigned',
+          agentId: step.agentId,
+          task: { id: taskId, description: taskDescription, taskType: 'meeting' },
+          timestamp: Date.now(),
+        });
+
+        // Sidebar sync
+        postEvent({
+          type: 'agent:status-change',
+          agentId: step.agentId,
+          status: 'busy',
+          timestamp: Date.now(),
+        });
+        postEvent({
+          type: 'agent:task-assigned',
+          agentId: step.agentId,
+          taskId,
+          taskType: 'meeting',
+          description: `[${step.label}] ${taskDescription}`,
+          timestamp: Date.now(),
+        });
+
+        // Progress ticks: push 25 % increments during the step
+        const ticks = 4;
+        for (let t = 1; t <= ticks; t++) {
+          this.time.delayedCall(step.durationMs * (t / (ticks + 1)), () => {
+            const progress = Math.round((t / ticks) * 100);
+            postEvent({
+              type: 'task:progress',
+              agentId: step.agentId,
+              taskId,
+              progress,
+              currentAction: `${step.label} (${progress}%)`,
+              timestamp: Date.now(),
+            });
+          });
+        }
+      });
+
+      // --- Step end ---
+      cumulativeDelay += step.durationMs;
+      this.time.delayedCall(cumulativeDelay, () => {
+        agent.setWorking(false);
+        const emotion = idx === relay.length - 1 ? 'celebrating' : 'neutral';
+        agent.setEmotion(emotion as EmotionType, 2000);
+        if (idx === relay.length - 1) {
+          this.playParticleEffect(step.agentId, 'task-complete' as ParticleEffectType);
+        }
+
+        postEvent({
+          type: 'agent:status-change',
+          agentId: step.agentId,
+          status: 'idle',
+          timestamp: Date.now(),
+        });
+
+        if (idx === relay.length - 1) {
+          postEvent({
+            type: 'agent:task-completed',
+            agentId: step.agentId,
+            taskId,
+            result: 'success',
+            duration: step.durationMs,
+            timestamp: Date.now(),
+          });
+        }
+      });
     });
 
+    // Fire openclaw:send for the real gateway call
     this.eventBus.emit({
       type: 'openclaw:send',
       timestamp: Date.now(),
@@ -414,8 +526,6 @@ export class OfficeScene extends Phaser.Scene {
       message: taskDescription,
       agentRole: 'pm',
     } as import('../types/GameEvents').OpenClawSendEvent);
-
-    this.playParticleEffect(pmAgent.agentId, 'work-start' as ParticleEffectType);
 
     return { agentId: pmAgent.agentId, description: taskDescription };
   }

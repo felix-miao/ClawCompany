@@ -33,10 +33,7 @@ jest.mock('@/lib/gateway/session-poller', () => ({
   getSessionPoller: jest.fn(() => ({
     isRunning: () => false,
     start: jest.fn(),
-  })),
-  createSessionPoller: jest.fn(() => ({
-    isRunning: () => false,
-    start: jest.fn(),
+    stop: jest.fn(),
   })),
 }))
 

@@ -40,15 +40,18 @@ describe('SceneEventBridge', () => {
   let bridge: SceneEventBridge;
   let mockActions: jest.Mocked<SceneActions>;
   let originalEventSource: typeof globalThis.EventSource;
+  let originalFetch: typeof globalThis.fetch;
 
   beforeAll(() => {
     originalEventSource = globalThis.EventSource;
-     
+    originalFetch = globalThis.fetch;
+      
     (globalThis as any).EventSource = MockEventSource;
   });
 
   afterAll(() => {
     globalThis.EventSource = originalEventSource;
+    globalThis.fetch = originalFetch;
   });
 
   beforeEach(() => {
@@ -61,6 +64,10 @@ describe('SceneEventBridge', () => {
       getAgentStatus: jest.fn().mockReturnValue('idle'),
       triggerParticleEffect: jest.fn(),
     };
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output: 'Acknowledged by gateway' }),
+    } as Response);
     bridge = new SceneEventBridge(mockActions, { url: '/api/game-events' });
   });
 
@@ -264,6 +271,15 @@ describe('SceneEventBridge', () => {
   });
 
   describe('stats', () => {
+    it('should use a provided shared event bus', () => {
+      const sharedBus = new EventBus()
+      const sharedBridge = new SceneEventBridge(mockActions, { url: '/api/game-events' }, sharedBus)
+
+      expect(sharedBridge.getEventBus()).toBe(sharedBus)
+
+      sharedBridge.disconnect()
+    })
+
     it('should track events processed', () => {
       expect(bridge.getStats().eventsProcessed).toBe(0);
 
@@ -392,4 +408,30 @@ describe('SceneEventBridge', () => {
       expect(bridge.getParticleSystem().getAvailablePresets().length).toBeGreaterThan(0);
     });
   });
+
+  describe('openclaw:send', () => {
+    it('should forward gateway sends emitted on a shared event bus', async () => {
+      const sharedBus = new EventBus()
+      const sharedBridge = new SceneEventBridge(mockActions, { url: '/api/game-events' }, sharedBus)
+
+      sharedBus.emit({
+        type: 'openclaw:send',
+        timestamp: Date.now(),
+        sessionKey: 'pm-agent',
+        message: 'Plan the next task',
+        agentRole: 'pm',
+      })
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/openclaw/send', expect.objectContaining({
+        method: 'POST',
+      }))
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/game-events', expect.objectContaining({
+        method: 'POST',
+      }))
+
+      sharedBridge.disconnect()
+    })
+  })
 });

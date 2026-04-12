@@ -194,4 +194,33 @@ describe('Game module', () => {
       expect(result).toBeNull();
     });
   });
+
+  describe('destroy', () => {
+    it('should shutdown OfficeScene before destroying Phaser game', () => {
+      const game = startGame('container');
+      const shutdown = jest.fn();
+      const destroyOrder: string[] = [];
+
+      (game as any).scene = {
+        getScene: jest.fn().mockImplementation(() => ({
+          shutdown: () => {
+            destroyOrder.push('shutdown');
+            shutdown();
+          },
+        })),
+      };
+
+      const superDestroy = Object.getPrototypeOf(Game.prototype).destroy;
+      Object.getPrototypeOf(Game.prototype).destroy = jest.fn(() => {
+        destroyOrder.push('super-destroy');
+      });
+
+      game.destroy(true);
+
+      expect(shutdown).toHaveBeenCalledTimes(1);
+      expect(destroyOrder).toEqual(['shutdown', 'super-destroy']);
+
+      Object.getPrototypeOf(Game.prototype).destroy = superDestroy;
+    });
+  });
 });

@@ -26,9 +26,9 @@ export class Game extends Phaser.Game {
   }
 
   destroy(destroyChildren?: boolean): void {
-    super.destroy(destroyChildren || false);
     const scene = this.scene.getScene('OfficeScene');
     (scene as { shutdown?: () => void })?.shutdown?.();
+    super.destroy(destroyChildren || false);
   }
 }
 
