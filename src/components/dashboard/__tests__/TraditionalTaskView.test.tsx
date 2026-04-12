@@ -114,7 +114,7 @@ describe('TraditionalTaskView', () => {
 
     expect(screen.getByText('分配')).toBeInTheDocument();
     expect(screen.getByText(/交接给/i)).toBeInTheDocument();
-    expect(screen.getByText(/进行中/i)).toBeInTheDocument();
+    expect(screen.getAllByText('进行中')[1]).toBeInTheDocument();
   });
 
   it('should display last update time and live status for in-progress tasks', () => {
@@ -125,7 +125,7 @@ describe('TraditionalTaskView', () => {
     render(<TraditionalTaskView tasks={[taskWithTime]} />);
 
     expect(screen.getByText('最后更新')).toBeInTheDocument();
-    expect(screen.getByText('进行中')).toBeInTheDocument();
+    expect(screen.getAllByText('进行中')[1]).toBeInTheDocument();
   });
 
   it('should display waiting status when task is waiting on another agent', () => {
@@ -138,7 +138,6 @@ describe('TraditionalTaskView', () => {
     });
     render(<TraditionalTaskView tasks={[taskWaiting]} />);
 
-    expect(screen.getByText(/等待/i)).toBeInTheDocument();
     expect(screen.getByText(/等待 Reviewer 处理/i)).toBeInTheDocument();
   });
 
@@ -179,7 +178,7 @@ describe('TraditionalTaskView', () => {
     });
     render(<TraditionalTaskView tasks={[activeTask]} />);
 
-    expect(screen.getByText('进行中')).toBeInTheDocument();
+    expect(screen.getAllByText('进行中')[1]).toBeInTheDocument();
     expect(screen.queryByText(/停滞/i)).not.toBeInTheDocument();
   });
 
@@ -216,7 +215,7 @@ describe('TraditionalTaskView', () => {
     });
     render(<TraditionalTaskView tasks={[taskWaiting]} />);
 
-    expect(screen.getByText(/等待/i)).toBeInTheDocument();
+    expect(screen.getByText(/等待 Reviewer 处理/i)).toBeInTheDocument();
     expect(screen.getByText(/3分钟/i)).toBeInTheDocument();
   });
 
@@ -243,7 +242,7 @@ describe('TraditionalTaskView', () => {
     render(<TraditionalTaskView tasks={[taskWithIterations]} />);
 
     expect(screen.getByText(/第 2 轮/)).toBeInTheDocument();
-    expect(screen.getByText(/返工/)).toBeInTheDocument();
+    expect(screen.getAllByText(/返工/)[0]).toBeInTheDocument();
   });
 
   it('should display review rejection feedback', () => {
@@ -299,10 +298,10 @@ describe('TraditionalTaskView', () => {
     const tasks = [normalTask, failedTask, stagnantTask, completedTask, rejectedTask];
     render(<TraditionalTaskView tasks={tasks} />);
 
-    const buttons = screen.getAllByRole('button');
-    expect(buttons[0]).toHaveTextContent(/task-2/);
-    expect(buttons[1]).toHaveTextContent(/task-5/);
-    expect(buttons[2]).toHaveTextContent(/task-3/);
+    const taskButtons = screen.getAllByText(/^task-\d$/);
+    expect(taskButtons[0]).toHaveTextContent(/task-2/);
+    expect(taskButtons[1]).toHaveTextContent(/task-5/);
+    expect(taskButtons[2]).toHaveTextContent(/task-3/);
   });
 
   it('should display wait duration with human readable format', () => {
@@ -325,6 +324,290 @@ describe('TraditionalTaskView', () => {
     });
     render(<TraditionalTaskView tasks={[approvedTask]} />);
 
-    expect(screen.getByText(/已通过/)).toBeInTheDocument();
+    expect(screen.getAllByText(/已通过/)[0]).toBeInTheDocument();
+  });
+
+  it('should filter tasks by attention status', () => {
+    const failedTask = buildTask({ taskId: 'task-1', status: 'failed', currentPhase: 'done' });
+    const normalTask = buildTask({ taskId: 'task-2', status: 'in_progress', updatedAt: Date.now() });
+    const stagnantTask = buildTask({ taskId: 'task-3', status: 'in_progress', updatedAt: Date.now() - 10 * 60 * 1000 });
+
+    render(<TraditionalTaskView tasks={[failedTask, normalTask, stagnantTask]} />);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/task-2/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/task-3/)[0]).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByText(/需关注/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/task-3/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should filter tasks by active status', () => {
+    const inProgressTask = buildTask({ taskId: 'task-1', status: 'in_progress' });
+    const completedTask = buildTask({ taskId: 'task-2', status: 'completed' });
+    const failedTask = buildTask({ taskId: 'task-3', status: 'failed', currentPhase: 'done' });
+
+    render(<TraditionalTaskView tasks={[inProgressTask, completedTask, failedTask]} />);
+
+    fireEvent.click(screen.getAllByText(/进行中/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/task-3/)).not.toBeInTheDocument();
+  });
+
+  it('should show all tasks when clicking all filter', () => {
+    const task1 = buildTask({ taskId: 'task-1', status: 'in_progress' });
+    const task2 = buildTask({ taskId: 'task-2', status: 'completed' });
+
+    render(<TraditionalTaskView tasks={[task1, task2]} />);
+
+    const attentionButton = screen.getAllByRole('button', { name: /需关注/ })[0];
+    fireEvent.click(attentionButton);
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+
+    const allButton = screen.getAllByRole('button', { name: /全部/ })[0];
+    fireEvent.click(allButton);
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/task-2/)[0]).toBeInTheDocument();
+  });
+
+  it('should highlight active filter button after click', () => {
+    const inProgressTask = buildTask({ taskId: 'task-1', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[inProgressTask]} />);
+
+    // Use the filter tab button (not the stat card button)
+    const activeButton = screen.getAllByRole('button', { name: /进行中/ }).find(
+      btn => btn.tagName === 'BUTTON' && btn.className.includes('flex-1')
+    )!;
+    fireEvent.click(activeButton);
+    
+    expect(activeButton).toHaveClass('bg-primary-500/20');
+  });
+
+  it('should show empty state message when filter returns no results instead of falling back to all tasks', () => {
+    const completedTask = buildTask({ taskId: 'task-1', status: 'completed' });
+
+    render(<TraditionalTaskView tasks={[completedTask]} />);
+
+    fireEvent.click(screen.getAllByText(/需关注/)[0]);
+
+    expect(screen.getByText(/没有匹配的任务/)).toBeInTheDocument();
+    expect(screen.getByText(/^请尝试其他筛选$/)).toBeInTheDocument();
+    expect(screen.queryByText(/task-1/)).not.toBeInTheDocument();
+  });
+
+  it('should display action-oriented overview cards with attention/waiting/rework/approved counts', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', status: 'failed' }),
+      buildTask({ taskId: 'task-2', status: 'in_progress', recentEvents: [{ type: 'task:handover', timestamp: Date.now() - 180000, fromAgentId: 'dev-agent', toAgentId: 'review-agent', taskId: 'task-2' }] }),
+      buildTask({ taskId: 'task-3', isInRework: true, rejectionCount: 1 }),
+      buildTask({ taskId: 'task-4', lastApproved: true, iterationCount: 1 }),
+      buildTask({ taskId: 'task-5', status: 'completed' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    expect(screen.getAllByText(/需关注/)[0]).toBeInTheDocument();
+    expect(screen.getByText(/等待中/)).toBeInTheDocument();
+    expect(screen.getAllByText(/返工/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/已通过/)[0]).toBeInTheDocument();
+  });
+
+  it('should filter tasks by waiting status when clicking waiting card', () => {
+    const taskWaiting = buildTask({
+      taskId: 'task-1',
+      status: 'in_progress',
+      recentEvents: [{ type: 'task:handover', timestamp: Date.now() - 180000, fromAgentId: 'dev-agent', toAgentId: 'review-agent', taskId: 'task-1' }],
+    });
+    const taskNormal = buildTask({ taskId: 'task-2', status: 'in_progress', recentEvents: [] });
+
+    render(<TraditionalTaskView tasks={[taskWaiting, taskNormal]} />);
+
+    fireEvent.click(screen.getByText(/等待中/));
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should filter tasks by rework status when clicking rework card', () => {
+    const taskRework = buildTask({
+      taskId: 'task-1',
+      isInRework: true,
+      rejectionCount: 1,
+      lastReviewFeedback: 'fix bugs',
+    });
+    const taskNormal = buildTask({ taskId: 'task-2', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[taskRework, taskNormal]} />);
+
+    fireEvent.click(screen.getAllByText(/返工/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should filter tasks by approved status when clicking approved card', () => {
+    const taskApproved = buildTask({
+      taskId: 'task-1',
+      lastApproved: true,
+      iterationCount: 1,
+    });
+    const taskNormal = buildTask({ taskId: 'task-2', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[taskApproved, taskNormal]} />);
+
+    fireEvent.click(screen.getAllByText(/已通过/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should display in-progress and completed summary cards', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', status: 'in_progress' }),
+      buildTask({ taskId: 'task-2', status: 'completed' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    expect(screen.getAllByText(/进行中/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/已完成/)[0]).toBeInTheDocument();
+  });
+
+  it('should show correct counts for in-progress and completed cards', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', status: 'in_progress' }),
+      buildTask({ taskId: 'task-2', status: 'in_progress' }),
+      buildTask({ taskId: 'task-3', status: 'completed' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    const inProgressButtons = screen.getAllByText(/2/);
+    const completedButtons = screen.getAllByText(/1/);
+    expect(inProgressButtons.length).toBeGreaterThan(0);
+    expect(completedButtons.length).toBeGreaterThan(0);
+  });
+
+  it('should filter tasks by in-progress status when clicking in-progress card button', () => {
+    const inProgressTask = buildTask({ taskId: 'task-1', status: 'in_progress' });
+    const completedTask = buildTask({ taskId: 'task-2', status: 'completed' });
+    const failedTask = buildTask({ taskId: 'task-3', status: 'failed', currentPhase: 'done' });
+
+    render(<TraditionalTaskView tasks={[inProgressTask, completedTask, failedTask]} />);
+
+    fireEvent.click(screen.getAllByText(/进行中/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/task-3/)).not.toBeInTheDocument();
+  });
+
+  it('should preserve completed tasks in all filter - completed tasks are not lost', () => {
+    const completedTask = buildTask({ taskId: 'task-1', status: 'completed' });
+    const inProgressTask = buildTask({ taskId: 'task-2', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[completedTask, inProgressTask]} />);
+
+    fireEvent.click(screen.getAllByText(/需关注/)[0]);
+    expect(screen.queryByText(/task-1/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: /全部/ })[0]);
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/task-2/)[0]).toBeInTheDocument();
+  });
+
+  it('should separate active and completed tasks into two sections when rendering dual view', () => {
+    const activeTask = buildTask({ taskId: 'task-1', status: 'in_progress', description: 'Active Task' });
+    const waitingTask = buildTask({
+      taskId: 'task-2',
+      status: 'in_progress',
+      recentEvents: [{ type: 'task:handover', timestamp: Date.now() - 180000, fromAgentId: 'dev-agent', toAgentId: 'review-agent', taskId: 'task-2' }],
+      description: 'Waiting Task',
+    });
+    const completedTask = buildTask({
+      taskId: 'task-3',
+      status: 'completed',
+      currentPhase: 'done',
+      description: 'Completed Task',
+    });
+    const approvedTask = buildTask({
+      taskId: 'task-4',
+      status: 'completed',
+      lastApproved: true,
+      iterationCount: 1,
+      description: 'Approved Task',
+    });
+
+    render(<TraditionalTaskView tasks={[activeTask, waitingTask, completedTask, approvedTask]} />);
+
+    expect(screen.getByText('Active Tasks')).toBeInTheDocument();
+    expect(screen.getByText('Recent History')).toBeInTheDocument();
+  });
+
+  it('should show attention/active tasks in top section', () => {
+    const activeTask = buildTask({ taskId: 'task-1', status: 'in_progress', description: 'Active Task' });
+    const waitingTask = buildTask({
+      taskId: 'task-2',
+      status: 'in_progress',
+      recentEvents: [{ type: 'task:handover', timestamp: Date.now() - 180000, fromAgentId: 'dev-agent', toAgentId: 'review-agent', taskId: 'task-2' }],
+      description: 'Waiting Task',
+    });
+    const completedTask = buildTask({ taskId: 'task-3', status: 'completed', description: 'Completed Task' });
+
+    render(<TraditionalTaskView tasks={[activeTask, waitingTask, completedTask]} />);
+
+    expect(screen.getAllByText('Active Tasks')[0]).toBeInTheDocument();
+  });
+
+  it('should show completed/approved tasks in history section with different styling', () => {
+    const approvedTask = buildTask({
+      taskId: 'task-1',
+      status: 'completed',
+      lastApproved: true,
+      iterationCount: 1,
+      description: 'Approved Task',
+    });
+    const completedTask = buildTask({
+      taskId: 'task-2',
+      status: 'completed',
+      description: 'Done Task',
+    });
+    const activeTask = buildTask({ taskId: 'task-3', status: 'in_progress', description: 'Active Task' });
+
+    render(<TraditionalTaskView tasks={[approvedTask, completedTask, activeTask]} />);
+
+    const historySection = screen.getAllByText('Recent History');
+    expect(historySection.length).toBeGreaterThan(0);
+  });
+
+  it('should filter active section only - history tasks hidden from attention filter', () => {
+    const attentionTask = buildTask({ taskId: 'task-1', status: 'failed', currentPhase: 'done', description: 'Failed Task' });
+    const normalActiveTask = buildTask({ taskId: 'task-2', status: 'in_progress', description: 'Active Task' });
+    const completedTask = buildTask({ taskId: 'task-3', status: 'completed', description: 'Old Task' });
+
+    render(<TraditionalTaskView tasks={[attentionTask, normalActiveTask, completedTask]} />);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/task-2/)[0]).toBeInTheDocument();
+  });
+
+  it('should reduce noise by moving completed tasks to separate history section', () => {
+    const inProgressTasks = Array.from({ length: 5 }, (_, i) =>
+      buildTask({ taskId: `task-${i + 1}`, status: 'in_progress', description: `In Progress ${i + 1}` })
+    );
+    const completedTasks = Array.from({ length: 3 }, (_, i) =>
+      buildTask({ taskId: `task-${i + 6}`, status: 'completed', description: `Done ${i + 1}` })
+    );
+
+    render(<TraditionalTaskView tasks={[...inProgressTasks, ...completedTasks]} />);
+
+    expect(screen.getByText('Active Tasks')).toBeInTheDocument();
+    expect(screen.getByText('Recent History')).toBeInTheDocument();
   });
 });
