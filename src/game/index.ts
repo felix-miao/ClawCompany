@@ -4,6 +4,7 @@ import { gameConfig } from './config/gameConfig';
 import { OfficeScene } from './scenes/OfficeScene';
 import { PerformanceMonitor } from './systems/PerformanceMonitor';
 import { AgentCharacter } from './characters/AgentCharacter';
+import type { GameEvent } from './types/GameEvents';
 
 export class Game extends Phaser.Game {
   constructor(config: Phaser.Types.Core.GameConfig) {
@@ -23,6 +24,11 @@ export class Game extends Phaser.Game {
   triggerTestTask(description?: string): { agentId: string; description: string } | null {
     const scene = this.scene.getScene('OfficeScene');
     return (scene as { triggerTestTask?: (description?: string) => { agentId: string; description: string } | null })?.triggerTestTask?.(description) ?? null;
+  }
+
+  receiveGameEvent(event: GameEvent): void {
+    const scene = this.scene.getScene('OfficeScene');
+    (scene as { receiveGameEvent?: (event: GameEvent) => void })?.receiveGameEvent?.(event);
   }
 
   destroy(destroyChildren?: boolean): void {

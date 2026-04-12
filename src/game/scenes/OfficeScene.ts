@@ -530,12 +530,73 @@ export class OfficeScene extends Phaser.Scene {
     return { agentId: pmAgent.agentId, description: taskDescription };
   }
 
-  reloadScene(): void { this.scene.restart(); }
-  toggleDebug(): void {}   // no-op in display mode
+   reloadScene(): void { this.scene.restart(); }
+   toggleDebug(): void {}   // no-op in display mode
 
-  // Shutdown cleanup
-  shutdown(): void {
-    this.eventBridge?.disconnect();
-    this.game.canvas.style.cursor = 'default';
-  }
+  /**
+   * receiveGameEvent — bridge real Orchestrator GameEvents to character animations.
+   *
+   * Called by dashboard/page.tsx whenever the SSE stream delivers a relevant event.
+   */
+   receiveGameEvent(event: import('../types/GameEvents').GameEvent): void {
+     switch (event.type) {
+       case 'pm:analysis-complete': {
+         const pm = this.agentMap.get('pm-agent');
+         if (pm) {
+           const c = ROOM_CENTRES['pm-office'];
+           pm.tweenTo(c.x, c.y);
+           pm.setWorking(true);
+           pm.setEmotion('focused' as EmotionType, 3000);
+           this.playParticleEffect('pm-agent', 'work-start' as ParticleEffectType);
+         }
+         break;
+       }
+       case 'dev:iteration-start': {
+         const dev = this.agentMap.get('dev-agent');
+         if (dev) {
+           const c = ROOM_CENTRES['dev-studio'];
+           dev.tweenTo(c.x, c.y);
+           dev.setWorking(true);
+           dev.setEmotion('focused' as EmotionType, 3000);
+           this.playParticleEffect('dev-agent', 'work-start' as ParticleEffectType);
+         }
+         break;
+       }
+       case 'review:rejected': {
+         const dev = this.agentMap.get('dev-agent');
+         if (dev) dev.setEmotion('stressed' as EmotionType, 2000);
+         const reviewer = this.agentMap.get('review-agent');
+         if (reviewer) reviewer.setEmotion('focused' as EmotionType, 2000);
+         break;
+       }
+       case 'workflow:iteration-complete': {
+         const approved = event.payload?.approved;
+         this.agentMap.forEach(agent => agent.setWorking(false));
+         if (approved) {
+           const reviewer = this.agentMap.get('review-agent');
+           if (reviewer) {
+             reviewer.setEmotion('celebrating' as EmotionType, 3000);
+             this.playParticleEffect('review-agent', 'task-complete' as ParticleEffectType);
+           }
+         }
+         break;
+       }
+       case 'agent:status-change': {
+         const agent = this.agentMap.get(event.agentId ?? '');
+         if (agent) {
+           const busy = event.status === 'busy' || event.status === 'working';
+           agent.setWorking(busy);
+         }
+         break;
+       }
+       default:
+         break;
+     }
+   }
+
+   // Shutdown cleanup
+   shutdown(): void {
+     this.eventBridge?.disconnect();
+     this.game.canvas.style.cursor = 'default';
+   }
 }

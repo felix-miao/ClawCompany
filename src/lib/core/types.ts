@@ -164,6 +164,7 @@ export interface ChatMessage {
   content: string
   type?: 'text' | 'code' | 'file' | 'task'
   timestamp?: Date
+  route?: MessageRoute
   metadata?: {
     taskId?: string
     filePath?: string
@@ -175,6 +176,20 @@ export interface Message extends ChatMessage {
   id: string
   type: 'text' | 'code' | 'file' | 'task'
   timestamp: Date
+}
+
+export type MessageRoute = 'global' | `task:${string}`
+
+export function parseMessageRoute(route: string | undefined, taskId: string | undefined): MessageRoute {
+  if (taskId) return `task:${taskId}` as MessageRoute
+  return 'global'
+}
+
+export interface TaskInbox {
+  taskId: string
+  messages: Message[]
+  unreadCount: number
+  lastUpdated: Date
 }
 
 export interface PMResult {

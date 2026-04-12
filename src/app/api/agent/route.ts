@@ -88,6 +88,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   }
 
   return successResponse({
+    apiSource: '/api/agent',
     agentType: 'single',
     message: agentMessage,
     conversationId: conversation.id,

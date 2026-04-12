@@ -7,6 +7,7 @@ export const ChatRequestSchema = z.object({
   message: z.string()
     .refine(val => val.trim().length > 0, '消息不能为空')
     .max(10000, '消息不能超过 10000 字符'),
+  taskId: z.string().optional(),
 })
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>
@@ -15,6 +16,7 @@ export const AgentPostRequestSchema = z.object({
   agentId: z.string().regex(/^[a-z0-9-]+$/, 'Invalid agent ID'),
   userMessage: z.string().min(1, 'Message cannot be empty').max(10000, 'Message too long (max 10000 characters)'),
   conversationId: z.string().optional(),
+  taskId: z.string().optional(),
 })
 
 export type AgentPostRequest = z.infer<typeof AgentPostRequestSchema>

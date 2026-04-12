@@ -610,4 +610,76 @@ describe('TraditionalTaskView', () => {
     expect(screen.getByText('Active Tasks')).toBeInTheDocument();
     expect(screen.getByText('Recent History')).toBeInTheDocument();
   });
+
+  it('should display stage filter chips for bottleneck identification', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', currentPhase: 'pm_analysis', status: 'in_progress', description: 'PM Task' }),
+      buildTask({ taskId: 'task-2', currentPhase: 'developer', status: 'in_progress', description: 'Dev Task' }),
+      buildTask({ taskId: 'task-3', currentPhase: 'tester', status: 'in_progress', description: 'Tester Task' }),
+      buildTask({ taskId: 'task-4', currentPhase: 'reviewer', status: 'in_progress', description: 'Reviewer Task' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    // Stage chips render inside rounded-full border buttons
+    const chips = screen.getAllByRole('button').filter(b => b.className.includes('rounded-full') && b.className.includes('border-'));
+    const chipTexts = chips.map(c => c.textContent?.trim());
+    expect(chipTexts.some(t => t?.includes('PM'))).toBe(true);
+    expect(chipTexts.some(t => t?.includes('Dev'))).toBe(true);
+    expect(chipTexts.some(t => t?.includes('Tester'))).toBe(true);
+    expect(chipTexts.some(t => t?.includes('Reviewer'))).toBe(true);
+  });
+
+  it('should show stage summary showing tasks per stage', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', currentPhase: 'developer', status: 'in_progress' }),
+      buildTask({ taskId: 'task-2', currentPhase: 'developer', status: 'in_progress' }),
+      buildTask({ taskId: 'task-3', currentPhase: 'reviewer', status: 'in_progress' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    const devChips = screen.getAllByText('Dev');
+    expect(devChips.some(chip => chip.className.includes('border-'))).toBe(true);
+  });
+
+  it('should filter tasks by stage when clicking stage chip', () => {
+    const pmTask = buildTask({ taskId: 'task-1', currentPhase: 'pm_analysis', status: 'in_progress' });
+    const devTask = buildTask({ taskId: 'task-2', currentPhase: 'developer', status: 'in_progress' });
+    const reviewerTask = buildTask({ taskId: 'task-3', currentPhase: 'reviewer', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[pmTask, devTask, reviewerTask]} />);
+
+    // Find the Dev stage chip button specifically
+    const devChip = screen.getAllByRole('button').find(
+      b => b.className.includes('rounded-full') && b.textContent?.trim().startsWith('Dev')
+    );
+    expect(devChip).toBeDefined();
+    fireEvent.click(devChip!);
+
+    expect(screen.getAllByText(/task-2/)[0]).toBeInTheDocument();
+    // task-1 and task-3 should not appear in the task list buttons
+    const taskListButtons = screen.getAllByRole('button').filter(
+      b => b.className.includes('w-full') && b.className.includes('text-left')
+    );
+    const listTexts = taskListButtons.map(b => b.textContent ?? '');
+    expect(listTexts.some(t => t.includes('task-1'))).toBe(false);
+    expect(listTexts.some(t => t.includes('task-3'))).toBe(false);
+  });
+
+  it('should highlight bottleneck stages with alert styling', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', status: 'in_progress', updatedAt: Date.now() - 10 * 60 * 1000, currentPhase: 'developer' }),
+      buildTask({ taskId: 'task-2', status: 'in_progress', updatedAt: Date.now() - 10 * 60 * 1000, currentPhase: 'reviewer' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    // Both chips should be rendered as cursor-pointer buttons
+    const reviewerChip = screen.getAllByRole('button').find(
+      b => b.className.includes('rounded-full') && b.textContent?.trim().startsWith('Reviewer')
+    );
+    expect(reviewerChip).toBeDefined();
+    expect(reviewerChip).toHaveClass('cursor-pointer');
+  });
 });

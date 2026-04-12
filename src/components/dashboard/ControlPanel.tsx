@@ -21,9 +21,16 @@ const TEST_TASKS = [
   { label: 'Implement /api/health endpoint', description: '实现一个 REST API 端点 /api/health，返回服务状态和当前时间' },
 ];
 
+const RANDOM_TASKS = [
+  '写一个 Todo List 应用，支持增删改查和本地存储',
+  '实现一个 Markdown 编辑器组件，支持实时预览',
+  '为购物车模块编写集成测试',
+  '实现用户权限管理系统，支持角色分配',
+];
+
 interface ControlPanelProps {
   onSendEvent: (event: GameEvent) => void;
-  onTriggerTask?: (description?: string) => void;
+  onTriggerTask?: (taskId: string) => void;
 }
 
 export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) {
@@ -32,6 +39,8 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
   const [selectedEmotion, setSelectedEmotion] = useState('happy');
   const [taskDescription, setTaskDescription] = useState('');
   const [lastTask, setLastTask] = useState<string | null>(null);
+  const [isTriggering, setIsTriggering] = useState(false);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
 
   const handleSetStatus = useCallback(() => {
     onSendEvent({
@@ -63,10 +72,35 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
     });
   }, [selectedAgent, selectedEmotion, onSendEvent]);
 
-  const handleTriggerTask = useCallback((description?: string) => {
-    onTriggerTask?.(description);
-    setLastTask(description ?? 'Random task');
-  }, [onTriggerTask]);
+  const handleTriggerTask = useCallback(async (description?: string) => {
+    if (isTriggering) return;
+
+    const message = description ?? RANDOM_TASKS[Math.floor(Math.random() * RANDOM_TASKS.length)];
+    setIsTriggering(true);
+    setTriggerError(null);
+    setLastTask(message);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      });
+
+      if (!res.ok) {
+        setTriggerError('触发失败，请重试');
+        return;
+      }
+
+      const data = await res.json() as { taskId?: string; success?: boolean };
+      const taskId = data.taskId ?? `task-${Date.now()}`;
+      onTriggerTask?.(taskId);
+    } catch {
+      setTriggerError('网络错误，请重试');
+    } finally {
+      setIsTriggering(false);
+    }
+  }, [isTriggering, onTriggerTask]);
 
   return (
     <div>
@@ -80,19 +114,24 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
             <button
               key={task.label}
               onClick={() => handleTriggerTask(task.description)}
-              className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-primary-500/20 border border-dark-100 hover:border-primary-500/40 rounded-lg text-xs text-gray-300 hover:text-white transition-all"
+              disabled={isTriggering}
+              className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-primary-500/20 border border-dark-100 hover:border-primary-500/40 rounded-lg text-xs text-gray-300 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {task.label}
+              {isTriggering ? '⏳ 触发中...' : task.label}
             </button>
           ))}
           <button
             onClick={() => handleTriggerTask()}
-            className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-yellow-500/20 border border-dark-100 hover:border-yellow-500/40 rounded-lg text-xs text-yellow-400 hover:text-yellow-300 transition-all"
+            disabled={isTriggering}
+            className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-yellow-500/20 border border-dark-100 hover:border-yellow-500/40 rounded-lg text-xs text-yellow-400 hover:text-yellow-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            🎲 随机任务
+            {isTriggering ? '⏳ 触发中...' : '🎲 随机任务'}
           </button>
         </div>
-        {lastTask && (
+        {triggerError && (
+          <p className="mt-2 text-xs text-red-400">{triggerError}</p>
+        )}
+        {lastTask && !triggerError && (
           <p className="mt-2 text-xs text-gray-500 truncate">
             上次: <span className="text-gray-400">{lastTask}</span>
           </p>

@@ -92,9 +92,33 @@ export default function DashboardPage() {
     [store]
   );
 
-  const handleTriggerTask = useCallback((description?: string) => {
-    gameRef.current?.triggerTestTask?.(description);
+  const handleTriggerTask = useCallback((taskId: string) => {
+    gameRef.current?.receiveGameEvent?.({
+      type: 'agent:status-change',
+      agentId: 'pm-agent',
+      status: 'busy',
+      timestamp: Date.now(),
+    } as GameEvent);
   }, []);
+
+  // Bridge: forward SSE GameEvents to Phaser OfficeScene
+  useEffect(() => {
+    const GAME_EVENTS_TO_FORWARD: GameEvent['type'][] = [
+      'pm:analysis-complete',
+      'dev:iteration-start',
+      'review:rejected',
+      'workflow:iteration-complete',
+      'agent:status-change',
+    ];
+
+    const originalProcessEvent = store.processEvent.bind(store);
+    store.processEvent = (event: GameEvent) => {
+      originalProcessEvent(event);
+      if (GAME_EVENTS_TO_FORWARD.includes(event.type)) {
+        gameRef.current?.receiveGameEvent?.(event);
+      }
+    };
+  }, [store]);
 
   return (
     <div className="min-h-screen bg-dark flex flex-col">

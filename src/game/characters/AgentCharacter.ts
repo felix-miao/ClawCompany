@@ -178,8 +178,49 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     this.pathfindingSystem = system;
   }
 
+  /**
+   * Tween the sprite directly to (targetX, targetY) without needing a PathfindingSystem.
+   * Used by OfficeScene (display-only mode) where no pathfinding grid exists.
+   */
+  tweenTo(targetX: number, targetY: number, onArrival?: () => void): void {
+    this.stopMovement();
+
+    const dx = targetX - this.x;
+    const dy = targetY - this.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance < this.arrivalThreshold) {
+      onArrival?.();
+      return;
+    }
+
+    this.isNavigating = true;
+    this.navigationState = 'moving';
+    this.lastVelocityX = dx / distance * this.moveSpeed;
+    this.lastVelocityY = dy / distance * this.moveSpeed;
+
+    const duration = (distance / this.moveSpeed) * 1000;
+    const tween = this.scene.tweens.add({
+      targets: this,
+      x: targetX,
+      y: targetY,
+      duration,
+      ease: 'Power2',
+      onComplete: () => {
+        this.lastVelocityX = 0;
+        this.lastVelocityY = 0;
+        this.completeNavigation();
+        onArrival?.();
+      },
+    });
+    this.movementTweens.push(tween);
+  }
+
   moveTo(targetX: number, targetY: number, onArrival?: () => void): void {
-    if (!this.pathfindingSystem) return;
+    if (!this.pathfindingSystem) {
+      // Fall back to direct tween when no pathfinding system is attached
+      this.tweenTo(targetX, targetY, onArrival);
+      return;
+    }
 
     this.stopMovement();
 

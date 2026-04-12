@@ -26,6 +26,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
   const result = await orchestrator.executeUserRequest(parsed.data.message)
 
   return successResponse({
+    apiSource: '/api/chat',
     workflowType: 'orchestrator',
     message: result.messages[result.messages.length - 1]?.content,
     tasks: result.tasks,

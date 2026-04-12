@@ -321,5 +321,24 @@ describe('Chat API', () => {
       expect(data.tasks).toBeDefined()
       expect(data.chatHistory).toBeDefined()
     })
+
+    it('POST 应该返回 apiSource 字段标识来源为 /api/chat（增强可观测性）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.apiSource).toBe('/api/chat')
+    })
+
+    it('POST 应该不返回 conversationId（与 /api/agent 区分）', async () => {
+      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).not.toHaveProperty('conversationId')
+      expect(data).not.toHaveProperty('agentId')
+    })
   })
 })

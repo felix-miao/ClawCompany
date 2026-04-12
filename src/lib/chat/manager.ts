@@ -1,4 +1,4 @@
-import { AgentRole, Message, ChatMessage } from '../core/types'
+import { AgentRole, Message, ChatMessage, TaskInbox } from '../core/types'
 import { generateId } from '../utils/id'
 import { safeJsonParse } from '../utils/json-parser'
 
@@ -58,6 +58,32 @@ export class ChatManager {
 
   getMessagesByAgent(agent: 'user' | AgentRole): Message[] {
     return this.messages.filter(m => m.agent === agent)
+  }
+
+  getMessagesByTaskId(taskId: string): Message[] {
+    return this.messages.filter(m => m.metadata?.taskId === taskId)
+  }
+
+  getInbox(taskId: string): TaskInbox {
+    const messages = this.getMessagesByTaskId(taskId)
+    return {
+      taskId,
+      messages,
+      unreadCount: messages.length,
+      lastUpdated: messages.length > 0 
+        ? messages[messages.length - 1].timestamp 
+        : new Date()
+    }
+  }
+
+  getAllInboxes(): TaskInbox[] {
+    const taskIds = new Set<string>()
+    for (const msg of this.messages) {
+      if (msg.metadata?.taskId) {
+        taskIds.add(msg.metadata.taskId)
+      }
+    }
+    return Array.from(taskIds).map(taskId => this.getInbox(taskId))
   }
 
   clearHistory(): void {

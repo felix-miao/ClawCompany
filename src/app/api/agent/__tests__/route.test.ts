@@ -1055,5 +1055,40 @@ export function Test() { return <div>test</div> }
       expect(data).not.toHaveProperty('tasks')
       expect(data).not.toHaveProperty('files')
     })
+
+    it('POST /api/agent 应该返回 apiSource 字段标识来源为 /api/agent（增强可观测性）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.apiSource).toBe('/api/agent')
+    })
+
+    it('POST /api/agent 应该不返回 tasks/chatHistory/files（与 /api/chat 区分）', async () => {
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data).not.toHaveProperty('tasks')
+      expect(data).not.toHaveProperty('chatHistory')
+      expect(data).not.toHaveProperty('files')
+      expect(data).not.toHaveProperty('workflowType')
+    })
   })
 })
