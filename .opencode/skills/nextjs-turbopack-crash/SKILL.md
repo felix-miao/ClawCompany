@@ -46,18 +46,18 @@ if (process.env.NODE_ENV === 'development') {
 
 ## Fix
 
-Disable Turbopack in `package.json`:
+In Next.js 15+, Turbopack must be explicitly enabled with `--turbo` / `--turbopack`.
+In Next.js 16, the default is already Webpack — simply do **not** pass `--turbo`:
 
 ```json
 {
   "scripts": {
-    "dev": "next dev --no-turbo"
+    "dev": "next dev"
   }
 }
 ```
 
-This switches to Webpack HMR which does not have the async iterator leak.
-Hot reload is slightly slower but stable for long-running dev sessions.
+`--no-turbo` does not exist in Next.js 16 and will error. The absence of `--turbo` is sufficient.
 
 ## Secondary hardening (not the root cause, but good hygiene)
 
