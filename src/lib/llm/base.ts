@@ -1,4 +1,4 @@
-import { LLMProvider, ChatMessage, LLMConfig } from './types'
+import { LLMProvider, ChatMessage, LLMConfig, LLMCallOptions } from './types'
 
 interface ChatCompletionResponse {
   choices?: Array<{
@@ -13,7 +13,7 @@ export abstract class BaseLLMProvider implements LLMProvider {
   protected apiKey: string
   protected model: string
   protected temperature: number
-  protected maxTokens: number
+  protected defaultMaxTokens: number
   protected timeoutMs: number
 
   protected abstract get apiUrl(): string
@@ -26,7 +26,7 @@ export abstract class BaseLLMProvider implements LLMProvider {
     }
     this.apiKey = config.apiKey
     this.temperature = config.temperature ?? 0.7
-    this.maxTokens = config.maxTokens ?? 2000
+    this.defaultMaxTokens = config.maxTokens ?? 2000
     this.timeoutMs = config.timeout ?? DEFAULT_TIMEOUT_MS
     this.model = config.model ?? fallbackModel
   }
@@ -56,7 +56,9 @@ export abstract class BaseLLMProvider implements LLMProvider {
     throw new Error(`${this.providerName} API error: ${errorMessage}`)
   }
 
-  async chat(messages: ChatMessage[]): Promise<string> {
+  async chat(messages: ChatMessage[], options?: LLMCallOptions): Promise<string> {
+    const effectiveMaxTokens = options?.maxTokens ?? this.defaultMaxTokens
+    
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
@@ -70,7 +72,7 @@ export abstract class BaseLLMProvider implements LLMProvider {
           content: m.content,
         })),
         temperature: this.temperature,
-        max_tokens: this.maxTokens,
+        max_tokens: effectiveMaxTokens,
       }),
       signal: this.createAbortSignal(),
     })
@@ -87,7 +89,9 @@ export abstract class BaseLLMProvider implements LLMProvider {
     }
   }
 
-  async *stream(messages: ChatMessage[]): AsyncGenerator<string> {
+  async *stream(messages: ChatMessage[], options?: LLMCallOptions): AsyncGenerator<string> {
+    const effectiveMaxTokens = options?.maxTokens ?? this.defaultMaxTokens
+    
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
@@ -101,7 +105,7 @@ export abstract class BaseLLMProvider implements LLMProvider {
           content: m.content,
         })),
         temperature: this.temperature,
-        max_tokens: this.maxTokens,
+        max_tokens: effectiveMaxTokens,
         stream: true,
       }),
       signal: this.createAbortSignal(),

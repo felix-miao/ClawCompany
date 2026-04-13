@@ -18,6 +18,7 @@ export const AgentConfigSchema = z.object({
   runtime: z.enum(['subagent', 'acp']).optional(),
   agentId: z.string().optional(),
   thinking: z.enum(['low', 'medium', 'high']).optional(),
+  maxTokens: z.number().int().positive().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 })

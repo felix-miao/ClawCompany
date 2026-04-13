@@ -850,6 +850,52 @@ describe('/api/agent', () => {
       setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
     })
+
+    it('should pass maxTokens from agent config to LLM provider', async () => {
+      const originalMock = process.env.USE_MOCK_LLM
+      delete process.env.USE_MOCK_LLM
+
+      const mockChatFn = jest.fn().mockResolvedValue('Response')
+      const mockProvider = createMockLLMProvider(mockChatFn)
+      setLLMProvider(mockProvider)
+
+      const storage = getMockStorageManager()
+      storage.loadAgent.mockResolvedValue({
+        id: 'pm-agent',
+        name: 'PM Claw',
+        role: 'pm',
+        emoji: '🤖',
+        color: '#6B7280',
+        systemPrompt: 'You are PM Claw',
+        runtime: 'subagent',
+        maxTokens: 4096,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Hello'
+        }
+      })
+
+      const response = await POST(request)
+      await response.json()
+
+      expect(mockChatFn).toHaveBeenCalled()
+      expect(mockChatFn).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ role: 'system' }),
+          expect.objectContaining({ role: 'user' })
+        ]),
+        expect.objectContaining({ maxTokens: 4096 })
+      )
+
+      setLLMProvider(null)
+      process.env.USE_MOCK_LLM = originalMock
+    })
   })
 
 describe('POST - file creation from code blocks', () => {

@@ -1,8 +1,12 @@
 // LLM Provider - 大语言模型提供者接口
 
 export interface LLMProvider {
-  chat(messages: ChatMessage[]): Promise<string>
-  stream?(messages: ChatMessage[]): AsyncGenerator<string>
+  chat(messages: ChatMessage[], options?: LLMCallOptions): Promise<string>
+  stream?(messages: ChatMessage[], options?: LLMCallOptions): AsyncGenerator<string>
+}
+
+export interface LLMCallOptions {
+  maxTokens?: number
 }
 
 export interface ChatMessage {

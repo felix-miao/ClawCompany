@@ -73,6 +73,32 @@ describe('AgentConfigSchema (unified)', () => {
       const result = AgentConfigSchema.safeParse(config)
       expect(result.success).toBe(true)
     })
+
+    it('should accept maxTokens field', () => {
+      const config = {
+        id: 'test-agent',
+        name: 'Test Agent',
+        role: 'Developer',
+        maxTokens: 4096,
+      }
+
+      const result = AgentConfigSchema.safeParse(config)
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.maxTokens).toBe(4096)
+      }
+    })
+
+    it('should reject invalid maxTokens value', () => {
+      const result = AgentConfigSchema.safeParse({
+        id: 'test',
+        name: 'Test',
+        role: 'dev',
+        maxTokens: -1,
+      })
+
+      expect(result.success).toBe(false)
+    })
   })
 
   describe('invalid configurations', () => {
@@ -267,6 +293,31 @@ describe('AgentConfigSchema (unified)', () => {
       expect(resolved.emoji).toBe('📋')
       expect(resolved.color).toBe('#FF0000')
       expect(resolved.runtime).toBe('acp')
+    })
+
+    it('resolveAgentConfig should preserve explicit maxTokens', () => {
+      const parsed = AgentConfigSchema.parse({
+        id: 'test',
+        name: 'Test',
+        role: 'dev',
+        maxTokens: 4096,
+      })
+
+      const resolved = resolveAgentConfig(parsed)
+
+      expect(resolved.maxTokens).toBe(4096)
+    })
+
+    it('resolveAgentConfig should have undefined maxTokens when not provided', () => {
+      const parsed = AgentConfigSchema.parse({
+        id: 'test',
+        name: 'Test',
+        role: 'dev',
+      })
+
+      const resolved = resolveAgentConfig(parsed)
+
+      expect(resolved.maxTokens).toBeUndefined()
     })
   })
 })

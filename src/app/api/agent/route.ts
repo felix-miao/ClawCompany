@@ -91,7 +91,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
       agentMessage = await llmProvider.chat([
         { role: 'system', content: systemPromptWithContext },
         { role: 'user', content: sanitizedMessage }
-      ])
+      ], { maxTokens: agentConfig.maxTokens })
     } else {
       await new Promise(resolve => setTimeout(resolve, 800))
       agentMessage = generateMockResponse(agentId, userMessage)
