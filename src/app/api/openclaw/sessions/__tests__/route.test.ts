@@ -37,6 +37,7 @@ jest.mock('@/lib/gateway/session-sync', () => {
 
 import { GET } from '../route'
 import { __mockSync } from '@/lib/gateway/session-sync'
+import { resetOpenClawSnapshotCache } from '@/lib/gateway/poll-snapshot'
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
@@ -70,6 +71,7 @@ describe('/api/openclaw/sessions', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    resetOpenClawSnapshotCache()
     __mockSync.client.connect.mockResolvedValue(undefined)
     __mockSync.client.disconnect.mockResolvedValue(undefined)
   })

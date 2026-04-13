@@ -392,9 +392,12 @@ export abstract class BaseOrchestrator {
 
       cb.broadcast('review', reviewResponse.message)
 
-      if (reviewResponse.status === 'success') {
+      const approved = reviewResponse.metadata?.approved as boolean | undefined
+      const explicitlyApproved = approved === true
+      const explicitlyRejected = approved === false
+
+      if (explicitlyApproved) {
         this.markTaskCompleted(task, cb, completedTaskIds, 'review')
-        // Emit workflow:iteration-complete on approval
         getGameEventStore().push({
           type: 'workflow:iteration-complete',
           agentId: 'review-agent',
@@ -404,7 +407,42 @@ export abstract class BaseOrchestrator {
         return
       }
 
-      // Review rejected — emit before incrementing iteration (so value reflects current round)
+      if (explicitlyRejected) {
+        getGameEventStore().push({
+          type: 'review:rejected',
+          agentId: 'review-agent',
+          timestamp: Date.now(),
+          payload: { taskId: task.id, iteration, feedback: reviewResponse.message ?? '' },
+        })
+        iteration++
+        if (iteration >= MAX_ITERATIONS) {
+          this.markTaskFailed(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations`)
+          getGameEventStore().push({
+            type: 'workflow:iteration-complete',
+            agentId: 'review-agent',
+            timestamp: Date.now(),
+            payload: { taskId: task.id, totalIterations: iteration, approved: false },
+          })
+          return
+        }
+        this.logInfo('Review not approved, retrying dev with feedback', {
+          taskId: task.id,
+          iteration,
+          feedback: reviewResponse.message.slice(0, 200),
+        })
+        context = { ...reviewContext, reviewFeedback: reviewResponse.message }
+        cb.updateTaskStatus(task.id, 'in_progress')
+      } else if (reviewResponse.status === 'success') {
+        this.markTaskCompleted(task, cb, completedTaskIds, 'review')
+        getGameEventStore().push({
+          type: 'workflow:iteration-complete',
+          agentId: 'review-agent',
+          timestamp: Date.now(),
+          payload: { taskId: task.id, totalIterations: iteration + 1, approved: true },
+        })
+        return
+      }
+
       getGameEventStore().push({
         type: 'review:rejected',
         agentId: 'review-agent',
@@ -412,7 +450,6 @@ export abstract class BaseOrchestrator {
         payload: { taskId: task.id, iteration, feedback: reviewResponse.message ?? '' },
       })
 
-      // Review not approved — check if we should iterate
       iteration++
       if (iteration >= MAX_ITERATIONS) {
         this.markTaskFailed(task, cb, 'review', `Review not approved after ${MAX_ITERATIONS} iterations`)

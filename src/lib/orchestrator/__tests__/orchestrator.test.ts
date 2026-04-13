@@ -656,6 +656,152 @@ describe('Orchestrator - 错误处理和重试机制', () => {
   })
 
   describe('Review 拒绝处理', () => {
+    it('应该读取 review 响应中的 approved 字段来判断工作流', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Dev Task',
+          description: 'Dev Task',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [{ title: 'Dev Task', description: 'Dev Task', assignedTo: 'dev', dependencies: [], files: [] }],
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review approved',
+          status: 'need_input',
+          metadata: { approved: true },
+        })
+
+      const result = await orchestrator.executeUserRequest('build feature')
+
+      expect(result.success).toBe(true)
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'completed')
+    })
+
+    it('应该在 review approved=false 时继续迭代或失败', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Dev Task',
+          description: 'Dev Task',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [{ title: 'Dev Task', description: 'Dev Task', assignedTo: 'dev', dependencies: [], files: [] }],
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review rejected: needs fixes',
+          status: 'success',
+          metadata: { approved: false },
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev retry done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review approved',
+          status: 'success',
+          metadata: { approved: true },
+        })
+
+      const result = await orchestrator.executeUserRequest('build feature')
+
+      expect(result.success).toBe(true)
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'completed')
+    })
+
+    it('应该在 approved 缺省时向后兼容使用 status 判断', async () => {
+      ;(taskManager.createTask as jest.Mock)
+        .mockReturnValueOnce({
+          id: 'pm-task',
+          title: 'PM',
+          description: 'PM',
+          assignedTo: 'pm',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .mockReturnValueOnce({
+          id: 'dev-1',
+          title: 'Dev Task',
+          description: 'Dev Task',
+          assignedTo: 'dev',
+          dependencies: [],
+          files: [],
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+
+      ;(agentManager.executeAgent as jest.Mock)
+        .mockResolvedValueOnce({
+          message: 'PM done',
+          tasks: [{ title: 'Dev Task', description: 'Dev Task', assignedTo: 'dev', dependencies: [], files: [] }],
+        })
+        .mockResolvedValueOnce({
+          message: 'Dev done',
+          files: [],
+        })
+        .mockResolvedValueOnce({
+          message: 'Review passed',
+          status: 'success',
+        })
+
+      const result = await orchestrator.executeUserRequest('build feature')
+
+      expect(result.success).toBe(true)
+      expect(taskManager.updateTaskStatus).toHaveBeenCalledWith('dev-1', 'completed')
+    })
+
     it('应该在 review 返回非 success 时将任务状态设为 failed', async () => {
       ;(taskManager.createTask as jest.Mock)
         .mockReturnValueOnce({

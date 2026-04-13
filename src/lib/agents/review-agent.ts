@@ -43,6 +43,7 @@ export class ReviewAgent extends BaseAgent {
         message: data.message || '代码审查完成',
         status: data.approved ? 'success' : 'need_input',
         nextAgent: data.approved ? undefined : 'dev',
+        metadata: { approved: data.approved },
       }
     }
 
@@ -50,6 +51,7 @@ export class ReviewAgent extends BaseAgent {
       agent: 'review',
       message: response,
       status: 'success',
+      metadata: { approved: true },
     }
   }
 
@@ -120,6 +122,7 @@ export class ReviewAgent extends BaseAgent {
       message: reviewResult.message,
       status: reviewResult.approved ? 'success' : 'need_input',
       nextAgent: reviewResult.approved ? undefined : 'dev',
+      metadata: { approved: reviewResult.approved },
     }
   }
 
