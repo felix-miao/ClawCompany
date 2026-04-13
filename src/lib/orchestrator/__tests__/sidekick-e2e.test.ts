@@ -104,6 +104,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
                   assignedTo: 'dev',
                   dependencies: [],
                   files: [],
+                  status: 'pending',
                 },
               ],
               status: 'success',
@@ -199,6 +200,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
                   assignedTo: 'dev',
                   dependencies: [],
                   files: [],
+                  status: 'pending',
                 },
                 {
                   title: '编写测试用例',
@@ -206,6 +208,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
                   assignedTo: 'tester',
                   dependencies: [],
                   files: [],
+                  status: 'pending',
                 },
               ],
               status: 'success',
@@ -269,6 +272,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
                   assignedTo: 'dev',
                   dependencies: [],
                   files: [],
+                  status: 'pending',
                 },
                 {
                   title: '步骤2',
@@ -276,6 +280,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
                   assignedTo: 'dev',
                   dependencies: ['步骤1'],
                   files: [],
+                  status: 'pending',
                 },
                 {
                   title: '步骤3',
@@ -283,6 +288,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
                   assignedTo: 'dev',
                   dependencies: ['步骤2'],
                   files: [],
+                  status: 'pending',
                 },
               ],
               status: 'success',
@@ -374,7 +380,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
             agent: 'pm',
             message: 'PM done',
             tasks: [
-              { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: [], files: [] },
+              { title: 'Task 1', description: 'Task 1', assignedTo: 'dev', dependencies: [], files: [], status: 'pending' },
             ],
             status: 'success',
           }
@@ -404,7 +410,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
           return {
             agent: 'pm',
             message: 'Success after retries',
-            tasks: [{ title: 'Task', description: 'Task', assignedTo: 'dev', dependencies: [], files: [] }],
+            tasks: [{ title: 'Task', description: 'Task', assignedTo: 'dev', dependencies: [], files: [], status: 'pending' }],
             status: 'success',
           }
         }

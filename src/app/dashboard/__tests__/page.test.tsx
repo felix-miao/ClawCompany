@@ -44,6 +44,24 @@ jest.mock('@/game', () => ({
   startGame: jest.fn(() => ({ destroy: jest.fn(), triggerTestTask: jest.fn() })),
 }));
 
+jest.mock('@/lib/core/metrics-aggregator', () => ({
+  MetricsAggregator: jest.fn().mockImplementation(() => ({
+    startPeriodicUpdate: jest.fn(() => () => {}),
+  })),
+}));
+
+jest.mock('@/lib/core/performance-monitor', () => ({
+  PerformanceMonitor: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('@/lib/core/error-tracker', () => ({
+  ErrorTracker: jest.fn().mockImplementation(() => ({})),
+}));
+
+jest.mock('@/lib/core/logger', () => ({
+  Logger: jest.fn().mockImplementation(() => ({})),
+}));
+
 describe('DashboardPage', () => {
   it('should render dashboard title', () => {
     render(<DashboardPage />);
@@ -60,9 +78,9 @@ describe('DashboardPage', () => {
     expect(document.getElementById('dashboard-game-container')).toBeInTheDocument();
   });
 
-  it('should render game loading overlay initially', () => {
+  it('should render game container without showing a stuck loading overlay', () => {
     render(<DashboardPage />);
-    expect(screen.getByText('Loading office...')).toBeInTheDocument();
+    expect(screen.queryByText('Loading office...')).not.toBeInTheDocument();
   });
 
   it('should render back link', () => {

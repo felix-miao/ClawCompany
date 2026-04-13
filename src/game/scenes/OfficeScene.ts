@@ -315,7 +315,6 @@ export class OfficeScene extends Phaser.Scene {
       },
     };
     this.eventBridge = new SceneEventBridge(actions, undefined, this.eventBus);
-    this.eventBridge.connect();
   }
 
   // ── Particles (minimal) ───────────────────────────────────────────────────────

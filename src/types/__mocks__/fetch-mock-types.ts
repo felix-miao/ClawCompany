@@ -3,8 +3,6 @@
  * 用于测试中的类型安全 fetch mock
  */
 
-import { Response } from 'node-fetch'
-
 export interface MockFetchFunction {
   (input: RequestInfo | URL, init?: RequestInit): Promise<Response>
 }

@@ -12,7 +12,7 @@ import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSessions } from "@/hooks/useOpenClawSessions";
 import { useOpenClawMetrics } from "@/hooks/useOpenClawMetrics";
-import { Game } from "@/game";
+import { Game, startGame } from "@/game";
 import { DashboardStore } from "@/game/data/DashboardStore";
 import { GameEvent } from "@/game/types/GameEvents";
 import { MetricsAggregator } from "@/lib/core/metrics-aggregator";
@@ -36,7 +36,9 @@ export default function DashboardPage() {
     const perfMonitor = new PerformanceMonitor();
     const errorTracker = new ErrorTracker();
     const logger = new Logger();
-    return new MetricsAggregator(perfMonitor, errorTracker, logger);
+    return new MetricsAggregator(perfMonitor, errorTracker, logger, undefined, {
+      updateIntervalMs: 120000,
+    });
   }, []);
 
   useEffect(() => {
@@ -51,21 +53,14 @@ export default function DashboardPage() {
 
     if (containerRef.current && !gameRef.current) {
       setIsGameLoading(true);
-      import("@/game")
-        .then(({ startGame }) => {
-          try {
-            gameRef.current = startGame("dashboard-game-container");
-            setGameError(null);
-          } catch (err) {
-            setGameError(err instanceof Error ? err.message : "游戏加载失败");
-          } finally {
-            setIsGameLoading(false);
-          }
-        })
-        .catch(() => {
-          setGameError("游戏模块加载失败");
-          setIsGameLoading(false);
-        });
+      try {
+        gameRef.current = startGame("dashboard-game-container");
+        setGameError(null);
+      } catch (err) {
+        setGameError(err instanceof Error ? err.message : "游戏加载失败");
+      } finally {
+        setIsGameLoading(false);
+      }
     }
 
     return () => {
@@ -247,5 +242,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-

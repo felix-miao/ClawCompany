@@ -42,6 +42,11 @@ export interface MetricsDataSource {
   getMetricEntries(): MetricEntry[]
 }
 
+export interface MetricsAggregatorOptions {
+  updateIntervalMs?: number
+  shouldLogUpdates?: boolean
+}
+
 export class MetricsAggregator {
   private perfMonitor: PerformanceMonitor
   private errorTracker: ErrorTracker
@@ -49,17 +54,22 @@ export class MetricsAggregator {
   private metricsDataSource?: MetricsDataSource
   private lastMetrics: PerformanceMetrics | null = null
   private updateIntervalMs: number = 30000
+  private shouldLogUpdates: boolean
 
   constructor(
     perfMonitor: PerformanceMonitor,
     errorTracker: ErrorTracker,
     logger: Logger,
-    metricsDataSource?: MetricsDataSource
+    metricsDataSource?: MetricsDataSource,
+    options: MetricsAggregatorOptions = {}
   ) {
     this.perfMonitor = perfMonitor
     this.errorTracker = errorTracker
     this.logger = logger
     this.metricsDataSource = metricsDataSource
+    this.updateIntervalMs = options.updateIntervalMs ?? this.updateIntervalMs
+    this.shouldLogUpdates = options.shouldLogUpdates
+      ?? (process.env.NODE_ENV === 'development' && process.env.DEBUG_METRICS === '1')
   }
 
   private getAllMetricEntries(): MetricEntry[] {
@@ -93,7 +103,17 @@ export class MetricsAggregator {
     }
 
     this.lastMetrics = metrics
-    this.logger.info('Performance metrics updated', { metrics })
+    if (this.shouldLogUpdates) {
+      this.logger.debug('Performance metrics updated', {
+        health: metrics.health.overall,
+        memory: metrics.memoryUsage,
+        taskTotals: {
+          total: metrics.tasks.total,
+          completed: metrics.tasks.completed,
+          failed: metrics.tasks.failed,
+        },
+      })
+    }
 
     return metrics
   }
@@ -253,13 +273,19 @@ export class MetricsAggregator {
     
     // 设置定时更新
     const intervalId = setInterval(update, this.updateIntervalMs)
-    
-    this.logger.info('Periodic metrics update started', { intervalMs: this.updateIntervalMs })
+    if (typeof intervalId === 'object' && intervalId !== null && 'unref' in intervalId) {
+      (intervalId as { unref(): void }).unref()
+    }
+    if (this.shouldLogUpdates) {
+      this.logger.debug('Periodic metrics update started', { intervalMs: this.updateIntervalMs })
+    }
     
     // 返回清理函数
     return () => {
       clearInterval(intervalId)
-      this.logger.info('Periodic metrics update stopped')
+      if (this.shouldLogUpdates) {
+        this.logger.debug('Periodic metrics update stopped')
+      }
     }
   }
 }
