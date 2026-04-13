@@ -315,6 +315,17 @@ export abstract class BaseOrchestrator {
   ): Promise<void> {
     if (this.checkUnresolvedDependency(task, subTaskIds, completedTaskIds)) return
 
+    getGameEventStore().push({
+      type: 'task:assigned',
+      agentId: `${task.assignedTo}-agent`,
+      task: {
+        id: task.id,
+        description: task.description,
+        taskType: task.assignedTo,
+      },
+      timestamp: Date.now(),
+    })
+
     try {
       cb.updateTaskStatus(task.id, 'in_progress')
 
@@ -389,8 +400,6 @@ export abstract class BaseOrchestrator {
         this.markTaskFailed(task, cb, 'review', 'Review agent returned null response')
         return
       }
-
-      cb.broadcast('review', reviewResponse.message)
 
       const approved = reviewResponse.metadata?.approved as boolean | undefined
       const explicitlyApproved = approved === true

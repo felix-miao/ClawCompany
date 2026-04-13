@@ -214,6 +214,34 @@ describe('Task Lifecycle E2E', () => {
       expect(hasCompletedStatus).toBe(true)
     })
 
+    it('should track intermediate task status: in_progress before review', async () => {
+      const statusChanges: Array<{ taskId: string; status: string; timestamp: number }> = []
+
+      jest.spyOn(realTaskManager, 'updateTaskStatus').mockImplementation(
+        (taskId: string, status: string) => {
+          statusChanges.push({ taskId, status, timestamp: Date.now() })
+          const task = realTaskManager.getTask(taskId)
+          if (task) {
+            ;(task as { status: string }).status = status
+            task.updatedAt = new Date()
+          }
+          return task
+        }
+      )
+
+      setupDefaultAgentResponses()
+
+      await orchestrator.executeUserRequest('Test task')
+
+      const hasInProgress = statusChanges.some(s => s.status === 'in_progress')
+      const hasReview = statusChanges.some(s => s.status === 'review')
+      const hasCompleted = statusChanges.some(s => s.status === 'completed')
+
+      expect(hasInProgress).toBe(true)
+      expect(hasReview).toBe(true)
+      expect(hasCompleted).toBe(true)
+    })
+
     it('should emit workflow events', async () => {
       setupDefaultAgentResponses()
 
@@ -351,6 +379,57 @@ describe('Task Lifecycle E2E', () => {
 
       expect(result.files).toBeDefined()
       expect(result.files!.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('should aggregate review agent responses and feedback', async () => {
+      let reviewCount = 0
+      mockAgentManager.executeAgent.mockImplementation(
+        async (role: AgentRole): Promise<AgentResponse> => {
+          if (role === 'pm') {
+            return {
+              agent: 'pm',
+              message: 'Task created',
+              tasks: [{ title: 'Task', description: 'Task', assignedTo: 'dev', dependencies: [], files: [] }],
+              status: 'success',
+            }
+          }
+          if (role === 'dev') {
+            return {
+              agent: 'dev',
+              message: 'Code implemented',
+              files: [{ path: 'test.ts', content: 'content', action: 'create' as const }],
+              status: 'success',
+            }
+          }
+          if (role === 'review') {
+            reviewCount++
+            if (reviewCount === 1) {
+              return {
+                agent: 'review',
+                message: 'Please fix the bug in line 5',
+                metadata: { approved: false },
+                status: 'success',
+              }
+            }
+            return {
+              agent: 'review',
+              message: 'Approved',
+              metadata: { approved: true },
+              status: 'success',
+            }
+          }
+          throw new Error(`Unexpected role: ${role}`)
+        }
+      )
+
+      const result = await orchestrator.executeUserRequest('Task with review feedback')
+
+      expect(result.success).toBe(true)
+      expect(result.messages.length).toBeGreaterThan(3)
+      const reviewFeedbacks = result.messages.filter(m => m.agent === 'review')
+      expect(reviewFeedbacks.length).toBe(2)
+      expect(reviewFeedbacks[0].content).toContain('fix')
+      expect(reviewFeedbacks[1].content).toBe('Approved')
     })
 
     it('should include workflow stats', async () => {

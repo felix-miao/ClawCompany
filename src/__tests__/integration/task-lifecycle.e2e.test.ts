@@ -548,7 +548,51 @@ describe('Task Lifecycle E2E Integration', () => {
     })
   })
 
-  describe('6. SSE State Sync verification', () => {
+  describe('6. Task Handover and agent handoff events', () => {
+    it('should emit task:handover events when task is assigned to different agents', async () => {
+      const handoverEvents: GameEvent[] = []
+
+      const unsub = testStore.subscribe((event) => {
+        if (event.type === 'task:handover') {
+          handoverEvents.push(event)
+        }
+      })
+
+      setupDefaultAgentResponses()
+
+      await orchestrator.executeUserRequest('创建页面')
+
+      expect(handoverEvents.length).toBeGreaterThan(0)
+
+      const handover = handoverEvents[0]
+      expect(handover.type).toBe('task:handover')
+      expect(handover.fromAgentId).toBeDefined()
+      expect(handover.toAgentId).toBeDefined()
+      expect(handover.taskId).toBeDefined()
+
+      unsub()
+    })
+
+    it('should emit task:assigned events after handover', async () => {
+      const assignedEvents: GameEvent[] = []
+
+      const unsub = testStore.subscribe((event) => {
+        if (event.type === 'task:assigned') {
+          assignedEvents.push(event)
+        }
+      })
+
+      setupDefaultAgentResponses()
+
+      await orchestrator.executeUserRequest('测试任务')
+
+      expect(assignedEvents.length).toBeGreaterThan(0)
+
+      unsub()
+    })
+  })
+
+  describe('7. SSE State Sync verification', () => {
     it('should emit workflow events for SSE', () => {
       const workflowCallbacks: GameEvent[] = []
 

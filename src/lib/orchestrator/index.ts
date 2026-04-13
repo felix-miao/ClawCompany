@@ -214,6 +214,15 @@ export class Orchestrator extends BaseOrchestrator {
           ;(task as Task & { slug: string }).slug = taskData.slug
         }
         subTasks.push(task)
+
+        getGameEventStore().push({
+          type: 'task:handover',
+          fromAgentId: 'pm-agent',
+          toAgentId: `${taskData.assignedTo}-agent`,
+          taskId: task.id,
+          description: taskData.description,
+          timestamp: Date.now(),
+        })
       }
 
       const subTaskIds = subTasks.map((t) => t.id)
