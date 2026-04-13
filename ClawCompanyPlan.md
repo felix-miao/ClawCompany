@@ -105,7 +105,7 @@
 **目标**：把 `~/.openclaw/workspace/memory/ClawCompanyPlan.md` 里仍然有效的未完成稳定性任务并回当前计划，作为持续清理 backlog。
 
 **可执行待办（cron 读取）**：
-- [ ] 任务生命周期端到端测试：从用户提交需求 → agent 协作 → 结果返回的完整链路
+- [code-complete] 任务生命周期端到端测试：从用户提交需求 → agent 协作 → 结果返回的完整链路
 - [ ] 修复剩余 5 个 TypeScript 编译错误（sidekick-e2e.test.ts / type-safety-improvement.test.ts / fetch-mock-types.ts 等）
 - [ ] 修复剩余 ESLint errors，清零
 - [ ] 虚拟办公室冒烟测试：启动 dev server，验证页面加载、角色渲染、动画、音效、Dashboard 数据展示
