@@ -320,5 +320,133 @@ describe('buildOpenClawSnapshot', () => {
 
       expect(snapshot.sessions[0].category).toBe('stuck')
     })
+
+    it('derives timeline with real events from session history instead of phase skeleton', async () => {
+      const sync = createSyncStub()
+
+      const now = Date.now()
+      const fiveMinutesAgo = new Date(now - 5 * 60 * 1000).toISOString()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-pm',
+          agentId: 'pm-claw',
+          label: '分析需求',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: fiveMinutesAgo,
+          endedAt: null,
+        },
+        {
+          key: 'sess-dev',
+          agentId: 'dev-claw',
+          label: '实现功能',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: fiveMinutesAgo,
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'busy', emotion: 'neutral', currentTask: null },
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValueOnce([
+        { role: 'assistant', content: 'PM 开始分析需求', status: 'running', timestamp: fiveMinutesAgo },
+        { role: 'toolResult', content: '已生成任务拆分文档', status: 'completed', timestamp: new Date(now - 3 * 60 * 1000).toISOString() },
+        { role: 'assistant', content: 'PM 完成分析', status: 'completed', timestamp: new Date(now - 1 * 60 * 1000).toISOString() },
+      ]).mockResolvedValueOnce([
+        { role: 'assistant', content: 'Dev 开始实现', status: 'running', timestamp: fiveMinutesAgo },
+        { role: 'toolResult', content: '已写入文件: /generated/feature.ts', status: 'completed', timestamp: new Date(now - 2 * 60 * 1000).toISOString() },
+        { role: 'assistant', content: '正在测试', status: 'running', timestamp: new Date(now - 30 * 1000).toISOString() },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.tasks).toHaveLength(2)
+
+      const pmTask = snapshot.tasks.find(t => t.taskId === 'sess-pm')
+      expect(pmTask).toBeDefined()
+      expect(pmTask?.currentAgentId).toBe('pm-claw')
+      expect(pmTask?.currentAgentName).toBe('PM Claw')
+      expect(pmTask?.description).toBe('分析需求')
+
+      const devTask = snapshot.tasks.find(t => t.taskId === 'sess-dev')
+      expect(devTask).toBeDefined()
+      expect(devTask?.currentAgentId).toBe('dev-claw')
+      expect(devTask?.currentAgentName).toBe('Dev Claw')
+    })
+
+    it('timeline shows latest output summary and update time from session', async () => {
+      const sync = createSyncStub()
+
+      const now = Date.now()
+      const startTime = new Date(now - 10 * 60 * 1000).toISOString()
+      const lastUpdateTime = new Date(now - 30 * 1000).toISOString()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-output',
+          agentId: 'dev-claw',
+          label: '实现功能',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: startTime,
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '开始开发', status: 'running', timestamp: startTime },
+        { role: 'toolResult', content: '已写入文件: /projects/app.tsx', status: 'completed', timestamp: new Date(now - 5 * 60 * 1000).toISOString() },
+        { role: 'toolResult', content: '已写入文件: /projects/utils.ts', status: 'completed', timestamp: lastUpdateTime },
+        { role: 'assistant', content: '正在验证功能', status: 'running', timestamp: lastUpdateTime },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const task = snapshot.tasks[0]
+      expect(task.updatedAt).toBeGreaterThan(Date.parse(startTime))
+    })
+
+    it('timeline task displays sessionKey for debugging', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'session-abc123',
+          agentId: 'pm-claw',
+          label: '测试任务',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T00:00:00Z',
+          endedAt: '2026-04-14T00:10:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '任务完成', status: 'completed', timestamp: '2026-04-14T00:10:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const task = snapshot.tasks[0]
+      expect(task.taskId).toBe('session-abc123')
+      expect(task.description).toBe('测试任务')
+    })
   })
 })

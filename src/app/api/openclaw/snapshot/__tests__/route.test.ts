@@ -36,8 +36,15 @@ jest.mock('@/lib/gateway/session-sync', () => {
   }
 })
 
+jest.mock('@/lib/gateway/openclaw-snapshot', () => ({
+  buildOpenClawSnapshot: jest.fn(),
+}))
+
 import { GET } from '../route'
 import { __mockSync } from '@/lib/gateway/session-sync'
+import { buildOpenClawSnapshot } from '@/lib/gateway/openclaw-snapshot'
+
+const mockBuildOpenClawSnapshot = buildOpenClawSnapshot as jest.Mock
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
@@ -78,28 +85,54 @@ describe('/api/openclaw/snapshot', () => {
 
   it('should derive current work from OpenClaw sessions and history', async () => {
     const startedAt = new Date().toISOString()
-
-    __mockSync.fetchAgents.mockResolvedValue([
-      { id: 'sidekick-claw', name: 'PM', identity: { name: 'PM Claw' } },
-    ])
-    __mockSync.fetchSessions.mockResolvedValue([
-      {
-        key: 'sess-1',
-        agentId: 'sidekick-claw',
-        label: '用你的团队给我写一个网站出来',
-        model: 'gpt-5',
-        status: 'running',
-        startedAt,
-        endedAt: null,
+    
+    mockBuildOpenClawSnapshot.mockResolvedValue({
+      agents: [
+        { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来' },
+      ],
+      sessions: [
+        {
+          sessionKey: 'sess-1',
+          agentId: 'sidekick-claw',
+          agentName: 'PM Claw',
+          role: 'pm',
+          label: '用你的团队给我写一个网站出来',
+          status: 'running',
+          startedAt,
+          endedAt: null,
+          currentWork: '用你的团队给我写一个网站出来',
+          latestThought: '已收到，PM 正在分析...',
+          latestResultSummary: '已生成初始任务拆分',
+          model: 'gpt-5',
+          latestMessage: '已收到，PM 正在分析...',
+          latestMessageRole: 'assistant',
+          latestMessageStatus: 'running',
+          history: [],
+        },
+      ],
+      tasks: [
+        {
+          taskId: 'sess-1',
+          description: '用你的团队给我写一个网站出来',
+          currentPhase: 'pm_analysis',
+          currentAgentId: 'sidekick-claw',
+          currentAgentName: 'PM Claw',
+          status: 'in_progress',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          phases: [],
+        },
+      ],
+      metrics: {
+        agents: { total: 1, active: 1, idle: 0, byRole: { pm: 1 } },
+        sessions: { total: 1, active: 1, completed: 0, failed: 0 },
+        tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        source: 'gateway',
+        fetchedAt: new Date().toISOString(),
       },
-    ])
-    __mockSync.mapToAgentInfo.mockReturnValue([
-      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'busy', emotion: 'neutral', currentTask: null },
-    ])
-    __mockSync.client.sessions_history.mockResolvedValue([
-      { role: 'assistant', content: '已收到，PM 正在分析...', status: 'running' },
-      { role: 'toolResult', content: '已生成初始任务拆分', status: 'completed' },
-    ])
+      connected: true,
+      fetchedAt: new Date().toISOString(),
+    })
 
     const response = await GET(createMockRequest() as any)
     const data = await response.json()
@@ -121,7 +154,6 @@ describe('/api/openclaw/snapshot', () => {
       currentWork: '用你的团队给我写一个网站出来',
       latestThought: '已收到，PM 正在分析...',
       latestResultSummary: '已生成初始任务拆分',
-      category: 'running',
     })
     expect(data.tasks).toHaveLength(1)
     expect(data.tasks[0].taskId).toBe('sess-1')
@@ -130,7 +162,7 @@ describe('/api/openclaw/snapshot', () => {
   })
 
   it('should return fallback payload when gateway fails', async () => {
-    __mockSync.client.connect.mockRejectedValue(new Error('gateway offline'))
+    mockBuildOpenClawSnapshot.mockRejectedValue(new Error('gateway offline'))
 
     const response = await GET(createMockRequest() as any)
     const data = await response.json()
