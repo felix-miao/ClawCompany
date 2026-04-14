@@ -165,8 +165,23 @@ function getAttentionBadges(task: TaskHistory): string[] {
   return badges;
 }
 
-type FilterType = 'attention' | 'active' | 'all' | 'waiting' | 'rework' | 'approved' | 'completed';
+type FilterType = 'attention' | 'active' | 'all' | 'waiting' | 'rework' | 'approved' | 'completed' | 'work' | 'failed' | 'stuck';
 type StageFilterType = 'all' | 'pm' | 'developer' | 'tester' | 'reviewer' | 'done';
+type AgentFilterType = string | null;
+
+type AgentFilterOption = {
+  key: string;
+  label: string;
+  count: number;
+};
+
+function getTaskOwnerLabel(task: TaskHistory): string {
+  return task.currentAgentName ?? TASK_PHASE_LABELS[task.currentPhase] ?? task.currentPhase;
+}
+
+function getAgentFilterKey(task: TaskHistory): string {
+  return task.currentAgentId ?? task.currentPhase;
+}
 
 function isActiveTask(task: TaskHistory): boolean {
   return task.status === 'in_progress' || task.status === 'failed';
@@ -257,14 +272,19 @@ const STAGE_BOTTLENECK_COLORS: Record<string, string> = {
 export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [stageFilter, setStageFilter] = useState<StageFilterType>('all');
+  const [agentFilter, setAgentFilter] = useState<AgentFilterType>(null);
   const sortedTasks = useMemo(
     () => [...tasks].sort((a, b) => getTaskPriority(b) - getTaskPriority(a) || b.updatedAt - a.updatedAt),
     [tasks],
   );
   const filteredTasks = useMemo(() => {
-    if (filter === 'all') return sortedTasks;
+    let filtered = sortedTasks;
+    if (agentFilter) {
+      filtered = filtered.filter(task => getAgentFilterKey(task) === agentFilter);
+    }
+    if (filter === 'all') return filtered;
     if (filter === 'attention') {
-      return sortedTasks.filter(task =>
+      return filtered.filter(task =>
         task.status === 'failed' ||
         (task.rejectionCount ?? 0) > 0 ||
         task.isInRework ||
@@ -273,27 +293,36 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
       );
     }
     if (filter === 'waiting') {
-      return sortedTasks.filter(task => {
+      return filtered.filter(task => {
         if (task.status !== 'in_progress') return false;
         const lastHandover = (task.recentEvents ?? []).find(e => e.type === 'task:handover');
         return !!lastHandover?.toAgentId;
       });
     }
     if (filter === 'rework') {
-      return sortedTasks.filter(task => task.isInRework || (task.rejectionCount ?? 0) > 0);
+      return filtered.filter(task => task.isInRework || (task.rejectionCount ?? 0) > 0);
     }
     if (filter === 'approved') {
-      return sortedTasks.filter(task => task.lastApproved);
+      return filtered.filter(task => task.lastApproved);
     }
     if (filter === 'completed') {
-      return sortedTasks.filter(task => task.status === 'completed');
+      return filtered.filter(task => task.status === 'completed');
     }
-    return sortedTasks.filter(task => task.status === 'in_progress');
-  }, [sortedTasks, filter]);
+    if (filter === 'work' || filter === 'active') {
+      return filtered.filter(task => task.status === 'in_progress');
+    }
+    if (filter === 'failed') {
+      return filtered.filter(task => task.status === 'failed');
+    }
+    if (filter === 'stuck') {
+      return filtered.filter(task => task.status === 'in_progress' && isTaskStagnant(task));
+    }
+    return filtered.filter(task => task.status === 'in_progress');
+  }, [sortedTasks, filter, agentFilter]);
 
-  const hasFilterApplied = filter !== 'all';
-  const isFilteredEmpty = hasFilterApplied && filteredTasks.length === 0;
-  const displayTasks = isFilteredEmpty ? [] : filteredTasks.length > 0 ? filteredTasks : sortedTasks;
+  const hasTaskFilterApplied = filter !== 'all' || agentFilter !== null;
+  const isFilteredEmpty = hasTaskFilterApplied && filteredTasks.length === 0;
+  const displayTasks = hasTaskFilterApplied ? filteredTasks : sortedTasks;
 
   const stageCounts = useMemo(() => {
     const counts: Record<string, number> = { pm: 0, developer: 0, tester: 0, reviewer: 0, done: 0 };
@@ -311,6 +340,35 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
       }
     });
     return counts;
+  }, [sortedTasks]);
+
+  const agentOptions = useMemo(() => {
+    const counts = new Map<string, AgentFilterOption>();
+    sortedTasks
+      .filter(task => isActiveTask(task))
+      .forEach(task => {
+        const key = getAgentFilterKey(task);
+        const existing = counts.get(key);
+        if (existing) {
+          existing.count += 1;
+          return;
+        }
+        counts.set(key, {
+          key,
+          label: getTaskOwnerLabel(task),
+          count: 1,
+        });
+      });
+
+    return Array.from(counts.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'zh-CN'));
+  }, [sortedTasks]);
+
+  const statusCounts = useMemo(() => {
+    const work = sortedTasks.filter(t => t.status === 'in_progress').length;
+    const failed = sortedTasks.filter(t => t.status === 'failed').length;
+    const stuck = sortedTasks.filter(t => t.status === 'in_progress' && isTaskStagnant(t)).length;
+    const completed = sortedTasks.filter(t => t.status === 'completed').length;
+    return { work, failed, stuck, completed };
   }, [sortedTasks]);
 
   const displayTasksByStage = useMemo(() => {
@@ -381,8 +439,6 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
             }).length;
             const reworkCount = sortedTasks.filter(t => t.isInRework || (t.rejectionCount ?? 0) > 0).length;
             const approvedCount = sortedTasks.filter(t => t.lastApproved).length;
-            const inProgressCount = sortedTasks.filter(t => t.status === 'in_progress').length;
-            const completedCount = sortedTasks.filter(t => t.status === 'completed').length;
             return (
               <>
                 <button
@@ -434,47 +490,95 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
                   <div className={`text-lg font-semibold ${approvedCount > 0 ? 'text-green-300' : 'text-gray-400'}`}>{approvedCount}</div>
                 </button>
                 <button
+                  data-testid="status-card-work"
                   type="button"
-                  onClick={() => setFilter('active')}
+                  onClick={() => setFilter('work')}
                   className={`rounded-xl border px-3 py-2 text-center transition-colors ${
-                    inProgressCount > 0
+                    statusCounts.work > 0
                       ? 'bg-yellow-500/10 border-yellow-500/30 hover:border-yellow-500/50 cursor-pointer'
                       : 'bg-dark-50/40 border-dark-100 cursor-pointer'
                   }`}
                 >
                   <div className="text-xs text-gray-500">进行中</div>
-                  <div className={`text-lg font-semibold ${inProgressCount > 0 ? 'text-yellow-300' : 'text-gray-400'}`}>{inProgressCount}</div>
+                  <div className={`text-lg font-semibold ${statusCounts.work > 0 ? 'text-yellow-300' : 'text-gray-400'}`}>{statusCounts.work}</div>
                 </button>
                 <button
+                  data-testid="status-card-completed"
                   type="button"
                   onClick={() => setFilter('completed')}
                   className={`rounded-xl border px-3 py-2 text-center transition-colors ${
-                    completedCount > 0
+                    statusCounts.completed > 0
                       ? 'bg-green-500/10 border-green-500/30 hover:border-green-500/50 cursor-pointer'
                       : 'bg-dark-50/40 border-dark-100 cursor-pointer'
                   }`}
                 >
                   <div className="text-xs text-gray-500">已完成</div>
-                  <div className={`text-lg font-semibold ${completedCount > 0 ? 'text-green-300' : 'text-gray-400'}`}>{completedCount}</div>
+                  <div className={`text-lg font-semibold ${statusCounts.completed > 0 ? 'text-green-300' : 'text-gray-400'}`}>{statusCounts.completed}</div>
+                </button>
+                <button
+                  data-testid="status-card-failed"
+                  type="button"
+                  onClick={() => setFilter('failed')}
+                  className={`rounded-xl border px-3 py-2 text-center transition-colors ${
+                    statusCounts.failed > 0
+                      ? 'bg-red-500/10 border-red-500/30 hover:border-red-500/50 cursor-pointer'
+                      : 'bg-dark-50/40 border-dark-100 cursor-pointer'
+                  }`}
+                >
+                  <div className="text-xs text-gray-500">失败</div>
+                  <div className={`text-lg font-semibold ${statusCounts.failed > 0 ? 'text-red-300' : 'text-gray-400'}`}>{statusCounts.failed}</div>
+                </button>
+                <button
+                  data-testid="status-card-stuck"
+                  type="button"
+                  onClick={() => setFilter('stuck')}
+                  className={`rounded-xl border px-3 py-2 text-center transition-colors ${
+                    statusCounts.stuck > 0
+                      ? 'bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 cursor-pointer'
+                      : 'bg-dark-50/40 border-dark-100 cursor-pointer'
+                  }`}
+                >
+                  <div className="text-xs text-gray-500">卡住</div>
+                  <div className={`text-lg font-semibold ${statusCounts.stuck > 0 ? 'text-amber-200' : 'text-gray-400'}`}>{statusCounts.stuck}</div>
                 </button>
               </>
             );
           })()}
           <div className="flex gap-1.5 mt-3 md:mt-0 md:col-span-4 flex-wrap">
-            {(['attention', 'waiting', 'rework', 'approved', 'active', 'completed', 'all'] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilter(f)}
-                className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  filter === f
-                    ? 'bg-primary-500/20 text-primary-200 border border-primary-500/30'
-                    : 'bg-dark-50/40 text-gray-400 border border-dark-100 hover:border-dark-50'
-                }`}
-              >
-                {f === 'attention' ? '需关注' : f === 'waiting' ? '等待' : f === 'rework' ? '返工' : f === 'approved' ? '已通过' : f === 'active' ? '进行中' : f === 'completed' ? '已完成' : '全部'}
-              </button>
-            ))}
+            {(['attention', 'waiting', 'rework', 'approved', 'work', 'completed', 'failed', 'stuck', 'all'] as const).map((f) => {
+              const isSelected = f === 'work' ? filter === 'work' || filter === 'active' : filter === f;
+              return (
+                <button
+                  key={f}
+                  data-testid={`status-filter-${f}`}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    isSelected
+                      ? 'bg-primary-500/20 text-primary-200 border border-primary-500/30'
+                      : 'bg-dark-50/40 text-gray-400 border border-dark-100 hover:border-dark-50'
+                  }`}
+                >
+                  {f === 'attention'
+                    ? '需关注'
+                    : f === 'waiting'
+                      ? '等待'
+                      : f === 'rework'
+                        ? '返工'
+                        : f === 'approved'
+                          ? '已通过'
+                          : f === 'work'
+                            ? '进行中'
+                            : f === 'completed'
+                              ? '已完成'
+                              : f === 'failed'
+                                ? '失败'
+                                : f === 'stuck'
+                                  ? '卡住'
+                                  : '全部'}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -507,6 +611,42 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
                 );
               })}
             </div>
+
+            {agentOptions.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                <button
+                  data-testid="agent-filter-all"
+                  type="button"
+                  onClick={() => setAgentFilter(null)}
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all cursor-pointer ${
+                    agentFilter === null
+                      ? 'bg-primary-500/20 border-primary-500/40 text-primary-200'
+                      : 'border-dark-100 bg-dark-50/40 text-gray-300 hover:border-dark-50'
+                  }`}
+                >
+                  全部 Agent
+                </button>
+                {agentOptions.map((option) => {
+                  const isActive = agentFilter === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      data-testid={`agent-filter-${option.key}`}
+                      type="button"
+                      onClick={() => setAgentFilter(isActive ? null : option.key)}
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-primary-500/20 border-primary-500/40 text-primary-200'
+                          : 'border-dark-100 bg-dark-50/40 text-gray-300 hover:border-dark-50'
+                      }`}
+                    >
+                      <span>@{option.label}</span>
+                      <span className="ml-1 opacity-70">×{option.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
           <div className="overflow-y-auto p-2 space-y-3">
             {(() => {
@@ -516,13 +656,11 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
                 ));
               }
 
-              const activeTasks = filter === 'completed' || filter === 'approved' || filter === 'all'
-                ? sortedTasks.filter(t => isActiveTask(t))
-                : filteredTasks.filter(t => isActiveTask(t));
-              const historyTasks = filter === 'all'
-                ? sortedTasks.filter(t => isHistoricalTask(t))
+              const activeTasks = displayTasks.filter(t => isActiveTask(t));
+              const historyTasks = filter === 'all' && agentFilter === null
+                ? displayTasks.filter(t => isHistoricalTask(t))
                 : [];
-              const showDualSections = filter === 'all' && historyTasks.length > 0;
+              const showDualSections = filter === 'all' && agentFilter === null && historyTasks.length > 0;
 
               if (showDualSections) {
                 return (
@@ -565,7 +703,10 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
                 <div className="text-xs text-gray-400 mt-1">请尝试其他筛选</div>
                 <button
                   type="button"
-                  onClick={() => setFilter('all')}
+                  onClick={() => {
+                    setFilter('all');
+                    setAgentFilter(null);
+                  }}
                   className="mt-3 px-3 py-1.5 text-xs text-primary-300 hover:text-primary-200 border border-primary-500/30 rounded-lg transition-colors"
                 >
                   显示全部

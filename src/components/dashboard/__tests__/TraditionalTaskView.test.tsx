@@ -691,4 +691,136 @@ describe('TraditionalTaskView', () => {
     expect(reviewerChip).toBeDefined();
     expect(reviewerChip).toHaveClass('cursor-pointer');
   });
+
+  it('should filter failed tasks using attention filter when no dedicated failed filter exists', () => {
+    const failedTask = buildTask({ taskId: 'task-1', status: 'failed', currentPhase: 'done' });
+    const runningTask = buildTask({ taskId: 'task-2', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[failedTask, runningTask]} />);
+
+    fireEvent.click(screen.getAllByText(/需关注/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should filter stuck/stagnant tasks using attention filter', () => {
+    const stuckTask = buildTask({ taskId: 'task-1', status: 'in_progress', updatedAt: Date.now() - 15 * 60 * 1000 });
+    const runningTask = buildTask({ taskId: 'task-2', status: 'in_progress', updatedAt: Date.now() });
+
+    render(<TraditionalTaskView tasks={[stuckTask, runningTask]} />);
+
+    fireEvent.click(screen.getAllByText(/需关注/)[0]);
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+  });
+
+  it('should display status summary showing failed/completed/stuck counts', () => {
+    const tasks = [
+      buildTask({ taskId: 'task-1', status: 'failed', currentPhase: 'done' }),
+      buildTask({ taskId: 'task-2', status: 'in_progress', updatedAt: Date.now() - 15 * 60 * 1000 }),
+      buildTask({ taskId: 'task-3', status: 'completed' }),
+      buildTask({ taskId: 'task-4', status: 'in_progress' }),
+    ];
+
+    render(<TraditionalTaskView tasks={tasks} />);
+
+    expect(screen.getByTestId('status-card-work')).toHaveTextContent('2');
+    expect(screen.getByTestId('status-card-completed')).toHaveTextContent('1');
+    expect(screen.getByTestId('status-card-failed')).toHaveTextContent('1');
+    expect(screen.getByTestId('status-card-stuck')).toHaveTextContent('1');
+  });
+
+  it('should show agent chips in task list when multiple agents present', () => {
+    const devTask = buildTask({ taskId: 'task-1', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const pmTask = buildTask({ taskId: 'task-2', currentAgentId: 'pm-agent', currentAgentName: 'PM Claw', currentPhase: 'pm_analysis', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[devTask, pmTask]} />);
+
+    const taskListItems = screen.getAllByRole('button', { name: /(task-1|task-2)/ });
+    expect(taskListItems.length).toBe(2);
+  });
+
+  it('should filter tasks by work status', () => {
+    const inProgressTask = buildTask({ taskId: 'task-1', status: 'in_progress' });
+    const completedTask = buildTask({ taskId: 'task-2', status: 'completed' });
+    const failedTask = buildTask({ taskId: 'task-3', status: 'failed', currentPhase: 'done' });
+
+    render(<TraditionalTaskView tasks={[inProgressTask, completedTask, failedTask]} />);
+
+    fireEvent.click(screen.getByTestId('status-card-work'));
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/task-3/)).not.toBeInTheDocument();
+  });
+
+  it('should filter tasks by completed status', () => {
+    const completedTask = buildTask({ taskId: 'task-1', status: 'completed' });
+    const inProgressTask = buildTask({ taskId: 'task-2', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[completedTask, inProgressTask]} />);
+
+    fireEvent.click(screen.getByTestId('status-card-completed'));
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should filter tasks by failed status', () => {
+    const failedTask = buildTask({ taskId: 'task-1', status: 'failed', currentPhase: 'done' });
+    const inProgressTask = buildTask({ taskId: 'task-2', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[failedTask, inProgressTask]} />);
+
+    fireEvent.click(screen.getByTestId('status-card-failed'));
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should filter tasks by stuck/stagnant status', () => {
+    const stuckTask = buildTask({ taskId: 'task-1', status: 'in_progress', updatedAt: Date.now() - 15 * 60 * 1000 });
+    const activeTask = buildTask({ taskId: 'task-2', status: 'in_progress', updatedAt: Date.now() });
+
+    render(<TraditionalTaskView tasks={[stuckTask, activeTask]} />);
+
+    fireEvent.click(screen.getByTestId('status-card-stuck'));
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should display agent filter chips', () => {
+    const devTask = buildTask({ taskId: 'task-1', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const pmTask = buildTask({ taskId: 'task-2', currentAgentId: 'pm-agent', currentAgentName: 'PM Claw', currentPhase: 'pm_analysis', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[devTask, pmTask]} />);
+
+    expect(screen.getByTestId('agent-filter-dev-agent')).toHaveTextContent('Dev Claw');
+    expect(screen.getByTestId('agent-filter-pm-agent')).toHaveTextContent('PM Claw');
+  });
+
+  it('should filter tasks by agent when clicking agent chip', () => {
+    const devTask = buildTask({ taskId: 'task-1', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const pmTask = buildTask({ taskId: 'task-2', currentAgentId: 'pm-agent', currentAgentName: 'PM Claw', currentPhase: 'pm_analysis', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[devTask, pmTask]} />);
+
+    fireEvent.click(screen.getByTestId('agent-filter-dev-agent'));
+
+    expect(screen.getAllByText(/task-1/)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/task-2/)).not.toBeInTheDocument();
+  });
+
+  it('should show agent task counts with badge', () => {
+    const devTask1 = buildTask({ taskId: 'task-1', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const devTask2 = buildTask({ taskId: 'task-2', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const pmTask = buildTask({ taskId: 'task-3', currentAgentId: 'pm-agent', currentAgentName: 'PM Claw', currentPhase: 'pm_analysis', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[devTask1, devTask2, pmTask]} />);
+
+    expect(screen.getByTestId('agent-filter-dev-agent')).toHaveTextContent('×2');
+    expect(screen.getByTestId('agent-filter-pm-agent')).toHaveTextContent('×1');
+  });
 });
