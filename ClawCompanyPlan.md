@@ -48,6 +48,211 @@
   - 第 2 轮：详情面板增强 ✅
   - 第 3 轮：实时更新 / 失败态 / 卡点展示 ✅
 
+### P0 - OpenClaw 单一真相源 Dashboard 重构（进行中）
+
+#### 重构原因
+
+当前 dashboard 存在三套彼此割裂的数据源：
+
+- chat 文案：显示“PM 正在分析”“已交给 PM”等人类可读消息
+- `game-events`：驱动 timeline / 虚拟办公室动画
+- `sessions/metrics`：只提供 OpenClaw agent/session 摘要
+
+这会产生几个根本问题：
+
+- chat 已显示 agent 在工作，但 timeline 仍然空白
+- timeline 反映的是“推送过的前端事件”，不一定是真实 OpenClaw 状态
+- Agent Status / Timeline / 最终产出之间没有统一关联键
+- dashboard 无法稳定回答“谁现在在干什么”“谁刚刚产出了什么”“最终文件在哪里”
+- 为了补 UI，会继续堆更多 `game-events` 兼容逻辑，复杂度和漂移都会上升
+
+因此，dashboard 必须改为以 OpenClaw 实际运行状态作为 **single source of truth**。
+
+#### 重构目标
+
+新的 dashboard 必须满足：
+
+- 只要任何 OpenClaw agent（sidekick / pm / dev / reviewer / tester）正在活动，dashboard 一定能反映出来
+- Agent Status、Timeline、结果面板必须读取同一份快照数据
+- Timeline 不依赖 chat 文案，不依赖前端自造 `game-events`
+- dashboard 可以回答：
+  - 当前有哪些 session 在跑
+  - 每个 session 属于哪个 agent
+  - agent 当前在做什么
+  - agent 最近产出了什么结果
+  - 某个结果对应的本地文件路径 / 可打开 URL 是什么
+- 最终用户可以从 dashboard 直接点击打开开发产出的本地 HTML / 文件 / 预览 URL
+
+#### 目标架构
+
+统一改成：
+
+```text
+OpenClaw Gateway
+  ├─ sessions.list
+  ├─ sessions.history
+  └─ future: richer event/output feed
+
+        ↓
+
+/api/openclaw/snapshot
+  ├─ agents
+  ├─ sessions
+  ├─ derivedTasks
+  ├─ derivedTimeline
+  ├─ derivedOutputs
+  └─ metrics
+
+        ↓
+
+Dashboard
+  ├─ Agent Status Panel
+  ├─ Timeline View
+  ├─ Output / Artifact Panel
+  ├─ Session Inspector
+  └─ Result Open Actions
+```
+
+原则：
+
+- dashboard 不再把 `game-events` 作为任务真相源
+- `game-events` 只保留给动画/视觉反馈/临时调试用
+- chat 只是用户沟通层，不再决定 timeline
+- `/api/openclaw/snapshot` 是唯一前端读模型
+
+#### 当前已落地的骨骼
+
+- [x] 新增 `/api/openclaw/snapshot`
+- [x] 用 `sessions.list + sessions.history` 派生：
+  - Agent 当前状态
+  - Session 列表
+  - Timeline skeleton (`tasks`)
+  - 基础 metrics
+- [x] dashboard 的 Agent Status / Timeline / Metrics 已开始读取 snapshot
+- [x] PM 分析阶段不再必须依赖 `game-events` 才能显示 timeline
+
+#### 下一阶段必须补齐的功能
+
+##### 1. Snapshot 数据模型增强
+
+- [code-complete] 为每个 session 增加稳定字段：
+  - `sessionKey`
+  - `agentId`
+  - `agentName`
+  - `role`
+  - `label`
+  - `status`
+  - `startedAt`
+  - `endedAt`
+- [code-complete] 为每个 session 派生当前工作说明：
+  - `currentWork`
+  - `latestThought`
+  - `latestResultSummary`
+- [ ] 为每个 session 派生输出产物：
+  - `artifacts[]`
+  - `artifact.type`
+  - `artifact.path`
+  - `artifact.url`
+  - `artifact.title`
+  - `artifact.producedBy`
+  - `artifact.producedAt`
+- [ ] 区分：
+  - 正在运行的 session
+  - 刚完成的 session
+  - 失败的 session
+  - 沉默/卡住的 session
+
+##### 2. Timeline 真正可用
+
+- [ ] 从 OpenClaw session/history 派生真实 timeline，而不是 phase 占位骨架
+- [ ] Timeline 每张卡至少展示：
+  - 当前 owner agent
+  - 当前状态
+  - 最新输出摘要
+  - 最近更新时间
+  - 对应 sessionKey
+- [ ] 支持“谁在 work / 谁已完成 / 谁失败 / 谁卡住”筛选
+- [ ] 支持按 agent 分组查看当前任务
+
+##### 3. Session Inspector
+
+- [ ] 点击 agent / timeline task 后，右侧出现 Session Inspector
+- [ ] 展示最近 history 消息
+- [ ] 展示最后一条 assistant 输出
+- [ ] 展示最后一条 tool / file / result 信息
+- [ ] 展示当前 session 原始状态，方便 debug
+
+##### 4. 结果产物可打开
+
+这是最终体验里非常关键的一块：
+
+- [ ] 如果 developer 产出了 HTML / 页面文件，dashboard 必须显示“打开结果”按钮
+- [ ] 对每个 artifact 提供：
+  - 本地文件路径（绝对路径或 workspace 相对路径）
+  - 浏览器可打开 URL（如果能预览）
+  - 来源 agent
+  - 生成时间
+- [ ] 支持最小打开动作：
+  - `Open File`
+  - `Open in Browser`
+  - `Copy Path`
+- [ ] 需要建立 artifact 发现机制：
+  - 来自 OpenClaw history 里的文件输出
+  - 或由 orchestrator / file writer 明确上报结果文件
+
+##### 5. Artifact / Result 归档模型
+
+- [ ] 定义 `ResultArtifact` 类型
+- [ ] 对常见结果类型分类：
+  - `html`
+  - `tsx`
+  - `image`
+  - `markdown`
+  - `json`
+  - `test-report`
+  - `url`
+- [ ] dashboard 可以按最近结果排序展示
+- [ ] 一个 session 完成后，能够追溯“这次最终交付了哪些文件”
+
+##### 6. OpenClaw 输出采集能力补齐
+
+如果仅靠当前 `sessions.list + sessions.history` 无法拿到足够丰富的输出，需要补 gateway / agent 侧能力：
+
+- [ ] 增加更丰富的 OpenClaw event/output feed
+- [ ] 支持 history 中返回 tool / file / artifact 元数据
+- [ ] 支持将“最终产物路径 / URL”作为结构化字段回传
+- [ ] 支持把 agent 的最终结果摘要结构化，而不是只靠自然语言解析
+
+##### 7. Dashboard 交互目标
+
+- [ ] 首页就能直接看到哪些 agent 正在活跃
+- [ ] timeline 首屏就能看到当前任务骨架，而不是空白 waiting
+- [ ] 每个 agent 卡片能显示：
+  - `status`
+  - `currentTask`
+  - `latestResultSummary`
+- [ ] 每个任务卡片能跳转到对应 session inspector
+- [ ] 每个 artifact 都能直接打开或复制路径
+
+##### 8. 性能与稳定性要求
+
+- [ ] 前端只保留单一 snapshot polling / streaming，不再并行拉多份重复接口
+- [ ] 尽量把 `sessions` / `metrics` / `timeline` 合并进 snapshot，减少重复对象构造
+- [ ] 减少 dev 模式下大对象日志和无意义 interval
+- [ ] snapshot route 要支持短 TTL / in-flight dedupe
+- [ ] 后续可升级为 SSE snapshot diff 推送，减少轮询开销
+
+##### 9. 验收标准
+
+满足以下条件时，才算 dashboard 重构完成：
+
+- [ ] sidekick / pm 一旦进入 running，dashboard 3 秒内出现对应 active 状态
+- [ ] Timeline 不再出现“chat 有进展但 timeline 为空”的情况
+- [ ] 任一 agent 最近结果可以在 dashboard 看到摘要
+- [ ] developer 产出的 HTML / 本地文件可在 dashboard 点击打开
+- [ ] 一个任务从 PM → Dev → Reviewer 的状态流转可在同一条 task/session 视图中连续看到
+- [ ] 所有状态都来自 OpenClaw snapshot，而不是 UI 文案或前端拼凑事件
+
 ---
 
 ## Next（立即要做）
@@ -109,6 +314,19 @@
 - [ ] 修复剩余 5 个 TypeScript 编译错误（sidekick-e2e.test.ts / type-safety-improvement.test.ts / fetch-mock-types.ts 等）
 - [ ] 修复剩余 ESLint errors，清零
 - [ ] 虚拟办公室冒烟测试：启动 dev server，验证页面加载、角色渲染、动画、音效、Dashboard 数据展示
+
+### Batch 2.6: OpenClaw Snapshot Dashboard 收口
+
+**目标**：把 dashboard 收口成真正的 OpenClaw 监控台，做到真实、准确、实时地反映 agent 活动与最终交付结果。
+
+**可执行待办（cron 读取）**：
+- [ ] 合并旧 `/api/openclaw/sessions` 与 `/api/openclaw/metrics` 消费方，统一迁移到 `/api/openclaw/snapshot`
+- [ ] 从 OpenClaw history 派生真实 timeline 项，而不是占位 phase
+- [ ] 为 snapshot 增加 `artifacts[]` 输出模型（path/url/title/type/producedBy）
+- [ ] Dashboard 增加 Result / Artifact Panel
+- [ ] 支持 HTML / 本地文件一键打开或复制路径
+- [ ] Session Inspector 展示最新输出、最近消息、原始 session 状态
+- [ ] Snapshot 改为单一前端数据源，移除 timeline 对 `game-events` 的依赖
 
 ---
 

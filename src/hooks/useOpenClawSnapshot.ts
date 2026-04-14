@@ -5,6 +5,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
 import { OpenClawSnapshotMetrics } from '@/lib/gateway/openclaw-snapshot'
 
+interface OpenClawArtifact {
+  type: 'html' | 'code' | 'image' | 'file' | 'markdown' | 'json' | 'url'
+  path?: string
+  url?: string
+  title: string
+  producedBy: string
+  producedAt: string
+}
+
 interface OpenClawSessionDetails {
   sessionKey: string
   agentId: string
@@ -21,6 +30,7 @@ interface OpenClawSessionDetails {
   latestMessage: string | null
   latestMessageRole: 'user' | 'assistant' | 'toolResult' | null
   latestMessageStatus: 'pending' | 'running' | 'completed' | 'failed' | null
+  artifacts: OpenClawArtifact[]
 }
 
 interface SnapshotResponse {

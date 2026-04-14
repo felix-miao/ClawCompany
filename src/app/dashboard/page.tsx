@@ -8,6 +8,7 @@ import { EventLog } from "@/components/dashboard/EventLog";
 import { ControlPanel } from "@/components/dashboard/ControlPanel";
 import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetricsPanel";
 import { TraditionalTaskView } from "@/components/dashboard/TraditionalTaskView";
+import { SessionArtifactsPanel } from "@/components/dashboard/SessionArtifactsPanel";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   const { events, stats } = useDashboardStore(store);
   const {
     agents,
+    sessions,
     tasks: taskHistory,
     metrics: openClawMetrics,
     connected: snapshotConnected,
@@ -236,6 +238,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <AgentStatusPanel agents={agents} />
+            <SessionArtifactsPanel sessions={sessions} />
             <EventLog events={events} />
             <PerformanceMetricsPanel
               metricsAggregator={metricsAggregator}

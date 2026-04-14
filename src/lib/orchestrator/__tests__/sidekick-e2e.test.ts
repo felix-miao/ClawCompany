@@ -40,7 +40,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
       getAllAgents: jest.fn(),
       executeAgent: jest.fn(),
       getAgentInfo: jest.fn(),
-    } as jest.Mocked<AgentManager>
+    } as unknown as jest.Mocked<AgentManager>
 
     // Mock ChatManager — use real array to capture messages
     const chatMessages: Array<{ agent: 'user' | AgentRole; content: string; timestamp: Date }> = []
@@ -64,7 +64,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
       deleteFile: jest.fn(),
       listFiles: jest.fn().mockResolvedValue([]),
       exists: jest.fn().mockResolvedValue(false),
-    } as jest.Mocked<SandboxedFileWriter>
+    } as unknown as jest.Mocked<SandboxedFileWriter>
 
     // Allow all status transitions for testing (bypass state machine)
     jest.spyOn(realTaskManager, 'updateTaskStatus').mockImplementation(

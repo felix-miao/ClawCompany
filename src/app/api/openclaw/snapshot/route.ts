@@ -15,6 +15,7 @@ export const GET = withAuth(async (_request: NextRequest) => {
       agents: getDefaultAgents(),
       sessions: [],
       tasks: [],
+      artifacts: [],
       metrics: {
         agents: { total: 0, active: 0, idle: 0, byRole: {} },
         sessions: { total: 0, active: 0, completed: 0, failed: 0 },

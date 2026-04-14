@@ -160,7 +160,7 @@ describe('Task Lifecycle E2E Integration', () => {
       getAllAgents: jest.fn(),
       executeAgent: jest.fn(),
       getAgentInfo: jest.fn(),
-    } as jest.Mocked<AgentManager>
+    } as unknown as jest.Mocked<AgentManager>
 
     const chatMessages: Array<{ agent: 'user' | AgentRole; content: string; timestamp: Date }> = []
     mockChatManager = {
@@ -182,7 +182,7 @@ describe('Task Lifecycle E2E Integration', () => {
       deleteFile: jest.fn(),
       listFiles: jest.fn().mockResolvedValue([]),
       exists: jest.fn().mockResolvedValue(false),
-    } as jest.Mocked<SandboxedFileWriter>
+    } as unknown as jest.Mocked<SandboxedFileWriter>
 
     jest.spyOn(realTaskManager, 'updateTaskStatus').mockImplementation(
       (taskId: string, status: string) => {

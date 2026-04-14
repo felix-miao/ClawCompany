@@ -106,4 +106,75 @@ describe('buildOpenClawSnapshot', () => {
       latestMessageStatus: 'completed',
     })
   })
+
+  it('derives artifacts from toolResult messages containing file outputs', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-3',
+        agentId: 'dev-claw',
+        label: '实现首页组件',
+        model: 'gpt-5',
+        status: 'completed',
+        startedAt: '2026-04-14T02:00:00Z',
+        endedAt: '2026-04-14T02:30:00Z',
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'assistant', content: '开始实现首页', status: 'running' },
+      { role: 'toolResult', content: '已写入文件: /Users/felixmiao/Projects/ClawCompany/generated/index.html', status: 'completed' },
+      { role: 'toolResult', content: '已写入样式: /Users/felixmiao/Projects/ClawCompany/generated/styles.css', status: 'completed' },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].artifacts).toHaveLength(2)
+    expect(snapshot.sessions[0].artifacts[0]).toMatchObject({
+      type: 'html',
+      path: '/Users/felixmiao/Projects/ClawCompany/generated/index.html',
+      title: 'index.html',
+      producedBy: 'dev-claw',
+    })
+    expect(snapshot.sessions[0].artifacts[1]).toMatchObject({
+      type: 'code',
+      path: '/Users/felixmiao/Projects/ClawCompany/generated/styles.css',
+      title: 'styles.css',
+    })
+  })
+
+  it('handles history with no file artifacts gracefully', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-4',
+        agentId: 'pm-claw',
+        label: '分析需求',
+        model: 'gpt-5',
+        status: 'completed',
+        startedAt: '2026-04-14T03:00:00Z',
+        endedAt: '2026-04-14T03:10:00Z',
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'assistant', content: '已完成需求分析', status: 'completed' },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].artifacts).toHaveLength(0)
+  })
 })

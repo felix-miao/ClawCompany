@@ -62,7 +62,7 @@ describe('类型安全性改进 - 新的类型定义', () => {
       return null
     }
     
-    const parsed = safeParse(mockConfig)
+    const parsed = safeParse<{ id: string; name: string; enabled: boolean }>(mockConfig)
     
     expect(parsed).not.toBeNull()
     if (parsed) {

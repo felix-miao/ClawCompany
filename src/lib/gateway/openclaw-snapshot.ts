@@ -3,12 +3,22 @@ import {
   TaskHistory,
   TaskPhase,
   TaskPhaseRecord,
+  TaskArtifact,
   TASK_PHASE_LABELS,
   TASK_PHASE_ORDER,
 } from '@/game/data/DashboardStore'
 
 import { HistoryMessage } from './client'
 import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
+
+export interface OpenClawArtifact {
+  type: 'html' | 'code' | 'image' | 'file' | 'markdown' | 'json' | 'url'
+  path?: string
+  url?: string
+  title: string
+  producedBy: string
+  producedAt: string
+}
 
 export interface OpenClawSessionDetails {
   sessionKey: string
@@ -28,6 +38,7 @@ export interface OpenClawSessionDetails {
   latestMessageRole: HistoryMessage['role'] | null
   latestMessageStatus: HistoryMessage['status'] | null
   history: HistoryMessage[]
+  artifacts: OpenClawArtifact[]
 }
 
 export interface OpenClawSnapshotMetrics {
@@ -120,6 +131,77 @@ function deriveLatestThought(history: HistoryMessage[]): string | null {
 function deriveLatestResultSummary(history: HistoryMessage[]): string | null {
   const latestToolResult = findLatestMessage(history, message => message.role === 'toolResult')
   return latestToolResult?.content?.slice(0, 200) || null
+}
+
+const FILE_EXT_ARTIFACT_TYPE: Record<string, OpenClawArtifact['type']> = {
+  '.html': 'html',
+  '.htm': 'html',
+  '.css': 'code',
+  '.ts': 'code',
+  '.tsx': 'code',
+  '.js': 'code',
+  '.jsx': 'code',
+  '.py': 'code',
+  '.json': 'json',
+  '.md': 'markdown',
+  '.png': 'image',
+  '.jpg': 'image',
+  '.jpeg': 'image',
+  '.gif': 'image',
+  '.svg': 'image',
+}
+
+function detectArtifactType(filePath: string): OpenClawArtifact['type'] {
+  const ext = filePath.toLowerCase().match(/\.[^.]+$/)?.[0] || ''
+  return FILE_EXT_ARTIFACT_TYPE[ext] || 'file'
+}
+
+function extractFilePath(content: string): string | null {
+  const patterns = [
+    /已写入文件:\s*(.+)/,
+    /已写入[^:]*:\s*(.+)/,
+    /Wrote file:\s*(.+)/,
+    /written:\s*(.+)/,
+    /Created:\s*(.+)/,
+    /Saved:\s*(.+)/,
+    /File:\s*(.+)/,
+  ]
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern)
+    if (match && match[1]) {
+      const path = match[1].trim()
+      if (path.startsWith('/') || path.includes(':')) {
+        return path
+      }
+    }
+  }
+
+  return null
+}
+
+function deriveArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
+  const artifactMap = new Map<string, OpenClawArtifact>()
+
+  for (const message of history) {
+    if (message.role !== 'toolResult') continue
+
+    const filePath = extractFilePath(message.content)
+    if (!filePath) continue
+
+    if (artifactMap.has(filePath)) continue
+
+    const fileName = filePath.split('/').pop() || filePath
+    artifactMap.set(filePath, {
+      type: detectArtifactType(filePath),
+      path: filePath,
+      title: fileName,
+      producedBy: agentId,
+      producedAt: new Date().toISOString(),
+    })
+  }
+
+  return Array.from(artifactMap.values())
 }
 
 function createPhaseRecords(createdAt: number): TaskPhaseRecord[] {
@@ -281,6 +363,7 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
         latestMessageRole: latestMessage?.role ?? null,
         latestMessageStatus: latestMessage?.status ?? null,
         history,
+        artifacts: deriveArtifacts(history, session.agentId),
       }
     })
 
