@@ -23,6 +23,7 @@ export interface GatewaySession {
   label: string
   model: string
   status: string
+  startedAt?: string
   endedAt: string | null
   usage?: {
     promptTokens?: number

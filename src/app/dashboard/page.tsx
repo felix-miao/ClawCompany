@@ -10,8 +10,7 @@ import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetri
 import { TraditionalTaskView } from "@/components/dashboard/TraditionalTaskView";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
-import { useOpenClawSessions } from "@/hooks/useOpenClawSessions";
-import { useOpenClawMetrics } from "@/hooks/useOpenClawMetrics";
+import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
 import { Game, startGame } from "@/game";
 import { DashboardStore } from "@/game/data/DashboardStore";
 import { GameEvent } from "@/game/types/GameEvents";
@@ -23,9 +22,13 @@ import { Logger } from "@/lib/core/logger";
 export default function DashboardPage() {
   const store = useMemo(() => new DashboardStore(), []);
   const { isConnected, isReconnecting } = useEventStream(store);
-  const { agents, events, stats, taskHistory } = useDashboardStore(store);
-  useOpenClawSessions(store);
-  const { metrics: openClawMetrics, source: openClawSource } = useOpenClawMetrics();
+  const { events, stats } = useDashboardStore(store);
+  const {
+    agents,
+    tasks: taskHistory,
+    metrics: openClawMetrics,
+    connected: snapshotConnected,
+  } = useOpenClawSnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
   const [isGameLoading, setIsGameLoading] = useState(true);
@@ -140,6 +143,9 @@ export default function DashboardPage() {
               {isConnected ? "Connected" : isReconnecting ? "Reconnecting..." : "Disconnected"}
             </span>
           </div>
+          <div className="text-xs text-gray-500">
+            OpenClaw: {snapshotConnected ? "Live" : "Fallback"}
+          </div>
           <div className="flex items-center gap-2 rounded-full border border-dark-100 bg-dark-50/40 p-1">
             <button
               type="button"
@@ -234,7 +240,7 @@ export default function DashboardPage() {
             <PerformanceMetricsPanel
               metricsAggregator={metricsAggregator}
               openClawMetrics={openClawMetrics}
-              openClawSource={openClawSource}
+              openClawSource={openClawMetrics?.source ?? null}
             />
           </div>
         </aside>

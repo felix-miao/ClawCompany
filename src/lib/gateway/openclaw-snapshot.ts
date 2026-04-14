@@ -1,0 +1,308 @@
+import {
+  AgentInfo,
+  TaskHistory,
+  TaskPhase,
+  TaskPhaseRecord,
+  TASK_PHASE_LABELS,
+  TASK_PHASE_ORDER,
+} from '@/game/data/DashboardStore'
+
+import { HistoryMessage } from './client'
+import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
+
+export interface OpenClawSessionDetails {
+  sessionKey: string
+  agentId: string
+  agentName: string
+  role: string
+  label: string
+  status: string
+  startedAt: string
+  endedAt: string | null
+  currentWork: string | null
+  latestThought: string | null
+  latestResultSummary: string | null
+  model: string
+  usage?: GatewaySession['usage']
+  latestMessage: string | null
+  latestMessageRole: HistoryMessage['role'] | null
+  latestMessageStatus: HistoryMessage['status'] | null
+  history: HistoryMessage[]
+}
+
+export interface OpenClawSnapshotMetrics {
+  agents: {
+    total: number
+    active: number
+    idle: number
+    byRole: Record<string, number>
+  }
+  sessions: {
+    total: number
+    active: number
+    completed: number
+    failed: number
+  }
+  tokens: {
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+  }
+  source: 'gateway' | 'fallback'
+  fetchedAt: string
+}
+
+export interface OpenClawSnapshot {
+  agents: AgentInfo[]
+  sessions: OpenClawSessionDetails[]
+  tasks: TaskHistory[]
+  metrics: OpenClawSnapshotMetrics
+  connected: boolean
+  fetchedAt: string
+}
+
+const HISTORY_LIMIT = 20
+
+const ROLE_LABELS: Record<string, string> = {
+  pm: 'PM',
+  dev: 'Developer',
+  review: 'Reviewer',
+  tester: 'Tester',
+}
+
+const ROLE_TO_PHASE: Record<string, TaskPhase> = {
+  pm: 'pm_analysis',
+  dev: 'developer',
+  review: 'reviewer',
+  tester: 'tester',
+}
+
+function normalizeRole(role: string): string {
+  return role.trim().toLowerCase()
+}
+
+function phaseForRole(role: string): TaskPhase {
+  return ROLE_TO_PHASE[normalizeRole(role)] ?? 'developer'
+}
+
+function formatRoleLabel(role: string): string {
+  return ROLE_LABELS[normalizeRole(role)] ?? role ?? 'Agent'
+}
+
+function findLatestMessage(
+  history: HistoryMessage[],
+  predicate: (message: HistoryMessage) => boolean,
+): HistoryMessage | null {
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const message = history[index]
+    if (message.content.trim().length > 0 && predicate(message)) {
+      return message
+    }
+  }
+
+  return null
+}
+
+function isSessionActive(session: Pick<OpenClawSessionDetails, 'endedAt' | 'status'> | Pick<GatewaySession, 'endedAt' | 'status'>): boolean {
+  return session.endedAt === null || session.status.includes('running')
+}
+
+function deriveCurrentTask(session: GatewaySession, history: HistoryMessage[]): string | null {
+  const latestAssistant = findLatestMessage(history, message => message.role === 'assistant')
+  return session.label || latestAssistant?.content || null
+}
+
+function deriveLatestThought(history: HistoryMessage[]): string | null {
+  const latestAssistant = findLatestMessage(history, message => message.role === 'assistant')
+  return latestAssistant?.content?.slice(0, 200) || null
+}
+
+function deriveLatestResultSummary(history: HistoryMessage[]): string | null {
+  const latestToolResult = findLatestMessage(history, message => message.role === 'toolResult')
+  return latestToolResult?.content?.slice(0, 200) || null
+}
+
+function createPhaseRecords(createdAt: number): TaskPhaseRecord[] {
+  return TASK_PHASE_ORDER.map((phase) => ({
+    phase,
+    label: TASK_PHASE_LABELS[phase],
+    agentId: phase === 'submitted' ? 'user' : null,
+    agentName: phase === 'submitted' ? 'User' : null,
+    startTime: phase === 'submitted' ? createdAt : undefined,
+    endTime: phase === 'submitted' ? createdAt : undefined,
+    status: phase === 'submitted' ? 'completed' : 'pending',
+  }))
+}
+
+function applyPhaseState(phases: TaskPhaseRecord[], currentPhase: TaskPhase, agentId: string, agentName: string, timestamp: number, finished: boolean): TaskPhaseRecord[] {
+  return phases.map((phase) => {
+    const phaseIndex = TASK_PHASE_ORDER.indexOf(phase.phase)
+    const currentIndex = TASK_PHASE_ORDER.indexOf(currentPhase)
+
+    if (phase.phase === currentPhase) {
+      return {
+        ...phase,
+        agentId,
+        agentName,
+        startTime: phase.startTime ?? timestamp,
+        endTime: finished ? timestamp : phase.endTime,
+        status: finished ? 'completed' : 'in_progress',
+      }
+    }
+
+    if (phaseIndex < currentIndex) {
+      return {
+        ...phase,
+        endTime: phase.endTime ?? timestamp,
+        status: phase.status === 'pending' ? 'completed' : phase.status,
+      }
+    }
+
+    if (finished && phase.phase === 'done') {
+      return {
+        ...phase,
+        startTime: phase.startTime ?? timestamp,
+        endTime: timestamp,
+        status: 'completed',
+      }
+    }
+
+    return phase
+  })
+}
+
+function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
+  const now = session.endedAt ? Date.parse(session.endedAt) : Date.now()
+  const phase = phaseForRole(session.role)
+  const agentName = session.agentName || formatRoleLabel(session.role)
+  const active = isSessionActive(session)
+  const failed = session.status === 'failed'
+  const latestMessage = session.latestMessage?.trim() || session.label || session.sessionKey
+  const phases = applyPhaseState(
+    createPhaseRecords(now),
+    failed || !active ? (failed ? phase : 'done') : phase,
+    session.agentId,
+    agentName,
+    now,
+    !active,
+  )
+
+  return {
+    taskId: session.sessionKey,
+    description: session.label || latestMessage,
+    phases,
+    currentPhase: failed || !active ? (failed ? phase : 'done') : phase,
+    currentAgentId: active ? session.agentId : null,
+    currentAgentName: active ? agentName : null,
+    createdAt: now,
+    updatedAt: now,
+    completedAt: active ? undefined : now,
+    result: failed ? 'failure' : !active ? 'success' : undefined,
+    status: failed ? 'failed' : active ? 'in_progress' : 'completed',
+    recentEvents: [],
+    failureSummary: failed ? (session.latestMessage || 'Session failed') : undefined,
+    lastReviewFeedback: failed ? session.latestMessage || undefined : undefined,
+    lastApproved: !active && !failed,
+  }
+}
+
+function buildMetrics(agents: AgentInfo[], sessions: GatewaySession[], fetchedAt: string): OpenClawSnapshotMetrics {
+  const activeSessions = sessions.filter(session => session.endedAt === null || session.status.includes('running'))
+  const byRole: Record<string, number> = {}
+  for (const agent of agents) {
+    byRole[agent.role] = (byRole[agent.role] ?? 0) + 1
+  }
+
+  return {
+    agents: {
+      total: agents.length,
+      active: agents.filter(agent => agent.status !== 'idle').length,
+      idle: agents.filter(agent => agent.status === 'idle').length,
+      byRole,
+    },
+    sessions: {
+      total: sessions.length,
+      active: activeSessions.length,
+      completed: sessions.filter(session => session.status === 'completed').length,
+      failed: sessions.filter(session => session.status === 'failed').length,
+    },
+    tokens: sessions.reduce((acc, session) => ({
+      promptTokens: acc.promptTokens + (session.usage?.promptTokens ?? 0),
+      completionTokens: acc.completionTokens + (session.usage?.completionTokens ?? 0),
+      totalTokens: acc.totalTokens + (session.usage?.totalTokens ?? 0),
+    }), {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    }),
+    source: 'gateway',
+    fetchedAt,
+  }
+}
+
+export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<OpenClawSnapshot> {
+  await sync['client'].connect()
+  try {
+    const [agents, sessions] = await Promise.all([
+      sync.fetchAgents(),
+      sync.fetchSessions(),
+    ])
+
+    const histories = await Promise.all(
+      sessions.map(async (session) => {
+        const history = await sync['client'].sessions_history(session.key, HISTORY_LIMIT).catch(() => [])
+        return [session.key, history] as const
+      })
+    )
+
+    const historyMap = new Map(histories)
+    const mappedAgents = sync.mapToAgentInfo(agents, sessions)
+    const sessionDetails: OpenClawSessionDetails[] = sessions.map((session) => {
+      const history = historyMap.get(session.key) ?? []
+      const latestMessage = findLatestMessage(history, () => true)
+      const agent = agents.find(item => item.id === session.agentId)
+      const role = mappedAgents.find(item => item.id === session.agentId)?.role ?? 'Developer'
+
+      return {
+        sessionKey: session.key,
+        agentId: session.agentId,
+        agentName: agent?.identity?.name || agent?.name || session.agentId,
+        role,
+        label: session.label,
+        status: session.status,
+        startedAt: session.startedAt || new Date().toISOString(),
+        endedAt: session.endedAt,
+        currentWork: deriveCurrentTask(session, history),
+        latestThought: deriveLatestThought(history),
+        latestResultSummary: deriveLatestResultSummary(history),
+        model: session.model,
+        usage: session.usage,
+        latestMessage: latestMessage?.content ?? null,
+        latestMessageRole: latestMessage?.role ?? null,
+        latestMessageStatus: latestMessage?.status ?? null,
+        history,
+      }
+    })
+
+    const agentsWithCurrentTask = mappedAgents.map((agent) => {
+      const activeSession = sessionDetails.find(session => session.agentId === agent.id && isSessionActive(session))
+      return {
+        ...agent,
+        status: activeSession ? 'working' : agent.status,
+        currentTask: activeSession?.currentWork ?? activeSession?.latestThought ?? activeSession?.label ?? null,
+      } satisfies AgentInfo
+    })
+
+    const fetchedAt = new Date().toISOString()
+    return {
+      agents: agentsWithCurrentTask,
+      sessions: sessionDetails,
+      tasks: sessionDetails.map(deriveTaskHistory).sort((a, b) => b.updatedAt - a.updatedAt),
+      metrics: buildMetrics(agentsWithCurrentTask, sessions, fetchedAt),
+      connected: true,
+      fetchedAt,
+    }
+  } finally {
+    await sync['client'].disconnect().catch(() => {})
+  }
+}

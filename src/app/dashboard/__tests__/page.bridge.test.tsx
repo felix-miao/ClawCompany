@@ -43,12 +43,17 @@ jest.mock('@/hooks/useDashboardStore', () => ({
   })),
 }))
 
-jest.mock('@/hooks/useOpenClawSessions', () => ({
-  useOpenClawSessions: jest.fn(),
-}))
-
-jest.mock('@/hooks/useOpenClawMetrics', () => ({
-  useOpenClawMetrics: jest.fn(() => ({ metrics: null, source: 'none' })),
+jest.mock('@/hooks/useOpenClawSnapshot', () => ({
+  useOpenClawSnapshot: jest.fn(() => ({
+    agents: [],
+    sessions: [],
+    tasks: [],
+    metrics: null,
+    connected: true,
+    loading: false,
+    error: null,
+    refresh: jest.fn(),
+  })),
 }))
 
 jest.mock('@/game/data/DashboardStore', () => ({

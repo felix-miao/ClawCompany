@@ -51,7 +51,7 @@ describe('SessionSyncService', () => {
   describe('fetchSessions', () => {
     it('should call sessions.list and return sessions', async () => {
       const sessions: GatewaySession[] = [
-        { key: 's1', agentId: 'sidekick-claw', label: 'test', model: 'glm-5', status: 'running', endedAt: null },
+        { key: 's1', agentId: 'sidekick-claw', label: 'test', model: 'glm-5', status: 'running', startedAt: '2026-04-14T00:00:00Z', endedAt: null },
       ]
       mockClient.call.mockResolvedValue({ sessions, defaults: {} })
 
