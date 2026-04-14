@@ -164,8 +164,8 @@ Dashboard
 
 ##### 2. Timeline 真正可用
 
-- [ ] 从 OpenClaw session/history 派生真实 timeline，而不是 phase 占位骨架
-- [ ] Timeline 每张卡至少展示：
+- [code-complete] 从 OpenClaw session/history 派生真实 timeline，而不是 phase 占位骨架
+- [code-complete] Timeline 每张卡至少展示：
   - 当前 owner agent
   - 当前状态
   - 最新输出摘要

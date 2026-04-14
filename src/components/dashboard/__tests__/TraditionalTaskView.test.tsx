@@ -611,6 +611,15 @@ describe('TraditionalTaskView', () => {
     expect(screen.getByText('Recent History')).toBeInTheDocument();
   });
 
+  it('should display latest output summary on task card from session history', () => {
+    const taskWithSummary = buildTask({
+      latestResultSummary: '已写入文件: /generated/index.html',
+    });
+    render(<TraditionalTaskView tasks={[taskWithSummary]} />);
+
+    expect(screen.getByText(/已写入文件/)).toBeInTheDocument();
+  });
+
   it('should display stage filter chips for bottleneck identification', () => {
     const tasks = [
       buildTask({ taskId: 'task-1', currentPhase: 'pm_analysis', status: 'in_progress', description: 'PM Task' }),

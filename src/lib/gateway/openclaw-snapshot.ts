@@ -8,6 +8,15 @@ import {
   TASK_PHASE_ORDER,
 } from '@/game/data/DashboardStore'
 
+import {
+  GameEvent,
+  TaskVisualizationCompletedEvent,
+  TaskVisualizationHandoverEvent,
+  TaskVisualizationProgressEvent,
+  TaskVisualizationFailedEvent,
+  SessionProgressEvent,
+} from '@/game/types/GameEvents'
+
 import { HistoryMessage } from './client'
 import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
 
@@ -294,19 +303,148 @@ function applyPhaseState(phases: TaskPhaseRecord[], currentPhase: TaskPhase, age
   })
 }
 
+function parseHistoryTimestamp(timestamp?: string | null): number | null {
+  if (!timestamp) {
+    return null
+  }
+
+  const parsed = Date.parse(timestamp)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+function shortenHistoryContent(content: string, maxLength: number = 80): string {
+  const normalized = content.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= maxLength) {
+    return normalized
+  }
+
+  return `${normalized.slice(0, maxLength - 1)}…`
+}
+
+function normalizeHandoverTarget(rawTarget: string): string {
+  const normalized = rawTarget.trim().toLowerCase()
+  if (normalized.includes('review')) return 'reviewer'
+  if (normalized.includes('test')) return 'tester'
+  if (normalized.includes('dev')) return 'developer'
+  if (normalized.includes('pm')) return 'pm'
+  return normalized || 'unknown'
+}
+
+function deriveRecentEvents(
+  session: Pick<OpenClawSessionDetails, 'sessionKey' | 'agentId'>,
+  history: HistoryMessage[],
+): GameEvent[] {
+  const events = history.flatMap((message) => {
+    const content = message.content.trim()
+    const timestamp = parseHistoryTimestamp(message.timestamp)
+
+    if (!content || timestamp === null) {
+      return []
+    }
+
+    if (message.role === 'assistant') {
+      const handoverMatch = content.match(/交接给\s*([a-zA-Z0-9_-]+)/i)
+        ?? content.match(/(?:passed to|handover(?: to)?)\s*([a-zA-Z0-9_-]+)/i)
+      const isProgress = message.status === 'running'
+        || /(正在|进行中|处理中|working|implementing|verifying|testing)/i.test(content)
+
+      if (handoverMatch) {
+        return [{
+          type: 'task:handover',
+          timestamp,
+          fromAgentId: session.agentId,
+          toAgentId: normalizeHandoverTarget(handoverMatch[1] ?? ''),
+          taskId: session.sessionKey,
+          description: shortenHistoryContent(content, 100),
+        } satisfies TaskVisualizationHandoverEvent]
+      }
+
+      if (isProgress) {
+        return [{
+          type: 'task:progress',
+          timestamp,
+          agentId: session.agentId,
+          taskId: session.sessionKey,
+          progress: 0,
+          currentAction: shortenHistoryContent(content, 100),
+        } satisfies TaskVisualizationProgressEvent]
+      }
+
+      return [{
+        type: 'session:progress',
+        timestamp,
+        sessionKey: session.sessionKey,
+        progress: 0,
+        message: shortenHistoryContent(content, 100),
+      } satisfies SessionProgressEvent]
+    }
+
+    if (message.role === 'toolResult') {
+      if (message.status === 'failed') {
+        return [{
+          type: 'task:failed',
+          timestamp,
+          agentId: session.agentId,
+          taskId: session.sessionKey,
+          error: shortenHistoryContent(content, 160),
+        } satisfies TaskVisualizationFailedEvent]
+      }
+
+      if (extractFilePath(content)) {
+        return [{
+          type: 'task:completed',
+          timestamp,
+          agentId: session.agentId,
+          taskId: session.sessionKey,
+          result: 'success',
+          duration: 0,
+        } satisfies TaskVisualizationCompletedEvent]
+      }
+
+      return [{
+        type: 'session:progress',
+        timestamp,
+        sessionKey: session.sessionKey,
+        progress: 0,
+        message: shortenHistoryContent(content, 100),
+      } satisfies SessionProgressEvent]
+    }
+
+    return []
+  })
+
+  return events.slice(-5)
+}
+
+function deriveUpdatedAt(session: OpenClawSessionDetails): number {
+  for (let index = session.history.length - 1; index >= 0; index -= 1) {
+    const timestamp = parseHistoryTimestamp(session.history[index]?.timestamp)
+    if (timestamp !== null) {
+      return timestamp
+    }
+  }
+
+  return parseHistoryTimestamp(session.endedAt)
+    ?? parseHistoryTimestamp(session.startedAt)
+    ?? 0
+}
+
 function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
-  const now = session.endedAt ? Date.parse(session.endedAt) : Date.now()
+  const derivedUpdatedAt = deriveUpdatedAt(session)
+  const startTime = parseHistoryTimestamp(session.startedAt) ?? derivedUpdatedAt
+  const endedTime = parseHistoryTimestamp(session.endedAt)
   const phase = phaseForRole(session.role)
   const agentName = session.agentName || formatRoleLabel(session.role)
   const active = isSessionActive(session)
   const failed = session.status === 'failed'
   const latestMessage = session.latestMessage?.trim() || session.label || session.sessionKey
+  const recentEvents = deriveRecentEvents(session, session.history ?? [])
   const phases = applyPhaseState(
-    createPhaseRecords(now),
+    createPhaseRecords(startTime),
     failed || !active ? (failed ? phase : 'done') : phase,
     session.agentId,
     agentName,
-    now,
+    derivedUpdatedAt,
     !active,
   )
 
@@ -315,15 +453,16 @@ function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
     description: session.label || latestMessage,
     phases,
     currentPhase: failed || !active ? (failed ? phase : 'done') : phase,
-    currentAgentId: active ? session.agentId : null,
-    currentAgentName: active ? agentName : null,
-    createdAt: now,
-    updatedAt: now,
-    completedAt: active ? undefined : now,
+    currentAgentId: session.agentId,
+    currentAgentName: agentName,
+    createdAt: startTime,
+    updatedAt: derivedUpdatedAt,
+    completedAt: endedTime ?? undefined,
     result: failed ? 'failure' : !active ? 'success' : undefined,
     status: failed ? 'failed' : active ? 'in_progress' : 'completed',
-    recentEvents: [],
+    recentEvents,
     failureSummary: failed ? (session.latestMessage || 'Session failed') : undefined,
+    latestResultSummary: session.latestResultSummary ?? undefined,
     lastReviewFeedback: failed ? session.latestMessage || undefined : undefined,
     lastApproved: !active && !failed,
   }

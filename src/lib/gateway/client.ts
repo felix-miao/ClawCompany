@@ -27,6 +27,7 @@ export interface HistoryMessage {
   role: 'user' | 'assistant' | 'toolResult'
   content: string
   status?: 'pending' | 'running' | 'completed' | 'failed'
+  timestamp?: string
 }
 
 export interface SendOptions {

@@ -209,6 +209,11 @@ function TaskListItem({ task, selectedTaskId, onSelect, isHistory }: TaskListIte
         <span className="truncate">{task.currentAgentName ?? TASK_PHASE_LABELS[task.currentPhase]}</span>
         <span>{formatTime(task.updatedAt)}</span>
       </div>
+      {task.latestResultSummary && (
+        <div className="mt-1.5 text-xs text-primary-300 truncate" title={task.latestResultSummary}>
+          {task.latestResultSummary}
+        </div>
+      )}
       {getAttentionBadges(task).length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {getAttentionBadges(task).map((badge) => (

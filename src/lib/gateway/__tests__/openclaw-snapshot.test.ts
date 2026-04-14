@@ -381,7 +381,7 @@ describe('buildOpenClawSnapshot', () => {
       expect(devTask?.currentAgentName).toBe('Dev Claw')
     })
 
-    it('timeline shows latest output summary and update time from session', async () => {
+    it('timeline shows latest output summary and exact update time from session history', async () => {
       const sync = createSyncStub()
 
       const now = Date.now()
@@ -415,7 +415,102 @@ describe('buildOpenClawSnapshot', () => {
       const snapshot = await buildOpenClawSnapshot(sync as any)
 
       const task = snapshot.tasks[0]
-      expect(task.updatedAt).toBeGreaterThan(Date.parse(startTime))
+      expect(task.updatedAt).toBe(Date.parse(lastUpdateTime))
+      expect(task.latestResultSummary).toBe('已写入文件: /projects/utils.ts')
+      expect(task.currentAgentName).toBe('Dev Claw')
+    })
+
+    it('derives timeline recentEvents from timestamped session history with session trace metadata', async () => {
+      const sync = createSyncStub()
+
+      const startTime = '2026-04-14T06:00:00Z'
+      const progressTime = '2026-04-14T06:02:00Z'
+      const handoverTime = '2026-04-14T06:03:00Z'
+      const resultTime = '2026-04-14T06:05:00Z'
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-history',
+          agentId: 'dev-claw',
+          label: '实现 timeline 映射',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: startTime,
+          endedAt: resultTime,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '正在实现真实 timeline', status: 'running', timestamp: progressTime },
+        { role: 'assistant', content: '交接给 review-claw 做最终验证', status: 'running', timestamp: handoverTime },
+        { role: 'toolResult', content: '已写入文件: /projects/src/lib/gateway/openclaw-snapshot.ts', status: 'completed', timestamp: resultTime },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const task = snapshot.tasks[0]
+      expect(task.updatedAt).toBe(Date.parse(resultTime))
+      expect(task.currentAgentId).toBe('dev-claw')
+      expect(task.currentAgentName).toBe('Dev Claw')
+      expect(task.recentEvents).toEqual([
+        expect.objectContaining({
+          type: 'task:progress',
+          taskId: 'sess-history',
+          agentId: 'dev-claw',
+          timestamp: Date.parse(progressTime),
+        }),
+        expect.objectContaining({
+          type: 'task:handover',
+          taskId: 'sess-history',
+          fromAgentId: 'dev-claw',
+          toAgentId: 'reviewer',
+          timestamp: Date.parse(handoverTime),
+        }),
+        expect.objectContaining({
+          type: 'task:completed',
+          taskId: 'sess-history',
+          agentId: 'dev-claw',
+          timestamp: Date.parse(resultTime),
+        }),
+      ])
+    })
+
+    it('falls back to endedAt for timeline update time when history messages have no timestamps', async () => {
+      const sync = createSyncStub()
+
+      const startTime = '2026-04-14T07:00:00Z'
+      const endTime = '2026-04-14T07:12:00Z'
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-ended-at',
+          agentId: 'pm-claw',
+          label: '整理需求',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: startTime,
+          endedAt: endTime,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '需求已整理完成', status: 'completed' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.tasks[0].updatedAt).toBe(Date.parse(endTime))
+      expect(snapshot.tasks[0].currentAgentName).toBe('PM Claw')
     })
 
     it('timeline task displays sessionKey for debugging', async () => {

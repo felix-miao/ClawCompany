@@ -127,6 +127,7 @@ export interface TaskHistory {
   status: TaskExecutionStatus;
   recentEvents: GameEvent[];
   failureSummary?: string;
+  latestResultSummary?: string;
   iterationCount?: number;
   rejectionCount?: number;
   isInRework?: boolean;
