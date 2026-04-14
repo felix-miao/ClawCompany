@@ -9,6 +9,7 @@ import { ControlPanel } from "@/components/dashboard/ControlPanel";
 import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetricsPanel";
 import { TraditionalTaskView } from "@/components/dashboard/TraditionalTaskView";
 import { SessionArtifactsPanel } from "@/components/dashboard/SessionArtifactsPanel";
+import { SessionStatusPanel } from "@/components/dashboard/SessionStatusPanel";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
@@ -238,6 +239,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <AgentStatusPanel agents={agents} />
+            <SessionStatusPanel sessions={sessions} />
             <SessionArtifactsPanel sessions={sessions} />
             <EventLog events={events} />
             <PerformanceMetricsPanel

@@ -20,7 +20,7 @@ export interface OpenClawArtifact {
   producedAt: string
 }
 
-export type SessionCategory = 'running' | 'just-completed' | 'failed' | 'stuck'
+export type SessionCategory = 'running' | 'completed' | 'just-completed' | 'failed' | 'stuck'
 
 export interface OpenClawSessionDetails {
   sessionKey: string
@@ -141,6 +141,10 @@ function deriveCategory(session: OpenClawSessionDetails): SessionCategory {
   }
 
   if (session.status.includes('running') || session.status === 'pending') {
+    if (session.latestMessageStatus === 'running') {
+      return 'running'
+    }
+
     if (!isEnded && session.startedAt) {
       const startTime = Date.parse(session.startedAt)
       const now = Date.now()

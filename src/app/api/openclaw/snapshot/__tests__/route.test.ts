@@ -77,6 +77,8 @@ describe('/api/openclaw/snapshot', () => {
   })
 
   it('should derive current work from OpenClaw sessions and history', async () => {
+    const startedAt = new Date().toISOString()
+
     __mockSync.fetchAgents.mockResolvedValue([
       { id: 'sidekick-claw', name: 'PM', identity: { name: 'PM Claw' } },
     ])
@@ -87,7 +89,7 @@ describe('/api/openclaw/snapshot', () => {
         label: '用你的团队给我写一个网站出来',
         model: 'gpt-5',
         status: 'running',
-        startedAt: '2026-04-14T00:00:00Z',
+        startedAt,
         endedAt: null,
       },
     ])
@@ -114,11 +116,12 @@ describe('/api/openclaw/snapshot', () => {
       role: 'pm',
       label: '用你的团队给我写一个网站出来',
       status: 'running',
-      startedAt: '2026-04-14T00:00:00Z',
+      startedAt,
       endedAt: null,
       currentWork: '用你的团队给我写一个网站出来',
       latestThought: '已收到，PM 正在分析...',
       latestResultSummary: '已生成初始任务拆分',
+      category: 'running',
     })
     expect(data.tasks).toHaveLength(1)
     expect(data.tasks[0].taskId).toBe('sess-1')

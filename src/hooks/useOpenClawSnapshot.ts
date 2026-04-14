@@ -3,35 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
-import { OpenClawSnapshotMetrics } from '@/lib/gateway/openclaw-snapshot'
-
-interface OpenClawArtifact {
-  type: 'html' | 'code' | 'image' | 'file' | 'markdown' | 'json' | 'url'
-  path?: string
-  url?: string
-  title: string
-  producedBy: string
-  producedAt: string
-}
-
-interface OpenClawSessionDetails {
-  sessionKey: string
-  agentId: string
-  agentName: string
-  role: string
-  label: string
-  model: string
-  status: string
-  startedAt: string
-  endedAt: string | null
-  currentWork: string | null
-  latestThought: string | null
-  latestResultSummary: string | null
-  latestMessage: string | null
-  latestMessageRole: 'user' | 'assistant' | 'toolResult' | null
-  latestMessageStatus: 'pending' | 'running' | 'completed' | 'failed' | null
-  artifacts: OpenClawArtifact[]
-}
+import type { OpenClawSessionDetails, OpenClawSnapshotMetrics } from '@/lib/gateway/openclaw-snapshot'
 
 interface SnapshotResponse {
   success: boolean
