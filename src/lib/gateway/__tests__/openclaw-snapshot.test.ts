@@ -177,4 +177,148 @@ describe('buildOpenClawSnapshot', () => {
 
     expect(snapshot.sessions[0].artifacts).toHaveLength(0)
   })
+
+  describe('session classification', () => {
+    it('classifies running session as running', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-running',
+          agentId: 'dev-claw',
+          label: 'Running task',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: new Date().toISOString(),
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].category).toBe('running')
+    })
+
+    it('classifies failed session as failed', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-failed',
+          agentId: 'dev-claw',
+          label: 'Failed task',
+          model: 'gpt-5',
+          status: 'failed',
+          startedAt: '2026-04-14T04:00:00Z',
+          endedAt: '2026-04-14T04:05:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].category).toBe('failed')
+    })
+
+    it('classifies recently completed session (within 5min) as just-completed', async () => {
+      const sync = createSyncStub()
+
+      const now = new Date()
+      const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000).toISOString()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-recent',
+          agentId: 'dev-claw',
+          label: 'Recent task',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T05:00:00Z',
+          endedAt: twoMinutesAgo,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].category).toBe('just-completed')
+    })
+
+    it('classifies older completed session as completed', async () => {
+      const sync = createSyncStub()
+
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-old',
+          agentId: 'dev-claw',
+          label: 'Old task',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T06:00:00Z',
+          endedAt: tenMinutesAgo,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].category).toBe('completed')
+    })
+
+    it('classifies long-running session without recent activity as stuck', async () => {
+      const sync = createSyncStub()
+
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-stuck',
+          agentId: 'dev-claw',
+          label: 'Stuck task',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: fifteenMinutesAgo,
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].category).toBe('stuck')
+    })
+  })
 })

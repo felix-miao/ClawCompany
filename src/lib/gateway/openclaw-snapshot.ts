@@ -20,6 +20,8 @@ export interface OpenClawArtifact {
   producedAt: string
 }
 
+export type SessionCategory = 'running' | 'just-completed' | 'failed' | 'stuck'
+
 export interface OpenClawSessionDetails {
   sessionKey: string
   agentId: string
@@ -39,6 +41,7 @@ export interface OpenClawSessionDetails {
   latestMessageStatus: HistoryMessage['status'] | null
   history: HistoryMessage[]
   artifacts: OpenClawArtifact[]
+  category: SessionCategory
 }
 
 export interface OpenClawSnapshotMetrics {
@@ -116,6 +119,40 @@ function findLatestMessage(
 
 function isSessionActive(session: Pick<OpenClawSessionDetails, 'endedAt' | 'status'> | Pick<GatewaySession, 'endedAt' | 'status'>): boolean {
   return session.endedAt === null || session.status.includes('running')
+}
+
+function deriveCategory(session: OpenClawSessionDetails): SessionCategory {
+  const isEnded = session.endedAt !== null
+
+  if (session.status === 'failed') {
+    return 'failed'
+  }
+
+  if (session.status === 'completed' || session.status === 'done') {
+    if (isEnded) {
+      const endedTime = Date.parse(session.endedAt)
+      const now = Date.now()
+      const fiveMinutesAgo = now - 5 * 60 * 1000
+      if (endedTime >= fiveMinutesAgo) {
+        return 'just-completed'
+      }
+    }
+    return 'completed'
+  }
+
+  if (session.status.includes('running') || session.status === 'pending') {
+    if (!isEnded && session.startedAt) {
+      const startTime = Date.parse(session.startedAt)
+      const now = Date.now()
+      const threshold = 10 * 60 * 1000
+      if (now - startTime > threshold) {
+        return 'stuck'
+      }
+    }
+    return 'running'
+  }
+
+  return 'just-completed'
 }
 
 function deriveCurrentTask(session: GatewaySession, history: HistoryMessage[]): string | null {
@@ -367,6 +404,11 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
       }
     })
 
+    const sessionDetailsWithCategory = sessionDetails.map(session => ({
+      ...session,
+      category: deriveCategory(session),
+    }))
+
     const agentsWithCurrentTask = mappedAgents.map((agent) => {
       const activeSession = sessionDetails.find(session => session.agentId === agent.id && isSessionActive(session))
       return {
@@ -379,8 +421,8 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
     const fetchedAt = new Date().toISOString()
     return {
       agents: agentsWithCurrentTask,
-      sessions: sessionDetails,
-      tasks: sessionDetails.map(deriveTaskHistory).sort((a, b) => b.updatedAt - a.updatedAt),
+      sessions: sessionDetailsWithCategory,
+      tasks: sessionDetailsWithCategory.map(deriveTaskHistory).sort((a, b) => b.updatedAt - a.updatedAt),
       metrics: buildMetrics(agentsWithCurrentTask, sessions, fetchedAt),
       connected: true,
       fetchedAt,

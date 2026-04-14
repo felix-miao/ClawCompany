@@ -148,7 +148,7 @@ Dashboard
   - `currentWork`
   - `latestThought`
   - `latestResultSummary`
-- [ ] 为每个 session 派生输出产物：
+- [code-complete] 为每个 session 派生输出产物：
   - `artifacts[]`
   - `artifact.type`
   - `artifact.path`
@@ -156,7 +156,7 @@ Dashboard
   - `artifact.title`
   - `artifact.producedBy`
   - `artifact.producedAt`
-- [ ] 区分：
+- [code-complete] 区分：
   - 正在运行的 session
   - 刚完成的 session
   - 失败的 session
