@@ -45,6 +45,23 @@ export default function DashboardPage() {
     [sessions, selectedSessionKey]
   );
 
+  const selectSessionByTaskId = useCallback(
+    (taskId: string) => {
+      setSelectedSessionKey(taskId);
+    },
+    []
+  );
+
+  const selectSessionByAgentId = useCallback(
+    (agentId: string) => {
+      const agentSession = sessions.find(s => s.agentId === agentId);
+      if (agentSession) {
+        setSelectedSessionKey(agentSession.sessionKey);
+      }
+    },
+    [sessions]
+  );
+
   const metricsAggregator = useMemo(() => {
     const perfMonitor = new PerformanceMonitor();
     const errorTracker = new ErrorTracker();
@@ -235,7 +252,7 @@ export default function DashboardPage() {
               </div>
             </>
           ) : (
-            <TraditionalTaskView tasks={taskHistory} onSelectTask={setSelectedSessionKey} />
+            <TraditionalTaskView tasks={taskHistory} onSelectTask={selectSessionByTaskId} />
           )}
         </div>
 
@@ -251,7 +268,7 @@ export default function DashboardPage() {
                 onClose={() => setSelectedSessionKey(null)}
               />
             )}
-            <AgentStatusPanel agents={agents} />
+            <AgentStatusPanel agents={agents} onSelectAgent={selectSessionByAgentId} />
             <SessionStatusPanel
               sessions={sessions}
               selectedSessionKey={selectedSessionKey}

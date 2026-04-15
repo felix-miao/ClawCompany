@@ -28,9 +28,12 @@ const ROLE_EMOJI: Record<string, string> = {
 
 interface AgentStatusPanelProps {
   agents: AgentInfo[];
+  onSelectAgent?: (agentId: string) => void;
 }
 
-export function AgentStatusPanel({ agents }: AgentStatusPanelProps) {
+export function AgentStatusPanel({ agents, onSelectAgent }: AgentStatusPanelProps) {
+  const isClickable = onSelectAgent !== undefined;
+
   return (
     <div className="glass rounded-xl p-3">
       <h2 className="text-sm font-bold gradient-text mb-2">Agent Status</h2>
@@ -38,7 +41,11 @@ export function AgentStatusPanel({ agents }: AgentStatusPanelProps) {
         {agents.map(agent => (
           <div
             key={agent.id}
-            className="bg-dark-50/50 rounded-lg p-2.5 border border-dark-100/20"
+            data-testid={`agent-card-${agent.id}`}
+            onClick={() => onSelectAgent?.(agent.id)}
+            className={`bg-dark-50/50 rounded-lg p-2.5 border border-dark-100/20 ${
+              isClickable ? 'cursor-pointer hover:border-dark-50 hover:bg-dark-50/70 transition-colors' : ''
+            }`}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

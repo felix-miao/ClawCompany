@@ -176,9 +176,9 @@ Dashboard
 
 ##### 3. Session Inspector
 
-- [ ] 点击 agent / timeline task 后，右侧出现 Session Inspector
-- [ ] 展示最近 history 消息
-- [ ] 展示最后一条 assistant 输出
+- [code-complete] 点击 agent / timeline task 后，右侧出现 Session Inspector
+- [code-complete] 展示最近 history 消息
+- [code-complete] 展示最后一条 assistant 输出
 - [ ] 展示最后一条 tool / file / result 信息
 - [ ] 展示当前 session 原始状态，方便 debug
 

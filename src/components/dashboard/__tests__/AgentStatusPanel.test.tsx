@@ -69,4 +69,41 @@ describe('AgentStatusPanel', () => {
     const statusBadges = container.querySelectorAll('[data-status]');
     expect(statusBadges.length).toBeGreaterThan(0);
   });
+
+  it('should call onSelectAgent when agent card is clicked', () => {
+    const onSelectAgent = jest.fn();
+    render(<AgentStatusPanel agents={mockAgents} onSelectAgent={onSelectAgent} />);
+
+    const aliceCard = screen.getByTestId('agent-card-alice');
+    aliceCard.click();
+
+    expect(onSelectAgent).toHaveBeenCalledWith('alice');
+  });
+
+  it('should call onSelectAgent with correct agentId for each agent', () => {
+    const onSelectAgent = jest.fn();
+    render(<AgentStatusPanel agents={mockAgents} onSelectAgent={onSelectAgent} />);
+
+    const bobCard = screen.getByTestId('agent-card-bob');
+    bobCard.click();
+
+    expect(onSelectAgent).toHaveBeenCalledWith('bob');
+  });
+
+  it('should apply clickable styling when onSelectAgent is provided', () => {
+    const onSelectAgent = jest.fn();
+    const { container } = render(<AgentStatusPanel agents={mockAgents} onSelectAgent={onSelectAgent} />);
+
+    const clickableCards = container.querySelectorAll('[data-testid^="agent-card-"]');
+    expect(clickableCards.length).toBe(4);
+  });
+
+  it('should not throw when onSelectAgent is not provided', () => {
+    const { container } = render(<AgentStatusPanel agents={mockAgents} />);
+
+    expect(() => {
+      const cards = container.querySelectorAll('[class*="rounded-lg"]');
+      cards[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }).not.toThrow();
+  });
 });

@@ -21,7 +21,31 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
       { id: 'review-agent', name: 'Reviewer Claw', role: 'Code Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
       { id: 'test-agent', name: 'Tester Claw', role: 'QA Engineer', status: 'idle', emotion: 'neutral', currentTask: null },
     ],
-    sessions: [],
+    sessions: [
+      {
+        sessionKey: 'sess-1',
+        agentId: 'pm-agent',
+        agentName: 'PM Claw',
+        role: 'pm',
+        label: 'Test session label',
+        status: 'running',
+        startedAt: '2026-04-14T05:00:00Z',
+        endedAt: null,
+        currentWork: 'Working on something',
+        latestThought: 'Thinking about stuff',
+        latestResultSummary: 'Result summary',
+        model: 'gpt-5.4',
+        latestMessage: 'This is the latest assistant message',
+        latestMessageRole: 'assistant',
+        latestMessageStatus: 'completed',
+        history: [
+          { role: 'user', content: 'User request 1', timestamp: '2026-04-14T05:00:00Z' },
+          { role: 'assistant', content: 'Assistant response 1', timestamp: '2026-04-14T05:01:00Z' },
+        ],
+        artifacts: [],
+        category: 'running',
+      },
+    ],
     tasks: [
       {
         taskId: 'sess-1',
@@ -152,5 +176,42 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();
     expect(screen.getByText('PM Analysis · PM Claw')).toBeInTheDocument();
+  });
+
+  it('should show SessionInspector when clicking an agent in the panel', async () => {
+    render(<DashboardPage />);
+
+    const pmAgentCard = screen.getByTestId('agent-card-pm-agent');
+    fireEvent.click(pmAgentCard);
+
+    expect(screen.getByText('Session Inspector')).toBeInTheDocument();
+    const pmClawInInspector = screen.getAllByText('PM Claw')[0];
+    expect(pmClawInInspector).toBeInTheDocument();
+    expect(screen.getByText(/This is the latest assistant message/)).toBeInTheDocument();
+  });
+
+  it('should display recent history in SessionInspector', async () => {
+    render(<DashboardPage />);
+
+    const pmAgentCard = screen.getByTestId('agent-card-pm-agent');
+    fireEvent.click(pmAgentCard);
+
+    expect(screen.getByText(/Recent History \(2 messages\)/)).toBeInTheDocument();
+    expect(screen.getByText(/User request 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Assistant response 1/)).toBeInTheDocument();
+  });
+
+  it('should close SessionInspector when close button is clicked', async () => {
+    render(<DashboardPage />);
+
+    const pmAgentCard = screen.getByTestId('agent-card-pm-agent');
+    fireEvent.click(pmAgentCard);
+
+    expect(screen.getByText('Session Inspector')).toBeInTheDocument();
+
+    const closeButton = screen.getByText('×');
+    fireEvent.click(closeButton);
+
+    expect(screen.queryByText('Session Inspector')).not.toBeInTheDocument();
   });
 });
