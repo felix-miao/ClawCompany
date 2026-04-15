@@ -211,8 +211,8 @@ Dashboard
   - `json`
   - `test-report`
   - `url`
-- [ ] dashboard 可以按最近结果排序展示
-- [ ] 一个 session 完成后，能够追溯“这次最终交付了哪些文件”
+- [code-complete] dashboard 可以按最近结果排序展示
+- [code-complete] 一个 session 完成后，能够追溯“这次最终交付了哪些文件”
 
 ##### 6. OpenClaw 输出采集能力补齐
 
