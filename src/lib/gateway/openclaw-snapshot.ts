@@ -3,7 +3,6 @@ import {
   TaskHistory,
   TaskPhase,
   TaskPhaseRecord,
-  TaskArtifact,
   TASK_PHASE_LABELS,
   TASK_PHASE_ORDER,
 } from '@/game/data/DashboardStore'
@@ -17,8 +16,44 @@ import {
   SessionProgressEvent,
 } from '@/game/types/GameEvents'
 
-import { HistoryMessage } from './client'
+import { HistoryMessage, OpenClawToolType, HistoryToolMetadata, HistoryFileMetadata, HistoryArtifactMetadata } from './client'
 import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
+
+export type OpenClawEventType = 
+  | 'tool:invoked'
+  | 'tool:completed'
+  | 'tool:failed'
+  | 'file:created'
+  | 'file:modified'
+  | 'file:deleted'
+  | 'file:read'
+  | 'artifact:produced'
+  | 'message:sent'
+  | 'message:received'
+  | 'session:handover'
+  | 'session:progress'
+  | 'session:completed'
+  | 'session:failed'
+
+export interface OpenClawEvent {
+  id: string
+  type: OpenClawEventType
+  timestamp: number
+  sessionKey: string
+  agentId: string
+  toolName?: OpenClawToolType
+  filePaths?: string[]
+  artifactType?: OpenClawArtifactType
+  content?: string
+  summary: string
+  metadata?: Record<string, unknown>
+}
+
+export interface OpenClawEventFeed {
+  events: OpenClawEvent[]
+  totalCount: number
+  byType: Record<OpenClawEventType, number>
+}
 
 export type OpenClawArtifactType = 'html' | 'tsx' | 'code' | 'image' | 'markdown' | 'json' | 'test-report' | 'url'
 
@@ -55,6 +90,7 @@ export interface OpenClawSessionDetails {
   artifacts: OpenClawArtifact[]
   finalDeliveryArtifacts: OpenClawArtifact[]
   category: SessionCategory
+  eventFeed: OpenClawEventFeed
 }
 
 export interface OpenClawSnapshotMetrics {
@@ -206,6 +242,9 @@ const FILE_EXT_ARTIFACT_TYPE: Record<string, OpenClawArtifactType> = {
 }
 
 function detectArtifactType(filePath: string): OpenClawArtifactType {
+  if (filePath.toLowerCase().startsWith('http://') || filePath.toLowerCase().startsWith('https://')) {
+    return 'url'
+  }
   const ext = filePath.toLowerCase().match(/\.[^.]+$/)?.[0] || ''
   const baseName = filePath.toLowerCase()
   if (baseName.includes('test-report')) return 'test-report'
@@ -234,6 +273,216 @@ function extractFilePath(content: string): string | null {
   }
 
   return null
+}
+
+function extractAllFilePaths(content: string): string[] {
+  const patterns = [
+    /已写入文件:\s*(.+)/g,
+    /已写入[^:]*:\s*(.+)/g,
+    /Wrote file:\s*(.+)/g,
+    /written:\s*(.+)/g,
+    /Created:\s*(.+)/g,
+    /Saved:\s*(.+)/g,
+    /File:\s*(.+)/g,
+    /已读取文件:\s*(.+)/g,
+    /Read file:\s*(.+)/g,
+    /Deleting:\s*(.+)/g,
+    /已删除文件:\s*(.+)/g,
+    /Deployed to:\s*(https?:\/\/[^\s]+)/g,
+    /Published to:\s*(https?:\/\/[^\s]+)/g,
+    /URL:\s*(https?:\/\/[^\s]+)/g,
+    /Link:\s*(https?:\/\/[^\s]+)/g,
+  ]
+
+  const paths: string[] = []
+  for (const pattern of patterns) {
+    let match
+    while ((match = pattern.exec(content)) !== null) {
+      const path = match[1].trim()
+      if (path.startsWith('/') || path.includes(':') || path.startsWith('http')) {
+        paths.push(path)
+      }
+    }
+  }
+
+  return [...new Set(paths)]
+}
+
+function inferToolType(content: string): OpenClawToolType {
+  const lower = content.toLowerCase()
+  if (/read|读取|读取文件/.test(lower)) return 'read'
+  if (/write|写入|创建文件|已写入/.test(lower)) return 'write'
+  if (/edit|修改|更新文件/.test(lower)) return 'edit'
+  if (/delete|删除/.test(lower)) return 'delete'
+  if (/mkdir|创建目录/.test(lower)) return 'mkdir'
+  if (/bash|shell|终端|命令/.test(lower)) return 'bash'
+  if (/grep|搜索|搜索文件/.test(lower)) return 'grep'
+  if (/find|查找/.test(lower)) return 'find'
+  if (/glob|匹配/.test(lower)) return 'glob'
+  if (/browser|screenshot|浏览器/.test(lower)) return 'browser'
+  if (/search|搜索网络/.test(lower)) return 'search'
+  if (/fetch|http|请求/.test(lower)) return 'fetch'
+  if (/git/.test(lower)) return 'git'
+  if (/npm/.test(lower)) return 'npm'
+  if (/python/.test(lower)) return 'python'
+  if (/node/.test(lower)) return 'node'
+  if (/test|测试/.test(lower)) return 'test'
+  if (/lint|检查/.test(lower)) return 'lint'
+  if (/build|构建/.test(lower)) return 'build'
+  if (/deploy|部署/.test(lower)) return 'deploy'
+  return 'unknown'
+}
+
+function generateEventId(): string {
+  return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+function deriveEventFeed(
+  session: GatewaySession,
+  history: HistoryMessage[],
+  agentId: string,
+): OpenClawEventFeed {
+  const events: OpenClawEvent[] = []
+  const byType: Record<OpenClawEventType, number> = {
+    'tool:invoked': 0,
+    'tool:completed': 0,
+    'tool:failed': 0,
+    'file:created': 0,
+    'file:modified': 0,
+    'file:deleted': 0,
+    'file:read': 0,
+    'artifact:produced': 0,
+    'message:sent': 0,
+    'message:received': 0,
+    'session:handover': 0,
+    'session:progress': 0,
+    'session:completed': 0,
+    'session:failed': 0,
+  }
+
+  for (const message of history) {
+    const timestamp = parseHistoryTimestamp(message.timestamp) ?? Date.now()
+    const filePaths = extractAllFilePaths(message.content)
+    const toolName = inferToolType(message.content)
+
+    if (message.role === 'user') {
+      const event: OpenClawEvent = {
+        id: generateEventId(),
+        type: 'message:sent',
+        timestamp,
+        sessionKey: session.key,
+        agentId,
+        content: message.content,
+        summary: shortenHistoryContent(message.content, 80),
+        metadata: { status: message.status },
+      }
+      events.push(event)
+      byType['message:sent']++
+    }
+
+    if (message.role === 'assistant') {
+      const isHandover = /交接给|handover to|passed to/i.test(message.content)
+      const eventType: OpenClawEventType = isHandover ? 'session:handover' : 'message:received'
+      
+      const event: OpenClawEvent = {
+        id: generateEventId(),
+        type: eventType,
+        timestamp,
+        sessionKey: session.key,
+        agentId,
+        content: message.content,
+        summary: shortenHistoryContent(message.content, 80),
+        metadata: { status: message.status },
+      }
+      
+      if (isHandover) {
+        const handoverMatch = message.content.match(/交接给\s*([a-zA-Z0-9_-]+)/i)
+          ?? message.content.match(/(?:handover to|passed to)\s*([a-zA-Z0-9_-]+)/i)
+        if (handoverMatch) {
+          event.metadata = { ...event.metadata, handoverTarget: normalizeHandoverTarget(handoverMatch[1]) }
+        }
+      }
+      
+      events.push(event)
+      byType[eventType]++
+    }
+
+    if (message.role === 'toolResult') {
+      const isFailed = message.status === 'failed'
+      const eventType: OpenClawEventType = isFailed ? 'tool:failed' : 'tool:completed'
+
+      const event: OpenClawEvent = {
+        id: generateEventId(),
+        type: eventType,
+        timestamp,
+        sessionKey: session.key,
+        agentId,
+        toolName,
+        filePaths: filePaths.length > 0 ? filePaths : undefined,
+        content: message.content,
+        summary: filePaths.length > 0
+          ? `${toolName}: ${filePaths.join(', ')}`
+          : shortenHistoryContent(message.content, 80),
+        metadata: { status: message.status, toolType: toolName },
+      }
+      events.push(event)
+      byType[eventType]++
+
+      if (!isFailed && filePaths.length > 0) {
+        for (const filePath of filePaths) {
+          const artifactType = detectArtifactType(filePath)
+          const artifactEvent: OpenClawEvent = {
+            id: generateEventId(),
+            type: artifactType === 'url' ? 'artifact:produced' : 'file:created',
+            timestamp,
+            sessionKey: session.key,
+            agentId,
+            filePaths: [filePath],
+            artifactType,
+            summary: `${filePath.split('/').pop() || filePath}`,
+            metadata: { artifactType, toolName },
+          }
+          events.push(artifactEvent)
+          byType[artifactEvent.type]++
+        }
+      }
+
+      if (isFailed) {
+        const failedEvent: OpenClawEvent = {
+          id: generateEventId(),
+          type: 'session:failed',
+          timestamp,
+          sessionKey: session.key,
+          agentId,
+          content: message.content,
+          summary: shortenHistoryContent(message.content, 100),
+          metadata: { toolName, error: true },
+        }
+        events.push(failedEvent)
+        byType['session:failed']++
+      }
+    }
+  }
+
+  if (session.status === 'completed' || session.status === 'done') {
+    const completedEvent: OpenClawEvent = {
+      id: generateEventId(),
+      type: 'session:completed',
+      timestamp: parseHistoryTimestamp(session.endedAt ?? undefined) ?? Date.now(),
+      sessionKey: session.key,
+      agentId,
+      summary: `Session completed: ${session.label || session.key}`,
+      metadata: { status: session.status },
+    }
+    events.push(completedEvent)
+    byType['session:completed']++
+  }
+
+  return {
+    events,
+    totalCount: events.length,
+    byType,
+  }
 }
 
 function deriveArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
@@ -587,6 +836,7 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
         finalDeliveryArtifacts: isCompleted
           ? deriveFinalDeliveryArtifacts(history, session.agentId)
           : [],
+        eventFeed: deriveEventFeed(session, history, session.agentId),
       }
     })
 

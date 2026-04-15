@@ -723,4 +723,289 @@ describe('buildOpenClawSnapshot', () => {
       expect(task.description).toBe('测试任务')
     })
   })
+
+  describe('structured event feed', () => {
+    it('derives event feed with tool events from toolResult messages', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-events',
+          agentId: 'dev-claw',
+          label: 'Test event feed',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /test/index.html', status: 'completed', timestamp: '2026-04-14T10:01:00Z' },
+        { role: 'toolResult', content: 'Running bash command', status: 'completed', timestamp: '2026-04-14T10:02:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].eventFeed).toBeDefined()
+      expect(snapshot.sessions[0].eventFeed.totalCount).toBeGreaterThan(0)
+      expect(snapshot.sessions[0].eventFeed.byType['tool:completed']).toBeGreaterThan(0)
+      expect(snapshot.sessions[0].eventFeed.events.some(e => e.toolName === 'write')).toBe(true)
+      expect(snapshot.sessions[0].eventFeed.events.some(e => e.toolName === 'bash')).toBe(true)
+    })
+
+    it('derives file:created events with artifact metadata from file write outputs', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-files',
+          agentId: 'dev-claw',
+          label: 'Test file events',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /test/component.tsx', status: 'completed', timestamp: '2026-04-14T10:01:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const fileEvent = snapshot.sessions[0].eventFeed.events.find(e => e.type === 'file:created')
+      expect(fileEvent).toBeDefined()
+      expect(fileEvent?.filePaths).toContain('/test/component.tsx')
+      expect(fileEvent?.artifactType).toBe('tsx')
+    })
+
+    it('derives artifact:produced event for url artifacts', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-url',
+          agentId: 'dev-claw',
+          label: 'Test URL events',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: 'Deployed to: https://example.com/app', status: 'completed', timestamp: '2026-04-14T10:01:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const artifactEvent = snapshot.sessions[0].eventFeed.events.find(e => e.type === 'artifact:produced')
+      expect(artifactEvent).toBeDefined()
+      expect(artifactEvent?.filePaths).toContain('https://example.com/app')
+    })
+
+    it('derives session:handover event when handover pattern is detected', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-handover',
+          agentId: 'dev-claw',
+          label: 'Test handover',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '交接给 reviewer 进行代码审查', status: 'completed', timestamp: '2026-04-14T10:01:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const handoverEvent = snapshot.sessions[0].eventFeed.events.find(e => e.type === 'session:handover')
+      expect(handoverEvent).toBeDefined()
+      expect(handoverEvent?.metadata?.handoverTarget).toBe('reviewer')
+    })
+
+    it('derives tool:failed and session:failed events from failed toolResult', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-failed',
+          agentId: 'dev-claw',
+          label: 'Test failure',
+          model: 'gpt-5',
+          status: 'failed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:05:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: 'Command failed: npm run build', status: 'failed', timestamp: '2026-04-14T10:05:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].eventFeed.byType['tool:failed']).toBe(1)
+      expect(snapshot.sessions[0].eventFeed.byType['session:failed']).toBe(1)
+    })
+
+    it('derives session:completed event for completed sessions', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-done',
+          agentId: 'pm-claw',
+          label: 'Completed task',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '任务完成', status: 'completed', timestamp: '2026-04-14T10:30:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].eventFeed.byType['session:completed']).toBe(1)
+    })
+
+    it('includes message:sent and message:received events in event feed', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-messages',
+          agentId: 'dev-claw',
+          label: 'Test messages',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'user', content: '帮我写一个组件', status: 'completed', timestamp: '2026-04-14T10:01:00Z' },
+        { role: 'assistant', content: '好的，我来帮你实现', status: 'completed', timestamp: '2026-04-14T10:01:30Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].eventFeed.byType['message:sent']).toBe(1)
+      expect(snapshot.sessions[0].eventFeed.byType['message:received']).toBe(1)
+    })
+
+    it('provides summary field in each event for dashboard display', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-summary',
+          agentId: 'dev-claw',
+          label: 'Test summary',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /test/example.tsx', status: 'completed', timestamp: '2026-04-14T10:01:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      for (const event of snapshot.sessions[0].eventFeed.events) {
+        expect(event.summary).toBeDefined()
+        expect(typeof event.summary).toBe('string')
+        expect(event.summary.length).toBeGreaterThan(0)
+      }
+    })
+
+    it('populates byType counts correctly in event feed', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-counts',
+          agentId: 'dev-claw',
+          label: 'Test counts',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /test/a.tsx', status: 'completed', timestamp: '2026-04-14T10:10:00Z' },
+        { role: 'toolResult', content: '已写入文件: /test/b.tsx', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].eventFeed.totalCount).toBe(snapshot.sessions[0].eventFeed.events.length)
+      expect(snapshot.sessions[0].eventFeed.byType['tool:completed']).toBe(2)
+      expect(snapshot.sessions[0].eventFeed.byType['session:completed']).toBe(1)
+    })
+  })
 })

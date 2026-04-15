@@ -23,11 +23,42 @@ export interface SpawnResult {
   error?: string
 }
 
+export type OpenClawToolType = 
+  | 'read' | 'write' | 'edit' | 'delete' | 'mkdir'
+  | 'bash' | 'shell' | 'grep' | 'find' | 'glob'
+  | 'browser' | 'screenshot' | 'click' | 'type'
+  | 'search' | 'fetch' | 'http'
+  | 'git' | 'npm' | 'python' | 'node'
+  | 'test' | 'lint' | 'build' | 'deploy'
+  | 'unknown'
+
+export interface HistoryToolMetadata {
+  name: OpenClawToolType
+  rawName?: string
+  duration?: number
+  success?: boolean
+}
+
+export interface HistoryFileMetadata {
+  paths: string[]
+  operation: 'read' | 'write' | 'edit' | 'delete' | 'list'
+}
+
+export interface HistoryArtifactMetadata {
+  paths: string[]
+  type: 'html' | 'tsx' | 'code' | 'image' | 'markdown' | 'json' | 'test-report' | 'url'
+}
+
 export interface HistoryMessage {
   role: 'user' | 'assistant' | 'toolResult'
   content: string
   status?: 'pending' | 'running' | 'completed' | 'failed'
   timestamp?: string
+  tool?: HistoryToolMetadata
+  files?: HistoryFileMetadata[]
+  artifacts?: HistoryArtifactMetadata[]
+  messageId?: string
+  parentId?: string
 }
 
 export interface SendOptions {
