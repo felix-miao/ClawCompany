@@ -67,6 +67,16 @@ export interface OpenClawArtifact {
   isFinal?: boolean
 }
 
+export interface StructuredResultSummary {
+  toolType: OpenClawToolType
+  operation: 'read' | 'write' | 'edit' | 'delete' | 'deploy' | 'test' | 'build' | 'lint' | 'search' | 'fetch' | 'bash' | 'unknown'
+  paths: string[]
+  urls: string[]
+  status: 'completed' | 'failed' | 'pending' | 'running'
+  error?: string
+  summaryText: string
+}
+
 export type SessionCategory = 'running' | 'completed' | 'just-completed' | 'failed' | 'stuck'
 
 export interface OpenClawSessionDetails {
@@ -81,6 +91,7 @@ export interface OpenClawSessionDetails {
   currentWork: string | null
   latestThought: string | null
   latestResultSummary: string | null
+  finalResultSummary: StructuredResultSummary | null
   model: string
   usage?: GatewaySession['usage']
   latestMessage: string | null
@@ -218,9 +229,173 @@ function deriveLatestThought(history: HistoryMessage[]): string | null {
   return latestAssistant?.content?.slice(0, 200) || null
 }
 
-function deriveLatestResultSummary(history: HistoryMessage[]): string | null {
+function isUrlPath(value: string): boolean {
+  const lower = value.toLowerCase()
+  return lower.startsWith('http://') || lower.startsWith('https://')
+}
+
+function dedupeStrings(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))]
+}
+
+function resolveToolName(message: HistoryMessage): OpenClawToolType {
+  if (message.tool?.name && message.tool.name !== 'unknown') {
+    return message.tool.name
+  }
+
+  const toolHint = message.tool?.rawName ? `${message.tool.rawName} ${message.content}` : message.content
+  return inferToolType(toolHint)
+}
+
+function resolveMessagePaths(message: HistoryMessage): string[] {
+  const filePaths = message.files?.flatMap(file => file.paths) ?? []
+  const artifactPaths = message.artifacts?.flatMap(artifact => artifact.paths) ?? []
+  return dedupeStrings([...filePaths, ...artifactPaths, ...extractAllFilePaths(message.content)])
+}
+
+function mapFileOperationToResultOperation(
+  operation: HistoryFileMetadata['operation'],
+): StructuredResultSummary['operation'] {
+  switch (operation) {
+    case 'write':
+      return 'write'
+    case 'edit':
+      return 'edit'
+    case 'delete':
+      return 'delete'
+    case 'read':
+    case 'list':
+      return 'read'
+    default:
+      return 'unknown'
+  }
+}
+
+function inferOperationFromMessage(message: HistoryMessage): StructuredResultSummary['operation'] {
+  const primaryFileOperation = message.files?.find(file => file.paths.length > 0)?.operation
+  if (primaryFileOperation) {
+    return mapFileOperationToResultOperation(primaryFileOperation)
+  }
+
+  if (message.artifacts?.some(artifact => artifact.type === 'url')) {
+    return 'deploy'
+  }
+
+  const toolHint = message.tool?.rawName ? `${message.tool.rawName} ${message.content}` : message.content
+  return inferOperationFromContent(toolHint)
+}
+
+interface ResolvedArtifactRecord {
+  key: string
+  path?: string
+  url?: string
+  type: OpenClawArtifactType
+}
+
+function resolveArtifacts(message: HistoryMessage): ResolvedArtifactRecord[] {
+  const records: ResolvedArtifactRecord[] = []
+  const pushRecord = (rawPath: string, explicitType?: OpenClawArtifactType) => {
+    const normalizedPath = rawPath.trim()
+    if (!normalizedPath) {
+      return
+    }
+
+    const isUrl = isUrlPath(normalizedPath)
+    records.push({
+      key: normalizedPath,
+      path: isUrl ? undefined : normalizedPath,
+      url: isUrl ? normalizedPath : undefined,
+      type: explicitType ?? detectArtifactType(normalizedPath),
+    })
+  }
+
+  for (const artifact of message.artifacts ?? []) {
+    for (const rawPath of artifact.paths) {
+      pushRecord(rawPath, artifact.type)
+    }
+  }
+
+  for (const file of message.files ?? []) {
+    for (const rawPath of file.paths) {
+      pushRecord(rawPath)
+    }
+  }
+
+  for (const rawPath of extractAllFilePaths(message.content)) {
+    pushRecord(rawPath)
+  }
+
+  const uniqueRecords = new Map<string, ResolvedArtifactRecord>()
+  for (const record of records) {
+    if (!uniqueRecords.has(record.key)) {
+      uniqueRecords.set(record.key, record)
+    }
+  }
+
+  return Array.from(uniqueRecords.values())
+}
+
+function buildArtifactEntry(
+  record: ResolvedArtifactRecord,
+  agentId: string,
+  producedAt: string,
+  isFinal: boolean,
+): OpenClawArtifact {
+  const title = record.url ?? record.path?.split('/').pop() ?? record.key
+
+  return {
+    type: record.type,
+    path: record.path,
+    url: record.url,
+    title,
+    producedBy: agentId,
+    producedAt,
+    isFinal,
+  }
+}
+
+function deriveLatestResultSummary(history: HistoryMessage[]): { plain: string | null; structured: StructuredResultSummary | null } {
   const latestToolResult = findLatestMessage(history, message => message.role === 'toolResult')
-  return latestToolResult?.content?.slice(0, 200) || null
+  if (!latestToolResult) {
+    return { plain: null, structured: null }
+  }
+
+  const content = latestToolResult.content
+  const plain = content.slice(0, 200)
+  const paths = resolveMessagePaths(latestToolResult)
+  const status = latestToolResult.status === 'failed' ? 'failed'
+    : latestToolResult.status === 'running' ? 'running'
+    : latestToolResult.status === 'pending' ? 'pending'
+    : 'completed'
+
+  return {
+    plain,
+    structured: {
+      toolType: resolveToolName(latestToolResult),
+      operation: inferOperationFromMessage(latestToolResult),
+      paths: paths.filter(path => !isUrlPath(path)),
+      urls: paths.filter(path => isUrlPath(path)),
+      status,
+      error: status === 'failed' ? content.slice(0, 100) : undefined,
+      summaryText: plain,
+    },
+  }
+}
+
+function inferOperationFromContent(content: string): StructuredResultSummary['operation'] {
+  const lower = content.toLowerCase()
+  if (/deploy|部署/.test(lower)) return 'deploy'
+  if (/write|写入|创建文件|已写入/.test(lower)) return 'write'
+  if (/edit|修改|更新文件/.test(lower)) return 'edit'
+  if (/delete|删除/.test(lower)) return 'delete'
+  if (/read|读取/.test(lower)) return 'read'
+  if (/test|测试/.test(lower)) return 'test'
+  if (/build|构建/.test(lower)) return 'build'
+  if (/lint|检查/.test(lower)) return 'lint'
+  if (/search|搜索/.test(lower)) return 'search'
+  if (/fetch|http|请求/.test(lower)) return 'fetch'
+  if (/bash|shell|终端/.test(lower)) return 'bash'
+  return 'unknown'
 }
 
 const FILE_EXT_ARTIFACT_TYPE: Record<string, OpenClawArtifactType> = {
@@ -337,6 +512,23 @@ function generateEventId(): string {
   return `evt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+function mapFileOperationToEventType(operation: HistoryFileMetadata['operation']): OpenClawEventType | null {
+  switch (operation) {
+    case 'write':
+      return 'file:created'
+    case 'edit':
+      return 'file:modified'
+    case 'delete':
+      return 'file:deleted'
+    case 'read':
+      return 'file:read'
+    case 'list':
+      return null
+    default:
+      return null
+  }
+}
+
 function deriveEventFeed(
   session: GatewaySession,
   history: HistoryMessage[],
@@ -362,8 +554,9 @@ function deriveEventFeed(
 
   for (const message of history) {
     const timestamp = parseHistoryTimestamp(message.timestamp) ?? Date.now()
-    const filePaths = extractAllFilePaths(message.content)
-    const toolName = inferToolType(message.content)
+    const filePaths = resolveMessagePaths(message)
+    const toolName = resolveToolName(message)
+    const resolvedArtifacts = resolveArtifacts(message)
 
     if (message.role === 'user') {
       const event: OpenClawEvent = {
@@ -383,7 +576,7 @@ function deriveEventFeed(
     if (message.role === 'assistant') {
       const isHandover = /交接给|handover to|passed to/i.test(message.content)
       const eventType: OpenClawEventType = isHandover ? 'session:handover' : 'message:received'
-      
+
       const event: OpenClawEvent = {
         id: generateEventId(),
         type: eventType,
@@ -394,7 +587,7 @@ function deriveEventFeed(
         summary: shortenHistoryContent(message.content, 80),
         metadata: { status: message.status },
       }
-      
+
       if (isHandover) {
         const handoverMatch = message.content.match(/交接给\s*([a-zA-Z0-9_-]+)/i)
           ?? message.content.match(/(?:handover to|passed to)\s*([a-zA-Z0-9_-]+)/i)
@@ -402,7 +595,7 @@ function deriveEventFeed(
           event.metadata = { ...event.metadata, handoverTarget: normalizeHandoverTarget(handoverMatch[1]) }
         }
       }
-      
+
       events.push(event)
       byType[eventType]++
     }
@@ -423,27 +616,113 @@ function deriveEventFeed(
         summary: filePaths.length > 0
           ? `${toolName}: ${filePaths.join(', ')}`
           : shortenHistoryContent(message.content, 80),
-        metadata: { status: message.status, toolType: toolName },
+        metadata: {
+          status: message.status,
+          toolType: toolName,
+          rawToolName: message.tool?.rawName,
+          fileCount: filePaths.length,
+          artifactCount: resolvedArtifacts.length,
+        },
       }
       events.push(event)
       byType[eventType]++
 
-      if (!isFailed && filePaths.length > 0) {
-        for (const filePath of filePaths) {
-          const artifactType = detectArtifactType(filePath)
-          const artifactEvent: OpenClawEvent = {
-            id: generateEventId(),
-            type: artifactType === 'url' ? 'artifact:produced' : 'file:created',
-            timestamp,
-            sessionKey: session.key,
-            agentId,
-            filePaths: [filePath],
-            artifactType,
-            summary: `${filePath.split('/').pop() || filePath}`,
-            metadata: { artifactType, toolName },
+      if (!isFailed) {
+        let emittedFileEvents = false
+
+        if (message.files?.length) {
+          for (const file of message.files) {
+            const fileEventType = mapFileOperationToEventType(file.operation)
+            if (!fileEventType) {
+              continue
+            }
+
+            for (const filePath of dedupeStrings(file.paths).filter(path => !isUrlPath(path))) {
+              const artifactType = detectArtifactType(filePath)
+              const fileEvent: OpenClawEvent = {
+                id: generateEventId(),
+                type: fileEventType,
+                timestamp,
+                sessionKey: session.key,
+                agentId,
+                toolName,
+                filePaths: [filePath],
+                artifactType,
+                summary: `${filePath.split('/').pop() || filePath}`,
+                metadata: { artifactType, toolName, operation: file.operation },
+              }
+              events.push(fileEvent)
+              byType[fileEventType]++
+              emittedFileEvents = true
+            }
           }
-          events.push(artifactEvent)
-          byType[artifactEvent.type]++
+        }
+
+        if (!emittedFileEvents && filePaths.length > 0) {
+          for (const artifact of resolvedArtifacts) {
+            if (!artifact.path) {
+              continue
+            }
+
+            const fileEvent: OpenClawEvent = {
+              id: generateEventId(),
+              type: 'file:created',
+              timestamp,
+              sessionKey: session.key,
+              agentId,
+              toolName,
+              filePaths: [artifact.path],
+              artifactType: artifact.type,
+              summary: `${artifact.path.split('/').pop() || artifact.path}`,
+              metadata: { artifactType: artifact.type, toolName },
+            }
+            events.push(fileEvent)
+            byType['file:created']++
+          }
+        }
+
+        if (message.artifacts?.length) {
+          for (const artifact of message.artifacts) {
+            for (const rawPath of dedupeStrings(artifact.paths)) {
+              const summaryPath = rawPath.split('/').pop() || rawPath
+              const artifactEvent: OpenClawEvent = {
+                id: generateEventId(),
+                type: 'artifact:produced',
+                timestamp,
+                sessionKey: session.key,
+                agentId,
+                toolName,
+                filePaths: [rawPath],
+                artifactType: artifact.type,
+                summary: `${summaryPath}`,
+                metadata: { artifactType: artifact.type, toolName },
+              }
+              events.push(artifactEvent)
+              byType['artifact:produced']++
+            }
+          }
+        } else {
+          for (const artifact of resolvedArtifacts.filter(entry => entry.type === 'url')) {
+            const rawPath = artifact.url ?? artifact.path
+            if (!rawPath) {
+              continue
+            }
+
+            const artifactEvent: OpenClawEvent = {
+              id: generateEventId(),
+              type: 'artifact:produced',
+              timestamp,
+              sessionKey: session.key,
+              agentId,
+              toolName,
+              filePaths: [rawPath],
+              artifactType: artifact.type,
+              summary: `${rawPath.split('/').pop() || rawPath}`,
+              metadata: { artifactType: artifact.type, toolName },
+            }
+            events.push(artifactEvent)
+            byType['artifact:produced']++
+          }
         }
       }
 
@@ -485,59 +764,50 @@ function deriveEventFeed(
   }
 }
 
-function deriveArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
-  const artifactMap = new Map<string, OpenClawArtifact>()
+function collectLatestArtifacts(
+  history: HistoryMessage[],
+  agentId: string,
+): Map<string, { artifact: OpenClawArtifact; timestamp: number }> {
+  const latestArtifacts = new Map<string, { artifact: OpenClawArtifact; timestamp: number }>()
 
   for (const message of history) {
-    if (message.role !== 'toolResult') continue
+    if (message.role !== 'toolResult') {
+      continue
+    }
 
-    const filePath = extractFilePath(message.content)
-    if (!filePath) continue
+    const operation = inferOperationFromMessage(message)
+    const resolvedArtifacts = resolveArtifacts(message)
+    const shouldTrackArtifacts = resolvedArtifacts.length > 0
+      && ((message.artifacts?.length ?? 0) > 0 || ['write', 'edit', 'deploy'].includes(operation))
 
-    const fileName = filePath.split('/').pop() || filePath
-    const producedAt = message.timestamp || new Date().toISOString()
-    artifactMap.set(filePath, {
-      type: detectArtifactType(filePath),
-      path: filePath,
-      title: fileName,
-      producedBy: agentId,
-      producedAt,
-      isFinal: true,
-    })
-  }
-
-  return Array.from(artifactMap.values())
-}
-
-function deriveFinalDeliveryArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
-  const lastWriteMap = new Map<string, { artifact: OpenClawArtifact; timestamp: number }>()
-
-  for (const message of history) {
-    if (message.role !== 'toolResult') continue
-
-    const filePath = extractFilePath(message.content)
-    if (!filePath) continue
+    if (!shouldTrackArtifacts || resolvedArtifacts.length === 0) {
+      continue
+    }
 
     const timestamp = parseHistoryTimestamp(message.timestamp) ?? 0
-    const existing = lastWriteMap.get(filePath)
+    const producedAt = message.timestamp || new Date().toISOString()
 
-    if (!existing || timestamp > existing.timestamp) {
-      const fileName = filePath.split('/').pop() || filePath
-      lastWriteMap.set(filePath, {
-        artifact: {
-          type: detectArtifactType(filePath),
-          path: filePath,
-          title: fileName,
-          producedBy: agentId,
-          producedAt: message.timestamp || new Date().toISOString(),
-          isFinal: true,
-        },
-        timestamp,
-      })
+    for (const record of resolvedArtifacts) {
+      const existing = latestArtifacts.get(record.key)
+      if (!existing || timestamp > existing.timestamp) {
+        latestArtifacts.set(record.key, {
+          artifact: buildArtifactEntry(record, agentId, producedAt, true),
+          timestamp,
+        })
+      }
     }
   }
 
-  return Array.from(lastWriteMap.values())
+  return latestArtifacts
+}
+
+function deriveArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
+  return Array.from(collectLatestArtifacts(history, agentId).values())
+    .map(entry => entry.artifact)
+}
+
+function deriveFinalDeliveryArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
+  return Array.from(collectLatestArtifacts(history, agentId).values())
     .map(entry => entry.artifact)
     .sort((a, b) => parseHistoryTimestamp(b.producedAt)! - parseHistoryTimestamp(a.producedAt)!)
 }
@@ -813,6 +1083,7 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
       const agent = agents.find(item => item.id === session.agentId)
       const role = mappedAgents.find(item => item.id === session.agentId)?.role ?? 'Developer'
       const isCompleted = session.status === 'completed' || session.status === 'done'
+      const latestResult = deriveLatestResultSummary(history)
 
       return {
         sessionKey: session.key,
@@ -825,7 +1096,8 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
         endedAt: session.endedAt,
         currentWork: deriveCurrentTask(session, history),
         latestThought: deriveLatestThought(history),
-        latestResultSummary: deriveLatestResultSummary(history),
+        latestResultSummary: latestResult.plain,
+        finalResultSummary: latestResult.structured,
         model: session.model,
         usage: session.usage,
         latestMessage: latestMessage?.content ?? null,

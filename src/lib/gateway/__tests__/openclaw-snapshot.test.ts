@@ -822,6 +822,51 @@ describe('buildOpenClawSnapshot', () => {
       expect(artifactEvent?.filePaths).toContain('https://example.com/app')
     })
 
+    it('prefers structured tool/file/artifact metadata when deriving events', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-structured-events',
+          agentId: 'dev-claw',
+          label: 'Structured metadata events',
+          model: 'gpt-5',
+          status: 'running',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        {
+          role: 'toolResult',
+          content: 'Structured metadata only',
+          status: 'completed',
+          timestamp: '2026-04-14T10:01:00Z',
+          tool: { name: 'edit', rawName: 'edit' },
+          files: [{ paths: ['/test/component.tsx'], operation: 'edit' }],
+          artifacts: [{ paths: ['/test/component.tsx'], type: 'tsx' }],
+        },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const toolEvent = snapshot.sessions[0].eventFeed.events.find(e => e.type === 'tool:completed')
+      expect(toolEvent?.toolName).toBe('edit')
+      expect(toolEvent?.filePaths).toContain('/test/component.tsx')
+
+      const fileEvent = snapshot.sessions[0].eventFeed.events.find(e => e.type === 'file:modified')
+      expect(fileEvent?.filePaths).toContain('/test/component.tsx')
+
+      const artifactEvent = snapshot.sessions[0].eventFeed.events.find(e => e.type === 'artifact:produced')
+      expect(artifactEvent?.artifactType).toBe('tsx')
+    })
+
     it('derives session:handover event when handover pattern is detected', async () => {
       const sync = createSyncStub()
 
@@ -1006,6 +1051,252 @@ describe('buildOpenClawSnapshot', () => {
       expect(snapshot.sessions[0].eventFeed.totalCount).toBe(snapshot.sessions[0].eventFeed.events.length)
       expect(snapshot.sessions[0].eventFeed.byType['tool:completed']).toBe(2)
       expect(snapshot.sessions[0].eventFeed.byType['session:completed']).toBe(1)
+    })
+  })
+
+  describe('structured final result summary', () => {
+    it('derives structured finalResultSummary with tool type and paths from last toolResult', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-structured-result',
+          agentId: 'dev-claw',
+          label: 'Structured result test',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /test/index.html', status: 'completed', timestamp: '2026-04-14T10:10:00Z' },
+        { role: 'toolResult', content: '已写入文件: /test/styles.css', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalResultSummary).toBeDefined()
+      expect(snapshot.sessions[0].finalResultSummary?.toolType).toBe('write')
+      expect(snapshot.sessions[0].finalResultSummary?.paths).toContain('/test/styles.css')
+      expect(snapshot.sessions[0].finalResultSummary?.status).toBe('completed')
+      expect(snapshot.sessions[0].latestResultSummary).toBeDefined()
+    })
+
+    it('derives structured finalResultSummary with URL from deployment output', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'deploy-claw', name: 'Deploy', identity: { name: 'Deploy Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-url-result',
+          agentId: 'deploy-claw',
+          label: 'Deploy test',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'deploy-claw', name: 'Deploy Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: 'Deployed to: https://example.com/app', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalResultSummary).toBeDefined()
+      expect(snapshot.sessions[0].finalResultSummary?.urls).toContain('https://example.com/app')
+      expect(snapshot.sessions[0].finalResultSummary?.operation).toBe('deploy')
+    })
+
+    it('derives structured finalResultSummary with failed status from failed toolResult', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-failed-result',
+          agentId: 'dev-claw',
+          label: 'Failed test',
+          model: 'gpt-5',
+          status: 'failed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: 'Command failed: npm run build', status: 'failed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalResultSummary).toBeDefined()
+      expect(snapshot.sessions[0].finalResultSummary?.status).toBe('failed')
+      expect(snapshot.sessions[0].finalResultSummary?.error).toBeDefined()
+    })
+
+    it('handles session with no toolResult gracefully in finalResultSummary', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-no-tool',
+          agentId: 'pm-claw',
+          label: 'Analysis only',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: 'Analysis complete', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalResultSummary).toBeNull()
+      expect(snapshot.sessions[0].latestResultSummary).toBeNull()
+    })
+  })
+
+  describe('finalDeliveryArtifacts structured path/url', () => {
+    it('populates both path and url fields in finalDeliveryArtifacts', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'deploy-claw', name: 'Deploy', identity: { name: 'Deploy Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-delivery',
+          agentId: 'deploy-claw',
+          label: 'Deploy delivery',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'deploy-claw', name: 'Deploy Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /app/index.html', status: 'completed', timestamp: '2026-04-14T10:10:00Z' },
+        { role: 'toolResult', content: 'Deployed to: https://example.com/app', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalDeliveryArtifacts).toHaveLength(2)
+      const htmlArtifact = snapshot.sessions[0].finalDeliveryArtifacts.find(a => a.type === 'html')
+      expect(htmlArtifact?.path).toBe('/app/index.html')
+      expect(htmlArtifact?.url).toBeUndefined()
+
+      const urlArtifact = snapshot.sessions[0].finalDeliveryArtifacts.find(a => a.type === 'url')
+      expect(urlArtifact?.url).toBe('https://example.com/app')
+    })
+
+    it('supports structured metadata for final delivery path/url fields', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'deploy-claw', name: 'Deploy', identity: { name: 'Deploy Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-structured-delivery',
+          agentId: 'deploy-claw',
+          label: 'Structured delivery metadata',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'deploy-claw', name: 'Deploy Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        {
+          role: 'toolResult',
+          content: 'Deployment completed',
+          status: 'completed',
+          timestamp: '2026-04-14T10:20:00Z',
+          tool: { name: 'deploy', rawName: 'deploy' },
+          files: [{ paths: ['/app/index.html'], operation: 'write' }],
+          artifacts: [{ paths: ['https://example.com/app'], type: 'url' }],
+        },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalDeliveryArtifacts).toHaveLength(2)
+      const htmlArtifact = snapshot.sessions[0].finalDeliveryArtifacts.find(a => a.path === '/app/index.html')
+      expect(htmlArtifact?.type).toBe('html')
+
+      const urlArtifact = snapshot.sessions[0].finalDeliveryArtifacts.find(a => a.type === 'url')
+      expect(urlArtifact?.url).toBe('https://example.com/app')
+      expect(snapshot.sessions[0].finalResultSummary?.toolType).toBe('deploy')
+      expect(snapshot.sessions[0].finalResultSummary?.urls).toContain('https://example.com/app')
+    })
+
+    it('provides structured artifact summary with file counts for dashboard', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-counts',
+          agentId: 'dev-claw',
+          label: 'Multi-file delivery',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /app/a.tsx', status: 'completed', timestamp: '2026-04-14T10:10:00Z' },
+        { role: 'toolResult', content: '已写入文件: /app/b.tsx', status: 'completed', timestamp: '2026-04-14T10:15:00Z' },
+        { role: 'toolResult', content: '已写入文件: /app/c.tsx', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].finalDeliveryArtifacts).toHaveLength(3)
+      const fileCounts = snapshot.sessions[0].finalDeliveryArtifacts.reduce((acc, a) => {
+        acc[a.type] = (acc[a.type] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
+      expect(fileCounts['tsx'] || fileCounts['code']).toBe(3)
     })
   })
 })
