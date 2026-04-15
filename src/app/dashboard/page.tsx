@@ -10,6 +10,7 @@ import { PerformanceMetricsPanel } from "@/components/dashboard/PerformanceMetri
 import { TraditionalTaskView } from "@/components/dashboard/TraditionalTaskView";
 import { SessionArtifactsPanel } from "@/components/dashboard/SessionArtifactsPanel";
 import { SessionStatusPanel } from "@/components/dashboard/SessionStatusPanel";
+import { SessionInspector } from "@/components/dashboard/SessionInspector";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
@@ -37,6 +38,12 @@ export default function DashboardPage() {
   const [isGameLoading, setIsGameLoading] = useState(true);
   const [gameError, setGameError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<"game" | "timeline">("game");
+  const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(null);
+
+  const selectedSession = useMemo(
+    () => sessions.find(s => s.sessionKey === selectedSessionKey) ?? null,
+    [sessions, selectedSessionKey]
+  );
 
   const metricsAggregator = useMemo(() => {
     const perfMonitor = new PerformanceMonitor();
@@ -228,7 +235,7 @@ export default function DashboardPage() {
               </div>
             </>
           ) : (
-            <TraditionalTaskView tasks={taskHistory} />
+            <TraditionalTaskView tasks={taskHistory} onSelectTask={setSelectedSessionKey} />
           )}
         </div>
 
@@ -238,8 +245,18 @@ export default function DashboardPage() {
             <ControlPanel onSendEvent={handleSendEvent} onTriggerTask={handleTriggerTask} />
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {selectedSession && (
+              <SessionInspector
+                session={selectedSession}
+                onClose={() => setSelectedSessionKey(null)}
+              />
+            )}
             <AgentStatusPanel agents={agents} />
-            <SessionStatusPanel sessions={sessions} />
+            <SessionStatusPanel
+              sessions={sessions}
+              selectedSessionKey={selectedSessionKey}
+              onSelectSession={setSelectedSessionKey}
+            />
             <SessionArtifactsPanel sessions={sessions} />
             <EventLog events={events} />
             <PerformanceMetricsPanel

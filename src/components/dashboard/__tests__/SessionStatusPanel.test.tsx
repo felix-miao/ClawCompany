@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 import { SessionStatusPanel } from '../SessionStatusPanel'
 
@@ -57,5 +57,41 @@ describe('SessionStatusPanel', () => {
     const { container } = render(<SessionStatusPanel sessions={[]} />)
 
     expect(container.firstChild).toBeNull()
+  })
+
+  it('allows session selection when onSelectSession is provided', () => {
+    const onSelect = jest.fn()
+    render(
+      <SessionStatusPanel
+        sessions={[
+          createSession({ sessionKey: 'sess-1', agentName: 'Dev Claw' }),
+          createSession({ sessionKey: 'sess-2', agentName: 'PM Claw' }),
+        ]}
+        onSelectSession={onSelect}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Dev Claw'))
+    expect(onSelect).toHaveBeenCalledWith('sess-1')
+
+    fireEvent.click(screen.getByText('PM Claw'))
+    expect(onSelect).toHaveBeenCalledWith('sess-2')
+  })
+
+  it('highlights selected session', () => {
+    render(
+      <SessionStatusPanel
+        sessions={[
+          createSession({ sessionKey: 'sess-1', agentName: 'Dev Claw' }),
+          createSession({ sessionKey: 'sess-2', agentName: 'PM Claw' }),
+        ]}
+        selectedSessionKey="sess-2"
+        onSelectSession={jest.fn()}
+      />,
+    )
+
+    const containers = document.querySelectorAll('[role="button"]')
+    expect(containers[0]).not.toHaveClass('ring-1')
+    expect(containers[1]).toHaveClass('ring-1', 'ring-primary-500/40')
   })
 })

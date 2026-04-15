@@ -46,6 +46,7 @@ function summarizeEvent(event: GameEvent): EventSummary | null {
 
 interface TraditionalTaskViewProps {
   tasks: TaskHistory[];
+  onSelectTask?: (taskId: string) => void;
 }
 
 const TASK_STATUS_STYLES = {
@@ -269,7 +270,7 @@ const STAGE_BOTTLENECK_COLORS: Record<string, string> = {
   done: 'bg-green-500/20 border-green-500/50 text-green-100 shadow-[0_0_12px_rgba(34,197,94,0.4)]',
 };
 
-export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
+export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskViewProps) {
   const [filter, setFilter] = useState<FilterType>('all');
   const [stageFilter, setStageFilter] = useState<StageFilterType>('all');
   const [agentFilter, setAgentFilter] = useState<AgentFilterType>(null);
@@ -382,28 +383,34 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
   const hasStageFilterApplied = stageFilter !== 'all';
   const displayTasksFinal = hasStageFilterApplied ? displayTasksByStage : displayTasks;
 
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(displayTasksFinal[0]?.taskId ?? null);
+  const [internalSelectedTaskId, setInternalSelectedTaskId] = useState<string | null>(displayTasksFinal[0]?.taskId ?? null);
 
   useEffect(() => {
     if (!tasks.length) {
-      setSelectedTaskId(null);
+      setInternalSelectedTaskId(null);
       return;
     }
 
-    if (!selectedTaskId || !displayTasksFinal.some(task => task.taskId === selectedTaskId)) {
+    if (!internalSelectedTaskId || !displayTasksFinal.some(task => task.taskId === internalSelectedTaskId)) {
       const next = displayTasksFinal[0]?.taskId ?? null;
-      if (next !== selectedTaskId) {
-        setSelectedTaskId(next);
+      if (next !== internalSelectedTaskId) {
+        setInternalSelectedTaskId(next);
       }
     }
-  }, [selectedTaskId, displayTasksFinal, tasks.length]);
+  }, [internalSelectedTaskId, displayTasksFinal, tasks.length]);
 
   const selectedTask = useMemo(
-    () => displayTasksFinal.find(task => task.taskId === selectedTaskId) ?? displayTasksFinal[0] ?? null,
-    [selectedTaskId, displayTasksFinal],
+    () => displayTasksFinal.find(task => task.taskId === internalSelectedTaskId) ?? displayTasksFinal[0] ?? null,
+    [internalSelectedTaskId, displayTasksFinal],
   );
 
   const hasSelectedTask = selectedTask !== null;
+
+  useEffect(() => {
+    if (internalSelectedTaskId && onSelectTask) {
+      onSelectTask(internalSelectedTaskId);
+    }
+  }, [internalSelectedTaskId, onSelectTask]);
 
   if (!sortedTasks.length) {
     return (
@@ -652,7 +659,7 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
             {(() => {
               if (hasStageFilterApplied) {
                 return displayTasksFinal.map((task) => (
-                  <TaskListItem key={task.taskId} task={task} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} />
+                  <TaskListItem key={task.taskId} task={task} selectedTaskId={internalSelectedTaskId} onSelect={setInternalSelectedTaskId} />
                 ));
               }
 
@@ -672,7 +679,7 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
                         </div>
                         <div className="space-y-2">
                           {activeTasks.map((task) => (
-                            <TaskListItem key={task.taskId} task={task} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} />
+                            <TaskListItem key={task.taskId} task={task} selectedTaskId={internalSelectedTaskId} onSelect={setInternalSelectedTaskId} />
                           ))}
                         </div>
                       </div>
@@ -684,7 +691,7 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
                         </div>
                         <div className="space-y-2">
                           {historyTasks.slice(0, 3).map((task) => (
-                            <TaskListItem key={task.taskId} task={task} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} isHistory />
+                            <TaskListItem key={task.taskId} task={task} selectedTaskId={internalSelectedTaskId} onSelect={setInternalSelectedTaskId} isHistory />
                           ))}
                         </div>
                       </div>
@@ -694,7 +701,7 @@ export function TraditionalTaskView({ tasks }: TraditionalTaskViewProps) {
               }
 
               return filteredTasks.map((task) => (
-                <TaskListItem key={task.taskId} task={task} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} />
+                <TaskListItem key={task.taskId} task={task} selectedTaskId={internalSelectedTaskId} onSelect={setInternalSelectedTaskId} />
               ));
             })()}
             {isFilteredEmpty && (

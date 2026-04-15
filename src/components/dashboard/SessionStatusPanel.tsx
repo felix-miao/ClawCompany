@@ -20,9 +20,11 @@ const CATEGORY_ICONS: Record<SessionCategory, string> = {
 
 interface SessionStatusPanelProps {
   sessions: OpenClawSessionDetails[];
+  selectedSessionKey?: string | null;
+  onSelectSession?: (sessionKey: string) => void;
 }
 
-export function SessionStatusPanel({ sessions }: SessionStatusPanelProps) {
+export function SessionStatusPanel({ sessions, selectedSessionKey, onSelectSession }: SessionStatusPanelProps) {
   if (sessions.length === 0) {
     return null;
   }
@@ -34,7 +36,22 @@ export function SessionStatusPanel({ sessions }: SessionStatusPanelProps) {
         {sessions.map(session => (
           <div
             key={session.sessionKey}
-            className="bg-dark-50/50 rounded-lg p-2 border border-dark-100/20"
+            role={onSelectSession ? 'button' : undefined}
+            tabIndex={onSelectSession ? 0 : undefined}
+            onClick={() => onSelectSession?.(session.sessionKey)}
+            onKeyDown={(e) => {
+              if (onSelectSession && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                onSelectSession(session.sessionKey);
+              }
+            }}
+            className={`bg-dark-50/50 rounded-lg p-2 border border-dark-100/20 cursor-pointer transition-colors ${
+              onSelectSession && selectedSessionKey === session.sessionKey
+                ? 'ring-1 ring-primary-500/40 bg-primary-500/10'
+                : onSelectSession
+                  ? 'hover:border-dark-50'
+                  : ''
+            }`}
           >
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
