@@ -186,13 +186,13 @@ Dashboard
 
 这是最终体验里非常关键的一块：
 
-- [ ] 如果 developer 产出了 HTML / 页面文件，dashboard 必须显示“打开结果”按钮
-- [ ] 对每个 artifact 提供：
+- [code-complete] 如果 developer 产出了 HTML / 页面文件，dashboard 必须显示“打开结果”按钮
+- [code-complete] 对每个 artifact 提供：
   - 本地文件路径（绝对路径或 workspace 相对路径）
   - 浏览器可打开 URL（如果能预览）
   - 来源 agent
   - 生成时间
-- [ ] 支持最小打开动作：
+- [code-complete] 支持最小打开动作：
   - `Open File`
   - `Open in Browser`
   - `Copy Path`
