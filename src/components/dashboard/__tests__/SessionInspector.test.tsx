@@ -71,7 +71,7 @@ describe('SessionInspector', () => {
     render(<SessionInspector session={session} onClose={jest.fn()} />);
     expect(screen.getByText(/First user message/)).toBeInTheDocument();
     expect(screen.getByText(/First assistant reply/)).toBeInTheDocument();
-    expect(screen.getByText(/Tool execution result/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Tool execution result/).length).toBeGreaterThan(0);
   });
 
   it('calls onClose when close button is clicked', () => {
@@ -94,5 +94,53 @@ describe('SessionInspector', () => {
     });
     render(<SessionInspector session={session} onClose={jest.fn()} />);
     expect(screen.getByText(/Recent History \(6 messages\)/)).toBeInTheDocument();
+  });
+
+  it('displays last tool result when available', () => {
+    const session = createSession({
+      history: [
+        { role: 'user', content: 'User request 1', timestamp: '2026-04-14T05:00:00Z' },
+        { role: 'assistant', content: 'Assistant response 1', timestamp: '2026-04-14T05:01:00Z' },
+        { role: 'toolResult', content: 'Tool result for test.ts', timestamp: '2026-04-14T05:02:00Z' },
+        { role: 'assistant', content: 'Assistant response 2', timestamp: '2026-04-14T05:03:00Z' },
+      ],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('Last Tool Result')).toBeInTheDocument();
+  });
+
+  it('displays last file info when available', () => {
+    const session = createSession({
+      history: [
+        { role: 'user', content: 'User request 1', timestamp: '2026-04-14T05:00:00Z' },
+        { role: 'assistant', content: 'Writing file', timestamp: '2026-04-14T05:01:00Z' },
+        { role: 'toolResult', content: '已写入文件: /src/app/test.ts', timestamp: '2026-04-14T05:02:00Z' },
+      ],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('Last File')).toBeInTheDocument();
+  });
+
+  it('displays raw session state when requested', () => {
+    const session = createSession({
+      label: 'Debug Task',
+      status: 'running',
+      history: [
+        { role: 'user', content: 'User message', timestamp: '2026-04-14T05:00:00Z' },
+      ],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('Raw State')).toBeInTheDocument();
+  });
+
+  it('shows raw state as expandable section', () => {
+    const session = createSession({
+      label: 'Expandable Test',
+      status: 'running',
+      history: [],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    const rawStateButton = screen.getByText('Raw State');
+    expect(rawStateButton).toBeInTheDocument();
   });
 });

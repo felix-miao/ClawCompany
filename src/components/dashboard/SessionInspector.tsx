@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import type { OpenClawSessionDetails } from '@/lib/gateway/openclaw-snapshot';
 import type { HistoryMessage } from '@/lib/gateway/client';
 
@@ -36,6 +38,49 @@ function truncateContent(content: string, maxLength: number = 150): string {
   return content.slice(0, maxLength - 1) + '…';
 }
 
+function extractFilePath(content: string): string | null {
+  const patterns = [
+    /已写入文件:\s*(.+)/,
+    /已写入[^:]*:\s*(.+)/,
+    /Wrote file:\s*(.+)/,
+    /written:\s*(.+)/,
+    /Created:\s*(.+)/,
+    /Saved:\s*(.+)/,
+    /File:\s*(.+)/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match && match[1]) {
+      const path = match[1].trim();
+      if (path.startsWith('/') || path.includes(':')) {
+        return path;
+      }
+    }
+  }
+
+  return null;
+}
+
+export interface DebugInfo {
+  lastToolResult: HistoryMessage | null;
+  lastFile: string | null;
+  lastResult: string | null;
+}
+
+export function getLastDebugInfo(history: HistoryMessage[]): DebugInfo {
+  const toolResults = history.filter(m => m.role === 'toolResult');
+  const lastToolResult = toolResults[toolResults.length - 1] ?? null;
+  const lastFile = lastToolResult ? extractFilePath(lastToolResult.content) : null;
+  const lastResult = lastToolResult?.content ?? null;
+
+  return {
+    lastToolResult,
+    lastFile,
+    lastResult,
+  };
+}
+
 function HistoryMessageItem({ message, isLast }: { message: HistoryMessage; isLast: boolean }) {
   return (
     <div
@@ -65,7 +110,10 @@ function HistoryMessageItem({ message, isLast }: { message: HistoryMessage; isLa
 export function SessionInspector({ session, onClose }: SessionInspectorProps) {
   if (!session) return null;
 
+  const [showRawState, setShowRawState] = useState(false);
+
   const recentHistory = session.history.slice(-6);
+  const debugInfo = getLastDebugInfo(session.history);
 
   return (
     <div className="glass rounded-xl border border-dark-100 overflow-hidden">
@@ -87,6 +135,22 @@ export function SessionInspector({ session, onClose }: SessionInspectorProps) {
         <div className="text-xs text-gray-500 mb-1">Label</div>
         <div className="text-sm text-gray-200 truncate">{session.label || '—'}</div>
       </div>
+
+      {debugInfo.lastToolResult && (
+        <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
+          <div className="text-xs text-gray-500 mb-1">Last Tool Result</div>
+          <div className="text-sm text-green-300 whitespace-pre-wrap break-words line-clamp-3">
+            {truncateContent(debugInfo.lastResult ?? '', 250)}
+          </div>
+        </div>
+      )}
+
+      {debugInfo.lastFile && (
+        <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
+          <div className="text-xs text-gray-500 mb-1">Last File</div>
+          <div className="text-sm text-blue-300 truncate">{debugInfo.lastFile}</div>
+        </div>
+      )}
 
       {session.latestMessage && (
         <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
@@ -111,6 +175,22 @@ export function SessionInspector({ session, onClose }: SessionInspectorProps) {
         ))}
         {recentHistory.length === 0 && (
           <div className="text-xs text-gray-500 text-center py-3">No history available</div>
+        )}
+      </div>
+
+      <div className="px-3 py-2 border-t border-dark-100/50">
+        <button
+          type="button"
+          onClick={() => setShowRawState(!showRawState)}
+          className="text-xs text-gray-500 hover:text-white flex items-center gap-1.5"
+        >
+          <span>{showRawState ? '▼' : '▶'}</span>
+          <span>Raw State</span>
+        </button>
+        {showRawState && (
+          <pre className="mt-2 text-[10px] text-gray-400 bg-dark-50/30 rounded p-2 overflow-x-auto max-h-48 overflow-y-auto">
+            {JSON.stringify(session, null, 2)}
+          </pre>
         )}
       </div>
     </div>
