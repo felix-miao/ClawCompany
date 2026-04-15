@@ -6,10 +6,12 @@ import type { OpenClawArtifact, OpenClawSessionDetails } from '@/lib/gateway/ope
 
 const ARTIFACT_TYPE_ICONS: Record<string, string> = {
   html: '📄',
+  tsx: '⚛️',
   code: '💻',
   image: '🖼️',
   markdown: '📝',
   json: '📋',
+  'test-report': '🧪',
   file: '📁',
   url: '🔗',
 };
@@ -32,9 +34,7 @@ function formatTime(timestamp: string): string {
 }
 
 function canPreview(artifact: OpenClawArtifact): boolean {
-  if (artifact.type === 'html') return true;
-  const ext = artifact.path?.toLowerCase().split('.').pop() || '';
-  return PREVIEWABLE_TYPES.includes(ext);
+  return artifact.type === 'html'
 }
 
 function copyToClipboard(text: string): Promise<void> {

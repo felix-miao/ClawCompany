@@ -149,6 +149,76 @@ describe('buildOpenClawSnapshot', () => {
     })
   })
 
+  it('classifies .tsx files as code type', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-tsx',
+        agentId: 'dev-claw',
+        label: '实现组件',
+        model: 'gpt-5',
+        status: 'completed',
+        startedAt: '2026-04-14T02:00:00Z',
+        endedAt: '2026-04-14T02:30:00Z',
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'assistant', content: '开始实现组件', status: 'running' },
+      { role: 'toolResult', content: '已写入文件: /Users/felixmiao/Projects/ClawCompany/src/app/hello/page.tsx', status: 'completed' },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].artifacts).toHaveLength(1)
+    expect(snapshot.sessions[0].artifacts[0]).toMatchObject({
+      type: 'tsx',
+      path: '/Users/felixmiao/Projects/ClawCompany/src/app/hello/page.tsx',
+      title: 'page.tsx',
+    })
+  })
+
+  it('classifies test report files correctly', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'tester-claw', name: 'Tester', identity: { name: 'Tester Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-test',
+        agentId: 'tester-claw',
+        label: '运行测试',
+        model: 'gpt-5',
+        status: 'completed',
+        startedAt: '2026-04-14T02:00:00Z',
+        endedAt: '2026-04-14T02:30:00Z',
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'tester-claw', name: 'Tester Claw', role: 'tester', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'assistant', content: '开始测试', status: 'running' },
+      { role: 'toolResult', content: '已写入文件: /Users/felixmiao/Projects/ClawCompany/generated/test-report.html', status: 'completed' },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].artifacts).toHaveLength(1)
+    expect(snapshot.sessions[0].artifacts[0]).toMatchObject({
+      type: 'test-report',
+      path: '/Users/felixmiao/Projects/ClawCompany/generated/test-report.html',
+      title: 'test-report.html',
+    })
+  })
+
   it('handles history with no file artifacts gracefully', async () => {
     const sync = createSyncStub()
 

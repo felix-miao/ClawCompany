@@ -20,8 +20,10 @@ import {
 import { HistoryMessage } from './client'
 import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
 
+export type OpenClawArtifactType = 'html' | 'tsx' | 'code' | 'image' | 'markdown' | 'json' | 'test-report' | 'url'
+
 export interface OpenClawArtifact {
-  type: 'html' | 'code' | 'image' | 'file' | 'markdown' | 'json' | 'url'
+  type: OpenClawArtifactType
   path?: string
   url?: string
   title: string
@@ -183,12 +185,12 @@ function deriveLatestResultSummary(history: HistoryMessage[]): string | null {
   return latestToolResult?.content?.slice(0, 200) || null
 }
 
-const FILE_EXT_ARTIFACT_TYPE: Record<string, OpenClawArtifact['type']> = {
+const FILE_EXT_ARTIFACT_TYPE: Record<string, OpenClawArtifactType> = {
   '.html': 'html',
   '.htm': 'html',
+  '.tsx': 'tsx',
   '.css': 'code',
   '.ts': 'code',
-  '.tsx': 'code',
   '.js': 'code',
   '.jsx': 'code',
   '.py': 'code',
@@ -201,9 +203,11 @@ const FILE_EXT_ARTIFACT_TYPE: Record<string, OpenClawArtifact['type']> = {
   '.svg': 'image',
 }
 
-function detectArtifactType(filePath: string): OpenClawArtifact['type'] {
+function detectArtifactType(filePath: string): OpenClawArtifactType {
   const ext = filePath.toLowerCase().match(/\.[^.]+$/)?.[0] || ''
-  return FILE_EXT_ARTIFACT_TYPE[ext] || 'file'
+  const baseName = filePath.toLowerCase()
+  if (baseName.includes('test-report')) return 'test-report'
+  return FILE_EXT_ARTIFACT_TYPE[ext] || 'code'
 }
 
 function extractFilePath(content: string): string | null {
