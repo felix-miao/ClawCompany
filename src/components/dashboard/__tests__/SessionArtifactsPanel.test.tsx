@@ -27,6 +27,7 @@ function createSessionWithArtifacts(
     latestMessageStatus: 'completed',
     history: [],
     artifacts,
+    finalDeliveryArtifacts: artifacts,
     category: 'completed',
     ...overrides,
   };
@@ -116,7 +117,7 @@ describe('SessionArtifactsPanel', () => {
     it('has Copy Path button for all artifacts', () => {
       const session = createSessionWithArtifacts([
         {
-          type: 'file',
+          type: 'code',
           path: '/Users/test/file.txt',
           title: 'file.txt',
           producedBy: 'dev-claw',
@@ -278,6 +279,72 @@ describe('SessionArtifactsPanel', () => {
         expect.objectContaining({ type: 'html', path: '/Users/test/index.html' }),
         expect.objectContaining({ sessionKey: 'sess-1' })
       );
+    });
+  });
+
+  describe('session sorting by most recent result', () => {
+    it('displays sessions sorted by most recent artifact timestamp', () => {
+      const olderSession = createSessionWithArtifacts(
+        [
+          {
+            type: 'html',
+            path: '/Users/old/page.html',
+            title: 'old.html',
+            producedBy: 'dev-claw',
+            producedAt: '2026-04-14T05:00:00Z',
+          },
+        ],
+        { sessionKey: 'sess-old', label: 'Old task' }
+      );
+      const newerSession = createSessionWithArtifacts(
+        [
+          {
+            type: 'html',
+            path: '/Users/new/page.html',
+            title: 'new.html',
+            producedBy: 'dev-claw',
+            producedAt: '2026-04-14T06:00:00Z',
+          },
+        ],
+        { sessionKey: 'sess-new', label: 'New task' }
+      );
+      render(<SessionArtifactsPanel sessions={[olderSession, newerSession]} />);
+
+      const sessionHeaders = document.querySelectorAll('[class*="text-xs text-gray-500 truncate"]');
+      expect(sessionHeaders[0]).toHaveTextContent('New task');
+      expect(sessionHeaders[1]).toHaveTextContent('Old task');
+    });
+
+    it('uses endedAt for sorting when artifacts exist', () => {
+      const olderSession = createSessionWithArtifacts(
+        [
+          {
+            type: 'html',
+            path: '/Users/old/page.html',
+            title: 'old.html',
+            producedBy: 'dev-claw',
+            producedAt: '2026-04-14T05:00:00Z',
+          },
+        ],
+        { sessionKey: 'sess-old', label: 'Older session' }
+      );
+      const newerSession = createSessionWithArtifacts(
+        [
+          {
+            type: 'html',
+            path: '/Users/new/page.html',
+            title: 'new.html',
+            producedBy: 'dev-claw',
+            producedAt: '2026-04-14T07:00:00Z',
+          },
+        ],
+        { sessionKey: 'sess-new', label: 'Newer session' }
+      );
+      render(<SessionArtifactsPanel sessions={[newerSession, olderSession]} />);
+
+      const sessionHeaders = document.querySelectorAll('[class*="text-xs text-gray-500 truncate"]');
+      expect(sessionHeaders[0]).toHaveTextContent('Newer session');
+      expect(sessionHeaders[1]).toHaveTextContent('Older session');
     });
   });
 });

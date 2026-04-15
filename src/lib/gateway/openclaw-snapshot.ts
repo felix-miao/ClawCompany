@@ -29,6 +29,7 @@ export interface OpenClawArtifact {
   title: string
   producedBy: string
   producedAt: string
+  isFinal?: boolean
 }
 
 export type SessionCategory = 'running' | 'completed' | 'just-completed' | 'failed' | 'stuck'
@@ -52,6 +53,7 @@ export interface OpenClawSessionDetails {
   latestMessageStatus: HistoryMessage['status'] | null
   history: HistoryMessage[]
   artifacts: OpenClawArtifact[]
+  finalDeliveryArtifacts: OpenClawArtifact[]
   category: SessionCategory
 }
 
@@ -132,7 +134,7 @@ function isSessionActive(session: Pick<OpenClawSessionDetails, 'endedAt' | 'stat
   return session.endedAt === null || session.status.includes('running')
 }
 
-function deriveCategory(session: OpenClawSessionDetails): SessionCategory {
+function deriveCategory(session: Pick<OpenClawSessionDetails, 'endedAt' | 'status' | 'latestMessageStatus' | 'startedAt'>): SessionCategory {
   const isEnded = session.endedAt !== null
 
   if (session.status === 'failed') {
@@ -243,19 +245,52 @@ function deriveArtifacts(history: HistoryMessage[], agentId: string): OpenClawAr
     const filePath = extractFilePath(message.content)
     if (!filePath) continue
 
-    if (artifactMap.has(filePath)) continue
-
     const fileName = filePath.split('/').pop() || filePath
+    const producedAt = message.timestamp || new Date().toISOString()
     artifactMap.set(filePath, {
       type: detectArtifactType(filePath),
       path: filePath,
       title: fileName,
       producedBy: agentId,
-      producedAt: new Date().toISOString(),
+      producedAt,
+      isFinal: true,
     })
   }
 
   return Array.from(artifactMap.values())
+}
+
+function deriveFinalDeliveryArtifacts(history: HistoryMessage[], agentId: string): OpenClawArtifact[] {
+  const lastWriteMap = new Map<string, { artifact: OpenClawArtifact; timestamp: number }>()
+
+  for (const message of history) {
+    if (message.role !== 'toolResult') continue
+
+    const filePath = extractFilePath(message.content)
+    if (!filePath) continue
+
+    const timestamp = parseHistoryTimestamp(message.timestamp) ?? 0
+    const existing = lastWriteMap.get(filePath)
+
+    if (!existing || timestamp > existing.timestamp) {
+      const fileName = filePath.split('/').pop() || filePath
+      lastWriteMap.set(filePath, {
+        artifact: {
+          type: detectArtifactType(filePath),
+          path: filePath,
+          title: fileName,
+          producedBy: agentId,
+          producedAt: message.timestamp || new Date().toISOString(),
+          isFinal: true,
+        },
+        timestamp,
+      })
+    }
+  }
+
+  return Array.from(lastWriteMap.values())
+    .map(entry => entry.artifact)
+    .sort((a, b) => parseHistoryTimestamp(b.producedAt)! - parseHistoryTimestamp(a.producedAt)!)
 }
 
 function createPhaseRecords(createdAt: number): TaskPhaseRecord[] {
@@ -523,11 +558,12 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
 
     const historyMap = new Map(histories)
     const mappedAgents = sync.mapToAgentInfo(agents, sessions)
-    const sessionDetails: OpenClawSessionDetails[] = sessions.map((session) => {
+    const sessionDetails = sessions.map((session) => {
       const history = historyMap.get(session.key) ?? []
       const latestMessage = findLatestMessage(history, () => true)
       const agent = agents.find(item => item.id === session.agentId)
       const role = mappedAgents.find(item => item.id === session.agentId)?.role ?? 'Developer'
+      const isCompleted = session.status === 'completed' || session.status === 'done'
 
       return {
         sessionKey: session.key,
@@ -548,6 +584,9 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
         latestMessageStatus: latestMessage?.status ?? null,
         history,
         artifacts: deriveArtifacts(history, session.agentId),
+        finalDeliveryArtifacts: isCompleted
+          ? deriveFinalDeliveryArtifacts(history, session.agentId)
+          : [],
       }
     })
 

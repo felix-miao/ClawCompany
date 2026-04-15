@@ -184,6 +184,115 @@ describe('buildOpenClawSnapshot', () => {
     })
   })
 
+  it('uses message.timestamp as producedAt for artifacts', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-time',
+        agentId: 'dev-claw',
+        label: 'Test timestamps',
+        model: 'gpt-5',
+        status: 'running',
+        startedAt: '2026-04-14T02:00:00Z',
+        endedAt: null,
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+    ])
+    const artifactTime = '2026-04-14T03:00:00Z'
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'assistant', content: 'Creating file', status: 'running' },
+      { role: 'toolResult', content: '已写入文件: /Users/test/output.html', status: 'completed', timestamp: artifactTime },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].artifacts[0].producedAt).toBe(artifactTime)
+  })
+
+  it('derives finalDeliveryArtifacts from completed session (last write per path)', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-final',
+        agentId: 'dev-claw',
+        label: 'Final delivery test',
+        model: 'gpt-5',
+        status: 'completed',
+        startedAt: '2026-04-14T02:00:00Z',
+        endedAt: '2026-04-14T02:30:00Z',
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+    const firstWrite = '2026-04-14T02:10:00Z'
+    const secondWrite = '2026-04-14T02:20:00Z'
+    const finalWrite = '2026-04-14T02:25:00Z'
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'assistant', content: 'Start', status: 'running' },
+      { role: 'toolResult', content: '已写入文件: /Users/test/index.html', status: 'completed', timestamp: firstWrite },
+      { role: 'assistant', content: 'Update', status: 'running' },
+      { role: 'toolResult', content: '已写入文件: /Users/test/index.html', status: 'completed', timestamp: secondWrite },
+      { role: 'assistant', content: 'Final update', status: 'completed' },
+      { role: 'toolResult', content: '已写入文件: /Users/test/styles.css', status: 'completed', timestamp: finalWrite },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].finalDeliveryArtifacts).toHaveLength(2)
+    const finalPaths = snapshot.sessions[0].finalDeliveryArtifacts.map(a => a.path).sort()
+    expect(finalPaths).toEqual([
+      '/Users/test/index.html',
+      '/Users/test/styles.css',
+    ])
+    const indexArtifact = snapshot.sessions[0].finalDeliveryArtifacts.find(a => a.path === '/Users/test/index.html')
+    expect(indexArtifact?.producedAt).toBe(secondWrite)
+  })
+
+  it('marks isFinal=true only for last write per path in completed session', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-final-flag',
+        agentId: 'dev-claw',
+        label: 'Final flag test',
+        model: 'gpt-5',
+        status: 'completed',
+        startedAt: '2026-04-14T02:00:00Z',
+        endedAt: '2026-04-14T02:30:00Z',
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+    ])
+    const firstWrite = '2026-04-14T02:10:00Z'
+    const finalWrite = '2026-04-14T02:20:00Z'
+    sync.client.sessions_history.mockResolvedValue([
+      { role: 'toolResult', content: '已写入文件: /Users/test/page.tsx', status: 'completed', timestamp: firstWrite },
+      { role: 'toolResult', content: '已写入文件: /Users/test/page.tsx', status: 'completed', timestamp: finalWrite },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.sessions[0].artifacts).toHaveLength(1)
+    expect(snapshot.sessions[0].artifacts[0].isFinal).toBe(true)
+    expect(snapshot.sessions[0].artifacts[0].producedAt).toBe(finalWrite)
+  })
+
   it('classifies test report files correctly', async () => {
     const sync = createSyncStub()
 

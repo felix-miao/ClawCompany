@@ -189,7 +189,14 @@ function SessionHeader({ session, onOpenResult }: SessionHeaderProps) {
 }
 
 export function SessionArtifactsPanel({ sessions, onOpenResult }: SessionArtifactsPanelProps) {
-  const sessionsWithArtifacts = sessions.filter(s => s.artifacts && s.artifacts.length > 0);
+  const getMostRecentArtifactTime = (session: OpenClawSessionDetails): number => {
+    if (session.artifacts.length === 0) return 0;
+    return Math.max(...session.artifacts.map(a => new Date(a.producedAt).getTime()));
+  };
+
+  const sessionsWithArtifacts = sessions
+    .filter(s => s.artifacts && s.artifacts.length > 0)
+    .sort((a, b) => getMostRecentArtifactTime(b) - getMostRecentArtifactTime(a));
 
   if (sessionsWithArtifacts.length === 0) {
     return null;
