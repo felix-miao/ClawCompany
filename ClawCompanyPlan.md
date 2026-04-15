@@ -196,14 +196,14 @@ Dashboard
   - `Open File`
   - `Open in Browser`
   - `Copy Path`
-- [ ] 需要建立 artifact 发现机制：
+- [code-complete] 需要建立 artifact 发现机制：
   - 来自 OpenClaw history 里的文件输出
   - 或由 orchestrator / file writer 明确上报结果文件
 
 ##### 5. Artifact / Result 归档模型
 
-- [ ] 定义 `ResultArtifact` 类型
-- [ ] 对常见结果类型分类：
+- [code-complete] 定义 `ResultArtifact` 类型
+- [code-complete] 对常见结果类型分类：
   - `html`
   - `tsx`
   - `image`
