@@ -171,8 +171,8 @@ Dashboard
   - 最新输出摘要
   - 最近更新时间
   - 对应 sessionKey
-- [ ] 支持“谁在 work / 谁已完成 / 谁失败 / 谁卡住”筛选
-- [ ] 支持按 agent 分组查看当前任务
+- [code-complete] 支持“谁在 work / 谁已完成 / 谁失败 / 谁卡住”筛选
+  - [code-complete] 支持按 agent 分组查看当前任务
 
 ##### 3. Session Inspector
 

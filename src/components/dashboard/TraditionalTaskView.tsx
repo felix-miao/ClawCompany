@@ -274,6 +274,7 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
   const [filter, setFilter] = useState<FilterType>('all');
   const [stageFilter, setStageFilter] = useState<StageFilterType>('all');
   const [agentFilter, setAgentFilter] = useState<AgentFilterType>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'group'>('list');
   const sortedTasks = useMemo(
     () => [...tasks].sort((a, b) => getTaskPriority(b) - getTaskPriority(a) || b.updatedAt - a.updatedAt),
     [tasks],
@@ -382,6 +383,19 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
 
   const hasStageFilterApplied = stageFilter !== 'all';
   const displayTasksFinal = hasStageFilterApplied ? displayTasksByStage : displayTasks;
+
+  const tasksByAgent = useMemo(() => {
+    if (viewMode !== 'group') return null;
+    const groups: Record<string, TaskHistory[]> = {};
+    displayTasksFinal.forEach(task => {
+      const key = task.currentAgentId ?? task.currentPhase;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      groups[key].push(task);
+    });
+    return groups;
+  }, [displayTasksFinal, viewMode]);
 
   const [internalSelectedTaskId, setInternalSelectedTaskId] = useState<string | null>(displayTasksFinal[0]?.taskId ?? null);
 
@@ -593,7 +607,21 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)] h-[calc(100%-5.5rem)] min-h-[460px]">
         <section className="rounded-xl border border-dark-100 bg-dark-50/30 overflow-hidden flex flex-col min-h-0">
           <div className="px-4 py-3 border-b border-dark-100 flex flex-col gap-2">
-            <div className="text-sm font-medium text-gray-200">Task List</div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-200">Task List</div>
+              <button
+                data-testid="toggle-agent-group"
+                type="button"
+                onClick={() => setViewMode(viewMode === 'list' ? 'group' : 'list')}
+                className={`rounded-lg px-2 py-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                  viewMode === 'group'
+                    ? 'bg-primary-500/20 border border-primary-500/30 text-primary-200'
+                    : 'bg-dark-50/40 border border-dark-100 text-gray-400 hover:border-dark-50'
+                }`}
+              >
+                {viewMode === 'list' ? '分组' : '列表'}
+              </button>
+            </div>
             {/* Stage filter chips */}
             <div className="flex flex-wrap gap-1">
               {(Object.entries(STAGE_LABELS) as [string, string][]).map(([stage, label]) => {
@@ -657,6 +685,20 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
           </div>
           <div className="overflow-y-auto p-2 space-y-3">
             {(() => {
+              if (viewMode === 'group' && tasksByAgent) {
+                return Object.entries(tasksByAgent).map(([agentKey, agentTasks]) => (
+                  <div key={agentKey} data-testid={`agent-group-${agentKey}`} className="space-y-2">
+                    <div className="px-2 py-1.5 text-xs font-medium text-primary-300 uppercase tracking-wide flex items-center gap-2">
+                      <span>{agentTasks[0]?.currentAgentName ?? agentKey}</span>
+                      <span className="text-primary-400/70">×{agentTasks.length}</span>
+                    </div>
+                    {agentTasks.map((task) => (
+                      <TaskListItem key={task.taskId} task={task} selectedTaskId={internalSelectedTaskId} onSelect={setInternalSelectedTaskId} />
+                    ))}
+                  </div>
+                ));
+              }
+
               if (hasStageFilterApplied) {
                 return displayTasksFinal.map((task) => (
                   <TaskListItem key={task.taskId} task={task} selectedTaskId={internalSelectedTaskId} onSelect={setInternalSelectedTaskId} />

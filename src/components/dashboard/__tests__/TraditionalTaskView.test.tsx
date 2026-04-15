@@ -823,4 +823,31 @@ describe('TraditionalTaskView', () => {
     expect(screen.getByTestId('agent-filter-dev-agent')).toHaveTextContent('×2');
     expect(screen.getByTestId('agent-filter-pm-agent')).toHaveTextContent('×1');
   });
+
+  it('should toggle agent group view', () => {
+    const devTask1 = buildTask({ taskId: 'task-1', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const devTask2 = buildTask({ taskId: 'task-2', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const pmTask = buildTask({ taskId: 'task-3', currentAgentId: 'pm-agent', currentAgentName: 'PM Claw', currentPhase: 'pm_analysis', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[devTask1, devTask2, pmTask]} />);
+
+    expect(screen.getByText('×1')).toBeInTheDocument();
+    expect(screen.getAllByText(/Dev Claw/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByTestId('toggle-agent-group'));
+
+    expect(screen.getByTestId('agent-group-dev-agent')).toBeInTheDocument();
+  });
+
+  it('should show agent group with task counts', () => {
+    const devTask = buildTask({ taskId: 'task-1', currentAgentId: 'dev-agent', currentAgentName: 'Dev Claw', currentPhase: 'developer', status: 'in_progress' });
+    const reviewTask = buildTask({ taskId: 'task-2', currentAgentId: 'review-agent', currentAgentName: 'Reviewer Claw', currentPhase: 'reviewer', status: 'in_progress' });
+
+    render(<TraditionalTaskView tasks={[devTask, reviewTask]} />);
+
+    fireEvent.click(screen.getByTestId('toggle-agent-group'));
+
+    expect(screen.getByTestId('agent-group-dev-agent')).toBeInTheDocument();
+    expect(screen.getByTestId('agent-group-review-agent')).toBeInTheDocument();
+  });
 });
