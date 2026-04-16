@@ -128,6 +128,15 @@ export interface TaskHistory {
   recentEvents: GameEvent[];
   failureSummary?: string;
   latestResultSummary?: string;
+  finalResultSummary?: {
+    toolType: string;
+    operation: string;
+    paths: string[];
+    urls: string[];
+    status: string;
+    error?: string;
+    summaryText: string;
+  };
   iterationCount?: number;
   rejectionCount?: number;
   isInRework?: boolean;

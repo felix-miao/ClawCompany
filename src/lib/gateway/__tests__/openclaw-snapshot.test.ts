@@ -1298,5 +1298,39 @@ describe('buildOpenClawSnapshot', () => {
       }, {} as Record<string, number>)
       expect(fileCounts['tsx'] || fileCounts['code']).toBe(3)
     })
+
+    it('flows structured finalResultSummary to taskHistory tasks', async () => {
+      const sync = createSyncStub()
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-flow-test',
+          agentId: 'dev-claw',
+          label: 'Flow test session',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: '2026-04-14T10:00:00Z',
+          endedAt: '2026-04-14T10:30:00Z',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'toolResult', content: '已写入文件: /app/main.tsx', status: 'completed', timestamp: '2026-04-14T10:20:00Z' },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.tasks).toHaveLength(1)
+      expect(snapshot.tasks[0].taskId).toBe('sess-flow-test')
+      expect(snapshot.tasks[0].finalResultSummary).toBeDefined()
+      expect(snapshot.tasks[0].finalResultSummary?.toolType).toBe('write')
+      expect(snapshot.tasks[0].finalResultSummary?.paths).toContain('/app/main.tsx')
+      expect(snapshot.tasks[0].finalResultSummary?.status).toBe('completed')
+    })
   })
 })

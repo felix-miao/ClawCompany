@@ -1021,6 +1021,7 @@ function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
     recentEvents,
     failureSummary: failed ? (session.latestMessage || 'Session failed') : undefined,
     latestResultSummary: session.latestResultSummary ?? undefined,
+    finalResultSummary: session.finalResultSummary ?? undefined,
     lastReviewFeedback: failed ? session.latestMessage || undefined : undefined,
     lastApproved: !active && !failed,
   }
