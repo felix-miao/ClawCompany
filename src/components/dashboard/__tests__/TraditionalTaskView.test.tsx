@@ -27,11 +27,19 @@ const buildTask = (overrides: Partial<TaskHistory> = {}): TaskHistory => ({
 });
 
 describe('TraditionalTaskView', () => {
-  it('should render empty state', () => {
+  it('should render empty state with skeleton skeleton instead of waiting message', () => {
     render(<TraditionalTaskView tasks={[]} />);
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
-    expect(screen.getByText('Waiting for task lifecycle events...')).toBeInTheDocument();
+    expect(screen.getByText('当前任务概览')).toBeInTheDocument();
+    expect(screen.getByText(/等待任务开始或从 snapshot 加载数据/)).toBeInTheDocument();
+  });
+
+  it('should show skeleton placeholders in empty state', () => {
+    render(<TraditionalTaskView tasks={[]} />);
+
+    const skeletons = document.querySelectorAll('.animate-pulse');
+    expect(skeletons.length).toBeGreaterThan(0);
   });
 
   it('should show selected task blocker and timeline details', () => {

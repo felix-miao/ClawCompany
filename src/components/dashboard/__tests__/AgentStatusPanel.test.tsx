@@ -5,10 +5,10 @@ import { AgentStatusPanel } from '../AgentStatusPanel';
 import { AgentInfo } from '@/game/data/DashboardStore';
 
 const mockAgents: AgentInfo[] = [
-  { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'bob', name: 'Bob', role: 'Developer', status: 'working', emotion: 'focused', currentTask: 'Build API' },
-  { id: 'charlie', name: 'Charlie', role: 'PM', status: 'busy', emotion: 'thinking', currentTask: null },
-  { id: 'diana', name: 'Diana', role: 'Reviewer', status: 'offline', emotion: 'neutral', currentTask: null },
+  { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'bob', name: 'Bob', role: 'Developer', status: 'working', emotion: 'focused', currentTask: 'Build API', latestResultSummary: 'Completed API endpoint' },
+  { id: 'charlie', name: 'Charlie', role: 'PM', status: 'busy', emotion: 'thinking', currentTask: null, latestResultSummary: 'Created task breakdown' },
+  { id: 'diana', name: 'Diana', role: 'Reviewer', status: 'offline', emotion: 'neutral', currentTask: null, latestResultSummary: null },
 ];
 
 describe('AgentStatusPanel', () => {
@@ -105,5 +105,22 @@ describe('AgentStatusPanel', () => {
       const cards = container.querySelectorAll('[class*="rounded-lg"]');
       cards[0]?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     }).not.toThrow();
+  });
+
+  it('should display latestResultSummary when present', () => {
+    render(<AgentStatusPanel agents={mockAgents} />);
+
+    expect(screen.getByText(/→ Completed API endpoint/)).toBeInTheDocument();
+    expect(screen.getByText(/→ Created task breakdown/)).toBeInTheDocument();
+  });
+
+  it('should not display latestResultSummary when null', () => {
+    const agentsNoSummary = [
+      { id: 'alice', name: 'Alice', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+      { id: 'bob', name: 'Bob', role: 'Developer', status: 'working', currentTask: 'Build API', latestResultSummary: null },
+    ];
+    render(<AgentStatusPanel agents={agentsNoSummary} />);
+
+    expect(screen.queryByText(/→ /)).not.toBeInTheDocument();
   });
 });

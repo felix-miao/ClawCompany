@@ -426,7 +426,14 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
     }
   }, [internalSelectedTaskId, onSelectTask]);
 
-  if (!sortedTasks.length) {
+  const TASK_FLOW_STAGES = [
+  { phase: 'pm', label: 'PM Analysis', key: 'pm_analysis' },
+  { phase: 'developer', label: 'Developer', key: 'developer' },
+  { phase: 'tester', label: 'Tester', key: 'tester' },
+  { phase: 'reviewer', label: 'Reviewer', key: 'reviewer' },
+];
+
+if (!sortedTasks.length) {
     return (
       <div data-testid="traditional-task-view" className="glass rounded-2xl border border-dark-100 p-6 h-full">
         <div className="flex items-center justify-between gap-3 mb-4">
@@ -435,8 +442,42 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
             <h2 className="text-xl font-semibold text-white">Traditional Task Tracker</h2>
           </div>
         </div>
-        <div className="h-full min-h-[360px] rounded-xl border border-dashed border-dark-100 bg-dark-50/20 flex items-center justify-center text-sm text-gray-500">
-          Waiting for task lifecycle events...
+        <div className="h-full min-h-[360px] rounded-xl border border-dark-100 bg-dark-50/20 flex flex-col p-4">
+          <div className="text-sm text-gray-400 mb-4">当前任务概览</div>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dark-100 bg-dark-50/30 animate-pulse">
+              <div className="w-8 h-8 rounded-lg bg-dark-100" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-32 bg-dark-100 rounded" />
+                <div className="h-3 w-48 bg-dark-100/50 rounded" />
+              </div>
+              <div className="h-6 w-16 bg-dark-100 rounded-full" />
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-dark-100 bg-dark-50/30 animate-pulse">
+              <div className="w-8 h-8 rounded-lg bg-dark-100" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-40 bg-dark-100 rounded" />
+                <div className="h-3 w-44 bg-dark-100/50 rounded" />
+              </div>
+              <div className="h-6 w-20 bg-dark-100 rounded-full" />
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-dark-100">
+            <div className="text-xs text-gray-400 mb-3">任务流程</div>
+            <div className="flex flex-wrap gap-2">
+              {TASK_FLOW_STAGES.map((stage) => (
+                <div
+                  key={stage.phase}
+                  className="rounded-full border border-dark-100 bg-dark-50/30 px-3 py-1.5 text-xs text-gray-500"
+                >
+                  {stage.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 text-xs text-gray-500 text-center">
+            等待任务开始或从 snapshot 加载数据...
+          </div>
         </div>
       </div>
     );

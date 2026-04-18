@@ -15,12 +15,34 @@ import { useEventStream } from "@/hooks/useEventStream";
 import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
 import { Game, startGame } from "@/game";
-import { DashboardStore } from "@/game/data/DashboardStore";
+import { AgentInfo, DashboardStore } from "@/game/data/DashboardStore";
 import { GameEvent } from "@/game/types/GameEvents";
 import { MetricsAggregator } from "@/lib/core/metrics-aggregator";
 import { PerformanceMonitor } from "@/lib/core/performance-monitor";
 import { ErrorTracker } from "@/lib/core/error-tracker";
 import { Logger } from "@/lib/core/logger";
+
+const ROLE_EMOJI: Record<string, string> = {
+  'Project Manager': '📋',
+  'Developer': '💻',
+  'Code Reviewer': '🔍',
+  'QA Engineer': '🧪',
+};
+
+function getActiveAgentsSummary(agents: AgentInfo[]): { count: number; names: string[] } {
+  const active = agents.filter(a => a.status === 'working' || a.status === 'busy');
+  return {
+    count: active.length,
+    names: active.map(a => `${ROLE_EMOJI[a.role] ?? '🤖'} ${a.name}`),
+  };
+}
+
+const TASK_FLOW_STAGES = [
+  { phase: 'pm', label: 'PM Analysis' },
+  { phase: 'developer', label: 'Developer' },
+  { phase: 'tester', label: 'Tester' },
+  { phase: 'reviewer', label: 'Reviewer' },
+];
 
 export default function DashboardPage() {
   const store = useMemo(() => new DashboardStore(), []);
@@ -196,6 +218,23 @@ export default function DashboardPage() {
           <div className="text-sm text-gray-500">
             {stats.totalEvents} events | {stats.activeTasks} active tasks
           </div>
+          {(() => {
+            const activeSummary = getActiveAgentsSummary(agents);
+            if (activeSummary.count === 0) return null;
+            return (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-primary-300 font-medium">
+                  {activeSummary.count} active agent
+                  {activeSummary.count > 1 ? 's' : ''}
+                </span>
+                {activeSummary.names.slice(0, 1).map(name => (
+                  <span key={name} className="text-gray-400">
+                    ({name})
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </header>
 

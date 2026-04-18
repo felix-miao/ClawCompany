@@ -61,6 +61,7 @@ export interface AgentInfo {
   status: 'idle' | 'busy' | 'working' | 'offline';
   emotion: string;
   currentTask: string | null;
+  latestResultSummary: string | null;
 }
 
 export type TaskPhase =
@@ -159,10 +160,10 @@ export interface DashboardStats {
 }
 
 const DEFAULT_AGENTS: AgentInfo[] = [
-  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
 ];
 
 const AGENT_ID_ALIAS_MAP: Record<string, string> = {

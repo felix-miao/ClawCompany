@@ -80,6 +80,11 @@ export function AgentStatusPanel({ agents, onSelectAgent }: AgentStatusPanelProp
                 {agent.currentTask}
               </div>
             )}
+            {agent.latestResultSummary && (
+              <div className="mt-1 text-xs text-green-400 truncate" title={agent.latestResultSummary}>
+                → {agent.latestResultSummary}
+              </div>
+            )}
           </div>
         ))}
       </div>

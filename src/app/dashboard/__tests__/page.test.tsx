@@ -16,10 +16,10 @@ jest.mock('@/hooks/useDashboardStore', () => ({
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
     agents: [
-      { id: 'pm-agent', name: 'PM Claw', role: 'Project Manager', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来' },
-      { id: 'dev-agent', name: 'Dev Claw', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-      { id: 'review-agent', name: 'Reviewer Claw', role: 'Code Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
-      { id: 'test-agent', name: 'Tester Claw', role: 'QA Engineer', status: 'idle', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'PM Claw', role: 'Project Manager', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来', latestResultSummary: '已生成初始任务拆分' },
+      { id: 'dev-agent', name: 'Dev Claw', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+      { id: 'review-agent', name: 'Reviewer Claw', role: 'Code Reviewer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+      { id: 'test-agent', name: 'Tester Claw', role: 'QA Engineer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ],
     sessions: [
       {
@@ -213,5 +213,44 @@ describe('DashboardPage', () => {
     fireEvent.click(closeButton);
 
     expect(screen.queryByText('Session Inspector')).not.toBeInTheDocument();
+  });
+
+  it('should display active agent summary directly on dashboard without inspector', async () => {
+    render(<DashboardPage />);
+
+    const workingAgents = screen.getAllByText('working');
+    expect(workingAgents.length).toBeGreaterThan(0);
+    expect(screen.getAllByText('用你的团队给我写一个网站出来').length).toBeGreaterThan(0);
+  });
+
+  it('should display latest result summary for active agent on dashboard', async () => {
+    render(<DashboardPage />);
+
+    const pmCard = screen.getByTestId('agent-card-pm-agent');
+    expect(pmCard).toBeInTheDocument();
+    expect(screen.getByText(/已生成初始任务拆分/)).toBeInTheDocument();
+  });
+
+  it('should show timeline view with task card when switching views', async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
+
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.getByText('当前卡点')).toBeInTheDocument();
+  });
+
+  it('should display active agents summary in header directly', async () => {
+    render(<DashboardPage />);
+
+    expect(screen.getByText(/1 active agent/)).toBeInTheDocument();
+    expect(screen.getAllByText('working').length).toBeGreaterThan(0);
+  });
+
+  it('should show which agent is currently working in header', async () => {
+    render(<DashboardPage />);
+
+    const header = document.querySelector('header');
+    expect(header).toHaveTextContent(/PM Claw/);
   });
 });
