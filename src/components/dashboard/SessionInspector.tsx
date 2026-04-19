@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import type { OpenClawSessionDetails } from '@/lib/gateway/openclaw-snapshot';
+import type { OpenClawSessionDetails, OpenClawArtifact, StructuredResultSummary } from '@/lib/gateway/openclaw-snapshot';
 import type { HistoryMessage } from '@/lib/gateway/client';
 
 interface SessionInspectorProps {
@@ -66,6 +66,35 @@ export interface DebugInfo {
   lastToolResult: HistoryMessage | null;
   lastFile: string | null;
   lastResult: string | null;
+  lastUrl: string | null;
+  toolName: string | null;
+  operation: string | null;
+}
+
+function getStructuredDebugInfo(
+  finalResultSummary: StructuredResultSummary | null,
+  artifacts: OpenClawArtifact[],
+): { lastFile: string | null; lastUrl: string | null; toolName: string | null; operation: string | null } {
+  if (finalResultSummary) {
+    return {
+      lastFile: finalResultSummary.paths[0] ?? null,
+      lastUrl: finalResultSummary.urls[0] ?? null,
+      toolName: finalResultSummary.toolType,
+      operation: finalResultSummary.operation,
+    };
+  }
+
+  const lastArtifact = artifacts[artifacts.length - 1];
+  if (lastArtifact) {
+    return {
+      lastFile: lastArtifact.path ?? null,
+      lastUrl: lastArtifact.url ?? null,
+      toolName: lastArtifact.producedBy,
+      operation: lastArtifact.type,
+    };
+  }
+
+  return { lastFile: null, lastUrl: null, toolName: null, operation: null };
 }
 
 export function getLastDebugInfo(history: HistoryMessage[]): DebugInfo {
@@ -78,6 +107,9 @@ export function getLastDebugInfo(history: HistoryMessage[]): DebugInfo {
     lastToolResult,
     lastFile,
     lastResult,
+    lastUrl: null,
+    toolName: null,
+    operation: null,
   };
 }
 
@@ -113,7 +145,16 @@ export function SessionInspector({ session, onClose }: SessionInspectorProps) {
   const [showRawState, setShowRawState] = useState(false);
 
   const recentHistory = session.history.slice(-6);
-  const debugInfo = getLastDebugInfo(session.history);
+  const textDebugInfo = getLastDebugInfo(session.history);
+  const structuredDebugInfo = getStructuredDebugInfo(
+    session.finalResultSummary ?? null,
+    session.artifacts ?? [],
+  );
+
+  const lastFile = structuredDebugInfo.lastFile ?? textDebugInfo.lastFile;
+  const lastUrl = structuredDebugInfo.lastUrl ?? textDebugInfo.lastUrl;
+  const lastResult = session.finalResultSummary?.summaryText
+    ?? textDebugInfo.lastResult;
 
   return (
     <div className="glass rounded-xl border border-dark-100 overflow-hidden">
@@ -136,19 +177,39 @@ export function SessionInspector({ session, onClose }: SessionInspectorProps) {
         <div className="text-sm text-gray-200 truncate">{session.label || '—'}</div>
       </div>
 
-      {debugInfo.lastToolResult && (
+      {(lastResult || textDebugInfo.lastToolResult) && (
         <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
           <div className="text-xs text-gray-500 mb-1">Last Tool Result</div>
           <div className="text-sm text-green-300 whitespace-pre-wrap break-words line-clamp-3">
-            {truncateContent(debugInfo.lastResult ?? '', 250)}
+            {truncateContent(lastResult ?? '', 250)}
           </div>
         </div>
       )}
 
-      {debugInfo.lastFile && (
+      {lastFile && (
         <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
           <div className="text-xs text-gray-500 mb-1">Last File</div>
-          <div className="text-sm text-blue-300 truncate">{debugInfo.lastFile}</div>
+          <div className="text-sm text-blue-300 truncate">{lastFile}</div>
+        </div>
+      )}
+
+      {lastUrl && (
+        <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
+          <div className="text-xs text-gray-500 mb-1">Last URL</div>
+          <div className="text-sm text-cyan-300 truncate">{lastUrl}</div>
+        </div>
+      )}
+
+      {session.artifacts && session.artifacts.length > 0 && (
+        <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
+          <div className="text-xs text-gray-500 mb-1">Artifacts ({session.artifacts.length})</div>
+          <div className="space-y-1">
+            {session.artifacts.slice(-3).map((artifact, idx) => (
+              <div key={idx} className="text-xs text-amber-300 truncate">
+                {artifact.path ?? artifact.url ?? artifact.title}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

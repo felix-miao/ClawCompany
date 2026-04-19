@@ -143,4 +143,79 @@ describe('SessionInspector', () => {
     const rawStateButton = screen.getByText('Raw State');
     expect(rawStateButton).toBeInTheDocument();
   });
+
+  it('prioritizes structured finalResultSummary over plain text history', () => {
+    const session = createSession({
+      finalResultSummary: {
+        toolType: 'write',
+        operation: 'write',
+        paths: ['/src/components/NewFile.tsx'],
+        urls: [],
+        status: 'completed',
+        summaryText: 'Created new component file',
+      },
+      history: [
+        { role: 'user', content: 'Create a file', timestamp: '2026-04-14T05:00:00Z' },
+        { role: 'assistant', content: 'Writing file', timestamp: '2026-04-14T05:01:00Z' },
+        { role: 'toolResult', content: 'Some tool result text', timestamp: '2026-04-14T05:02:00Z' },
+      ],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('/src/components/NewFile.tsx')).toBeInTheDocument();
+  });
+
+  it('displays final result summary when structured metadata exists', () => {
+    const session = createSession({
+      finalResultSummary: {
+        toolType: 'test',
+        operation: 'test',
+        paths: ['/src/app.test.ts'],
+        urls: [],
+        status: 'completed',
+        summaryText: 'All tests passed',
+      },
+      history: [
+        { role: 'toolResult', content: 'Test output', timestamp: '2026-04-14T05:02:00Z' },
+      ],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('Last Tool Result')).toBeInTheDocument();
+  });
+
+  it('displays artifacts from structured metadata', () => {
+    const session = createSession({
+      artifacts: [
+        {
+          type: 'tsx',
+          path: '/src/components/Demo.tsx',
+          title: 'Demo.tsx',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:02:00Z',
+        },
+        {
+          type: 'url',
+          url: 'https://example.com/deployed',
+          title: 'Deployed Site',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:03:00Z',
+        },
+      ],
+      history: [],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('/src/components/Demo.tsx')).toBeInTheDocument();
+  });
+
+  it('falls back to regex extraction when no structured metadata exists', () => {
+    const session = createSession({
+      artifacts: [],
+      finalResultSummary: null,
+      history: [
+        { role: 'user', content: 'Create a file', timestamp: '2026-04-14T05:00:00Z' },
+        { role: 'toolResult', content: '已写入文件: /src/app/new.ts', timestamp: '2026-04-14T05:01:00Z' },
+      ],
+    });
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+    expect(screen.getByText('/src/app/new.ts')).toBeInTheDocument();
+  });
 });
