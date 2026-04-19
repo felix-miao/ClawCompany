@@ -348,13 +348,22 @@ describe('OpenClawGatewayClient', () => {
       let callCount = 0
       const originalCall = client.call.bind(client)
       const callSpy = jest.spyOn(client, 'call').mockImplementation(async (method: string, params: any) => {
-        if (method === 'sessions.history') {
+        if (method === 'sessions.list') {
           callCount++
           if (callCount < 3) {
-            return [
-              { role: 'assistant', content: 'Working...', status: 'running' }
+            return {
+              sessions: [
+                { key: sessionKey, status: 'running', endedAt: null }
+              ]
+            }
+          }
+          return {
+            sessions: [
+              { key: sessionKey, status: 'completed', endedAt: '2026-04-19T10:00:00Z' }
             ]
           }
+        }
+        if (method === 'sessions.history') {
           return [
             { role: 'assistant', content: 'Done!', status: 'completed' }
           ]

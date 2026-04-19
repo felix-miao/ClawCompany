@@ -61,6 +61,12 @@ export interface HistoryMessage {
   parentId?: string
 }
 
+interface SessionListEntry {
+  key: string
+  status?: string
+  endedAt?: string | null
+}
+
 export interface SendOptions {
   role?: 'user' | 'assistant' | 'system'
 }
@@ -257,18 +263,18 @@ export class OpenClawGatewayClient {
 
     while (Date.now() - startTime < timeout) {
       try {
-        const history = await this.sessions_history(sessionKey, 1)
-        
-        if (history.length > 0) {
+        const result = await this.call<{ sessions?: SessionListEntry[] }>('sessions.list')
+        const session = result.sessions?.find(currentSession => currentSession.key === sessionKey)
+
+        if (session?.endedAt) {
+          const history = await this.sessions_history(sessionKey, 1)
           const lastMessage = history[0]
-          
-          if (lastMessage.status === 'completed') {
-            return lastMessage.content
+
+          if (session.status === 'failed') {
+            throw new Error(`Session failed: ${lastMessage?.content ?? 'Unknown error'}`)
           }
-          
-          if (lastMessage.status === 'failed') {
-            throw new Error(`Session failed: ${lastMessage.content}`)
-          }
+
+          return lastMessage?.content ?? ''
         }
 
         await new Promise(resolve => setTimeout(resolve, pollInterval))

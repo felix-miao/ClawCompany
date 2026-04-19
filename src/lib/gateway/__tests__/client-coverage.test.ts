@@ -154,6 +154,11 @@ describe('OpenClawGatewayClient - coverage gaps', () => {
       const client = new OpenClawGatewayClient('ws://127.0.0.1:18789')
       await client.connect()
 
+      jest.spyOn(client, 'call').mockResolvedValue({
+        sessions: [
+          { key: 'session-key', status: 'failed', endedAt: '2026-04-19T10:00:00Z' }
+        ]
+      })
       jest.spyOn(client, 'sessions_history').mockResolvedValue([
         { role: 'assistant' as const, content: 'Error occurred', status: 'failed' as const }
       ])
@@ -170,14 +175,7 @@ describe('OpenClawGatewayClient - coverage gaps', () => {
       const client = new OpenClawGatewayClient('ws://127.0.0.1:18789')
       await client.connect()
 
-      let callCount = 0
-      jest.spyOn(client, 'sessions_history').mockImplementation(async () => {
-        callCount++
-        if (callCount === 1) {
-          throw new Error('Session failed: something went wrong')
-        }
-        return []
-      })
+      jest.spyOn(client, 'call').mockRejectedValue(new Error('Session failed: something went wrong'))
 
       await expect(client.waitForCompletion('session-key', 2000))
         .rejects.toThrow('Session failed')
@@ -191,9 +189,11 @@ describe('OpenClawGatewayClient - coverage gaps', () => {
       const client = new OpenClawGatewayClient('ws://127.0.0.1:18789')
       await client.connect()
 
-      jest.spyOn(client, 'sessions_history').mockResolvedValue([
-        { role: 'assistant' as const, content: 'still running', status: 'running' as const }
-      ])
+      jest.spyOn(client, 'call').mockResolvedValue({
+        sessions: [
+          { key: 'session-key', status: 'running', endedAt: null }
+        ]
+      })
 
       await expect(client.waitForCompletion('session-key', 100))
         .rejects.toThrow('Wait for completion timeout')
@@ -212,7 +212,7 @@ describe('setGatewayClient / createGatewayClient', () => {
     const client = new OpenClawGatewayClient('ws://test:1234')
     setGatewayClient(client)
     expect(setGatewayClient).toBeDefined()
-    setGatewayClient(null)
+    resetGatewayClient()
   })
 
   it('createGatewayClient should create a new client', () => {
