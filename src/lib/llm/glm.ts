@@ -9,15 +9,27 @@ export class GLMProvider extends BaseLLMProvider {
     this.baseUrl = 'https://api.z.ai/api/coding/paas/v4'
   }
 
-  protected get apiUrl(): string {
+  getApiUrl(): string {
     return `${this.baseUrl}/chat/completions`
   }
 
-  protected get providerName(): string {
+  getProviderName(): string {
     return 'GLM'
   }
 
-  protected get defaultModel(): string {
+  getDefaultModel(): string {
     return 'glm-5'
+  }
+
+  protected get apiUrl(): string {
+    return this.getApiUrl()
+  }
+
+  protected get providerName(): string {
+    return this.getProviderName()
+  }
+
+  protected get defaultModel(): string {
+    return this.getDefaultModel()
   }
 }

@@ -65,7 +65,7 @@ function makeOrchestrator() {
 
   const mockSandboxedWriter = {
     writeFile: jest.fn().mockResolvedValue({ success: true, warnings: [] }),
-    readFile: jest.fn().mockResolvedValue(null),
+    readAllowed: jest.fn().mockResolvedValue(null),
     deleteFile: jest.fn(),
     listFiles: jest.fn().mockResolvedValue([]),
     exists: jest.fn().mockResolvedValue(false),
@@ -482,10 +482,10 @@ describe('ClawCompany E2E Smoke', () => {
     let reviewContext: AgentContext | null = null
     const devCode = 'export function add(a: number, b: number) { return a + b }'
 
-    // Mock SandboxedWriter.readFile to return the dev-written content
-    mockSandboxedWriter.readFile = jest.fn().mockImplementation(async (path: string) => {
-      if (path === 'src/math.ts') return devCode
-      return null
+    // Mock SandboxedWriter.readAllowed to return the dev-written content
+    mockSandboxedWriter.readAllowed = jest.fn().mockImplementation(async (path: string) => {
+      if (path === 'src/math.ts') return { success: true, content: devCode }
+      return { success: false, error: 'File not found' }
     })
 
     mockAgentManager.executeAgent.mockImplementation(

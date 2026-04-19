@@ -20,15 +20,15 @@ describe('GLMProvider', () => {
 
   describe('配置方法', () => {
     it('应该返回正确的 API URL', () => {
-      expect(glmProvider.apiUrl).toBe('https://api.z.ai/api/coding/paas/v4/chat/completions')
+      expect(glmProvider.getApiUrl()).toBe('https://api.z.ai/api/coding/paas/v4/chat/completions')
     })
 
     it('应该返回正确的提供者名称', () => {
-      expect(glmProvider.providerName).toBe('GLM')
+      expect(glmProvider.getProviderName()).toBe('GLM')
     })
 
     it('应该返回默认模型名称', () => {
-      expect(glmProvider.defaultModel).toBe('glm-5')
+      expect(glmProvider.getDefaultModel()).toBe('glm-5')
     })
 
     it('应该使用配置中的模型名称（如果提供）', () => {

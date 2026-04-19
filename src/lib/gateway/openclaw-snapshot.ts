@@ -190,7 +190,7 @@ function deriveCategory(session: Pick<OpenClawSessionDetails, 'endedAt' | 'statu
 
   if (session.status === 'completed' || session.status === 'done') {
     if (isEnded) {
-      const endedTime = Date.parse(session.endedAt)
+      const endedTime = Date.parse(session.endedAt ?? '')
       const now = Date.now()
       const fiveMinutesAgo = now - 5 * 60 * 1000
       if (endedTime >= fiveMinutesAgo) {
@@ -892,12 +892,12 @@ function deriveRecentEvents(
   session: Pick<OpenClawSessionDetails, 'sessionKey' | 'agentId'>,
   history: HistoryMessage[],
 ): GameEvent[] {
-  const events = history.flatMap((message) => {
+  const events: GameEvent[] = history.flatMap((message): GameEvent[] => {
     const content = message.content.trim()
     const timestamp = parseHistoryTimestamp(message.timestamp)
 
     if (!content || timestamp === null) {
-      return []
+      return [] as GameEvent[]
     }
 
     if (message.role === 'assistant') {
@@ -914,7 +914,7 @@ function deriveRecentEvents(
           toAgentId: normalizeHandoverTarget(handoverMatch[1] ?? ''),
           taskId: session.sessionKey,
           description: shortenHistoryContent(content, 100),
-        } satisfies TaskVisualizationHandoverEvent]
+        } satisfies TaskVisualizationHandoverEvent] as GameEvent[]
       }
 
       if (isProgress) {
@@ -925,7 +925,7 @@ function deriveRecentEvents(
           taskId: session.sessionKey,
           progress: 0,
           currentAction: shortenHistoryContent(content, 100),
-        } satisfies TaskVisualizationProgressEvent]
+        } satisfies TaskVisualizationProgressEvent] as GameEvent[]
       }
 
       return [{
@@ -934,7 +934,7 @@ function deriveRecentEvents(
         sessionKey: session.sessionKey,
         progress: 0,
         message: shortenHistoryContent(content, 100),
-      } satisfies SessionProgressEvent]
+      } satisfies SessionProgressEvent] as GameEvent[]
     }
 
     if (message.role === 'toolResult') {
@@ -945,7 +945,7 @@ function deriveRecentEvents(
           agentId: session.agentId,
           taskId: session.sessionKey,
           error: shortenHistoryContent(content, 160),
-        } satisfies TaskVisualizationFailedEvent]
+        } satisfies TaskVisualizationFailedEvent] as GameEvent[]
       }
 
       if (extractFilePath(content)) {
@@ -956,7 +956,7 @@ function deriveRecentEvents(
           taskId: session.sessionKey,
           result: 'success',
           duration: 0,
-        } satisfies TaskVisualizationCompletedEvent]
+        } satisfies TaskVisualizationCompletedEvent] as GameEvent[]
       }
 
       return [{
@@ -965,10 +965,10 @@ function deriveRecentEvents(
         sessionKey: session.sessionKey,
         progress: 0,
         message: shortenHistoryContent(content, 100),
-      } satisfies SessionProgressEvent]
+      } satisfies SessionProgressEvent] as GameEvent[]
     }
 
-    return []
+    return [] as GameEvent[]
   })
 
   return events.slice(-5)
