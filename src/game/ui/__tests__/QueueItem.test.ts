@@ -34,9 +34,7 @@ jest.mock('phaser', () => {
 
   return {
     default: {
-      GameObjects: { Container: jest.fn() },
-      GameObjects: { Graphics: jest.fn() },
-      GameObjects: { Text: jest.fn() },
+      GameObjects: { Container: jest.fn(), Graphics: jest.fn(), Text: jest.fn() },
     },
     Geom: {
       Rectangle: class {

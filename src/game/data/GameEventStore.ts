@@ -194,7 +194,7 @@ export class GameEventStore {
     for (const listener of listeners) {
       try {
         (listener as EventCallback)(event);
-      } catch {}
+      } catch { /* intentionally empty */ }
     }
     if (redisReady && redisPub) {
       redisPub.publish(EVENT_CHANNEL, JSON.stringify(event)).catch(() => {});

@@ -140,9 +140,8 @@ function HistoryMessageItem({ message, isLast }: { message: HistoryMessage; isLa
 }
 
 export function SessionInspector({ session, onClose }: SessionInspectorProps) {
-  if (!session) return null;
-
   const [showRawState, setShowRawState] = useState(false);
+  if (!session) return null;
 
   const recentHistory = session.history.slice(-6);
   const textDebugInfo = getLastDebugInfo(session.history);

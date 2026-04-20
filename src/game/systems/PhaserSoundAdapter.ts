@@ -71,8 +71,7 @@ export class PhaserSoundAdapter {
     this.activeSources.forEach((source) => {
       try {
         source.stop();
-      } catch {
-      }
+      } catch { /* intentionally empty */ }
     });
     this.activeSources.clear();
   }

@@ -36,8 +36,7 @@ jest.mock('phaser', () => {
 
   return {
     default: {
-      GameObjects: { Graphics: jest.fn() },
-      GameObjects: { Text: jest.fn() },
+      GameObjects: { Graphics: jest.fn(), Text: jest.fn() },
     },
     __mocks: { mockScene, mockGraphics, mockText },
   };

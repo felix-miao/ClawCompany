@@ -98,9 +98,7 @@ jest.mock('phaser', () => {
 
   return {
     default: {
-      GameObjects: { Graphics: jest.fn() },
-      GameObjects: { Container: jest.fn() },
-      GameObjects: { Text: jest.fn() },
+      GameObjects: { Graphics: jest.fn(), Container: jest.fn(), Text: jest.fn() },
     },
     Math: {
       Distance: { Between: jest.fn().mockReturnValue(100) },
