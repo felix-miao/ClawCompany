@@ -81,8 +81,8 @@ describe('SessionSyncService', () => {
       const result = sync.mapToAgentInfo(agents, sessions)
 
       expect(result).toEqual([
-        { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
-        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+        { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+        { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null }
       ])
     })
 
