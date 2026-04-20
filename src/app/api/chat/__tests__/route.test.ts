@@ -78,7 +78,20 @@ globalThis.__mockResolve = mockResolve
 
 import { POST, GET } from '../route'
 
-import { createMockNextRequest, createMockNextRequestWithAuth } from '@/test-utils/next-request-mock'
+import { NextRequest } from 'next/server'
+import { createMockNextRequest } from '@/test-utils/next-request-mock'
+
+function createMockRequest(bodyOrOptions?: Record<string, unknown> | Parameters<typeof createMockNextRequest>[0], apiKey?: string): NextRequest {
+  if (typeof bodyOrOptions === 'object' && !('method' in (bodyOrOptions as Record<string, unknown>))) {
+    const key = apiKey || API_KEY
+    return createMockNextRequest({
+      method: 'POST',
+      headers: { 'x-api-key': key },
+      body: bodyOrOptions
+    }) as unknown as NextRequest
+  }
+  return createMockNextRequest(bodyOrOptions as Parameters<typeof createMockNextRequest>[0]) as unknown as NextRequest
+}
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
@@ -142,7 +155,7 @@ describe('Chat API', () => {
 
   describe('POST /api/chat', () => {
     it('应该返回正确的消息格式', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试消息' }, API_KEY)
+      const request = createMockRequest({ message: '测试消息' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -154,7 +167,7 @@ describe('Chat API', () => {
     })
 
     it('消息应该包含 timestamp 字段', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -164,7 +177,7 @@ describe('Chat API', () => {
     })
 
     it('timestamp 应该是有效的日期字符串', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -176,7 +189,7 @@ describe('Chat API', () => {
     })
 
     it('所有消息都应该有 timestamp', async () => {
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -190,7 +203,7 @@ describe('Chat API', () => {
     })
 
     it('消息应该包含正确的 agent 字段', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -201,7 +214,7 @@ describe('Chat API', () => {
     })
 
     it('消息应该包含 content 字段', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -213,7 +226,7 @@ describe('Chat API', () => {
     })
 
     it('应该返回任务列表', async () => {
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -223,7 +236,7 @@ describe('Chat API', () => {
     })
 
     it('任务应该包含必要的字段', async () => {
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -237,7 +250,7 @@ describe('Chat API', () => {
     })
 
     it('空消息应该返回错误', async () => {
-      const request = createMockNextRequestWithAuth({ message: '' }, API_KEY)
+      const request = createMockRequest({ message: '' }, API_KEY)
 
       const response = await POST(request)
       const data = await response.json()
@@ -249,7 +262,7 @@ describe('Chat API', () => {
 
   describe('GET /api/chat', () => {
     it('应该返回当前状态', async () => {
-      const request = createMockNextRequestWithAuth({}, API_KEY)
+      const request = createMockRequest({}, API_KEY)
       const response = await GET(request)
       const data = await response.json()
 
@@ -259,7 +272,7 @@ describe('Chat API', () => {
     })
 
     it('GET 应该返回聚合的 agents 列表（不包含单个 agent 详情）', async () => {
-      const request = createMockNextRequestWithAuth({}, API_KEY)
+      const request = createMockRequest({}, API_KEY)
       const response = await GET(request)
       const data = await response.json()
 
@@ -277,7 +290,7 @@ describe('Chat API', () => {
     })
 
     it('GET 应该返回 stats 信息', async () => {
-      const request = createMockNextRequestWithAuth({}, API_KEY)
+      const request = createMockRequest({}, API_KEY)
       const response = await GET(request)
       const data = await response.json()
 
@@ -293,7 +306,7 @@ describe('Chat API', () => {
 
   describe('POST /api/chat - 完整工作流', () => {
     it('POST 应该触发 Orchestrator 完整工作流', async () => {
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -306,7 +319,7 @@ describe('Chat API', () => {
     })
 
     it('POST 应该返回 files 字段（Orchestrator 执行结果）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -316,7 +329,7 @@ describe('Chat API', () => {
     })
 
     it('POST 应该返回 workflowType 字段标识为聚合工作流（与 /api/agent 区分）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -327,7 +340,7 @@ describe('Chat API', () => {
     })
 
     it('POST 应该返回 apiSource 字段标识来源为 /api/chat（增强可观测性）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -336,7 +349,7 @@ describe('Chat API', () => {
     })
 
     it('POST 应该不返回 conversationId（与 /api/agent 区分）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -346,7 +359,7 @@ describe('Chat API', () => {
     })
 
     it('POST 应该支持 taskId 参数（消息路由上下文）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试', taskId: 'task-123' }, API_KEY)
+      const request = createMockRequest({ message: '测试', taskId: 'task-123' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -355,7 +368,7 @@ describe('Chat API', () => {
     })
 
     it('POST 应该返回 taskId 在响应中（用于消息路由追踪）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试', taskId: 'task-456' }, API_KEY)
+      const request = createMockRequest({ message: '测试', taskId: 'task-456' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -364,7 +377,7 @@ describe('Chat API', () => {
     })
 
     it('POST /api/chat 不应该接受 agentId 参数（与 /api/agent 区分）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试', agentId: 'pm-agent' }, API_KEY)
+      const request = createMockRequest({ message: '测试', agentId: 'pm-agent' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -374,7 +387,7 @@ describe('Chat API', () => {
     })
 
     it('POST /api/chat 应该返回确定性字段集（tasks, chatHistory, files, workflowType, apiSource, taskId）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -391,7 +404,7 @@ describe('Chat API', () => {
     })
 
     it('POST /api/chat workflowType 应该是 "orchestrator"（标识聚合工作流）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试工作流' }, API_KEY)
+      const request = createMockRequest({ message: '测试工作流' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -401,7 +414,7 @@ describe('Chat API', () => {
     })
 
     it('POST /api/chat 响应应包含 stats（任务执行统计）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '测试' }, API_KEY)
+      const request = createMockRequest({ message: '测试' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -419,7 +432,7 @@ describe('Chat API', () => {
 
   describe('POST /api/chat - System Prompt 上下文注入', () => {
     it('POST 应该注入项目状态到系统上下文（通过 Orchestrator 回调）', async () => {
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 
@@ -431,8 +444,8 @@ describe('Chat API', () => {
     })
 
     it('POST 应该通过 taskId 隔离消息路由（Task-scoped context）', async () => {
-      const request1 = createMockNextRequestWithAuth({ message: '任务A', taskId: 'task-A' }, API_KEY)
-      const request2 = createMockNextRequestWithAuth({ message: '任务B', taskId: 'task-B' }, API_KEY)
+      const request1 = createMockRequest({ message: '任务A', taskId: 'task-A' }, API_KEY)
+      const request2 = createMockRequest({ message: '任务B', taskId: 'task-B' }, API_KEY)
 
       const response1 = await POST(request1)
       const data1 = await response1.json()
@@ -447,7 +460,7 @@ describe('Chat API', () => {
     it('POST /api/chat 应该将项目状态注入到 Agent Context（#228）', async () => {
       const mock = globalThis.__orchestratorMock as typeof orchestratorMock
 
-      const request = createMockNextRequestWithAuth({ message: '创建登录页面' }, API_KEY)
+      const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
       const response = await POST(request)
       const data = await response.json()
 

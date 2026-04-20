@@ -1,5 +1,8 @@
 declare global {
-   
+
+  var __orchestratorMock: unknown
+  var __mockResolve: unknown
+
   var sessions_spawn: ((opts: {
     runtime?: string
     agentId?: string

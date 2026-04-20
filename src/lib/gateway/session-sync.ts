@@ -2,10 +2,10 @@ import { OpenClawGatewayClient, createGatewayClient } from './client'
 import { AgentInfo } from '@/game/data/DashboardStore'
 
 const DEFAULT_AGENTS: AgentInfo[] = [
-  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null },
-  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null },
+  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
 ]
 
 export interface GatewayAgent {
@@ -90,6 +90,7 @@ export class SessionSyncService {
       status: activeSessionAgentIds.has(agent.id) ? 'busy' as const : 'idle' as const,
       emotion: 'neutral',
       currentTask: null,
+      latestResultSummary: null,
     }))
   }
 

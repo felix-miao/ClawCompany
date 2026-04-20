@@ -9,8 +9,8 @@ describe('DashboardStore.loadAgents', () => {
 
   it('should add new agents', () => {
     const newAgents: AgentInfo[] = [
-      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
-      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ]
 
     store.loadAgents(newAgents)
@@ -31,7 +31,7 @@ describe('DashboardStore.loadAgents', () => {
     })
 
     store.loadAgents([
-      { id: 'pm-agent', name: 'Alice Updated', role: 'PM', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'Alice Updated', role: 'PM', status: 'busy', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ])
 
     const alice = store.getAgentById('pm-agent')
@@ -52,7 +52,7 @@ describe('DashboardStore.loadAgents', () => {
     })
 
     store.loadAgents([
-      { id: 'pm-agent', name: 'PM', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'PM', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ])
 
     const alice = store.getAgentById('pm-agent')
@@ -62,8 +62,8 @@ describe('DashboardStore.loadAgents', () => {
 
   it('should update status for existing agents', () => {
     store.loadAgents([
-      { id: 'pm-agent', name: 'PM', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null },
-      { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'offline', emotion: 'neutral', currentTask: null },
+      { id: 'pm-agent', name: 'PM', role: 'Developer', status: 'busy', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+      { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'offline', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ])
 
     expect(store.getAgentById('pm-agent')?.status).toBe('busy')
@@ -84,7 +84,7 @@ describe('DashboardStore.loadAgents', () => {
     store.subscribe(callback)
 
     store.loadAgents([
-      { id: 'new-agent', name: 'New', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null },
+      { id: 'new-agent', name: 'New', role: 'dev', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ])
 
     expect(callback).toHaveBeenCalledTimes(1)
@@ -92,7 +92,7 @@ describe('DashboardStore.loadAgents', () => {
 
   it('should reset default agents to original state but keep extra agents', () => {
     store.loadAgents([
-      { id: 'extra-agent', name: 'Extra', role: 'dev', status: 'busy', emotion: 'happy', currentTask: 'stuff' },
+      { id: 'extra-agent', name: 'Extra', role: 'dev', status: 'busy', emotion: 'happy', currentTask: 'stuff', latestResultSummary: null },
     ])
 
     store.processEvent({
@@ -110,8 +110,8 @@ describe('DashboardStore.loadAgents', () => {
 
   it('should map gateway agent IDs to canonical IDs (alias mapping)', () => {
     store.loadAgents([
-      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
-      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ])
 
     expect(store.getAgentById('pm-agent')).toMatchObject({ name: 'PM Claw', status: 'idle' })
@@ -129,7 +129,7 @@ describe('DashboardStore.loadAgents', () => {
     expect(eventsBefore).toHaveLength(1)
 
     store.loadAgents([
-      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
     ])
 
     expect(store.getAgentById('pm-agent')).toMatchObject({ status: 'idle' })

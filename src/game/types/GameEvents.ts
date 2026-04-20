@@ -11,6 +11,8 @@ export type GameEventType =
   | 'connection:close'
   | 'connection:error'
   | 'task:assigned'
+  | 'task:submitted'
+  | 'task:started'
   | 'task:progress'
   | 'task:completed'
   | 'task:failed'
@@ -19,6 +21,8 @@ export type GameEventType =
   | 'pm:analysis-complete'
   | 'dev:iteration-start'
   | 'review:rejected'
+  | 'workflow:started'
+  | 'workflow:completed'
   | 'workflow:iteration-complete';
 
 export const NAMED_GAME_EVENT_TYPES: GameEventType[] = [
@@ -34,6 +38,8 @@ export const NAMED_GAME_EVENT_TYPES: GameEventType[] = [
   'connection:close',
   'connection:error',
   'task:assigned',
+  'task:submitted',
+  'task:started',
   'task:progress',
   'task:completed',
   'task:failed',
@@ -42,6 +48,8 @@ export const NAMED_GAME_EVENT_TYPES: GameEventType[] = [
   'pm:analysis-complete',
   'dev:iteration-start',
   'review:rejected',
+  'workflow:started',
+  'workflow:completed',
   'workflow:iteration-complete',
 ];
 
@@ -190,6 +198,33 @@ export interface WorkflowIterationCompleteEvent extends BaseGameEvent {
   payload: { taskId: string; totalIterations: number; approved: boolean };
 }
 
+export interface TaskSubmittedEvent extends BaseGameEvent {
+  type: 'task:submitted';
+  taskId: string;
+  title: string;
+  userId: string;
+}
+
+export interface TaskStartedEvent extends BaseGameEvent {
+  type: 'task:started';
+  taskId: string;
+  agentId: string;
+}
+
+export interface WorkflowStartedEvent extends BaseGameEvent {
+  type: 'workflow:started';
+  projectId: string;
+  taskId: string;
+  workflowType: string;
+}
+
+export interface WorkflowCompletedEvent extends BaseGameEvent {
+  type: 'workflow:completed';
+  projectId: string;
+  taskId: string;
+  status: 'success' | 'failed' | 'cancelled';
+}
+
 export type GameEvent =
   | AgentStatusEvent
   | TaskAssignedEvent
@@ -209,7 +244,11 @@ export type GameEvent =
   | PmAnalysisCompleteEvent
   | DevIterationStartEvent
   | ReviewRejectedEvent
-  | WorkflowIterationCompleteEvent;
+  | WorkflowIterationCompleteEvent
+  | TaskSubmittedEvent
+  | TaskStartedEvent
+  | WorkflowStartedEvent
+  | WorkflowCompletedEvent;
 
 export type GameEventHandler<T extends GameEvent = GameEvent> = (event: T) => void;
 
@@ -226,6 +265,8 @@ export interface EventTypeMap {
   'connection:close': ConnectionEvent;
   'connection:error': ConnectionEvent;
   'task:assigned': TaskVisualizationAssignedEvent;
+  'task:submitted': TaskSubmittedEvent;
+  'task:started': TaskStartedEvent;
   'task:progress': TaskVisualizationProgressEvent;
   'task:completed': TaskVisualizationCompletedEvent;
   'task:failed': TaskVisualizationFailedEvent;
@@ -234,6 +275,8 @@ export interface EventTypeMap {
   'pm:analysis-complete': PmAnalysisCompleteEvent;
   'dev:iteration-start': DevIterationStartEvent;
   'review:rejected': ReviewRejectedEvent;
+  'workflow:started': WorkflowStartedEvent;
+  'workflow:completed': WorkflowCompletedEvent;
   'workflow:iteration-complete': WorkflowIterationCompleteEvent;
 }
 

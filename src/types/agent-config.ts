@@ -54,6 +54,7 @@ export const AppAgentConfigSchema = z.object({
   runtime: z.enum(['subagent', 'acp']),
   agentId: z.string().optional(),
   thinking: z.enum(['low', 'medium', 'high']).optional(),
+  maxTokens: z.number().int().positive().optional(),
 })
 
 export type AppAgentConfig = z.infer<typeof AppAgentConfigSchema>

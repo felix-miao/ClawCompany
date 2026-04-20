@@ -99,40 +99,51 @@ function createMockNextUrl(urlString: string): MockNextURL {
   return mockNextUrl
 }
 
-// Cookie 接口定义
 interface MockCookie {
-  get: (name: string) => string | null;
-  set: jest.Mock;
-  delete: jest.Mock;
+  get: (name: string) => { name: string; value: string } | undefined;
+  set: (name: string, value: string, options?: { path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: string }) => void;
+  delete: (name: string, options?: { path?: string }) => void;
   has: (name: string) => boolean;
-  getAll: () => Array<[string, string]>;
+  getAll: () => Array<{ name: string; value: string }>;
   clear: () => void;
+  get size(): number;
+  [Symbol.iterator](): Iterator<{ name: string; value: string }>;
 }
 
-// 创建cookies mock
 function createMockCookies(headers: Map<string, string>): MockCookie {
   const cookieMap = new Map<string, string>()
-  
-  // 从headers中解析cookie
+
   const cookieHeader = headers.get('cookie')
   if (cookieHeader) {
     cookieHeader.split(';').forEach(cookie => {
-      const [key, value] = cookie.trim().split('=')
+      const [key, ...rest] = cookie.trim().split('=')
+      const value = rest.join('=')
       if (key && value) {
         cookieMap.set(key, value)
       }
     })
   }
 
-  return {
-    get: (name: string) => cookieMap.get(name) || null,
-    set: jest.fn(),
-    delete: jest.fn(),
-    has: (name: string) => cookieMap.has(name),
-    getAll: () => Array.from(cookieMap.entries()),
-    clear: () => {
-      cookieMap.clear()
+  function* iterator(): Iterator<{ name: string; value: string }> {
+    for (const [name, value] of cookieMap.entries()) {
+      yield { name, value }
     }
+  }
+
+  return {
+    get: (name: string) => {
+      const value = cookieMap.get(name)
+      return value ? { name, value } : undefined
+    },
+    set: (name: string, value: string, _options?: { path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: string }) => cookieMap.set(name, value),
+    delete: (name: string, _options?: { path?: string }) => cookieMap.delete(name),
+    has: (name: string) => cookieMap.has(name),
+    getAll: () => Array.from(cookieMap.entries()).map(([name, value]) => ({ name, value })),
+    clear: () => cookieMap.clear(),
+    get size() {
+      return cookieMap.size
+    },
+    [Symbol.iterator]: iterator,
   }
 }
 
@@ -271,5 +282,15 @@ function createMockNextRequestWithAuth(body: Record<string, unknown>, apiKey?: s
   })
 }
 
-export { createMockNextRequest, createMockNextUrl, createMockRequest, createMockNextRequestWithAuth }
-export type { MockRequestOptions, MockNextURL }
+export {
+  createMockNextRequest,
+  createMockNextUrl,
+  createMockRequest,
+  createMockNextRequestWithAuth,
+}
+export type {
+  MockRequestOptions,
+  MockNextURL,
+  MockCookie,
+  MockNextRequest,
+}

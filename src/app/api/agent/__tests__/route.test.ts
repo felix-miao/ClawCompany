@@ -69,7 +69,7 @@ jest.mock('@/lib/storage/manager', () => {
     listAgents: jest.fn(() => [])
   }
   return {
-    StorageManager: jest.fn().mockImplementation(() => (global as Record<string, unknown>).__mockStorageManager__)
+    StorageManager: jest.fn(() => (global as Record<string, unknown>).__mockStorageManager__) as unknown as jest.Mock<ReturnType<typeof import('@/lib/storage/manager').StorageManager>, Parameters<typeof import('@/lib/storage/manager').StorageManager>>
   }
 })
 
@@ -164,7 +164,7 @@ import type { LLMProvider } from '@/lib/llm/types'
 
 type MockGitManager = { commit: jest.Mock }
 
-const getMockStorageManager = () => (global as Record<string, unknown>).__mockStorageManager__ as ReturnType<typeof import('@/lib/storage/manager').StorageManager['prototype']>
+const getMockStorageManager = () => (global as Record<string, unknown>).__mockStorageManager__ as import('@/lib/storage/manager').StorageManager
 const getMockSandboxedWriter = () => (global as Record<string, unknown>).__mockSandboxedWriter__ as { writeFile: jest.Mock }
 const getMockGitManager = () => (global as Record<string, unknown>).__mockGitManager__ as MockGitManager
 

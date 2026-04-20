@@ -312,3 +312,10 @@ export function resetGatewayClient(): void {
 export function setGatewayClient(client: OpenClawGatewayClient): void {
   _gatewayClient = client
 }
+
+export const __mockClient = {
+  connect: () => Promise.resolve(undefined),
+  disconnect: () => Promise.resolve(undefined),
+  isConnected: () => true,
+  sessions_send: () => {},
+}

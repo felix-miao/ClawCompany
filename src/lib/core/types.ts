@@ -143,10 +143,19 @@ export interface FileChange {
   action: 'create' | 'modify' | 'delete'
 }
 
+export interface AgentResponseTask {
+  title: string
+  description: string
+  assignedTo: AgentRole
+  status?: TaskStatus
+  dependencies: string[]
+  files: string[]
+}
+
 export interface AgentResponse {
   agent: AgentRole
   message: string
-  tasks?: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>[]
+  tasks?: AgentResponseTask[]
   files?: FileChange[]
   nextAgent?: AgentRole
   status: 'success' | 'error' | 'need_input'
