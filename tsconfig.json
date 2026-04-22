@@ -39,6 +39,9 @@
   "exclude": [
     "node_modules",
     "public/assets/sprites/**/*",
-    "output"
+    "output",
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }
