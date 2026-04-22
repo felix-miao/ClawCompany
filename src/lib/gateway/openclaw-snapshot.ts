@@ -824,6 +824,165 @@ function createPhaseRecords(createdAt: number): TaskPhaseRecord[] {
   }))
 }
 
+function inferPhaseFromHistoryMessage(message: HistoryMessage): TaskPhase | null {
+  if (message.role === 'user') {
+    return 'submitted'
+  }
+
+  if (message.role === 'assistant') {
+    const content = message.content.toLowerCase()
+    if (/交接给|handover to|passed to/.test(content)) {
+      return 'reviewer'
+    }
+    if (message.status === 'completed') {
+      return 'done'
+    }
+    if (/test|测试|verify|验证/.test(content)) {
+      return 'tester'
+    }
+    if (/review|审核|check|检查/.test(content)) {
+      return 'reviewer'
+    }
+    if (/plan|planning|分析|拆解|整理/.test(content)) {
+      return 'pm_analysis'
+    }
+    return 'developer'
+  }
+
+  if (message.role === 'toolResult') {
+    if (message.status === 'failed') {
+      return 'tester'
+    }
+
+    const operation = inferOperationFromMessage(message)
+    if (operation === 'test') {
+      return 'tester'
+    }
+    if (operation === 'build' || operation === 'lint') {
+      return 'reviewer'
+    }
+    if (operation === 'write' || operation === 'edit' || operation === 'deploy') {
+      return 'developer'
+    }
+    return 'planning'
+  }
+
+  return null
+}
+
+function inferPhaseStatusFromHistoryMessage(message: HistoryMessage): TaskPhaseStatus {
+  if (message.status === 'failed') {
+    return 'failed'
+  }
+
+  if (message.status === 'running' || message.status === 'pending') {
+    return 'in_progress'
+  }
+
+  return 'completed'
+}
+
+function derivePhaseProgressFromHistory(session: OpenClawSessionDetails): Map<TaskPhase, { startTime?: number; endTime?: number; agentId?: string | null; agentName?: string | null; status?: TaskPhaseStatus }> {
+  const progress = new Map<TaskPhase, { startTime?: number; endTime?: number; agentId?: string | null; agentName?: string | null; status?: TaskPhaseStatus }>()
+  const history = session.history ?? []
+  let activePhase: TaskPhase | null = null
+
+  for (const message of history) {
+    const timestamp = parseHistoryTimestamp(message.timestamp)
+    if (timestamp === null) {
+      continue
+    }
+
+    const phase = inferPhaseFromHistoryMessage(message)
+    if (!phase) {
+      continue
+    }
+
+    const record = progress.get(phase) ?? {}
+    if (activePhase && activePhase !== phase) {
+      const previous = progress.get(activePhase)
+      if (previous && previous.status !== 'failed') {
+        previous.endTime ??= timestamp
+        previous.status = previous.status === 'in_progress' ? 'completed' : previous.status ?? 'completed'
+        progress.set(activePhase, previous)
+      }
+    }
+
+    record.startTime ??= timestamp
+    record.agentId = session.agentId
+    record.agentName = session.agentName || formatRoleLabel(session.role)
+    record.status = inferPhaseStatusFromHistoryMessage(message)
+    if (record.status === 'in_progress') {
+      record.endTime = undefined
+      activePhase = phase
+    } else {
+      record.endTime = timestamp
+      activePhase = phase
+    }
+    progress.set(phase, record)
+  }
+
+  return progress
+}
+
+function finalizeDerivedPhases(
+  phases: TaskPhaseRecord[],
+  progress: Map<TaskPhase, { startTime?: number; endTime?: number; agentId?: string | null; agentName?: string | null; status?: TaskPhaseStatus }>,
+  currentPhase: TaskPhase,
+  agentId: string,
+  agentName: string,
+  updatedAt: number,
+  finished: boolean,
+): TaskPhaseRecord[] {
+  return phases.map((phase) => {
+    const derived = progress.get(phase.phase)
+    const phaseIndex = TASK_PHASE_ORDER.indexOf(phase.phase)
+    const currentIndex = TASK_PHASE_ORDER.indexOf(currentPhase)
+    const isCurrent = phase.phase === currentPhase
+
+    if (derived) {
+      return {
+        ...phase,
+        agentId: derived.agentId ?? phase.agentId,
+        agentName: derived.agentName ?? phase.agentName,
+        startTime: derived.startTime ?? phase.startTime,
+        endTime: derived.endTime ?? phase.endTime,
+        status: derived.status ?? phase.status,
+      }
+    }
+
+    if (isCurrent) {
+      return {
+        ...phase,
+        agentId,
+        agentName,
+        startTime: phase.startTime ?? updatedAt,
+        endTime: finished ? updatedAt : phase.endTime,
+        status: finished ? 'completed' : 'in_progress',
+      }
+    }
+
+    if (finished && phase.phase === 'done') {
+      return {
+        ...phase,
+        startTime: phase.startTime ?? updatedAt,
+        endTime: updatedAt,
+        status: 'completed',
+      }
+    }
+
+    if (phaseIndex < currentIndex && progress.size === 0) {
+      return {
+        ...phase,
+        endTime: phase.endTime ?? updatedAt,
+        status: phase.status === 'pending' ? 'completed' : phase.status,
+      }
+    }
+
+    return phase
+  })
+}
+
 function applyPhaseState(phases: TaskPhaseRecord[], currentPhase: TaskPhase, agentId: string, agentName: string, timestamp: number, finished: boolean): TaskPhaseRecord[] {
   return phases.map((phase) => {
     const phaseIndex = TASK_PHASE_ORDER.indexOf(phase.phase)
@@ -997,14 +1156,26 @@ function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
   const failed = session.status === 'failed'
   const latestMessage = session.latestMessage?.trim() || session.label || session.sessionKey
   const recentEvents = deriveRecentEvents(session, session.history ?? [])
-  const phases = applyPhaseState(
-    createPhaseRecords(startTime),
-    failed || !active ? (failed ? phase : 'done') : phase,
-    session.agentId,
-    agentName,
-    derivedUpdatedAt,
-    !active,
-  )
+  const currentPhase = failed || !active ? (failed ? phase : 'done') : phase
+  const phaseProgress = derivePhaseProgressFromHistory(session)
+  const phases = phaseProgress.size > 0
+    ? finalizeDerivedPhases(
+      createPhaseRecords(startTime),
+      phaseProgress,
+      currentPhase,
+      session.agentId,
+      agentName,
+      derivedUpdatedAt,
+      !active,
+    )
+    : applyPhaseState(
+      createPhaseRecords(startTime),
+      currentPhase,
+      session.agentId,
+      agentName,
+      derivedUpdatedAt,
+      !active,
+    )
 
   return {
     taskId: session.sessionKey,

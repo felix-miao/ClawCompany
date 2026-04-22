@@ -659,6 +659,89 @@ describe('buildOpenClawSnapshot', () => {
       ])
     })
 
+    it('derives phase timeline from history timestamps and agent activity instead of placeholder phases', async () => {
+      const sync = createSyncStub()
+
+      const startTime = '2026-04-14T08:00:00Z'
+      const planningTime = '2026-04-14T08:02:00Z'
+      const implementationTime = '2026-04-14T08:05:00Z'
+      const doneTime = '2026-04-14T08:09:00Z'
+
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm-claw', name: 'PM', identity: { name: 'PM Claw' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'sess-phase-history',
+          agentId: 'pm-claw',
+          label: '整理 timeline 语义',
+          model: 'gpt-5',
+          status: 'completed',
+          startedAt: startTime,
+          endedAt: doneTime,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm-claw', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([
+        { role: 'assistant', content: '正在分析需求并拆解任务', status: 'running', timestamp: planningTime },
+        { role: 'toolResult', content: '已写入文件: /projects/plan.md', status: 'completed', timestamp: implementationTime },
+        { role: 'assistant', content: '任务已完成，可以交付', status: 'completed', timestamp: doneTime },
+      ])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      const task = snapshot.tasks[0]
+      expect(task.currentPhase).toBe('done')
+      expect(task.phases).toEqual([
+        expect.objectContaining({
+          phase: 'submitted',
+          status: 'completed',
+          startTime: Date.parse(startTime),
+          endTime: Date.parse(startTime),
+        }),
+        expect.objectContaining({
+          phase: 'pm_analysis',
+          status: 'completed',
+          agentId: 'pm-claw',
+          agentName: 'PM Claw',
+          startTime: Date.parse(planningTime),
+          endTime: Date.parse(implementationTime),
+        }),
+        expect.objectContaining({
+          phase: 'planning',
+          status: 'pending',
+        }),
+        expect.objectContaining({
+          phase: 'developer',
+          status: 'completed',
+          agentName: 'PM Claw',
+          startTime: Date.parse(implementationTime),
+          endTime: Date.parse(implementationTime),
+        }),
+        expect.objectContaining({
+          phase: 'tester',
+          status: 'pending',
+        }),
+        expect.objectContaining({
+          phase: 'reviewer',
+          status: 'pending',
+        }),
+        expect.objectContaining({
+          phase: 'done',
+          status: 'completed',
+          startTime: Date.parse(doneTime),
+          endTime: Date.parse(doneTime),
+        }),
+      ])
+      expect(task.recentEvents.map(event => event.type)).toEqual([
+        'task:progress',
+        'task:completed',
+        'session:progress',
+      ])
+    })
+
     it('falls back to endedAt for timeline update time when history messages have no timestamps', async () => {
       const sync = createSyncStub()
 
