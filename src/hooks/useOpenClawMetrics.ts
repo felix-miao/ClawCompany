@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useMemo } from 'react'
+
+import { useOpenClawSnapshot } from './useOpenClawSnapshot'
 
 export interface OpenClawMetrics {
   agents: {
@@ -24,12 +26,6 @@ export interface OpenClawMetrics {
   fetchedAt: string
 }
 
-interface MetricsResponse {
-  success: boolean
-  metrics: OpenClawMetrics
-  error?: string
-}
-
 interface UseOpenClawMetricsResult {
   metrics: OpenClawMetrics | null
   loading: boolean
@@ -37,8 +33,6 @@ interface UseOpenClawMetricsResult {
   source: 'gateway' | 'fallback' | null
   refresh: () => void
 }
-
-const POLL_INTERVAL = 30000
 
 const FALLBACK_METRICS: OpenClawMetrics = {
   agents: { total: 0, active: 0, idle: 0, byRole: {} },
@@ -49,53 +43,20 @@ const FALLBACK_METRICS: OpenClawMetrics = {
 }
 
 export function useOpenClawMetrics(): UseOpenClawMetricsResult {
-  const [metrics, setMetrics] = useState<OpenClawMetrics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<'gateway' | 'fallback' | null>(null)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const snapshot = useOpenClawSnapshot()
 
-  const fetchData = useCallback(async () => {
-    try {
-      const response = await fetch('/api/openclaw/metrics', {
-        headers: { 'x-api-key': 'dashboard' },
-      })
-      const data: MetricsResponse = await response.json()
+  return useMemo(() => {
+    const metrics = snapshot.metrics ? {
+      ...snapshot.metrics,
+      source: snapshot.metrics.source,
+    } : FALLBACK_METRICS
 
-      if (data.success && data.metrics) {
-        setMetrics(data.metrics)
-        setSource(data.metrics.source)
-        setError(data.error || null)
-      } else {
-        setMetrics(FALLBACK_METRICS)
-        setSource('fallback')
-        setError(data.error || 'Failed to fetch metrics')
-      }
-    } catch (err) {
-      setMetrics(FALLBACK_METRICS)
-      setSource('fallback')
-      setError(err instanceof Error ? err.message : 'Fetch failed')
-    } finally {
-      setLoading(false)
+    return {
+      metrics,
+      loading: snapshot.loading,
+      error: snapshot.error,
+      source: metrics.source,
+      refresh: snapshot.refresh,
     }
-  }, [])
-
-  const refresh = useCallback(() => {
-    setLoading(true)
-    fetchData()
-  }, [fetchData])
-
-  useEffect(() => {
-    fetchData()
-    timerRef.current = setInterval(fetchData, POLL_INTERVAL)
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = null
-      }
-    }
-  }, [fetchData])
-
-  return { metrics, loading, error, source, refresh }
+  }, [snapshot])
 }
