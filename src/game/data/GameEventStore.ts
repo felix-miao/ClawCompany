@@ -168,6 +168,8 @@ async function maybeInitRedis(): Promise<void> {
         const event = 'event' in parsed ? parsed.event : parsed;
         const origin = 'origin' in parsed ? parsed.origin : undefined;
         if (origin && origin === redisBridgeId) return;
+        const store = globalThis.__gameEventStore ?? getGameEventStore();
+        store.ingestRemoteEvent(event);
         // Re-emit locally so SSE handlers in this worker pick it up
         processEmitter.emit(EVENT_CHANNEL, event);
       } catch {
@@ -223,6 +225,10 @@ export class GameEventStore {
       const envelope: RedisEnvelope = { origin: redisBridgeId, event };
       redisPub.publish(EVENT_CHANNEL, JSON.stringify(envelope)).catch(() => {});
     }
+  }
+
+  ingestRemoteEvent(event: GameEvent): void {
+    this.ring.push(event);
   }
 
   /**

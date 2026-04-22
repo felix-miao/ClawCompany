@@ -25,12 +25,14 @@ describe('GameEventStore', () => {
   beforeEach(async () => {
     delete process.env.REDIS_URL;
     await __resetGameEventStoreRedisTransportForTest();
+    resetGameEventStore();
     store = new GameEventStore(5);
   });
 
   afterEach(async () => {
     store.clear();
     GameEventStore.clearAllSubscribers();
+    resetGameEventStore();
     await __resetGameEventStoreRedisTransportForTest();
   });
 
@@ -234,6 +236,37 @@ describe('GameEventStore', () => {
       expect(publishCalls).toHaveLength(1);
       expect(received).toHaveLength(1);
       expect(received[0]).toBe(event);
+    });
+
+    it('stores Redis-delivered remote events for replay on reconnect', async () => {
+      process.env.REDIS_URL = 'redis://example.test:6379';
+
+      let redisMessageHandler: ((channel: string, message: string) => void) | undefined;
+
+      class FakeRedis {
+        async connect() {}
+        async subscribe() { return undefined; }
+        on(event: 'message', listener: (channel: string, message: string) => void) {
+          if (event === 'message') redisMessageHandler = listener;
+          return undefined;
+        }
+        async publish() {
+          return 1;
+        }
+      }
+
+      __setGameEventStoreRedisLoaderForTest(async () => FakeRedis as never);
+      await __initGameEventStoreRedisTransportForTest();
+      const singletonStore = getGameEventStore();
+
+      const remoteEvent = createMockEvent('agent:task-completed');
+      redisMessageHandler?.(
+        'game:event',
+        JSON.stringify({ origin: 'remote-worker', event: remoteEvent })
+      );
+
+      expect(singletonStore.getEvents()).toContainEqual(remoteEvent);
+      expect(singletonStore.getEvents(remoteEvent.timestamp - 1)).toContainEqual(remoteEvent);
     });
   });
 });
