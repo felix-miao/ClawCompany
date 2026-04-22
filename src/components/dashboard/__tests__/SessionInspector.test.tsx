@@ -28,6 +28,7 @@ function createSession(overrides: Partial<OpenClawSessionDetails> = {}): OpenCla
       { role: 'assistant', content: 'Assistant response 2', timestamp: '2026-04-14T05:03:00Z' },
     ],
     artifacts: [],
+    finalDeliveryArtifacts: [],
     category: 'running',
     ...overrides,
   };
@@ -182,6 +183,71 @@ describe('SessionInspector', () => {
     expect(screen.getByText('Last Tool Result')).toBeInTheDocument();
   });
 
+  it('prioritizes structured final result summary over assistant history noise', () => {
+    const session = createSession({
+      finalResultSummary: {
+        toolType: 'write',
+        operation: 'write',
+        paths: ['/src/app/index.html'],
+        urls: [],
+        status: 'completed',
+        summaryText: 'Delivered final homepage',
+      },
+      latestResultSummary: 'Delivered final homepage',
+      latestMessage: 'Intermediate tool chatter',
+      history: [
+        { role: 'assistant', content: 'Thinking...', timestamp: '2026-04-14T05:01:00Z' },
+        { role: 'toolResult', content: 'Intermediate tool chatter', timestamp: '2026-04-14T05:02:00Z' },
+      ],
+    });
+
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+
+    expect(screen.getByText('Delivered final homepage')).toBeInTheDocument();
+    expect(screen.getByText('/src/app/index.html')).toBeInTheDocument();
+    expect(screen.getByText('Last Assistant Output')).toBeInTheDocument();
+  });
+
+  it('uses finalDeliveryArtifacts to supply missing file details when finalResultSummary is present', () => {
+    const session = createSession({
+      finalResultSummary: {
+        toolType: 'deploy',
+        operation: 'deploy',
+        paths: [],
+        urls: [],
+        status: 'completed',
+        summaryText: 'Deployment completed',
+      },
+      finalDeliveryArtifacts: [
+        {
+          type: 'html',
+          path: '/src/app/index.html',
+          title: 'index.html',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:10:00Z',
+          isFinal: true,
+        },
+        {
+          type: 'url',
+          url: 'https://example.com/app',
+          title: 'example.com/app',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:11:00Z',
+          isFinal: true,
+        },
+      ],
+      history: [
+        { role: 'toolResult', content: 'Deployment completed', timestamp: '2026-04-14T05:12:00Z' },
+      ],
+    });
+
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+
+    expect(screen.getAllByText('Deployment completed')).toHaveLength(2);
+    expect(screen.getByText('/src/app/index.html')).toBeInTheDocument();
+    expect(screen.getAllByText('https://example.com/app')).toHaveLength(2);
+  });
+
   it('displays artifacts from structured metadata', () => {
     const session = createSession({
       artifacts: [
@@ -204,6 +270,89 @@ describe('SessionInspector', () => {
     });
     render(<SessionInspector session={session} onClose={jest.fn()} />);
     expect(screen.getByText('/src/components/Demo.tsx')).toBeInTheDocument();
+  });
+
+  it('shows final delivery artifacts even when structured summary has no paths or urls', () => {
+    const session = createSession({
+      finalResultSummary: {
+        toolType: 'deploy',
+        operation: 'deploy',
+        paths: [],
+        urls: [],
+        status: 'completed',
+        summaryText: 'Deployment completed',
+      },
+      finalDeliveryArtifacts: [
+        {
+          type: 'html',
+          path: '/src/app/index.html',
+          title: 'index.html',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:10:00Z',
+          isFinal: true,
+        },
+        {
+          type: 'url',
+          url: 'https://example.com/deployed',
+          title: 'Deployed Site',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:11:00Z',
+          isFinal: true,
+        },
+      ],
+      history: [],
+    });
+
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+
+    expect(screen.getByText('/src/app/index.html')).toBeInTheDocument();
+    expect(screen.getAllByText('https://example.com/deployed')).toHaveLength(2);
+  });
+
+  it('shows final delivery artifacts ahead of intermediate artifacts', () => {
+    const session = createSession({
+      artifacts: [
+        {
+          type: 'code',
+          path: '/src/components/Draft.tsx',
+          title: 'Draft.tsx',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:01:00Z',
+        },
+      ],
+      finalDeliveryArtifacts: [
+        {
+          type: 'html',
+          path: '/src/app/index.html',
+          url: 'file:///src/app/index.html',
+          title: 'index.html',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:10:00Z',
+        },
+      ],
+      history: [],
+    });
+
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+
+    expect(screen.getAllByText('/src/app/index.html')).toHaveLength(2);
+    expect(screen.queryByText('/src/components/Draft.tsx')).not.toBeInTheDocument();
+  });
+
+  it('falls back to latestResultSummary when no structured result or tool result exists', () => {
+    const session = createSession({
+      finalResultSummary: null,
+      latestResultSummary: 'Snapshot says final output is ready',
+      history: [],
+      latestMessage: null,
+      artifacts: [],
+      finalDeliveryArtifacts: [],
+    });
+
+    render(<SessionInspector session={session} onClose={jest.fn()} />);
+
+    expect(screen.getByText('Last Tool Result')).toBeInTheDocument();
+    expect(screen.getByText(/Snapshot says final output is ready/)).toBeInTheDocument();
   });
 
   it('falls back to regex extraction when no structured metadata exists', () => {

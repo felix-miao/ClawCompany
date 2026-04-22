@@ -42,7 +42,25 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
           { role: 'user', content: 'User request 1', timestamp: '2026-04-14T05:00:00Z' },
           { role: 'assistant', content: 'Assistant response 1', timestamp: '2026-04-14T05:01:00Z' },
         ],
-        artifacts: [],
+        artifacts: [
+          {
+            type: 'code',
+            path: '/Users/test/draft.ts',
+            title: 'draft.ts',
+            producedBy: 'dev-agent',
+            producedAt: '2026-04-14T05:10:00Z',
+          },
+        ],
+        finalDeliveryArtifacts: [
+          {
+            type: 'html',
+            path: '/Users/test/index.html',
+            url: 'file:///Users/test/index.html',
+            title: 'index.html',
+            producedBy: 'dev-agent',
+            producedAt: '2026-04-14T05:20:00Z',
+          },
+        ],
         category: 'running',
       },
     ],
@@ -229,6 +247,20 @@ describe('DashboardPage', () => {
     const pmCard = screen.getByTestId('agent-card-pm-agent');
     expect(pmCard).toBeInTheDocument();
     expect(screen.getByText(/已生成初始任务拆分/)).toBeInTheDocument();
+  });
+
+  it('should prioritize final delivery artifacts in SessionArtifactsPanel and SessionInspector', async () => {
+    render(<DashboardPage />);
+
+    expect(screen.getByText('Session Outputs')).toBeInTheDocument();
+    expect(screen.getByText('index.html')).toBeInTheDocument();
+    expect(screen.queryByText('draft.ts')).not.toBeInTheDocument();
+
+    const pmAgentCard = screen.getByTestId('agent-card-pm-agent');
+    fireEvent.click(pmAgentCard);
+
+    expect(screen.getByText('Final Delivery (1)')).toBeInTheDocument();
+    expect(screen.getAllByText('/Users/test/index.html')).toHaveLength(2);
   });
 
   it('should show timeline view with task card when switching views', async () => {

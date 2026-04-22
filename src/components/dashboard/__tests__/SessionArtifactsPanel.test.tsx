@@ -280,6 +280,50 @@ describe('SessionArtifactsPanel', () => {
         expect.objectContaining({ sessionKey: 'sess-1' })
       );
     });
+
+    it('prefers finalDeliveryArtifacts over intermediate artifacts when opening results', async () => {
+      const session = createSessionWithArtifacts([
+        {
+          type: 'code',
+          path: '/Users/test/draft.ts',
+          title: 'draft.ts',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-14T05:10:00Z',
+        },
+      ], {
+        artifacts: [
+          {
+            type: 'code',
+            path: '/Users/test/draft.ts',
+            title: 'draft.ts',
+            producedBy: 'dev-claw',
+            producedAt: '2026-04-14T05:10:00Z',
+          },
+        ],
+        finalDeliveryArtifacts: [
+          {
+            type: 'html',
+            path: '/Users/test/index.html',
+            url: 'file:///Users/test/index.html',
+            title: 'index.html',
+            producedBy: 'dev-claw',
+            producedAt: '2026-04-14T05:20:00Z',
+          },
+        ],
+      });
+
+      render(<SessionArtifactsPanel sessions={[session]} />);
+
+      expect(screen.getByText('index.html')).toBeInTheDocument();
+      expect(screen.queryByText('draft.ts')).not.toBeInTheDocument();
+      expect(screen.getByText('Open Result')).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByText('Open Result'));
+      });
+
+      expect(window.open).toHaveBeenCalledWith('file:///Users/test/index.html', '_blank', 'noopener,noreferrer');
+    });
   });
 
   describe('session sorting by most recent result', () => {

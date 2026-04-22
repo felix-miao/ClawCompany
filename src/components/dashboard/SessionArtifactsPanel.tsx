@@ -189,13 +189,20 @@ function SessionHeader({ session, onOpenResult }: SessionHeaderProps) {
 }
 
 export function SessionArtifactsPanel({ sessions, onOpenResult }: SessionArtifactsPanelProps) {
+  const getDisplayArtifacts = (session: OpenClawSessionDetails): OpenClawArtifact[] => {
+    return (session.finalDeliveryArtifacts?.length ?? 0) > 0
+      ? session.finalDeliveryArtifacts
+      : (session.artifacts ?? []);
+  };
+
   const getMostRecentArtifactTime = (session: OpenClawSessionDetails): number => {
-    if (session.artifacts.length === 0) return 0;
-    return Math.max(...session.artifacts.map(a => new Date(a.producedAt).getTime()));
+    const artifacts = getDisplayArtifacts(session);
+    if (artifacts.length === 0) return 0;
+    return Math.max(...artifacts.map(a => new Date(a.producedAt).getTime()));
   };
 
   const sessionsWithArtifacts = sessions
-    .filter(s => s.artifacts && s.artifacts.length > 0)
+    .filter(s => getDisplayArtifacts(s).length > 0)
     .sort((a, b) => getMostRecentArtifactTime(b) - getMostRecentArtifactTime(a));
 
   if (sessionsWithArtifacts.length === 0) {
@@ -208,9 +215,12 @@ export function SessionArtifactsPanel({ sessions, onOpenResult }: SessionArtifac
       <div className="space-y-3">
         {sessionsWithArtifacts.map(session => (
           <div key={session.sessionKey}>
-            <SessionHeader session={session} onOpenResult={onOpenResult} />
+            <SessionHeader
+              session={{ ...session, artifacts: getDisplayArtifacts(session) }}
+              onOpenResult={onOpenResult}
+            />
             <div className="space-y-1">
-              {session.artifacts.map((artifact, idx) => (
+              {getDisplayArtifacts(session).map((artifact, idx) => (
                 <ArtifactItem
                   key={`${session.sessionKey}-${idx}`}
                   artifact={artifact}

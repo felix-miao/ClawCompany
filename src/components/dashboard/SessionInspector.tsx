@@ -75,26 +75,14 @@ function getStructuredDebugInfo(
   finalResultSummary: StructuredResultSummary | null,
   artifacts: OpenClawArtifact[],
 ): { lastFile: string | null; lastUrl: string | null; toolName: string | null; operation: string | null } {
-  if (finalResultSummary) {
-    return {
-      lastFile: finalResultSummary.paths[0] ?? null,
-      lastUrl: finalResultSummary.urls[0] ?? null,
-      toolName: finalResultSummary.toolType,
-      operation: finalResultSummary.operation,
-    };
-  }
-
   const lastArtifact = artifacts[artifacts.length - 1];
-  if (lastArtifact) {
-    return {
-      lastFile: lastArtifact.path ?? null,
-      lastUrl: lastArtifact.url ?? null,
-      toolName: lastArtifact.producedBy,
-      operation: lastArtifact.type,
-    };
-  }
 
-  return { lastFile: null, lastUrl: null, toolName: null, operation: null };
+  return {
+    lastFile: finalResultSummary?.paths[0] ?? lastArtifact?.path ?? null,
+    lastUrl: finalResultSummary?.urls[0] ?? lastArtifact?.url ?? null,
+    toolName: finalResultSummary?.toolType ?? lastArtifact?.producedBy ?? null,
+    operation: finalResultSummary?.operation ?? lastArtifact?.type ?? null,
+  };
 }
 
 export function getLastDebugInfo(history: HistoryMessage[]): DebugInfo {
@@ -145,14 +133,18 @@ export function SessionInspector({ session, onClose }: SessionInspectorProps) {
 
   const recentHistory = session.history.slice(-6);
   const textDebugInfo = getLastDebugInfo(session.history);
+  const displayedArtifacts = (session.finalDeliveryArtifacts?.length ?? 0) > 0
+    ? session.finalDeliveryArtifacts
+    : (session.artifacts ?? []);
   const structuredDebugInfo = getStructuredDebugInfo(
     session.finalResultSummary ?? null,
-    session.artifacts ?? [],
+    displayedArtifacts,
   );
 
   const lastFile = structuredDebugInfo.lastFile ?? textDebugInfo.lastFile;
   const lastUrl = structuredDebugInfo.lastUrl ?? textDebugInfo.lastUrl;
   const lastResult = session.finalResultSummary?.summaryText
+    ?? session.latestResultSummary
     ?? textDebugInfo.lastResult;
 
   return (
@@ -199,11 +191,11 @@ export function SessionInspector({ session, onClose }: SessionInspectorProps) {
         </div>
       )}
 
-      {session.artifacts && session.artifacts.length > 0 && (
+      {displayedArtifacts.length > 0 && (
         <div className="px-3 py-2 border-b border-dark-100/50 bg-dark-50/20">
-          <div className="text-xs text-gray-500 mb-1">Artifacts ({session.artifacts.length})</div>
+          <div className="text-xs text-gray-500 mb-1">Final Delivery ({displayedArtifacts.length})</div>
           <div className="space-y-1">
-            {session.artifacts.slice(-3).map((artifact, idx) => (
+            {displayedArtifacts.slice(-3).map((artifact, idx) => (
               <div key={idx} className="text-xs text-amber-300 truncate">
                 {artifact.path ?? artifact.url ?? artifact.title}
               </div>
