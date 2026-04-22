@@ -12,7 +12,6 @@ import { SessionArtifactsPanel } from "@/components/dashboard/SessionArtifactsPa
 import { SessionStatusPanel } from "@/components/dashboard/SessionStatusPanel";
 import { SessionInspector } from "@/components/dashboard/SessionInspector";
 import { useEventStream } from "@/hooks/useEventStream";
-import { useDashboardStore } from "@/hooks/useDashboardStore";
 import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
 import { Game, startGame } from "@/game";
 import { AgentInfo, DashboardStore } from "@/game/data/DashboardStore";
@@ -46,14 +45,14 @@ const TASK_FLOW_STAGES = [
 
 export default function DashboardPage() {
   const store = useMemo(() => new DashboardStore(), []);
-  const { isConnected, isReconnecting } = useEventStream(store);
-  const { events, stats } = useDashboardStore(store);
+  useEventStream(store);
   const {
     agents,
     sessions,
     tasks: taskHistory,
     metrics: openClawMetrics,
     connected: snapshotConnected,
+    refresh: refreshSnapshot,
   } = useOpenClawSnapshot();
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -65,6 +64,22 @@ export default function DashboardPage() {
   const selectedSession = useMemo(
     () => sessions.find(s => s.sessionKey === selectedSessionKey) ?? null,
     [sessions, selectedSessionKey]
+  );
+
+  const timelineEvents = useMemo(
+    () => taskHistory.flatMap(task => task.recentEvents ?? []).sort((a, b) => a.timestamp - b.timestamp),
+    [taskHistory]
+  );
+
+  const stats = useMemo(
+    () => ({
+      totalEvents: timelineEvents.length,
+      activeTasks: taskHistory.filter(task => task.status === 'in_progress' || task.status === 'failed').length,
+      sessionCount: sessions.length,
+      completedSessionCount: sessions.filter(session => session.category === 'completed' || session.category === 'just-completed').length,
+      connected: snapshotConnected,
+    }),
+    [snapshotConnected, sessions, taskHistory, timelineEvents.length]
   );
 
   const selectSessionByTaskId = useCallback(
@@ -131,12 +146,12 @@ export default function DashboardPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(event),
         });
-        store.processEvent(event);
+        refreshSnapshot();
       } catch {
-        store.processEvent(event);
+        refreshSnapshot();
       }
     },
-    [store]
+    [refreshSnapshot]
   );
 
   const handleTriggerTask = useCallback((taskId: string) => {
@@ -148,7 +163,7 @@ export default function DashboardPage() {
     } as GameEvent);
   }, []);
 
-  // Bridge: forward SSE GameEvents to Phaser OfficeScene
+  // Keep the game scene responsive to live SSE events, while the UI reads from snapshot.
   useEffect(() => {
     const GAME_EVENTS_TO_FORWARD: GameEvent['type'][] = [
       'pm:analysis-complete',
@@ -165,8 +180,13 @@ export default function DashboardPage() {
         gameRef.current?.receiveGameEvent?.(event);
       }
     };
+
+    return () => {
+      store.processEvent = originalProcessEvent;
+    };
   }, [store]);
 
+  // Bridge: forward SSE GameEvents to Phaser OfficeScene
   return (
     <div className="min-h-screen bg-dark flex flex-col">
       {/* Header */}
@@ -178,23 +198,21 @@ export default function DashboardPage() {
           <h1 className="text-xl font-bold gradient-text">Dashboard</h1>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isConnected
-                  ? "bg-green-500 animate-pulse"
-                  : isReconnecting
-                  ? "bg-yellow-500 animate-pulse"
-                  : "bg-red-500"
-              }`}
-            />
-            <span className="text-gray-400">
-              {isConnected ? "Connected" : isReconnecting ? "Reconnecting..." : "Disconnected"}
-            </span>
-          </div>
-          <div className="text-xs text-gray-500">
-            OpenClaw: {snapshotConnected ? "Live" : "Fallback"}
-          </div>
+            <div className="flex items-center gap-2 text-sm">
+              <div
+                className={`w-2 h-2 rounded-full ${
+                  snapshotConnected
+                    ? "bg-green-500 animate-pulse"
+                    : "bg-red-500"
+                }`}
+              />
+              <span className="text-gray-400">
+                {snapshotConnected ? "Connected" : "Disconnected"}
+              </span>
+            </div>
+            <div className="text-xs text-gray-500">
+              OpenClaw: {snapshotConnected ? "Live" : "Fallback"}
+            </div>
           <div className="flex items-center gap-2 rounded-full border border-dark-100 bg-dark-50/40 p-1">
             <button
               type="button"
@@ -216,8 +234,8 @@ export default function DashboardPage() {
             </button>
           </div>
           <div className="text-sm text-gray-500">
-            {stats.totalEvents} events | {stats.activeTasks} active tasks
-          </div>
+             {stats.totalEvents} events | {stats.activeTasks} active tasks
+            </div>
           {(() => {
             const activeSummary = getActiveAgentsSummary(agents);
             if (activeSummary.count === 0) return null;
@@ -314,7 +332,7 @@ export default function DashboardPage() {
               onSelectSession={setSelectedSessionKey}
             />
             <SessionArtifactsPanel sessions={sessions} />
-            <EventLog events={events} />
+            <EventLog events={timelineEvents} />
             <PerformanceMetricsPanel
               metricsAggregator={metricsAggregator}
               openClawMetrics={openClawMetrics}

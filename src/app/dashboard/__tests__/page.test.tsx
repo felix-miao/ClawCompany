@@ -6,13 +6,6 @@ jest.mock('@/hooks/useEventStream', () => ({
   useEventStream: () => ({ isConnected: true, isReconnecting: false }),
 }));
 
-jest.mock('@/hooks/useDashboardStore', () => ({
-  useDashboardStore: () => ({
-    events: [],
-    stats: { totalEvents: 0, activeTasks: 1, sessionCount: 0, completedSessionCount: 0, connected: true },
-  }),
-}));
-
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
     agents: [
@@ -83,7 +76,9 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
           { phase: 'reviewer', label: 'Reviewer', agentId: 'review-agent', agentName: 'Reviewer Claw', status: 'pending' },
           { phase: 'done', label: 'Done', agentId: null, agentName: null, status: 'pending' },
         ],
-        recentEvents: [],
+        recentEvents: [
+          { type: 'agent:status-change', agentId: 'pm-agent', status: 'busy', timestamp: 200 },
+        ],
       },
     ],
     metrics: {
@@ -165,7 +160,7 @@ describe('DashboardPage', () => {
 
   it('should display stats in header', () => {
     render(<DashboardPage />);
-    expect(screen.getByText(/0 events/)).toBeInTheDocument();
+    expect(screen.getByText(/1 events/)).toBeInTheDocument();
     expect(screen.getByText(/1 active tasks/)).toBeInTheDocument();
   });
 
@@ -270,6 +265,8 @@ describe('DashboardPage', () => {
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();
+    expect(screen.getByText('status')).toBeInTheDocument();
+    expect(screen.getByText('pm-agent → busy')).toBeInTheDocument();
   });
 
   it('should display active agents summary in header directly', async () => {
