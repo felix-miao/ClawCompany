@@ -1,4 +1,13 @@
-import { GameEventStore, getGameEventStore, createGameEventStore, setGameEventStore, resetGameEventStore } from '../GameEventStore';
+import {
+  GameEventStore,
+  getGameEventStore,
+  createGameEventStore,
+  resetGameEventStore,
+  getGameEventStoreTransportState,
+  __initGameEventStoreRedisTransportForTest,
+  __resetGameEventStoreRedisTransportForTest,
+  __setGameEventStoreRedisLoaderForTest,
+} from '../GameEventStore';
 import { GameEventType } from '../../types/GameEvents';
 
 function createMockEvent(type: GameEventType, agentId: string = 'agent1'): any {
@@ -13,13 +22,16 @@ function createMockEvent(type: GameEventType, agentId: string = 'agent1'): any {
 describe('GameEventStore', () => {
   let store: GameEventStore;
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    delete process.env.REDIS_URL;
+    await __resetGameEventStoreRedisTransportForTest();
     store = new GameEventStore(5);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     store.clear();
     GameEventStore.clearAllSubscribers();
+    await __resetGameEventStoreRedisTransportForTest();
   });
 
   describe('push', () => {
@@ -163,6 +175,65 @@ describe('GameEventStore', () => {
       store.push(createMockEvent('agent:task-completed'));
       store.clear();
       expect(store.getEvents()).toHaveLength(0);
+    });
+  });
+
+  describe('transport', () => {
+    it('defaults to local transport when REDIS_URL is missing', () => {
+      expect(getGameEventStoreTransportState().mode).toBe('local');
+      store.push(createMockEvent('agent:task-assigned'));
+      expect(store.getEvents()).toHaveLength(1);
+    });
+
+    it('falls back to local transport when Redis init fails', async () => {
+      process.env.REDIS_URL = 'redis://example.invalid:6379';
+      __setGameEventStoreRedisLoaderForTest(async () => {
+        throw new Error('redis unavailable');
+      });
+
+      await __initGameEventStoreRedisTransportForTest();
+
+      expect(getGameEventStoreTransportState().mode).toBe('local');
+      store.push(createMockEvent('agent:task-assigned'));
+      expect(store.getEvents()).toHaveLength(1);
+    });
+
+    it('does not double-deliver self-published Redis events to the same worker', async () => {
+      process.env.REDIS_URL = 'redis://example.test:6379';
+
+      const messageHandlers: Array<(channel: string, message: string) => void> = [];
+      const publishCalls: Array<{ channel: string; message: string }> = [];
+
+      class FakeRedis {
+        async connect() {}
+        async subscribe() { return undefined; }
+        on(event: 'message', listener: (channel: string, message: string) => void) {
+          if (event === 'message') messageHandlers.push(listener);
+          return undefined;
+        }
+        async publish(channel: string, message: string) {
+          publishCalls.push({ channel, message });
+          for (const handler of messageHandlers) {
+            handler(channel, message);
+          }
+          return 1;
+        }
+      }
+
+      __setGameEventStoreRedisLoaderForTest(async () => FakeRedis as never);
+      await __initGameEventStoreRedisTransportForTest();
+
+      expect(getGameEventStoreTransportState().mode).toBe('redis-bridge');
+
+      const received: ReturnType<typeof createMockEvent>[] = [];
+      store.subscribe(event => received.push(event as ReturnType<typeof createMockEvent>));
+      const event = createMockEvent('agent:task-assigned');
+
+      store.push(event);
+
+      expect(publishCalls).toHaveLength(1);
+      expect(received).toHaveLength(1);
+      expect(received[0]).toBe(event);
     });
   });
 });

@@ -14,6 +14,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
 import { GameEvent, GameEventType } from '../types/GameEvents';
 
 // ── Internal in-memory ring buffer ──────────────────────────────────────────
@@ -116,6 +117,7 @@ type RedisClient = {
   subscribe(channel: string): Promise<unknown>;
   on(event: 'message', listener: (channel: string, message: string) => void): unknown;
   publish(channel: string, message: string): Promise<unknown>;
+  disconnect?: () => Promise<void> | void;
 };
 
 type RedisConstructor = new (
@@ -126,6 +128,15 @@ type RedisConstructor = new (
 let redisPub: RedisClient | null = null;
 let redisSub: RedisClient | null = null;
 let redisReady = false;
+let redisInitPromise: Promise<void> | null = null;
+let redisLoader: () => Promise<RedisConstructor> = loadRedisConstructor;
+let redisTransportMode: 'local' | 'redis-bridge' = 'local';
+const redisBridgeId = randomUUID();
+
+type RedisEnvelope = {
+  origin: string;
+  event: GameEvent;
+};
 
 async function loadRedisConstructor(): Promise<RedisConstructor> {
   const dynamicImport = new Function('specifier', 'return import(specifier)') as (
@@ -142,8 +153,10 @@ async function loadRedisConstructor(): Promise<RedisConstructor> {
 async function maybeInitRedis(): Promise<void> {
   const url = process.env.REDIS_URL;
   if (!url || redisReady) return;
+  if (redisInitPromise) return redisInitPromise;
+  redisInitPromise = (async () => {
   try {
-    const Redis = await loadRedisConstructor();
+    const Redis = await redisLoader();
     redisPub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
     redisSub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
     await redisPub.connect();
@@ -151,7 +164,10 @@ async function maybeInitRedis(): Promise<void> {
     await redisSub.subscribe(EVENT_CHANNEL);
     redisSub.on('message', (_channel: string, message: string) => {
       try {
-        const event: GameEvent = JSON.parse(message);
+        const parsed = JSON.parse(message) as GameEvent | RedisEnvelope;
+        const event = 'event' in parsed ? parsed.event : parsed;
+        const origin = 'origin' in parsed ? parsed.origin : undefined;
+        if (origin && origin === redisBridgeId) return;
         // Re-emit locally so SSE handlers in this worker pick it up
         processEmitter.emit(EVENT_CHANNEL, event);
       } catch {
@@ -159,11 +175,18 @@ async function maybeInitRedis(): Promise<void> {
       }
     });
     redisReady = true;
+    redisTransportMode = 'redis-bridge';
   } catch {
     // ioredis not installed or Redis unreachable — fall back to in-process emitter
     redisPub = null;
     redisSub = null;
+    redisReady = false;
+    redisTransportMode = 'local';
+  } finally {
+    redisInitPromise = null;
   }
+  })();
+  return redisInitPromise;
 }
 
 // Kick off Redis init at module load time (fire-and-forget)
@@ -197,7 +220,8 @@ export class GameEventStore {
       } catch { /* intentionally empty */ }
     }
     if (redisReady && redisPub) {
-      redisPub.publish(EVENT_CHANNEL, JSON.stringify(event)).catch(() => {});
+      const envelope: RedisEnvelope = { origin: redisBridgeId, event };
+      redisPub.publish(EVENT_CHANNEL, JSON.stringify(envelope)).catch(() => {});
     }
   }
 
@@ -252,6 +276,37 @@ export class GameEventStore {
   static clearAllSubscribers(): void {
     processEmitter.removeAllListeners(EVENT_CHANNEL);
   }
+}
+
+export function getGameEventStoreTransportState(): {
+  mode: 'local' | 'redis-bridge';
+  redisReady: boolean;
+  redisConfigured: boolean;
+} {
+  return {
+    mode: redisTransportMode,
+    redisReady,
+    redisConfigured: Boolean(process.env.REDIS_URL),
+  };
+}
+
+export async function __initGameEventStoreRedisTransportForTest(): Promise<void> {
+  await maybeInitRedis();
+}
+
+export function __setGameEventStoreRedisLoaderForTest(loader: () => Promise<RedisConstructor>): void {
+  redisLoader = loader;
+}
+
+export async function __resetGameEventStoreRedisTransportForTest(): Promise<void> {
+  if (redisSub?.disconnect) await redisSub.disconnect();
+  if (redisPub?.disconnect) await redisPub.disconnect();
+  redisPub = null;
+  redisSub = null;
+  redisReady = false;
+  redisInitPromise = null;
+  redisLoader = loadRedisConstructor;
+  redisTransportMode = 'local';
 }
 
 // ── Factory function ────────────────────────────────────────────────────────
