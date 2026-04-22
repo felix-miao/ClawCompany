@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 
 import { MetricsAggregator, PerformanceMetrics } from '@/lib/core/metrics-aggregator';
-import { OpenClawMetrics } from '@/hooks/useOpenClawMetrics';
+import type { OpenClawSnapshotMetrics } from '@/lib/gateway/openclaw-snapshot';
 
 interface PerformanceMetricsPanelProps {
   metricsAggregator: MetricsAggregator;
-  openClawMetrics?: OpenClawMetrics | null;
+  openClawMetrics?: OpenClawSnapshotMetrics | null;
   openClawSource?: 'gateway' | 'fallback' | null;
 }
 
