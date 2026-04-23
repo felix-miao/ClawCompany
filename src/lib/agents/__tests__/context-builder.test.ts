@@ -108,6 +108,38 @@ describe('buildAgentContext', () => {
     expect(context).toContain('task-123')
   })
 
+  it('should include a stable task history summary when history exists', () => {
+    const input = {
+      agentConfig: mockAgentConfig,
+      taskId: 'task-456',
+      taskHistory: [
+        { from: 'pending', to: 'in_progress', timestamp: new Date('2026-04-12T10:00:00Z') },
+        { from: 'in_progress', to: 'review', timestamp: new Date('2026-04-12T10:15:00Z') },
+      ]
+    } as unknown as AgentContextInput
+
+    const context = buildAgentContext(input)
+
+    expect(context).toContain('## 任务历史摘要')
+    expect(context).toContain('历史条目: 2')
+    expect(context).toContain('2026-04-12T10:00:00.000Z')
+    expect(context).toContain('pending -> in_progress')
+    expect(context).toContain('2026-04-12T10:15:00.000Z')
+    expect(context).toContain('in_progress -> review')
+  })
+
+  it('should not add a task history section when history is empty', () => {
+    const input = {
+      agentConfig: mockAgentConfig,
+      taskId: 'task-456',
+      taskHistory: []
+    } as unknown as AgentContextInput
+
+    const context = buildAgentContext(input)
+
+    expect(context).not.toContain('## 任务历史摘要')
+  })
+
   it('should include projectState summary when provided', () => {
     const projectState: ProjectStateSummary = {
       projectId: 'my-project',

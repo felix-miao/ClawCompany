@@ -1,5 +1,6 @@
 import type { Task, AgentRole } from '../core/types'
 import type { TaskManager } from '../tasks/manager'
+import type { TaskTransitionRecord } from '../tasks/manager'
 import type { PersistedAgentConfig } from '@/types/agent-config'
 
 export interface AgentContextInput {
@@ -7,6 +8,7 @@ export interface AgentContextInput {
   taskId?: string
   conversationId?: string
   currentTask?: Task
+  taskHistory?: TaskTransitionRecord[]
   projectState?: ProjectStateSummary
 }
 
@@ -116,6 +118,18 @@ function buildCurrentTaskSection(currentTask: Task): string[] {
   return lines
 }
 
+function buildTaskHistorySection(taskHistory: TaskTransitionRecord[]): string[] {
+  const lines = ['## 任务历史摘要']
+
+  lines.push(`- 历史条目: ${taskHistory.length}`)
+
+  for (const entry of taskHistory.slice(-3)) {
+    lines.push(`- ${entry.timestamp.toISOString()} | ${entry.from} -> ${entry.to}`)
+  }
+
+  return lines
+}
+
 function buildProjectStateSection(projectState: ProjectStateSummary): string[] {
   const lines = ['## 项目状态摘要']
 
@@ -140,7 +154,7 @@ function buildProjectStateSection(projectState: ProjectStateSummary): string[] {
 }
 
 export function buildAgentContext(input: AgentContextInput): string {
-  const { agentConfig, taskId, conversationId, currentTask, projectState } = input
+  const { agentConfig, taskId, conversationId, currentTask, taskHistory, projectState } = input
 
   const sections: string[] = []
 
@@ -151,6 +165,11 @@ export function buildAgentContext(input: AgentContextInput): string {
   if (currentTask) {
     sections.push('')
     sections.push(...buildCurrentTaskSection(currentTask))
+  }
+
+  if (taskId && taskHistory && taskHistory.length > 0) {
+    sections.push('')
+    sections.push(...buildTaskHistorySection(taskHistory))
   }
 
   if (projectState) {

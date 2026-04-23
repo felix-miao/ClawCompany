@@ -120,6 +120,15 @@ jest.mock('@/lib/core/services', () => {
       }
       return undefined
     },
+    getTaskHistory: (taskId: string) => {
+      if (taskId === 'task-123') {
+        return [
+          { from: 'pending', to: 'in_progress', timestamp: new Date('2026-04-12T10:00:00Z') },
+          { from: 'in_progress', to: 'review', timestamp: new Date('2026-04-12T10:15:00Z') }
+        ]
+      }
+      return []
+    },
     projectId: 'test-project'
   }
   return {
@@ -763,6 +772,36 @@ describe('/api/agent', () => {
       const systemMessage = messages.find((m: { role: string }) => m.role === 'system')?.content
 
       expect(systemMessage).toContain('task-123')
+      expect(systemMessage).toContain('## 任务历史摘要')
+      expect(systemMessage).toContain('历史条目: 2')
+      expect(systemMessage).toContain('pending -> in_progress')
+
+      setLLMProvider(null)
+      process.env.USE_MOCK_LLM = originalMock
+    })
+
+    it('should not add task history noise when task has no history', async () => {
+      const originalMock = process.env.USE_MOCK_LLM
+      delete process.env.USE_MOCK_LLM
+
+      const mockChatFn = jest.fn().mockResolvedValue('Response')
+      setLLMProvider(createMockLLMProvider(mockChatFn))
+
+      const request = createMockRequest({
+        method: 'POST',
+        body: {
+          agentId: 'pm-agent',
+          userMessage: 'Check task status',
+          taskId: 'task-456'
+        }
+      })
+
+      await POST(request)
+
+      const [[messages]] = mockChatFn.mock.calls
+      const systemMessage = messages.find((m: { role: string }) => m.role === 'system')?.content
+
+      expect(systemMessage).not.toContain('## 任务历史摘要')
 
       setLLMProvider(null)
       process.env.USE_MOCK_LLM = originalMock
