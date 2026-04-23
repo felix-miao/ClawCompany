@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { TraditionalTaskView } from '../TraditionalTaskView';
 
 import { TaskHistory } from '@/game/data/DashboardStore';
+import { selectTaskAgentSnapshot } from '@/lib/task-agent-snapshot';
 
 const buildTask = (overrides: Partial<TaskHistory> = {}): TaskHistory => ({
   taskId: 'task-1',
@@ -97,6 +98,29 @@ describe('TraditionalTaskView', () => {
     expect(screen.getByText(/working/i)).toBeInTheDocument();
     expect(screen.getByText(/Build task A/i)).toBeInTheDocument();
     expect(screen.queryByText('Dev Claw (task B)')).not.toBeInTheDocument();
+  });
+
+  it('should prefer canonical task agent snapshot ids when selecting agent state', () => {
+    const task = buildTask({
+      agentSnapshots: {
+        'dev-claw': {
+          id: 'dev-claw',
+          name: 'Dev Claw',
+          role: 'Developer',
+          status: 'working',
+          emotion: 'focused',
+          currentTask: 'Build task A',
+          latestResultSummary: null,
+        },
+      },
+    });
+
+    expect(selectTaskAgentSnapshot(task)).toMatchObject({
+      id: 'dev-claw',
+      name: 'Dev Claw',
+      status: 'working',
+      currentTask: 'Build task A',
+    });
   });
 
   it('should switch selected task from task list', () => {

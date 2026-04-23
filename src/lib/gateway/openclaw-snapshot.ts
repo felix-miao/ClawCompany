@@ -18,6 +18,7 @@ import {
 
 import { HistoryMessage, OpenClawToolType, HistoryToolMetadata, HistoryFileMetadata, HistoryArtifactMetadata } from './client'
 import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
+import { createTaskAgentSnapshot, getCanonicalTaskAgentId } from '../task-agent-snapshot'
 
 export type OpenClawEventType = 
   | 'tool:invoked'
@@ -1146,7 +1147,7 @@ function deriveUpdatedAt(session: OpenClawSessionDetails): number {
     ?? 0
 }
 
-function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
+function deriveTaskHistory(session: OpenClawSessionDetails, agent: AgentInfo | undefined): TaskHistory {
   const derivedUpdatedAt = deriveUpdatedAt(session)
   const startTime = parseHistoryTimestamp(session.startedAt) ?? derivedUpdatedAt
   const endedTime = parseHistoryTimestamp(session.endedAt)
@@ -1195,6 +1196,12 @@ function deriveTaskHistory(session: OpenClawSessionDetails): TaskHistory {
     finalResultSummary: session.finalResultSummary ?? undefined,
     lastReviewFeedback: failed ? session.latestMessage || undefined : undefined,
     lastApproved: !active && !failed,
+    agentSnapshots: createTaskAgentSnapshot(
+      agent,
+      session.agentId,
+      session.currentWork ?? null,
+      session.latestResultSummary ?? null,
+    ),
   }
 }
 
@@ -1302,7 +1309,12 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
     return {
       agents: agentsWithCurrentTask,
       sessions: sessionDetailsWithCategory,
-      tasks: sessionDetailsWithCategory.map(deriveTaskHistory).sort((a, b) => b.updatedAt - a.updatedAt),
+      tasks: sessionDetailsWithCategory
+        .map(session => deriveTaskHistory(
+          session,
+          mappedAgents.find(agent => agent.id === session.agentId || agent.id === getCanonicalTaskAgentId(session.agentId)),
+        ))
+        .sort((a, b) => b.updatedAt - a.updatedAt),
       metrics: buildMetrics(agentsWithCurrentTask, sessions, fetchedAt),
       connected: true,
       fetchedAt,

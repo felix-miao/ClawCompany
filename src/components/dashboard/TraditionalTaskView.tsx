@@ -4,6 +4,7 @@ import { GameEvent } from '@/game/types/GameEvents';
 import { useEffect, useMemo, useState } from 'react';
 
 import { TaskHistory, TASK_PHASE_LABELS } from '@/game/data/DashboardStore';
+import { selectTaskAgentSnapshot } from '@/lib/task-agent-snapshot';
 
 type EventSummary = {
   text: string;
@@ -180,21 +181,8 @@ function getTaskOwnerLabel(task: TaskHistory): string {
   return task.currentAgentName ?? TASK_PHASE_LABELS[task.currentPhase] ?? task.currentPhase;
 }
 
-function getCanonicalTaskAgentId(agentId: string): string {
-  const aliasMap: Record<string, string> = {
-    'pm-agent': 'sidekick-claw',
-    'dev-agent': 'dev-claw',
-    'review-agent': 'reviewer-claw',
-    'test-agent': 'tester-claw',
-  };
-
-  return aliasMap[agentId] ?? agentId;
-}
-
 function getTaskAgentSnapshot(task: TaskHistory): { id: string; name: string; status: string; emotion: string; currentTask: string | null; latestResultSummary: string | null } | null {
-  const canonicalAgentId = task.currentAgentId;
-  if (!canonicalAgentId) return null;
-  const snapshot = task.agentSnapshots?.[canonicalAgentId] ?? task.agentSnapshots?.[getCanonicalTaskAgentId(canonicalAgentId)] ?? null;
+  const snapshot = selectTaskAgentSnapshot(task);
   if (!snapshot) return null;
 
   return {

@@ -66,7 +66,67 @@ describe('buildOpenClawSnapshot', () => {
       currentAgentId: 'sidekick-claw',
       currentAgentName: 'PM Claw',
       status: 'in_progress',
+      agentSnapshots: {
+        'sidekick-claw': {
+          id: 'sidekick-claw',
+          name: 'PM Claw',
+          role: 'pm',
+          status: 'busy',
+          emotion: 'neutral',
+          currentTask: '用你的团队给我写一个网站出来',
+          latestResultSummary: '已生成初始任务拆分',
+        },
+      },
     })
+  })
+
+  it('keeps task agent snapshots isolated per task and canonicalizes agent ids', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+      { id: 'reviewer-claw', name: 'Reviewer', identity: { name: 'Reviewer Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'task-a',
+        agentId: 'dev-agent',
+        label: 'Task A',
+        model: 'gpt-5',
+        status: 'running',
+        startedAt: '2026-04-14T00:00:00Z',
+        endedAt: null,
+      },
+      {
+        key: 'task-b',
+        agentId: 'review-agent',
+        label: 'Task B',
+        model: 'gpt-5',
+        status: 'running',
+        startedAt: '2026-04-14T00:01:00Z',
+        endedAt: null,
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      { id: 'reviewer-claw', name: 'Reviewer Claw', role: 'review', status: 'busy', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockImplementation(async (sessionKey: string) => {
+      if (sessionKey === 'task-a') {
+        return [{ role: 'assistant', content: 'Task A', status: 'running' }]
+      }
+      return [{ role: 'assistant', content: 'Task B', status: 'running' }]
+    })
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    const taskA = snapshot.tasks.find(task => task.taskId === 'task-a')
+    const taskB = snapshot.tasks.find(task => task.taskId === 'task-b')
+
+    expect(taskA?.agentSnapshots?.['dev-claw']?.name).toBe('Dev Claw')
+    expect(taskA?.agentSnapshots?.['reviewer-claw']).toBeUndefined()
+    expect(taskB?.agentSnapshots?.['reviewer-claw']?.name).toBe('Reviewer Claw')
+    expect(taskB?.agentSnapshots?.['dev-claw']).toBeUndefined()
   })
 
   it('prefers the latest assistant and toolResult messages when deriving summaries', async () => {
