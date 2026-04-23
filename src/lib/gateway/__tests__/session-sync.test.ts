@@ -1,4 +1,5 @@
 import { SessionSyncService, GatewayAgent, GatewaySession } from '../session-sync'
+import { createDefaultAgents } from '../default-agents'
 
 describe('SessionSyncService', () => {
   let sync: SessionSyncService
@@ -163,7 +164,8 @@ describe('SessionSyncService', () => {
       const defaults = sync.getDefaultAgents()
 
       expect(defaults).toHaveLength(4)
-      expect(defaults.map(a => a.id)).toEqual(['pm-agent', 'dev-agent', 'review-agent', 'test-agent'])
+      expect(defaults.map(a => a.id)).toEqual(['sidekick-claw', 'dev-claw', 'reviewer-claw', 'tester-claw'])
+      expect(defaults).toEqual(createDefaultAgents())
     })
 
     it('should return a copy each time', () => {

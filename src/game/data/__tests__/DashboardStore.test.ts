@@ -10,6 +10,7 @@ import {
   SessionProgressEvent,
   ConnectionEvent,
 } from '../../types/GameEvents';
+import { createDefaultAgents } from '@/lib/gateway/default-agents';
 
 describe('DashboardStore', () => {
   let store: DashboardStore;
@@ -22,7 +23,15 @@ describe('DashboardStore', () => {
     it('should have default agent configs', () => {
       const agents = store.getAgents();
       expect(agents).toHaveLength(4);
-      expect(agents.map(a => a.id)).toEqual(['pm-agent', 'dev-agent', 'review-agent', 'test-agent']);
+      expect(agents.map(a => a.id)).toEqual(['sidekick-claw', 'dev-claw', 'reviewer-claw', 'tester-claw']);
+      expect(agents).toEqual(createDefaultAgents());
+    });
+
+    it('should keep defaults aligned with gateway ids after refreshes', () => {
+      store.loadAgents([]);
+      store.reset();
+
+      expect(store.getAgents().map(a => a.id)).toEqual(['sidekick-claw', 'dev-claw', 'reviewer-claw', 'tester-claw']);
     });
 
     it('should have all agents idle initially', () => {
@@ -50,13 +59,13 @@ describe('DashboardStore', () => {
       const event: AgentStatusEvent = {
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         status: 'working',
       };
 
       store.processEvent(event);
 
-      const agent = store.getAgentById('pm-agent');
+      const agent = store.getAgentById('sidekick-claw');
       expect(agent?.status).toBe('working');
     });
 
@@ -64,19 +73,19 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'dev-agent',
+        agentId: 'dev-claw',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'dev-agent',
+        agentId: 'dev-claw',
         status: 'idle',
         previousStatus: 'busy',
       });
 
-      const agent = store.getAgentById('dev-agent');
+      const agent = store.getAgentById('dev-claw');
       expect(agent?.status).toBe('idle');
     });
 
@@ -98,7 +107,7 @@ describe('DashboardStore', () => {
       const event: TaskAssignedEvent = {
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'review-agent',
+        agentId: 'reviewer-claw',
         taskId: 'task-1',
         taskType: 'review',
         description: 'Review the code',
@@ -110,7 +119,7 @@ describe('DashboardStore', () => {
       expect(tasks).toHaveLength(1);
       expect(tasks[0]).toMatchObject({
         taskId: 'task-1',
-        agentId: 'review-agent',
+        agentId: 'reviewer-claw',
         description: 'Review the code',
       });
     });
@@ -119,13 +128,13 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build feature',
       });
 
-      expect(store.getAgentById('pm-agent')?.status).toBe('working');
+      expect(store.getAgentById('sidekick-claw')?.status).toBe('working');
     });
   });
 
@@ -134,7 +143,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build feature',
@@ -145,7 +154,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-completed',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         taskId: 'task-1',
         result: 'success',
         duration: 5000,
@@ -158,13 +167,13 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:task-completed',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         taskId: 'task-1',
         result: 'success',
         duration: 5000,
       });
 
-      expect(store.getAgentById('pm-agent')?.status).toBe('idle');
+      expect(store.getAgentById('sidekick-claw')?.status).toBe('idle');
     });
   });
 
@@ -173,12 +182,12 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:emotion-change',
         timestamp: Date.now(),
-        agentId: 'test-agent',
+        agentId: 'tester-claw',
         emotion: 'happy',
         source: 'manual',
       });
 
-      expect(store.getAgentById('test-agent')?.emotion).toBe('happy');
+      expect(store.getAgentById('tester-claw')?.emotion).toBe('happy');
     });
   });
 
@@ -266,7 +275,7 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: 1000,
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         status: 'busy',
       });
 
@@ -828,9 +837,9 @@ describe('DashboardStore', () => {
 
   describe('getAgentById', () => {
     it('should return agent by id', () => {
-      const alice = store.getAgentById('pm-agent');
+      const alice = store.getAgentById('sidekick-claw');
       expect(alice).toMatchObject({
-        id: 'pm-agent',
+        id: 'sidekick-claw',
         name: 'PM',
         role: 'PM',
       });
@@ -846,14 +855,14 @@ describe('DashboardStore', () => {
       store.processEvent({
         type: 'agent:status-change',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         status: 'busy',
       });
 
       store.processEvent({
         type: 'agent:task-assigned',
         timestamp: Date.now(),
-        agentId: 'pm-agent',
+        agentId: 'sidekick-claw',
         taskId: 'task-1',
         taskType: 'develop',
         description: 'Build',
@@ -881,7 +890,7 @@ describe('DashboardStore', () => {
       store.reset();
 
       expect(store.getEvents()).toEqual([]);
-      expect(store.getAgentById('pm-agent')?.status).toBe('idle');
+      expect(store.getAgentById('sidekick-claw')?.status).toBe('idle');
       expect(store.getActiveTasks()).toEqual([]);
     });
 
@@ -893,7 +902,7 @@ describe('DashboardStore', () => {
         storeWithLimit.processEvent({
           type: 'agent:status-change',
           timestamp: i,
-          agentId: 'pm-agent',
+          agentId: 'sidekick-claw',
           status: 'busy',
         });
       }

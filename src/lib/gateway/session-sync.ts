@@ -1,12 +1,6 @@
 import { OpenClawGatewayClient, createGatewayClient } from './client'
 import { AgentInfo } from '@/game/data/DashboardStore'
-
-const DEFAULT_AGENTS: AgentInfo[] = [
-  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-]
+import { createDefaultAgents } from './default-agents'
 
 export interface GatewayAgent {
   id: string
@@ -95,10 +89,10 @@ export class SessionSyncService {
   }
 
   getDefaultAgents(): AgentInfo[] {
-    return DEFAULT_AGENTS.map(a => ({ ...a }))
+    return createDefaultAgents()
   }
 }
 
 export function getDefaultAgents(): AgentInfo[] {
-  return DEFAULT_AGENTS.map(a => ({ ...a }))
+  return createDefaultAgents()
 }

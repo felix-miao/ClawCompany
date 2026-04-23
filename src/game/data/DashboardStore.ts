@@ -14,6 +14,7 @@ import {
   ReviewRejectedEvent,
   WorkflowIterationCompleteEvent,
 } from '../types/GameEvents';
+import { createDefaultAgents } from '@/lib/gateway/default-agents';
 
 class RingBuffer {
   private buffer: (GameEvent | undefined)[];
@@ -159,22 +160,17 @@ export interface DashboardStats {
   connected: boolean;
 }
 
-const DEFAULT_AGENTS: AgentInfo[] = [
-  { id: 'pm-agent', name: 'PM', role: 'PM', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-  { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-  { id: 'review-agent', name: 'Reviewer', role: 'Reviewer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-  { id: 'test-agent', name: 'Tester', role: 'Tester', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
-];
+const DEFAULT_AGENTS: AgentInfo[] = createDefaultAgents();
 
 const AGENT_ID_ALIAS_MAP: Record<string, string> = {
-  'sidekick-claw': 'pm-agent',
-  'pm-agent': 'pm-agent',
-  'dev-claw': 'dev-agent',
-  'dev-agent': 'dev-agent',
-  'reviewer-claw': 'review-agent',
-  'review-agent': 'review-agent',
-  'tester-claw': 'test-agent',
-  'test-agent': 'test-agent',
+  'sidekick-claw': 'sidekick-claw',
+  'pm-agent': 'sidekick-claw',
+  'dev-claw': 'dev-claw',
+  'dev-agent': 'dev-claw',
+  'reviewer-claw': 'reviewer-claw',
+  'review-agent': 'reviewer-claw',
+  'tester-claw': 'tester-claw',
+  'test-agent': 'tester-claw',
 };
 
 function getCanonicalAgentId(agentId: string): string {
@@ -366,7 +362,7 @@ export class DashboardStore {
   }
 
   getAgentById(id: string): AgentInfo | undefined {
-    return this.agents.get(id);
+    return this.agents.get(id) ?? this.agents.get(getCanonicalAgentId(id));
   }
 
   getEvents(): GameEvent[] {
@@ -378,7 +374,8 @@ export class DashboardStore {
   }
 
   getEventsByAgent(agentId: string): GameEvent[] {
-    return this.ring.toArray().filter(e => e.agentId === agentId);
+    const canonicalId = getCanonicalAgentId(agentId);
+    return this.ring.toArray().filter(e => e.agentId === agentId || e.agentId === canonicalId);
   }
 
   getActiveTasks(): ActiveTask[] {
@@ -464,13 +461,14 @@ export class DashboardStore {
   }
 
   private handleStatusChange(event: AgentStatusEvent): void {
-    const agent = this.agents.get(event.agentId);
+    const agent = this.agents.get(getCanonicalAgentId(event.agentId));
     if (!agent) return;
     agent.status = event.status;
   }
 
   private handleTaskAssigned(event: TaskAssignedEvent): void {
-    const agent = this.agents.get(event.agentId);
+    const canonicalAgentId = getCanonicalAgentId(event.agentId);
+    const agent = this.agents.get(canonicalAgentId);
     if (agent) {
       agent.status = 'working';
       agent.currentTask = event.description;
@@ -478,19 +476,20 @@ export class DashboardStore {
 
     this.activeTasks.set(event.taskId, {
       taskId: event.taskId,
-      agentId: event.agentId,
+      agentId: canonicalAgentId,
       taskType: event.taskType,
       description: event.description,
       assignedAt: event.timestamp,
     });
 
-    const phase = inferPhaseFromAgent(event.agentId) ?? 'developer';
+    const phase = inferPhaseFromAgent(canonicalAgentId) ?? 'developer';
     const task = this.ensureTaskHistory(event.taskId, event.description, event.timestamp);
-    this.startPhase(task, phase, event.timestamp, event.agentId, event.description);
+    this.startPhase(task, phase, event.timestamp, canonicalAgentId, event.description);
   }
 
   private handleTaskCompleted(event: TaskCompletedEvent): void {
-    const agent = this.agents.get(event.agentId);
+    const canonicalAgentId = getCanonicalAgentId(event.agentId);
+    const agent = this.agents.get(canonicalAgentId);
     if (agent) {
       agent.status = 'idle';
       agent.currentTask = null;
@@ -499,17 +498,17 @@ export class DashboardStore {
     this.activeTasks.delete(event.taskId);
 
     const description = this.activeTasks.get(event.taskId)?.description ?? this.taskHistoryMap.get(event.taskId)?.description ?? event.taskId;
-    const phase = inferPhaseFromAgent(event.agentId);
+    const phase = inferPhaseFromAgent(canonicalAgentId);
     const task = this.ensureTaskHistory(event.taskId, description, event.timestamp);
     if (phase) {
-      this.startPhase(task, phase, event.timestamp, event.agentId, description);
+      this.startPhase(task, phase, event.timestamp, canonicalAgentId, description);
       this.finishPhase(task, phase, event.timestamp, event.result === 'failure' ? 'failed' : 'completed');
     }
     this.finishTask(task, event.timestamp, event.result);
   }
 
   private handleEmotionChange(event: EmotionChangeEvent): void {
-    const agent = this.agents.get(event.agentId);
+    const agent = this.agents.get(getCanonicalAgentId(event.agentId));
     if (agent) {
       agent.emotion = event.emotion;
     }
@@ -587,7 +586,7 @@ export class DashboardStore {
     task.isInRework = iteration > 1 || getHasFeedbackFromEvent(event) || (task.rejectionCount ?? 0) > 0;
     task.lastApproved = false;
 
-    this.startPhase(task, 'developer', event.timestamp, event.agentId ?? 'dev-agent', description);
+    this.startPhase(task, 'developer', event.timestamp, event.agentId ?? 'dev-claw', description);
   }
 
   private handleReviewRejected(event: ReviewRejectedEvent): void {
@@ -605,7 +604,7 @@ export class DashboardStore {
     task.lastReviewFeedback = feedback;
     task.lastApproved = false;
 
-    this.startPhase(task, 'reviewer', event.timestamp, event.agentId ?? 'review-agent', description);
+    this.startPhase(task, 'reviewer', event.timestamp, event.agentId ?? 'reviewer-claw', description);
     this.finishPhase(task, 'reviewer', event.timestamp, 'failed');
   }
 

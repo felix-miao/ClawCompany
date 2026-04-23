@@ -10,7 +10,7 @@ describe('useDashboardStore', () => {
     const { result } = renderHook(() => useDashboardStore(store));
 
     expect(result.current.agents).toHaveLength(4);
-    expect(result.current.agents[0].id).toBe('pm-agent');
+    expect(result.current.agents[0].id).toBe('sidekick-claw');
   });
 
   it('should update when store processes event', () => {
@@ -95,7 +95,7 @@ describe('useDashboardStore', () => {
     act(() => {
       store.loadAgents([
         {
-          id: 'pm-agent',
+          id: 'sidekick-claw',
           name: 'PM Updated',
           role: 'PM',
           status: 'busy',
@@ -106,7 +106,7 @@ describe('useDashboardStore', () => {
     });
 
     expect(result.current.agents[0]).toMatchObject({
-      id: 'pm-agent',
+      id: 'sidekick-claw',
       name: 'PM Updated',
       status: 'busy',
     });
