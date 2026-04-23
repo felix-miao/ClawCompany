@@ -108,6 +108,7 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     }
 
     this.updateEmotionBubble();
+    this.syncEmotionBubblePosition();
     this.updateEmojiPosition();
   }
   
@@ -367,7 +368,7 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     const bubbleConfig = this.emotionSystem.getBubbleConfig(0, -40);
     if (!bubbleConfig) return;
 
-    this.emotionBubble = this.scene.add.container(this.x, this.y + bubbleConfig.y);
+    this.emotionBubble = this.scene.add.container(0, 0);
 
     const bg = this.scene.add.graphics();
     const w = bubbleConfig.width;
@@ -387,13 +388,22 @@ export class AgentCharacter extends Phaser.Physics.Arcade.Sprite {
     if (bubbleConfig.animation.bounceAmplitude > 0) {
       this.scene.tweens.add({
         targets: this.emotionBubble,
-        y: this.y + bubbleConfig.y - bubbleConfig.animation.bounceAmplitude,
+        y: bubbleConfig.y - bubbleConfig.animation.bounceAmplitude,
         duration: bubbleConfig.animation.bounceDuration / 2,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
     }
+  }
+
+  private syncEmotionBubblePosition(): void {
+    if (!this.emotionBubble) return;
+
+    const bubbleConfig = this.emotionSystem.getBubbleConfig(0, -40);
+    if (!bubbleConfig) return;
+
+    this.emotionBubble.setPosition(this.x, this.y + bubbleConfig.y);
   }
 
   private clearEmotionBubble(): void {
