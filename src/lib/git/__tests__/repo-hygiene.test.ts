@@ -24,4 +24,19 @@ describe('repo hygiene', () => {
 
     await fs.rm(tempDir, { recursive: true, force: true })
   })
+
+  it('ignores comments and partial matches when checking gitignore rules', async () => {
+    const tempDir = path.join('/tmp', `clawcompany-hygiene-${Date.now()}-comments`)
+    await fs.mkdir(tempDir, { recursive: true })
+    await fs.writeFile(
+      path.join(tempDir, '.gitignore'),
+      ['# .DS_Store', 'some/.DS_Store.backup', '', '# node_modules/', 'packages/node_modules-cache'].join('\n'),
+    )
+
+    const result = await checkRepoHygiene(tempDir)
+
+    expect(result.missingIgnoreRules).toEqual(['.DS_Store', 'node_modules/'])
+
+    await fs.rm(tempDir, { recursive: true, force: true })
+  })
 })
