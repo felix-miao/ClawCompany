@@ -11,7 +11,7 @@ import { withRateLimit, withAuth, successResponse, errorResponse } from '@/lib/a
 import { getLLMProvider } from '@/lib/llm/factory'
 import { AgentPostRequestSchema, AgentPutRequestSchema, parseRequestBody } from '@/lib/api/schemas'
 import { sanitizeUserInput } from '@/lib/utils/prompt-sanitizer'
-import { buildAgentContext, getProjectStateSummary } from '@/lib/agents/context-builder'
+import { buildAgentContext, buildAgentSystemPrompt, getProjectStateSummary } from '@/lib/agents/context-builder'
 import { getDefaultContainer, Services } from '@/lib/core/services'
 import type { TaskManager } from '@/lib/tasks/manager'
 
@@ -77,9 +77,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
     projectState
   })
 
-  const systemPromptWithContext = agentConfig.systemPrompt
-    ? `${agentConfig.systemPrompt}\n\n${dynamicContext}`
-    : dynamicContext
+  const systemPromptWithContext = buildAgentSystemPrompt(agentConfig, dynamicContext)
 
   if (useMock) {
     await new Promise(resolve => setTimeout(resolve, 800))
