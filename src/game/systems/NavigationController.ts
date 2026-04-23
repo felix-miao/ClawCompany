@@ -92,9 +92,11 @@ export class NavigationController {
       return;
     }
 
-    const direction = dx > 0 ? 1 : -1;
     const body = this.agent.body as Phaser.Physics.Arcade.Body;
-    body.setVelocityX(direction * PHYSICS_CONFIG.moveSpeed);
+    const directionX = Math.sign(dx);
+    const directionY = Math.sign(dy);
+    body.setVelocityX(directionX * PHYSICS_CONFIG.moveSpeed);
+    body.setVelocityY(directionY * PHYSICS_CONFIG.moveSpeed);
 
     if (nextPoint.action === 'jump' && body.blocked.down) {
       const jumpDistance = Math.sqrt(
@@ -129,6 +131,7 @@ export class NavigationController {
     this.state = 'idle';
     const body = this.agent.body as Phaser.Physics.Arcade.Body;
     body.setVelocityX(0);
+    body.setVelocityY(0);
     this.arrivalCallback?.();
     this.arrivalCallback = null;
   }

@@ -133,6 +133,25 @@ describe('NavigationController', () => {
       expect(agent.body.setVelocityX).toHaveBeenCalled();
     });
 
+    it('should move vertically toward targets above or below', () => {
+      controller.setTarget(100, 80);
+      controller.update();
+
+      expect(agent.body.setVelocityX).toHaveBeenCalledWith(0);
+      expect(agent.body.setVelocityY).toHaveBeenCalledWith(expect.any(Number));
+      expect(agent.body.setVelocityY.mock.calls[0][0]).toBeLessThan(0);
+    });
+
+    it('should move diagonally with both x and y velocity', () => {
+      controller.setTarget(160, 140);
+      controller.update();
+
+      expect(agent.body.setVelocityX).toHaveBeenCalledWith(expect.any(Number));
+      expect(agent.body.setVelocityY).toHaveBeenCalledWith(expect.any(Number));
+      expect(agent.body.setVelocityX).toHaveBeenCalledTimes(1);
+      expect(agent.body.setVelocityY).toHaveBeenCalledTimes(1);
+    });
+
     it('should set flipX when moving left', () => {
       pathfinding.setCurrentPath([{ x: 50, y: 200, action: 'move' }]);
       controller.setTarget(50, 200);
@@ -160,6 +179,14 @@ describe('NavigationController', () => {
       controller.setTarget(100, 200);
       controller.update();
       expect(controller.getState()).toBe('idle');
+    });
+
+    it('should stop both axes when arrival is handled', () => {
+      controller.setTarget(100, 200);
+      controller.update();
+
+      expect(agent.body.setVelocityX).toHaveBeenLastCalledWith(0);
+      expect(agent.body.setVelocityY).toHaveBeenLastCalledWith(0);
     });
   });
 
