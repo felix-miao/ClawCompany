@@ -180,6 +180,33 @@ function getTaskOwnerLabel(task: TaskHistory): string {
   return task.currentAgentName ?? TASK_PHASE_LABELS[task.currentPhase] ?? task.currentPhase;
 }
 
+function getCanonicalTaskAgentId(agentId: string): string {
+  const aliasMap: Record<string, string> = {
+    'pm-agent': 'sidekick-claw',
+    'dev-agent': 'dev-claw',
+    'review-agent': 'reviewer-claw',
+    'test-agent': 'tester-claw',
+  };
+
+  return aliasMap[agentId] ?? agentId;
+}
+
+function getTaskAgentSnapshot(task: TaskHistory): { id: string; name: string; status: string; emotion: string; currentTask: string | null; latestResultSummary: string | null } | null {
+  const canonicalAgentId = task.currentAgentId;
+  if (!canonicalAgentId) return null;
+  const snapshot = task.agentSnapshots?.[canonicalAgentId] ?? task.agentSnapshots?.[getCanonicalTaskAgentId(canonicalAgentId)] ?? null;
+  if (!snapshot) return null;
+
+  return {
+    id: snapshot.id,
+    name: snapshot.name,
+    status: snapshot.status,
+    emotion: snapshot.emotion,
+    currentTask: snapshot.currentTask,
+    latestResultSummary: snapshot.latestResultSummary,
+  };
+}
+
 function getAgentFilterKey(task: TaskHistory): string {
   return task.currentAgentId ?? task.currentPhase;
 }
@@ -419,6 +446,7 @@ export function TraditionalTaskView({ tasks, onSelectTask }: TraditionalTaskView
   );
 
   const hasSelectedTask = selectedTask !== null;
+  const selectedTaskAgentSnapshot = selectedTask ? getTaskAgentSnapshot(selectedTask) : null;
 
   useEffect(() => {
     if (internalSelectedTaskId && onSelectTask) {
@@ -826,6 +854,28 @@ if (!sortedTasks.length) {
                 <div className="text-xs text-gray-500 mb-1">当前卡点</div>
                 <div className="text-sm text-primary-200">{getCurrentBlocker(selectedTask)}</div>
               </div>
+
+              {selectedTaskAgentSnapshot && (
+                <div className="p-4 border-b border-dark-100 bg-dark-50/20">
+                  <div className="text-xs text-gray-500 mb-2">Task Agent Snapshot · {selectedTask.taskId}</div>
+                  <div className="rounded-xl border border-dark-100 bg-dark-50/50 p-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-medium text-white">{selectedTaskAgentSnapshot.name}</div>
+                        <div className="text-xs text-gray-500">{selectedTaskAgentSnapshot.id}</div>
+                      </div>
+                      <div className="text-xs text-gray-300 capitalize">{selectedTaskAgentSnapshot.status}</div>
+                    </div>
+                    <div className="text-xs text-gray-400">Emotion: {selectedTaskAgentSnapshot.emotion}</div>
+                    {selectedTaskAgentSnapshot.currentTask && (
+                      <div className="text-xs text-primary-300 truncate">{selectedTaskAgentSnapshot.currentTask}</div>
+                    )}
+                    {selectedTaskAgentSnapshot.latestResultSummary && (
+                      <div className="text-xs text-green-300 truncate">→ {selectedTaskAgentSnapshot.latestResultSummary}</div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {selectedTask.status === 'in_progress' && (
                 <div className="p-4 border-b border-dark-100">

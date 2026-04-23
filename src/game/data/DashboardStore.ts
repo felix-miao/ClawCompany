@@ -118,6 +118,7 @@ export interface ActiveTask {
 export interface TaskHistory {
   taskId: string;
   description: string;
+  agentSnapshots?: Record<string, AgentInfo>;
   phases: TaskPhaseRecord[];
   currentPhase: TaskPhase;
   currentAgentId: string | null;
@@ -257,6 +258,7 @@ export class DashboardStore {
   private ring: RingBuffer;
   private activeTasks: Map<string, ActiveTask> = new Map();
   private taskHistoryMap: Map<string, TaskHistory> = new Map();
+  private taskAgentSnapshots: Map<string, Map<string, AgentInfo>> = new Map();
   private sessionCount = 0;
   private completedSessionCount = 0;
   private latestProgress: SessionProgress | null = null;
@@ -390,6 +392,21 @@ export class DashboardStore {
     return this.taskHistoryMap.get(taskId);
   }
 
+  getTaskAgentById(taskId: string, agentId: string): AgentInfo | undefined {
+    const canonicalAgentId = getCanonicalAgentId(agentId);
+    const taskSnapshots = this.taskAgentSnapshots.get(taskId);
+    const snapshot = taskSnapshots?.get(canonicalAgentId);
+    if (snapshot) {
+      return { ...snapshot };
+    }
+
+    return { ...this.createFallbackAgentSnapshot(agentId, taskId) };
+  }
+
+  getTaskAgents(taskId: string): AgentInfo[] {
+    return DEFAULT_AGENTS.map((agent) => this.getTaskAgentById(taskId, agent.id) ?? { ...agent });
+  }
+
   getSessionCount(): number {
     return this.sessionCount;
   }
@@ -453,6 +470,7 @@ export class DashboardStore {
     this.ring.clear();
     this.activeTasks.clear();
     this.taskHistoryMap.clear();
+    this.taskAgentSnapshots.clear();
     this.sessionCount = 0;
     this.completedSessionCount = 0;
     this.latestProgress = null;
@@ -485,6 +503,10 @@ export class DashboardStore {
     const phase = inferPhaseFromAgent(canonicalAgentId) ?? 'developer';
     const task = this.ensureTaskHistory(event.taskId, event.description, event.timestamp);
     this.startPhase(task, phase, event.timestamp, canonicalAgentId, event.description);
+    this.updateTaskAgentSnapshot(event.taskId, canonicalAgentId, {
+      status: 'working',
+      currentTask: event.description,
+    });
   }
 
   private handleTaskCompleted(event: TaskCompletedEvent): void {
@@ -505,6 +527,11 @@ export class DashboardStore {
       this.finishPhase(task, phase, event.timestamp, event.result === 'failure' ? 'failed' : 'completed');
     }
     this.finishTask(task, event.timestamp, event.result);
+    this.updateTaskAgentSnapshot(event.taskId, canonicalAgentId, {
+      status: 'idle',
+      currentTask: null,
+      latestResultSummary: event.result === 'success' ? 'Task completed' : `Task ${event.result}`,
+    });
   }
 
   private handleEmotionChange(event: EmotionChangeEvent): void {
@@ -538,6 +565,10 @@ export class DashboardStore {
     });
 
     this.startPhase(task, phase, event.timestamp, event.agentId, description);
+    this.updateTaskAgentSnapshot(taskId, event.agentId, {
+      status: 'working',
+      currentTask: description,
+    });
   }
 
   private handleVisualizationTaskHandover(event: TaskVisualizationHandoverEvent): void {
@@ -561,6 +592,10 @@ export class DashboardStore {
     });
 
     this.startPhase(task, toPhase, event.timestamp, event.toAgentId, event.description);
+    this.updateTaskAgentSnapshot(event.taskId, event.toAgentId, {
+      status: 'working',
+      currentTask: event.description,
+    });
   }
 
   private handleVisualizationTaskProgress(event: TaskVisualizationProgressEvent): void {
@@ -572,6 +607,10 @@ export class DashboardStore {
 
     this.startPhase(task, phase, event.timestamp, event.agentId, description);
     task.updatedAt = event.timestamp;
+    this.updateTaskAgentSnapshot(event.taskId, event.agentId, {
+      status: 'working',
+      currentTask: description,
+    });
   }
 
   private handleDevIterationStart(event: DevIterationStartEvent): void {
@@ -587,6 +626,10 @@ export class DashboardStore {
     task.lastApproved = false;
 
     this.startPhase(task, 'developer', event.timestamp, event.agentId ?? 'dev-claw', description);
+    this.updateTaskAgentSnapshot(taskId, event.agentId ?? 'dev-claw', {
+      status: 'working',
+      currentTask: description,
+    });
   }
 
   private handleReviewRejected(event: ReviewRejectedEvent): void {
@@ -606,6 +649,10 @@ export class DashboardStore {
 
     this.startPhase(task, 'reviewer', event.timestamp, event.agentId ?? 'reviewer-claw', description);
     this.finishPhase(task, 'reviewer', event.timestamp, 'failed');
+    this.updateTaskAgentSnapshot(taskId, event.agentId ?? 'reviewer-claw', {
+      status: 'working',
+      currentTask: description,
+    });
   }
 
   private handleWorkflowIterationComplete(event: WorkflowIterationCompleteEvent): void {
@@ -621,6 +668,11 @@ export class DashboardStore {
     task.lastApproved = approved;
     task.isInRework = totalIterations > 1 ? true : task.isInRework ?? false;
     task.updatedAt = event.timestamp;
+    if (task.currentAgentId) {
+      this.updateTaskAgentSnapshot(taskId, task.currentAgentId, {
+        currentTask: task.description,
+      });
+    }
   }
 
   private handleVisualizationTaskCompleted(event: TaskVisualizationCompletedEvent): void {
@@ -637,6 +689,11 @@ export class DashboardStore {
 
     this.activeTasks.delete(event.taskId);
     this.finishTask(task, event.timestamp, event.result);
+    this.updateTaskAgentSnapshot(event.taskId, event.agentId, {
+      status: 'idle',
+      currentTask: null,
+      latestResultSummary: event.result === 'success' ? 'Task completed' : `Task ${event.result}`,
+    });
   }
 
   private handleVisualizationTaskFailed(event: TaskVisualizationFailedEvent): void {
@@ -654,6 +711,11 @@ export class DashboardStore {
 
     this.activeTasks.delete(event.taskId);
     this.finishTask(task, event.timestamp, 'failure');
+    this.updateTaskAgentSnapshot(event.taskId, event.agentId, {
+      status: 'idle',
+      currentTask: null,
+      latestResultSummary: event.error,
+    });
   }
 
   private ensureTaskHistory(taskId: string, description: string, timestamp: number): TaskHistory {
@@ -668,6 +730,7 @@ export class DashboardStore {
     const task: TaskHistory = {
       taskId,
       description,
+      agentSnapshots: {},
       phases: createPhaseRecords(timestamp),
       currentPhase: 'submitted',
       currentAgentId: null,
@@ -680,6 +743,49 @@ export class DashboardStore {
 
     this.taskHistoryMap.set(taskId, task);
     return task;
+  }
+
+  private createFallbackAgentSnapshot(agentId: string, taskId: string): AgentInfo {
+    const canonicalAgentId = getCanonicalAgentId(agentId);
+    const defaultAgent = DEFAULT_AGENTS.find((agent) => agent.id === canonicalAgentId);
+    const base = defaultAgent ?? this.agents.get(canonicalAgentId) ?? {
+      id: canonicalAgentId,
+      name: agentId,
+      role: 'dev',
+      status: 'idle',
+      emotion: 'neutral',
+      currentTask: null,
+      latestResultSummary: null,
+    };
+
+    return {
+      ...base,
+      id: canonicalAgentId,
+      currentTask: null,
+      latestResultSummary: null,
+    };
+  }
+
+  private updateTaskAgentSnapshot(taskId: string, agentId: string, patch: Partial<AgentInfo>): AgentInfo {
+    const canonicalAgentId = getCanonicalAgentId(agentId);
+    const taskSnapshots = this.taskAgentSnapshots.get(taskId) ?? new Map<string, AgentInfo>();
+    const existing = taskSnapshots.get(canonicalAgentId) ?? this.createFallbackAgentSnapshot(canonicalAgentId, taskId);
+    const next: AgentInfo = {
+      ...existing,
+      ...patch,
+      id: canonicalAgentId,
+    };
+
+    taskSnapshots.set(canonicalAgentId, next);
+    this.taskAgentSnapshots.set(taskId, taskSnapshots);
+
+    const task = this.taskHistoryMap.get(taskId);
+    if (task) {
+      task.agentSnapshots ??= {};
+      task.agentSnapshots[canonicalAgentId] = { ...next };
+    }
+
+    return next;
   }
 
   private startPhase(

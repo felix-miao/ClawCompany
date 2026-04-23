@@ -138,6 +138,99 @@ describe('DashboardStore', () => {
     });
   });
 
+  describe('task-scoped agent state', () => {
+    it('should return default task agent state before any task events', () => {
+      const taskAgent = store.getTaskAgentById('task-default', 'dev-agent');
+
+      expect(taskAgent).toMatchObject({
+        id: 'dev-claw',
+        status: 'idle',
+        currentTask: null,
+      });
+    });
+
+    it('should keep task agent state isolated per taskId even when agentId matches', () => {
+      store.processEvent({
+        type: 'agent:task-assigned',
+        timestamp: 100,
+        agentId: 'dev-agent',
+        taskId: 'task-a',
+        taskType: 'develop',
+        description: 'Build task A',
+      });
+
+      store.processEvent({
+        type: 'agent:task-completed',
+        timestamp: 200,
+        agentId: 'dev-agent',
+        taskId: 'task-a',
+        result: 'success',
+        duration: 100,
+      });
+
+      store.processEvent({
+        type: 'agent:task-assigned',
+        timestamp: 300,
+        agentId: 'dev-agent',
+        taskId: 'task-b',
+        taskType: 'develop',
+        description: 'Build task B',
+      });
+
+      expect(store.getAgentById('dev-agent')?.status).toBe('working');
+      expect(store.getTaskAgentById('task-a', 'dev-agent')).toMatchObject({
+        id: 'dev-claw',
+        status: 'idle',
+        currentTask: null,
+      });
+      expect(store.getTaskAgentById('task-b', 'dev-agent')).toMatchObject({
+        id: 'dev-claw',
+        status: 'working',
+        currentTask: 'Build task B',
+      });
+    });
+
+    it('should let task views survive later global writes from another task', () => {
+      store.processEvent({
+        type: 'agent:task-assigned',
+        timestamp: 100,
+        agentId: 'review-agent',
+        taskId: 'task-1',
+        taskType: 'review',
+        description: 'Review task 1',
+      });
+
+      store.processEvent({
+        type: 'agent:task-completed',
+        timestamp: 200,
+        agentId: 'review-agent',
+        taskId: 'task-1',
+        result: 'success',
+        duration: 100,
+      });
+
+      store.processEvent({
+        type: 'agent:task-assigned',
+        timestamp: 300,
+        agentId: 'review-agent',
+        taskId: 'task-2',
+        taskType: 'review',
+        description: 'Review task 2',
+      });
+
+      expect(store.getTaskAgentById('task-1', 'review-agent')).toMatchObject({
+        id: 'reviewer-claw',
+        status: 'idle',
+        currentTask: null,
+      });
+      expect(store.getTaskAgentById('task-2', 'review-agent')).toMatchObject({
+        id: 'reviewer-claw',
+        status: 'working',
+        currentTask: 'Review task 2',
+      });
+    });
+  });
+
   describe('processEvent - agent:task-completed', () => {
     beforeEach(() => {
       store.processEvent({

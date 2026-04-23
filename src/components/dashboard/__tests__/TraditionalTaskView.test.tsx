@@ -52,6 +52,53 @@ describe('TraditionalTaskView', () => {
     expect(screen.getAllByText('Developer')[0]).toBeInTheDocument();
   });
 
+  it('should render task-scoped agent snapshot for the selected task', () => {
+    render(
+      <TraditionalTaskView
+        tasks={[
+          buildTask({
+            taskId: 'task-a',
+            currentAgentId: 'dev-agent',
+            currentAgentName: 'Dev Claw',
+            agentSnapshots: {
+              'dev-claw': {
+                id: 'dev-claw',
+                name: 'Dev Claw (task A)',
+                role: 'Developer',
+                status: 'working',
+                emotion: 'focused',
+                currentTask: 'Build task A',
+                latestResultSummary: null,
+              },
+            },
+          }),
+          buildTask({
+            taskId: 'task-b',
+            currentAgentId: 'dev-agent',
+            currentAgentName: 'Dev Claw',
+            agentSnapshots: {
+              'dev-claw': {
+                id: 'dev-claw',
+                name: 'Dev Claw (task B)',
+                role: 'Developer',
+                status: 'idle',
+                emotion: 'neutral',
+                currentTask: null,
+                latestResultSummary: 'Task B done',
+              },
+            },
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText(/Task Agent Snapshot/i)).toBeInTheDocument();
+    expect(screen.getByText('Dev Claw (task A)')).toBeInTheDocument();
+    expect(screen.getByText(/working/i)).toBeInTheDocument();
+    expect(screen.getByText(/Build task A/i)).toBeInTheDocument();
+    expect(screen.queryByText('Dev Claw (task B)')).not.toBeInTheDocument();
+  });
+
   it('should switch selected task from task list', () => {
     render(
       <TraditionalTaskView

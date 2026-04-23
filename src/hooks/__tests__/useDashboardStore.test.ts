@@ -88,6 +88,48 @@ describe('useDashboardStore', () => {
     });
   });
 
+  it('should expose task-scoped agent state for the selected task', () => {
+    const store = new DashboardStore();
+    const { result } = renderHook(() => useDashboardStore(store));
+
+    act(() => {
+      store.processEvent({
+        type: 'agent:task-assigned',
+        timestamp: 100,
+        agentId: 'dev-agent',
+        taskId: 'task-a',
+        taskType: 'develop',
+        description: 'Build task A',
+      });
+      store.processEvent({
+        type: 'agent:task-completed',
+        timestamp: 200,
+        agentId: 'dev-agent',
+        taskId: 'task-a',
+        result: 'success',
+        duration: 100,
+      });
+      store.processEvent({
+        type: 'agent:task-assigned',
+        timestamp: 300,
+        agentId: 'dev-agent',
+        taskId: 'task-b',
+        taskType: 'develop',
+        description: 'Build task B',
+      });
+    });
+
+    expect(result.current.taskHistory[0]?.taskId).toBe('task-b');
+    expect(store.getTaskAgentById('task-a', 'dev-agent')).toMatchObject({
+      currentTask: null,
+      status: 'idle',
+    });
+    expect(store.getTaskAgentById('task-b', 'dev-agent')).toMatchObject({
+      currentTask: 'Build task B',
+      status: 'working',
+    });
+  });
+
   it('should update when agents load without new events', () => {
     const store = new DashboardStore();
     const { result } = renderHook(() => useDashboardStore(store));
