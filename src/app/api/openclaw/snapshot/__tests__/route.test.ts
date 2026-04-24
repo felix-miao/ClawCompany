@@ -41,7 +41,6 @@ jest.mock('@/lib/gateway/openclaw-snapshot', () => ({
 }))
 
 import { GET } from '../route'
-
 import { __mockSync } from '@/lib/gateway/session-sync'
 import { buildOpenClawSnapshot } from '@/lib/gateway/openclaw-snapshot'
 

@@ -1,5 +1,4 @@
 import * as Phaser from 'phaser';
-
 import { OnboardingPhase } from '../systems/OnboardingManager';
 
 export enum InteractiveStepType {

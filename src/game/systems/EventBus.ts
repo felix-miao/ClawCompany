@@ -4,6 +4,7 @@ import {
   GameEventHandler,
   EventTypeMap,
 } from '../types/GameEvents';
+
 import { TypedEventBus } from '../../lib/core/typed-event-bus';
 
 export interface EventBusConfig {

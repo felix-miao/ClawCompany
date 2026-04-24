@@ -9,9 +9,9 @@ export interface OpenClawSnapshot {
 const SNAPSHOT_TTL_MS = 5_000
 
 declare global {
-   
+  // eslint-disable-next-line no-var
   var __openClawSnapshot: OpenClawSnapshot | null | undefined
-   
+  // eslint-disable-next-line no-var
   var __openClawSnapshotInFlight: Promise<OpenClawSnapshot> | null | undefined
 }
 

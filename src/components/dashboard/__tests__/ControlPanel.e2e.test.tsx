@@ -11,9 +11,7 @@
 
 import React from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
-
 import { ControlPanel } from '../ControlPanel'
-
 import { GameEvent } from '@/game/types/GameEvents'
 
 // ── Mock fetch ────────────────────────────────────────────────────────────────

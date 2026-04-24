@@ -36,7 +36,6 @@ jest.mock('@/lib/gateway/session-sync', () => {
 })
 
 import { GET } from '../route'
-
 import { __mockSync } from '@/lib/gateway/session-sync'
 import { resetOpenClawSnapshotCache } from '@/lib/gateway/poll-snapshot'
 

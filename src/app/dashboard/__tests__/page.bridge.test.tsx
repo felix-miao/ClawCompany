@@ -8,9 +8,6 @@
 
 import React from 'react'
 import { render, act, waitFor } from '@testing-library/react'
-
-import DashboardPage from '../page'
-
 import type { GameEvent } from '@/game/types/GameEvents'
 
 // ── Mock 所有外部依赖 ─────────────────────────────────────────────────────────
@@ -87,6 +84,7 @@ jest.mock('@/lib/core/logger', () => ({
   Logger: jest.fn().mockImplementation(() => ({})),
 }))
 
+import DashboardPage from '../page'
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
