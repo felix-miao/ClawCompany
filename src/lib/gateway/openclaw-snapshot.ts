@@ -3,6 +3,7 @@ import {
   TaskHistory,
   TaskPhase,
   TaskPhaseRecord,
+  TaskPhaseStatus,
   TASK_PHASE_LABELS,
   TASK_PHASE_ORDER,
 } from '@/game/data/DashboardStore'

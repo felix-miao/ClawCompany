@@ -24,7 +24,8 @@ jest.mock('@/lib/gateway/session-poller', () => ({
 }))
 
 import { getSessionPoller } from '@/lib/gateway/session-poller'
-import { GET, getConnectionStats, resetConnectionCounters, acquireConnection, releaseConnection } from '../route'
+import { GET } from '../route'
+import { getConnectionStats, resetConnectionCounters, acquireConnection, releaseConnection } from '../route-helpers'
 
 describe('SSE Global Connection Limit', () => {
   beforeAll(() => {

@@ -192,7 +192,11 @@ type ChangeCallback = () => void;
 type IterationLikeEvent = DevIterationStartEvent | ReviewRejectedEvent | WorkflowIterationCompleteEvent;
 
 function getEventPayload<T extends Record<string, unknown>>(event: IterationLikeEvent): T | undefined {
-  return ((event as { payload?: T }).payload);
+  const payload = (event as { payload?: unknown }).payload
+  if (payload && typeof payload === 'object') {
+    return payload as T
+  }
+  return undefined
 }
 
 function getTaskIdFromIterationEvent(event: IterationLikeEvent): string | undefined {

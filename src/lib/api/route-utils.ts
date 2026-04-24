@@ -82,8 +82,8 @@ export function errorResponse(error: unknown, status?: number, context?: string)
   return NextResponse.json(body, { status })
 }
 
-export function successResponse(data: Record<string, unknown>, request?: NextRequest): NextResponse {
-  const response: Record<string, unknown> = { success: true, ...data }
+export function successResponse<T extends object>(data: T, request?: NextRequest): NextResponse {
+  const response: Record<string, unknown> = { success: true, ...(data as Record<string, unknown>) }
   if (request) {
     const clientId = getClientId(request)
     response.remaining = RateLimiter.getRemaining(clientId)

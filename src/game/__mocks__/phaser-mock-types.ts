@@ -6,18 +6,44 @@
 // 使用更具体的类型而不是 any
 type UnknownType = unknown;
 
+interface MockPhaserSpriteInstance {
+  setBounce: (x: number, y: number) => MockPhaserSpriteInstance;
+  setCollideWorldBounds: (value: boolean) => MockPhaserSpriteInstance;
+  setDepth: (value: number) => MockPhaserSpriteInstance;
+  setSize: (width: number, height: number) => MockPhaserSpriteInstance;
+  setOffset: (x: number, y: number) => MockPhaserSpriteInstance;
+  body: MockPhaserBody;
+}
+
+interface MockPhaserContainerInstance {
+  add: (child: UnknownType) => MockPhaserContainerInstance;
+  remove: (child: UnknownType, destroy?: boolean) => MockPhaserContainerInstance;
+  setVisible: (value: boolean) => MockPhaserContainerInstance;
+  setAlpha: (value: number) => MockPhaserContainerInstance;
+  destroy: () => void;
+}
+
+interface MockPhaserGraphicsInstance {
+  fillStyle: (color: number, alpha?: number) => MockPhaserGraphicsInstance;
+  fillCircle: (x: number, y: number, radius: number) => MockPhaserGraphicsInstance;
+  lineStyle: (width: number, color: number, alpha?: number) => MockPhaserGraphicsInstance;
+  strokeCircle: (x: number, y: number, radius: number) => MockPhaserGraphicsInstance;
+  clear: () => MockPhaserGraphicsInstance;
+  destroy: () => void;
+}
+
+interface MockPhaserTextInstance {
+  setText: (text: string) => MockPhaserTextInstance;
+  setOrigin: (x: number, y?: number) => MockPhaserTextInstance;
+  destroy: () => void;
+}
+
 export interface MockPhaserScene {
   constructor: (config: UnknownType) => void;
 }
 
 export interface MockPhaserSprite {
-  constructor: (scene: UnknownType, x: number, y: number, texture: string) => void;
-  setBounce: (x: number, y: number) => MockPhaserSprite;
-  setCollideWorldBounds: (value: boolean) => MockPhaserSprite;
-  setDepth: (value: number) => MockPhaserSprite;
-  setSize: (width: number, height: number) => MockPhaserSprite;
-  setOffset: (x: number, y: number) => MockPhaserSprite;
-  body: MockPhaserBody;
+  constructor: new (scene: UnknownType, x: number, y: number, texture: string) => MockPhaserSpriteInstance;
 }
 
 export interface MockPhaserBody {
@@ -29,29 +55,22 @@ export interface MockPhaserBody {
 }
 
 export interface MockPhaserContainer {
-  constructor: (scene: UnknownType, x: number, y: number, children: UnknownType[]) => void;
-  add: (child: UnknownType) => MockPhaserContainer;
-  remove: (child: UnknownType, destroy?: boolean) => MockPhaserContainer;
-  setVisible: (value: boolean) => MockPhaserContainer;
-  setAlpha: (value: number) => MockPhaserContainer;
-  destroy: () => void;
+  constructor: new (scene: UnknownType, x: number, y: number, children: UnknownType[]) => MockPhaserContainerInstance;
 }
 
 export interface MockPhaserGraphics {
-  constructor: (scene: UnknownType) => void;
-  fillStyle: (color: number, alpha?: number) => MockPhaserGraphics;
-  fillCircle: (x: number, y: number, radius: number) => MockPhaserGraphics;
-  lineStyle: (width: number, color: number, alpha?: number) => MockPhaserGraphics;
-  strokeCircle: (x: number, y: number, radius: number) => MockPhaserGraphics;
-  clear: () => MockPhaserGraphics;
-  destroy: () => void;
+  constructor: new (scene: UnknownType) => MockPhaserGraphicsInstance;
 }
 
 export interface MockPhaserText {
-  constructor: (scene: UnknownType, x: number, y: number, text: string, style: UnknownType) => void;
-  setText: (text: string) => MockPhaserText;
-  setOrigin: (x: number, y?: number) => MockPhaserText;
-  destroy: () => void;
+  constructor: new (scene: UnknownType, x: number, y: number, text: string, style: UnknownType) => MockPhaserTextInstance;
+}
+
+interface MockPhaserGameInstance {
+  type: UnknownType;
+  parent: UnknownType;
+  scene: UnknownType[];
+  config: UnknownType;
 }
 
 export interface MockPhaserGame {
@@ -59,28 +78,51 @@ export interface MockPhaserGame {
   parent: UnknownType;
   scene: UnknownType[];
   config: UnknownType;
-  constructor: (config: UnknownType) => void;
+}
+
+export interface MockPhaserSceneConstructor {
+  new (config: UnknownType): MockPhaserScene;
+}
+
+export interface MockPhaserSpriteConstructor {
+  new (scene: UnknownType, x: number, y: number, texture: string): MockPhaserSprite;
+}
+
+export interface MockPhaserContainerConstructor {
+  new (scene: UnknownType, x: number, y: number, children: UnknownType[]): MockPhaserContainer;
+}
+
+export interface MockPhaserGraphicsConstructor {
+  new (scene: UnknownType): MockPhaserGraphics;
+}
+
+export interface MockPhaserTextConstructor {
+  new (scene: UnknownType, x: number, y: number, text: string, style: UnknownType): MockPhaserText;
+}
+
+export interface MockPhaserGameConstructor {
+  new (config: UnknownType): MockPhaserGame;
 }
 
 export interface MockPhaser {
   __esModule: boolean;
   default: {
-    Game: MockPhaserGame;
-    Scene: MockPhaserScene;
+    Game: MockPhaserGameConstructor;
+    Scene: MockPhaserSceneConstructor;
     AUTO: number;
   };
-  Game: MockPhaserGame;
-  Scene: MockPhaserScene;
+  Game: MockPhaserGameConstructor;
+  Scene: MockPhaserSceneConstructor;
   Physics: {
     Arcade: {
-      Sprite: typeof MockPhaserSprite;
+      Sprite: MockPhaserSpriteConstructor;
     };
   };
   GameObjects: {
-    Container: typeof MockPhaserContainer;
-    Graphics: typeof MockPhaserGraphics;
-    Text: typeof MockPhaserText;
-    Sprite: typeof MockPhaserSprite;
+    Container: MockPhaserContainerConstructor;
+    Graphics: MockPhaserGraphicsConstructor;
+    Text: MockPhaserTextConstructor;
+    Sprite: MockPhaserSpriteConstructor;
   };
   AUTO: number;
 }
