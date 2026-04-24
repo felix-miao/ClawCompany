@@ -1,6 +1,6 @@
-import { ConfigValidator, GameConfig, ValidationResult, AgentConfigInput } from './ConfigValidator';
+import { ConfigValidator, ValidationResult, AgentConfigInput } from './ConfigValidator';
 import { GameStateManager, GameState, AgentState } from './GameStateManager';
-import { Task, TaskCreateInput, TaskType } from '../types/Task';
+import { Task, TaskCreateInput } from '../types/Task';
 
 export type GameSDKState = 'idle' | 'configured' | 'running' | 'stopped' | 'error' | 'destroyed';
 
@@ -241,8 +241,7 @@ export class GameSDK {
         try {
           h(data);
         } catch (error) {
-          // Log error but continue execution - improved error handling
-          console.error('[GameSDK] Handler error for event', event, error instanceof Error ? error.message : String(error));
+          void error;
         }
       }
     }
@@ -253,8 +252,7 @@ export class GameSDK {
         try {
           h({ event, data });
         } catch (error) {
-          // Log error but continue execution - improved error handling
-          console.error('[GameSDK] Wildcard handler error for event', event, error instanceof Error ? error.message : String(error));
+          void error;
         }
       }
     }

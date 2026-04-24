@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 import { PerformanceDashboard } from '@/components/performance-dashboard';
-import { PerformanceMonitor, PerformanceReport } from '@/lib/monitoring/performance-monitor';
+import { PerformanceMonitor } from '@/lib/monitoring/performance-monitor';
 
 // Mock the PerformanceMonitor
 jest.mock('@/lib/monitoring/performance-monitor');
@@ -255,5 +255,20 @@ describe('PerformanceDashboard', () => {
     expect(screen.getByText('100%')).toBeInTheDocument();
     // 检查具体的性能详情文本
     expect(screen.getByText(/成功率: 100%, 响应时间: 150ms/)).toBeInTheDocument();
+  });
+
+  test('应该静默处理拉取失败', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockPerformanceMonitor.generatePerformanceReport.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    render(<PerformanceDashboard performanceMonitor={mockPerformanceMonitor} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('性能监控仪表板')).toBeInTheDocument();
+    });
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });

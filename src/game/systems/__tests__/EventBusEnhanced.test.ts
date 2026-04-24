@@ -9,13 +9,6 @@ describe('EventBusEnhanced', () => {
       enableErrorLogging: true,
       enableEventValidation: true,
     });
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    jest.restoreAllMocks();
   });
 
   describe('Event Validation', () => {
@@ -31,15 +24,9 @@ describe('EventBusEnhanced', () => {
       eventBus.emit(invalidEvent);
 
       expect(handler).not.toHaveBeenCalled();
-      expect(console.error).toHaveBeenCalledWith(
-        '[EventBus] Error processing event agent:status-change:',
-        expect.objectContaining({
-          error: expect.stringContaining('Event validation failed'),
-          context: expect.objectContaining({
-            eventType: 'agent:status-change'
-          })
-        })
-      );
+      const stats = eventBus.getErrorStats();
+      expect(stats.totalErrors).toBe(1);
+      expect(stats.lastError?.context.eventType).toBe('agent:status-change');
     });
 
     it('should auto-correct timestamp if invalid', () => {
@@ -94,15 +81,9 @@ describe('EventBusEnhanced', () => {
       eventBus.emit(event);
 
       expect(handler).toHaveBeenCalledTimes(1);
-      expect(console.error).toHaveBeenCalledWith(
-        '[EventBus] Error processing event agent:status-change:',
-        expect.objectContaining({
-          error: 'Test error',
-          context: expect.objectContaining({
-            eventType: 'agent:status-change'
-          })
-        })
-      );
+      const stats = eventBus.getErrorStats();
+      expect(stats.totalErrors).toBe(1);
+      expect(stats.lastError?.error.message).toBe('Test error');
     });
 
     it('should call handler once and log error if it throws', () => {
@@ -126,7 +107,7 @@ describe('EventBusEnhanced', () => {
       eventBus.emit(event);
 
       expect(handler).toHaveBeenCalledTimes(1);
-      expect(console.error).toHaveBeenCalled();
+      expect(eventBus.getErrorStats().totalErrors).toBe(1);
     });
 
     it('should capture error statistics', () => {

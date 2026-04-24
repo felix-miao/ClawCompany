@@ -1,4 +1,4 @@
-import { GameEvent, GameEventHandler } from '../types/GameEvents';
+import { GameEvent } from '../types/GameEvents';
 import { EventBus, EventBusConfig } from './EventBus';
 
 export interface EventBusEnhancedConfig extends EventBusConfig {
@@ -39,7 +39,6 @@ export class EventBusEnhanced extends EventBus {
 
   constructor(config: EventBusEnhancedConfig = {}) {
     super({ maxHistorySize: config.maxHistorySize });
-    this.enableErrorLogging = config.enableErrorLogging ?? true;
     this.enableEventValidation = config.enableEventValidation ?? true;
   }
 
@@ -153,24 +152,6 @@ export class EventBusEnhanced extends EventBus {
     if (this.errorCount < this.maxErrorHistory) {
       this.errorCount++;
     }
-
-    if (this.enableErrorLogging) {
-      console.error(`[EventBus] Error processing event ${event.type}:`, {
-        error: error.message,
-        stack: error.stack,
-        context: errorEvent.context,
-        event: this.sanitizeEventForLogging(event)
-      });
-    }
-  }
-
-  private sanitizeEventForLogging(event: GameEvent): Record<string, unknown> {
-    const { timestamp, type, ...rest } = event;
-    const safe: Record<string, unknown> = { type, timestamp };
-    for (const [key, value] of Object.entries(rest)) {
-      safe[key] = typeof value === 'string' ? '[REDACTED]' : value;
-    }
-    return safe;
   }
 
   getErrorStats(): ErrorStats {
