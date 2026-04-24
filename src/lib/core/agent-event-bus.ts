@@ -52,7 +52,7 @@ export class AgentEventBus {
         handler(fullEvent)
       } catch (error) {
         // Log error but continue execution - improved error handling
-        console.error('[AgentEventBus] Handler error:', error instanceof Error ? error.message : String(error));
+        process.stderr.write(`[AgentEventBus] Handler error: ${error instanceof Error ? error.message : String(error)}\n`)
       }
     }
   }

@@ -77,6 +77,7 @@ describe('DashboardPage strict mode startup', () => {
     });
 
     expect(mockStartGame.mock.calls.length).toBeLessThanOrEqual(2);
+    expect(mockDestroy).not.toHaveBeenCalled();
 
     view.unmount();
     expect(mockDestroy).toHaveBeenCalled();

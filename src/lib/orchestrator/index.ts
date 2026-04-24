@@ -1,5 +1,5 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../core/base-orchestrator'
-import { WorkflowResult, WorkflowOptions, Task, RetryConfig } from '../core/types'
+import { WorkflowResult, Task, RetryConfig } from '../core/types'
 import { TaskQueue, TaskQueueOptions } from '../core/task-queue'
 import { AgentManager } from '../agents/manager'
 import { TaskManager } from '../tasks/manager'
@@ -9,11 +9,10 @@ import { resolveTaskGraph, DependencyError } from '../utils/task-resolver'
 import { resolveTitleDependencies } from '../utils/resolve-title-deps'
 import { OrchestratorError, FileSystemError } from '../core/errors'
 import { SubTaskSchema } from '../agents/schemas'
-import { UnifiedRetry } from '../core/unified-retry'
+
 import { getGameEventStore } from '@/game/data/GameEventStore'
 
 export type { WorkflowError, FailedTask, WorkflowStats, WorkflowResult } from '../core/types'
-export { UnifiedRetry } from '../core/unified-retry'
 export type { UnifiedRetryConfig, RetryExecutorOptions, RetryResult } from '../core/unified-retry'
 
 interface ValidatedSubTask {

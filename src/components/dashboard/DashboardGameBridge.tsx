@@ -76,12 +76,14 @@ export function DashboardGameBridge({ activeView, onTriggerTaskHandlerChange = (
     if (containerRef.current && !gameRef.current) {
       setIsGameLoading(true);
       let cancelled = false;
+      let startedGame: DashboardGameInstance | null = null;
 
       (async () => {
         try {
           const { startGame } = await import('@/game');
           if (cancelled) return;
-          gameRef.current = startGame('dashboard-game-container') as DashboardGameInstance;
+          startedGame = startGame('dashboard-game-container') as DashboardGameInstance;
+          gameRef.current = startedGame;
           setGameError(null);
         } catch (err) {
           if (!cancelled) {
@@ -97,6 +99,12 @@ export function DashboardGameBridge({ activeView, onTriggerTaskHandlerChange = (
 
       return () => {
         cancelled = true;
+        if (startedGame) {
+          startedGame.destroy(true);
+          if (gameRef.current === startedGame) {
+            gameRef.current = null;
+          }
+        }
       };
     }
 

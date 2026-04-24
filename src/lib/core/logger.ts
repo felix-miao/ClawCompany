@@ -72,17 +72,17 @@ export class ConsoleTransport implements LogTransport {
     const formatted = this.formatter.format(entry)
     switch (entry.level) {
       case LogLevel.DEBUG:
-        console.debug(formatted)
+        process.stdout.write(`${formatted}\n`)
         break
       case LogLevel.INFO:
-        console.info(formatted)
+        process.stdout.write(`${formatted}\n`)
         break
       case LogLevel.WARN:
-        console.warn(formatted)
+        process.stderr.write(`${formatted}\n`)
         break
       case LogLevel.ERROR:
       case LogLevel.SILENT:
-        console.error(formatted)
+        process.stderr.write(`${formatted}\n`)
         break
     }
   }

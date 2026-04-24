@@ -4,6 +4,7 @@ import {
   validateChatHistoryResponse,
   APIError,
 } from './type-utils'
+import { logger } from '../core/logger'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 export const REQUEST_TIMEOUT_MS = 10000
@@ -77,14 +78,14 @@ export async function sendMessage(message: string): Promise<ChatResponse> {
 
     const data = await response.json()
     return validateChatResponse(data)
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      return {
-        success: false,
-        error: `Request timeout (${REQUEST_TIMEOUT_MS / 1000}s)`,
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return {
+          success: false,
+          error: `Request timeout (${REQUEST_TIMEOUT_MS / 1000}s)`,
+        }
       }
-    }
-    console.error('Failed to send message:', error)
+      logger.error('Failed to send message', { error })
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -104,16 +105,15 @@ export async function getChatHistory(): Promise<ChatHistoryResponse> {
 
     const data = await response.json()
     return validateChatHistoryResponse(data)
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.error('getChatHistory: request timeout')
-      return {
-        tasks: [],
-        chatHistory: [],
-        agents: [],
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return {
+          tasks: [],
+          chatHistory: [],
+          agents: [],
+        }
       }
-    }
-    console.error('Failed to get chat history:', error)
+      logger.error('Failed to get chat history', { error })
     return {
       tasks: [],
       chatHistory: [],

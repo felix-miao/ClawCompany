@@ -1,7 +1,8 @@
 import { Orchestrator } from '../index'
+
 import { agentManager } from '@/lib/agents/manager'
-import { taskManager } from '@/lib/tasks/manager'
 import { chatManager } from '@/lib/chat/manager'
+import { taskManager } from '@/lib/tasks/manager'
 
 jest.mock('@/lib/agents/manager')
 jest.mock('@/lib/tasks/manager')
@@ -14,13 +15,13 @@ describe('Orchestrator taskId routing (Batch 1 Round 1)', () => {
     jest.clearAllMocks()
     orchestrator = new Orchestrator('test-project')
 
-    ;(chatManager.sendUserMessage as jest.Mock).mockImplementation((content: string, metadata?: any) => ({
+    ;(chatManager.sendUserMessage as jest.Mock).mockImplementation((content: string, metadata?: { taskId?: string }) => ({
       id: 'msg-' + Math.random().toString(36).substr(2, 9),
       agent: 'user',
       content,
       type: 'text',
       timestamp: new Date(),
-      metadata
+      metadata,
     }))
     ;(chatManager.broadcast as jest.Mock).mockImplementation(() => {})
     ;(chatManager.getHistory as jest.Mock).mockReturnValue([])
@@ -60,10 +61,10 @@ describe('Orchestrator taskId routing (Batch 1 Round 1)', () => {
     ;(agentManager.executeAgent as jest.Mock).mockResolvedValue({
       message: 'PM analysis complete',
       tasks: [
-        { title: 'Task 1', description: 'Desc 1', assignedTo: 'dev', dependencies: [] }
+        { title: 'Task 1', description: 'Desc 1', assignedTo: 'dev', dependencies: [] },
       ],
       files: [],
-      status: 'success'
+      status: 'success',
     })
   })
 
@@ -75,8 +76,8 @@ describe('Orchestrator taskId routing (Batch 1 Round 1)', () => {
     })
 
     it('should pass taskId to sendUserMessage metadata', async () => {
-      let capturedMetadata: any
-      ;(chatManager.sendUserMessage as jest.Mock).mockImplementation((content: string, metadata?: any) => {
+      let capturedMetadata: { taskId?: string } | undefined
+      ;(chatManager.sendUserMessage as jest.Mock).mockImplementation((content: string, metadata?: { taskId?: string }) => {
         capturedMetadata = metadata
         return {
           id: 'msg-' + Math.random().toString(36).substr(2, 9),
@@ -84,7 +85,7 @@ describe('Orchestrator taskId routing (Batch 1 Round 1)', () => {
           content,
           type: 'text',
           timestamp: new Date(),
-          metadata
+          metadata,
         }
       })
 
@@ -95,8 +96,8 @@ describe('Orchestrator taskId routing (Batch 1 Round 1)', () => {
     })
 
     it('should work without taskId (backward compatible)', async () => {
-      let capturedArgs: any[]
-      ;(chatManager.sendUserMessage as jest.Mock).mockImplementation((...args: any[]) => {
+      let capturedArgs: [string, { taskId?: string }?] = ['']
+      ;(chatManager.sendUserMessage as jest.Mock).mockImplementation((...args: [string, { taskId?: string }?]) => {
         capturedArgs = args
         return {
           id: 'msg-' + Math.random().toString(36).substr(2, 9),
@@ -109,10 +110,8 @@ describe('Orchestrator taskId routing (Batch 1 Round 1)', () => {
 
       await orchestrator.executeUserRequest('build a feature')
 
-      // Without taskId, no metadata is passed to sendUserMessage
-      expect(capturedArgs![0]).toBe('build a feature')
-      // metadata arg should not include a taskId
-      const metadata = capturedArgs![1]
+      expect(capturedArgs[0]).toBe('build a feature')
+      const metadata = capturedArgs[1]
       expect(metadata?.taskId).toBeUndefined()
     })
   })

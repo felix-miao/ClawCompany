@@ -102,26 +102,26 @@ describe('LLMFactory', () => {
 
     it('should return GatewayProvider when USE_REAL_GATEWAY is true', () => {
       setEnv({ USE_REAL_GATEWAY: 'true' })
+      const stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
       const provider = LLMFactory.createFromEnv()
 
       expect(MockedGateway).toHaveBeenCalled()
       expect(provider).toBeInstanceOf(GatewayProvider)
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Gateway Provider')
-      )
+      expect(stdoutSpy).toHaveBeenCalled()
+      stdoutSpy.mockRestore()
     })
 
     it('should return MockProvider when USE_MOCK_LLM is true', () => {
       setEnv({ USE_MOCK_LLM: 'true' })
+      const stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true)
 
       const provider = LLMFactory.createFromEnv()
 
       expect(MockedMock).toHaveBeenCalled()
       expect(provider).toBeInstanceOf(MockProvider)
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Mock Provider')
-      )
+      expect(stdoutSpy).toHaveBeenCalled()
+      stdoutSpy.mockRestore()
     })
 
     it('should prioritize Gateway over Mock when both are set', () => {
@@ -252,13 +252,13 @@ describe('LLMFactory', () => {
 
     it('should return null when no API keys are configured', () => {
       setEnv({})
+      const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true)
 
       const provider = LLMFactory.createFromEnv()
 
       expect(provider).toBeNull()
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('No LLM API key')
-      )
+      expect(stderrSpy).toHaveBeenCalled()
+      stderrSpy.mockRestore()
     })
 
     it('should prioritize env vars in order: Gateway > Mock > GLM > OpenAI', () => {

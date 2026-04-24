@@ -4,7 +4,6 @@ import {
   AgentContext,
   WorkflowResult,
   WorkflowOptions,
-  WorkflowError,
   FailedTask,
   WorkflowStats,
   RetryConfig,
@@ -14,9 +13,10 @@ import {
 import { Logger, LogEntry } from './logger'
 import { PerformanceMonitor } from './performance-monitor'
 import { ErrorTracker, ErrorSummary } from './error-tracker'
-import { OrchestratorError, AppError, isAppError, FileSystemError, ErrorCategory } from './errors'
-import { AgentEventBus, AgentEventType } from './agent-event-bus'
+import { OrchestratorError, isAppError, FileSystemError, ErrorCategory } from './errors'
+import { AgentEventBus } from './agent-event-bus'
 import { UnifiedRetry } from './unified-retry'
+
 import { getGameEventStore } from '@/game/data/GameEventStore'
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {

@@ -1,10 +1,11 @@
 // LLM Factory - 创建 LLM 提供者
 
-import { LLMProvider, LLMConfig } from './types'
-import { OpenAIProvider } from './openai'
+import { GatewayProvider } from './gateway'
 import { GLMProvider } from './glm'
 import { MockProvider } from './mock'
-import { GatewayProvider } from './gateway'
+import { OpenAIProvider } from './openai'
+import { LLMProvider, LLMConfig } from './types'
+import { logger } from '../core/logger'
 
 export class LLMFactory {
   static createProvider(config: LLMConfig): LLMProvider {
@@ -27,14 +28,14 @@ export class LLMFactory {
     // 优先检查是否使用真实 Gateway API
     const useRealGateway = process.env.USE_REAL_GATEWAY === 'true'
     if (useRealGateway) {
-      console.log('[LLM Factory] Using Gateway Provider with real API')
+      logger.info('Using Gateway Provider with real API')
       return new GatewayProvider()
     }
 
     // 优先检查是否使用 Mock 模式（用于 Demo）
     const useMock = process.env.USE_MOCK_LLM === 'true'
     if (useMock) {
-      console.log('[LLM Factory] Using Mock Provider for demo')
+      logger.info('Using Mock Provider for demo')
       return new MockProvider()
     }
 
@@ -71,7 +72,7 @@ export class LLMFactory {
       })
     }
 
-    console.warn('No LLM API key found in environment')
+    logger.warn('No LLM API key found in environment')
     return null
   }
 }
