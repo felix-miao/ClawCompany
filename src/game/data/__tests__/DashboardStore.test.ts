@@ -2,14 +2,8 @@ import { DashboardStore } from '../DashboardStore';
 import {
   AgentStatusEvent,
   TaskAssignedEvent,
-  TaskCompletedEvent,
-  EmotionChangeEvent,
-  NavigationRequestEvent,
-  SessionStartedEvent,
-  SessionCompletedEvent,
-  SessionProgressEvent,
-  ConnectionEvent,
 } from '../../types/GameEvents';
+
 import { createDefaultAgents } from '@/lib/gateway/default-agents';
 
 describe('DashboardStore', () => {

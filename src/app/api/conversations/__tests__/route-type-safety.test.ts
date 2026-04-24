@@ -36,10 +36,7 @@ jest.mock('@/lib/security/utils', () => ({
   },
 }))
 
-import { POST, GET, PUT, DELETE } from '@/app/api/conversations/route'
-import { StorageManager } from '@/lib/storage/manager'
-import { InputValidator } from '@/lib/security/utils'
-import { RateLimiter } from '@/lib/security/utils'
+import { POST, GET } from '@/app/api/conversations/route'
 
 // 模拟的类型定义
 interface MockStorageManager {

@@ -1,4 +1,5 @@
 import { buildAgentContext, buildAgentSystemPrompt, getProjectStateSummary, type AgentContextInput, type ProjectStateSummary } from '../context-builder'
+
 import type { PersistedAgentConfig } from '@/types/agent-config'
 
 describe('buildAgentContext', () => {
@@ -217,7 +218,7 @@ describe('getProjectStateSummary', () => {
       }),
       getAllTasks: () => [],
       projectId: 'test-proj'
-    } as any
+    }
 
     const chatMessages = [
       { agent: 'user', content: 'Hello', timestamp: '2026-04-12T10:00:00Z' },
@@ -267,7 +268,7 @@ describe('context injection with taskId', () => {
         }
         return undefined
       }
-    } as any
+    }
 
     const input: AgentContextInput = {
       agentConfig: mockAgentConfig,
@@ -283,10 +284,6 @@ describe('context injection with taskId', () => {
   })
 
   it('should not include currentTask section when taskId provided but task not found', () => {
-    const mockTaskManager = {
-      getTask: () => undefined
-    } as any
-
     const input: AgentContextInput = {
       agentConfig: mockAgentConfig,
       taskId: 'nonexistent-task',
