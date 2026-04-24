@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -121,6 +121,9 @@ export default function TeamChatPage() {
   const [currentAgent, setCurrentAgent] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('glm')
   const [openclawConnected, setOpenclawConnected] = useState<boolean | null>(null)
+  const messageSeqRef = useRef(0)
+
+  const createMessageId = (prefix: string) => `${prefix}-${Date.now()}-${messageSeqRef.current++}`
 
   const callAgent = async (agent: AgentConfig, message: string) => {
     setCurrentAgent(agent.id)
@@ -180,8 +183,10 @@ export default function TeamChatPage() {
 
   const addMessage = (agent: AgentConfig, content: string) => {
     const { files } = parseCodeFiles(content)
+    const messageId = createMessageId(agent.id)
+
     setMessages(prev => [...prev, {
-      id: `${agent.id}-${Date.now()}`,
+      id: messageId,
       agentId: agent.id,
       agentName: agent.name,
       emoji: agent.emoji || '🤖',
@@ -190,6 +195,8 @@ export default function TeamChatPage() {
       timestamp: new Date(),
       files: files.length > 0 ? files : undefined
     }])
+
+    return messageId
   }
 
   const handleSend = async () => {
@@ -208,7 +215,7 @@ export default function TeamChatPage() {
 
     try {
       if (mode === 'openclaw') {
-        addMessage(
+        const progressMessageId = addMessage(
           { id: 'system', name: 'System', role: 'system', emoji: '🔧', color: '#F97316', systemPrompt: '', runtime: 'subagent' },
           '正在通过 OpenClaw 聚合工作流处理...'
         )
@@ -217,7 +224,7 @@ export default function TeamChatPage() {
         const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 
         setMessages(prev => prev.map(m =>
-          m.content.includes('正在通过 OpenClaw')
+          m.id === progressMessageId
             ? { ...m, content: `OpenClaw 工作流已启动\n\n⏱️ 用时：${duration}秒\n\n状态：${result.status || 'completed'}` }
             : m
         ))
@@ -227,7 +234,7 @@ export default function TeamChatPage() {
           `OpenClaw 工作流完成！\n\n📊 性能统计：\n• 总用时: ${duration}秒`
         )
       } else {
-        addMessage(
+        const progressMessageId = addMessage(
           { id: 'system', name: 'System', role: 'system', emoji: '🔧', color: '#3B82F6', systemPrompt: '', runtime: 'subagent' },
           '正在通过 GLM 聚合工作流处理...'
         )
@@ -236,7 +243,7 @@ export default function TeamChatPage() {
         const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 
         setMessages(prev => prev.map(m =>
-          m.content.includes('正在通过 GLM')
+          m.id === progressMessageId
             ? { ...m, content: `GLM 工作流已完成\n\n⏱️ 用时：${duration}秒` }
             : m
         ))

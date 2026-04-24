@@ -47,6 +47,9 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messageSeqRef = useRef(0)
+
+  const createMessageId = (prefix: string) => `${prefix}-${Date.now()}-${messageSeqRef.current++}`
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -63,12 +66,12 @@ export default function ChatPage() {
 
   const loadInitialState = async () => {
     const data = await getChatHistory()
+
     if (data.chatHistory && data.chatHistory.length > 0) {
       setMessages(data.chatHistory)
     } else {
-      // 添加欢迎消息（用于 demo）
       const welcomeMessage: Message = {
-        id: 'welcome-1',
+        id: createMessageId('welcome'),
         agent: 'pm',
         content: `## 👋 欢迎来到 AI 团队！
 
@@ -85,9 +88,10 @@ export default function ChatPage() {
         type: 'text',
         timestamp: new Date(),
       }
-      setMessages([welcomeMessage])
+      setMessages(currentMessages => currentMessages.length > 0 ? currentMessages : [welcomeMessage])
     }
-    if (data.tasks) {
+
+    if (data.tasks && data.tasks.length > 0) {
       setTasks(data.tasks)
     }
   }
@@ -101,7 +105,7 @@ export default function ChatPage() {
 
     // 添加用户消息
     const userMsg: Message = {
-      id: `user-${Date.now()}`,
+      id: createMessageId('user'),
       agent: 'user',
       content: userMessage,
       type: 'text',
@@ -114,19 +118,21 @@ export default function ChatPage() {
       const response = await sendMessage(userMessage)
       
       if (response.success && response.chatHistory) {
-        // 确保 timestamp 是 Date 对象
-        const messagesWithDates = response.chatHistory.map((m: Message) => ({
-          ...m,
-          timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
-        }))
-        setMessages(messagesWithDates)
-        if (response.tasks) {
+        if (response.chatHistory.length > 0) {
+          const messagesWithDates = response.chatHistory.map((m: Message) => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+          }))
+          setMessages(messagesWithDates)
+        }
+
+        if (response.tasks && response.tasks.length > 0) {
           setTasks(response.tasks)
         }
       } else {
         // 显示错误
         const errorMsg: Message = {
-          id: `error-${Date.now()}`,
+          id: createMessageId('error'),
           agent: 'pm',
           content: `❌ Error: ${response.error || 'Failed to process message'}`,
           type: 'text',
