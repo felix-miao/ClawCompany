@@ -2,10 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import DashboardPage from '../page';
 
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: () => ({ isConnected: true, isReconnecting: false }),
-}));
-
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
     agents: [
@@ -95,8 +91,8 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   }),
 }));
 
-jest.mock('@/game', () => ({
-  startGame: jest.fn(() => ({ destroy: jest.fn(), triggerTestTask: jest.fn() })),
+jest.mock('@/components/dashboard/DashboardGameBridge', () => ({
+  DashboardGameBridge: () => <div data-testid="dashboard-game-bridge" />,
 }));
 
 jest.mock('@/lib/core/metrics-aggregator', () => ({
@@ -128,12 +124,12 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 
-  it('should render game container', () => {
+  it('should render game bridge', () => {
     render(<DashboardPage />);
-    expect(document.getElementById('dashboard-game-container')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-game-bridge')).toBeInTheDocument();
   });
 
-  it('should render game container without showing a stuck loading overlay', () => {
+  it('should render game bridge without showing a stuck loading overlay', () => {
     render(<DashboardPage />);
     expect(screen.queryByText('Loading office...')).not.toBeInTheDocument();
   });
