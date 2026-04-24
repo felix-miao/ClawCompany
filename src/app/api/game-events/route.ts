@@ -1,9 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
-import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
-import { getGameEventStore } from '@/game/data/GameEventStore';
-import type { GameEvent } from '@/game/types/GameEvents';
-import { getSessionPoller } from '@/lib/gateway/session-poller';
+
 import {
   acquireConnection,
   decrementSseSubscriberCount,
@@ -11,6 +7,14 @@ import {
   incrementSseSubscriberCount,
   releaseConnection,
 } from './route-helpers';
+
+import { logger } from '@/lib/core/logger';
+import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
+import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
+import { getGameEventStore } from '@/game/data/GameEventStore';
+import type { GameEvent } from '@/game/types/GameEvents';
+import { getSessionPoller } from '@/lib/gateway/session-poller';
+
 
 const handleGet = async (request: NextRequest) => {
   const ip = getClientId(request);
@@ -33,7 +37,7 @@ const handleGet = async (request: NextRequest) => {
       incrementSseSubscriberCount();
       if (process.env.NODE_ENV === 'development') {
         const stats = getConnectionStats();
-        console.log(`[SSE] open  ip=${ip} sseSubscriberCount=${stats.sseSubscriberCount} totalConnections=${stats.totalConnections} pollerRunning=${poller.isRunning()}`);
+        logger.debug('[SSE] open', { ip, sseSubscriberCount: stats.sseSubscriberCount, totalConnections: stats.totalConnections, pollerRunning: poller.isRunning() });
       }
       if (!poller.isRunning()) {
         poller.start();
@@ -96,7 +100,7 @@ const handleGet = async (request: NextRequest) => {
         }
         if (process.env.NODE_ENV === 'development') {
           const stats = getConnectionStats();
-          console.log(`[SSE] close ip=${ip} sseSubscriberCount=${stats.sseSubscriberCount} totalConnections=${stats.totalConnections} pollerRunning=${poller.isRunning()}`);
+          logger.debug('[SSE] close', { ip, sseSubscriberCount: stats.sseSubscriberCount, totalConnections: stats.totalConnections, pollerRunning: poller.isRunning() });
         }
         try {
           controller.close();

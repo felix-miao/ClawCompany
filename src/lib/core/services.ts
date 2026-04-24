@@ -111,7 +111,7 @@ export function createAppContainer(rootDir?: string): Container {
 // 所有 singleton service（Orchestrator、AgentManager 等）导致 async context 泄漏。
 //
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __appContainer: Container | undefined
 }
 

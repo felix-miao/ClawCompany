@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { TinyTownLoader } from './TinyTownLoader';
 
 export class CharacterSpriteSystem {
@@ -14,17 +15,14 @@ export class CharacterSpriteSystem {
 
   private async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    
-    console.log('🎨 初始化角色精灵系统...');
-    
+
     // 创建 Tiny Town 加载器
     this.tinyTownLoader = new TinyTownLoader(this.scene);
-    
+
     // 加载资源
     await this.loadSpritesheets();
-    
+
     this.isInitialized = true;
-    console.log('✅ 角色精灵系统初始化完成');
   }
 
   private async loadSpritesheets(): Promise<void> {
@@ -33,11 +31,10 @@ export class CharacterSpriteSystem {
       if (this.tinyTownLoader) {
         await this.tinyTownLoader.loadResources();
       }
-      
+
       this.loadCharacterSprites();
       this.loadOfficeEnvironment();
-    } catch (error) {
-      console.warn('精灵加载失败，使用默认方案:', error);
+    } catch {
       this.createDefaultCharacterSprites();
       this.createDefaultOfficeAssets();
     }
@@ -45,23 +42,19 @@ export class CharacterSpriteSystem {
 
   private loadCharacterSprites(): void {
     if (this.tinyTownLoader && this.tinyTownLoader.isTinyTownAvailable()) {
-      console.log('🎭 使用 Tiny Town 角色精灵');
       return; // Tiny Town 已经处理了角色精灵
     }
-    
+
     // 后备方案：创建默认角色精灵
-    console.log('🎨 创建默认角色精灵');
     this.createDefaultCharacterSprites();
   }
 
   private loadOfficeEnvironment(): void {
     if (this.tinyTownLoader && this.tinyTownLoader.isTinyTownAvailable()) {
-      console.log('🏢 使用 Tiny Town 环境资源');
       return; // Tiny Town 已经处理了环境资源
     }
-    
+
     // 后备方案：创建默认环境资源
-    console.log('🏗️ 创建默认环境资源');
     this.createDefaultOfficeAssets();
   }
 
@@ -175,8 +168,7 @@ export class CharacterSpriteSystem {
 
   private createDefaultOfficeAssets(): void {
     // 创建默认的办公室资产
-    console.log('创建默认办公室资产...');
-    
+
     // 创建地板
     const floorGraphics = this.scene.add.graphics();
     floorGraphics.fillStyle(0x8B4513, 1);

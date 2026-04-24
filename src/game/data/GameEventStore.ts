@@ -13,9 +13,12 @@
  *   enable cross-worker pub/sub.
  */
 
-import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
+import { EventEmitter } from 'events';
+
 import { GameEvent, GameEventType } from '../types/GameEvents';
+
+import { logger } from '@/lib/core/logger';
 
 // ── Internal in-memory ring buffer ──────────────────────────────────────────
 
@@ -65,9 +68,7 @@ const EVENT_CHANNEL = 'game:event';
 // 将 emitter 存在 globalThis 上，确保 HMR 后复用同一个 emitter 实例。
 //
 declare global {
-  // eslint-disable-next-line no-var
   var __gameEventEmitter: EventEmitter | undefined
-  // eslint-disable-next-line no-var
   var __diagTimerStarted: boolean | undefined
 }
 
@@ -95,13 +96,13 @@ if (process.env.NODE_ENV === 'development' && typeof process !== 'undefined') {
       const activeRequests = (process as NodeJS.Process & { _getActiveRequests?: () => unknown[] })
         ._getActiveRequests?.()?.length ?? -1;
       const mem = process.memoryUsage();
-      console.log(
-        `[DIAG] emitter.listeners=${listenerCount}` +
-        ` activeHandles=${activeHandles}` +
-        ` activeRequests=${activeRequests}` +
-        ` heapUsed=${Math.round(mem.heapUsed / 1024 / 1024)}MB` +
-        ` heapTotal=${Math.round(mem.heapTotal / 1024 / 1024)}MB`
-      );
+      logger.debug('[DIAG] GameEventStore emitter', {
+        listenerCount,
+        activeHandles,
+        activeRequests,
+        heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotalMb: Math.round(mem.heapTotal / 1024 / 1024),
+      });
     }, 60_000);
     // unref 不阻止进程退出
     if (typeof diagTimer === 'object' && diagTimer !== null && 'unref' in diagTimer) {
@@ -155,38 +156,38 @@ async function maybeInitRedis(): Promise<void> {
   if (!url || redisReady) return;
   if (redisInitPromise) return redisInitPromise;
   redisInitPromise = (async () => {
-  try {
-    const Redis = await redisLoader();
-    redisPub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
-    redisSub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
-    await redisPub.connect();
-    await redisSub.connect();
-    await redisSub.subscribe(EVENT_CHANNEL);
-    redisSub.on('message', (_channel: string, message: string) => {
-      try {
-        const parsed = JSON.parse(message) as GameEvent | RedisEnvelope;
-        const event = 'event' in parsed ? parsed.event : parsed;
-        const origin = 'origin' in parsed ? parsed.origin : undefined;
-        if (origin && origin === redisBridgeId) return;
-        const store = globalThis.__gameEventStore ?? getGameEventStore();
-        store.ingestRemoteEvent(event);
-        // Re-emit locally so SSE handlers in this worker pick it up
-        processEmitter.emit(EVENT_CHANNEL, event);
-      } catch {
-        // malformed message — ignore
-      }
-    });
-    redisReady = true;
-    redisTransportMode = 'redis-bridge';
-  } catch {
-    // ioredis not installed or Redis unreachable — fall back to in-process emitter
-    redisPub = null;
-    redisSub = null;
-    redisReady = false;
-    redisTransportMode = 'local';
-  } finally {
-    redisInitPromise = null;
-  }
+    try {
+      const Redis = await redisLoader();
+      redisPub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
+      redisSub = new Redis(url, { lazyConnect: true, enableReadyCheck: false });
+      await redisPub.connect();
+      await redisSub.connect();
+      await redisSub.subscribe(EVENT_CHANNEL);
+      redisSub.on('message', (_channel: string, message: string) => {
+        try {
+          const parsed = JSON.parse(message) as GameEvent | RedisEnvelope;
+          const event = 'event' in parsed ? parsed.event : parsed;
+          const origin = 'origin' in parsed ? parsed.origin : undefined;
+          if (origin && origin === redisBridgeId) return;
+          const store = globalThis.__gameEventStore ?? getGameEventStore();
+          store.ingestRemoteEvent(event);
+          // Re-emit locally so SSE handlers in this worker pick it up
+          processEmitter.emit(EVENT_CHANNEL, event);
+        } catch {
+          // malformed message — ignore
+        }
+      });
+      redisReady = true;
+      redisTransportMode = 'redis-bridge';
+    } catch {
+      // ioredis not installed or Redis unreachable — fall back to in-process emitter
+      redisPub = null;
+      redisSub = null;
+      redisReady = false;
+      redisTransportMode = 'local';
+    } finally {
+      redisInitPromise = null;
+    }
   })();
   return redisInitPromise;
 }
@@ -238,17 +239,8 @@ export class GameEventStore {
    */
   subscribe(callback: EventCallback): () => void {
     processEmitter.on(EVENT_CHANNEL, callback);
-    const countAfter = processEmitter.listenerCount(EVENT_CHANNEL);
-    // [DIAG] 每次 subscribe 打印当前 listener 数，帮助发现泄漏
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[GameEventStore] subscribe → listenerCount=${countAfter}`);
-    }
     return () => {
       processEmitter.off(EVENT_CHANNEL, callback);
-      const countAfterUnsub = processEmitter.listenerCount(EVENT_CHANNEL);
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[GameEventStore] unsubscribe → listenerCount=${countAfterUnsub}`);
-      }
     };
   }
 
@@ -328,7 +320,6 @@ export function createGameEventStore(maxEvents?: number): GameEventStore {
 // 避免新旧两个 store 同时持有 processEmitter listeners 造成无限堆积。
 //
 declare global {
-  // eslint-disable-next-line no-var
   var __gameEventStore: GameEventStore | undefined
 }
 

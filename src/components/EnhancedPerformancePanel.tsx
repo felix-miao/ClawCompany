@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+
 import { PerformanceMonitor, FrameStats } from "@/game/systems/PerformanceMonitor";
 
 interface EnhancedPerformancePanelProps {
