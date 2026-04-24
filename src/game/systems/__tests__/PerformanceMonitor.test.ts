@@ -145,4 +145,20 @@ describe('PerformanceMonitor', () => {
       expect(monitor.getFrameStats().samples).toBe(0);
     });
   });
+
+  describe('printStats', () => {
+    it('should stay silent by default', () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      monitor.recordFrame(16.67);
+      monitor.printStats();
+
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
+  });
 });

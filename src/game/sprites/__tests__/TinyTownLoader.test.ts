@@ -80,6 +80,19 @@ describe('TinyTownLoader', () => {
     it('should resolve promise', async () => {
       await expect(loader.loadResources()).resolves.toBeUndefined();
     });
+
+    it('should stay silent by default', async () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      await loader.loadResources();
+
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
+    });
   });
 
   describe('getCharacterSprite', () => {

@@ -28,21 +28,11 @@ export class TinyTownLoader {
   }
 
   async loadResources(): Promise<void> {
-    console.log('🚀 开始加载 Tiny Town 资源...');
-    
     try {
-      // 首先尝试加载瓷砖集
       await this.loadTileset();
-      
-      // 然后加载角色精灵
       await this.loadCharacterSprites();
-      
-      // 加载环境资源
       await this.loadEnvironmentTiles();
-      
-      console.log('✅ Tiny Town 资源加载完成');
-    } catch (error) {
-      console.warn('⚠️ Tiny Town 资源加载失败，使用默认资源:', error);
+    } catch {
       this.loadFallbackResources();
     }
   }
@@ -52,21 +42,14 @@ export class TinyTownLoader {
   }
 
   private async loadCharacterSprites(): Promise<void> {
-    console.log('👤 加载角色精灵...');
-    
-    // 创建默认角色精灵
     this.createDefaultCharacterSprites();
   }
 
   private async loadEnvironmentTiles(): Promise<void> {
-    console.log('🏢 加载环境资源...');
-    
-    // 创建默认环境资源
     this.createDefaultEnvironmentTiles();
   }
 
   private loadFallbackResources(): void {
-    console.log('🎨 创建默认资源...');
     this.createDefaultCharacterSprites();
     this.createDefaultEnvironmentTiles();
   }
@@ -162,9 +145,6 @@ export class TinyTownLoader {
   }
 
   private createDefaultEnvironmentTiles(): void {
-    // 创建默认的办公室资产
-    console.log('创建默认办公室资产...');
-    
     // 创建地板
     const floorGraphics = this.scene.add.graphics();
     floorGraphics.fillStyle(0x8B4513, 1);
@@ -219,6 +199,7 @@ export class TinyTownLoader {
   }
 
   getEnvironmentTile(type: string, variant: number = 0): string {
+    void variant;
     switch (type) {
       case 'floor':
         return 'floor';
