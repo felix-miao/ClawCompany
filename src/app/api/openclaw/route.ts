@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 
 import { withAuth, withRateLimit, successResponse, errorResponse } from '@/lib/api/route-utils'
+import { logger } from '@/lib/core/logger'
 import { InputValidator } from '@/lib/security/utils'
 
 // Route segment config: allow longer max duration for streaming use cases
@@ -41,7 +42,7 @@ export const POST = withAuth(withRateLimit(async (request: NextRequest) => {
 
     const data = await response.json()
     const sessionKey = data.sessionKey
-    console.log('[OpenClaw API] Session spawned')
+    logger.info('[OpenClaw API] Session spawned', { sessionKey })
 
     // P0-B fix: immediately return sessionKey instead of blocking 60s poll.
     // Frontend should listen for results via the /api/game-events SSE stream,
@@ -63,16 +64,16 @@ export const GET = withAuth(async (request: NextRequest) => {
       return successResponse({
         connected: false,
         error: `Gateway returned ${response.status}`,
-      })
+      }, request)
     }
 
     const data = await response.json()
 
-    return successResponse({ connected: true, gateway: data })
+    return successResponse({ connected: true, gateway: data }, request)
   } catch (error) {
     return successResponse({
       connected: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-    })
+    }, request)
   }
 }, 'OpenClaw Status API')

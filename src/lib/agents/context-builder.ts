@@ -1,6 +1,7 @@
-import type { Task, AgentRole } from '../core/types'
+import type { Task } from '../core/types'
 import type { TaskManager } from '../tasks/manager'
 import type { TaskTransitionRecord } from '../tasks/manager'
+
 import type { PersistedAgentConfig } from '@/types/agent-config'
 
 export interface AgentContextInput {
@@ -154,7 +155,7 @@ function buildProjectStateSection(projectState: ProjectStateSummary): string[] {
 }
 
 export function buildAgentContext(input: AgentContextInput): string {
-  const { agentConfig, taskId, conversationId, currentTask, taskHistory, projectState } = input
+  const { taskId, conversationId, currentTask, taskHistory, projectState } = input
 
   const sections: string[] = []
 
@@ -186,7 +187,6 @@ export function buildAgentSystemPrompt(agentConfig: Pick<PersistedAgentConfig, '
 
 export function getProjectStateSummary(taskManager: TaskManager, chatMessages: Array<{ agent: string; content: string; timestamp: string }>): ProjectStateSummary {
   const stats = taskManager.getStats()
-  const tasks = taskManager.getAllTasks()
 
   return {
     projectId: taskManager['projectId'] ?? 'default',

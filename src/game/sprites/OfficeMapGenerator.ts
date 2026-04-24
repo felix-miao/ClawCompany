@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+
 import { TinyTownLoader } from './TinyTownLoader';
 import type { Platform, Workstation } from '../types/OfficeTypes';
 
@@ -146,7 +147,7 @@ export class OfficeMapGenerator {
     return platforms;
   }
 
-  private generateDecorations(config: OfficeMapConfig): OfficeDecoration[] {
+  private generateDecorations(): OfficeDecoration[] {
     const decorations: OfficeDecoration[] = [];
     
     // 植物
@@ -189,7 +190,7 @@ export class OfficeMapGenerator {
     return decorations;
   }
 
-  private generateRooms(config: OfficeMapConfig): OfficeRoom[] {
+  private generateRooms(): OfficeRoom[] {
     return [
       {
         id: 'meeting-room',
@@ -234,7 +235,7 @@ export class OfficeMapGenerator {
     ];
   }
 
-  private generateWorkstations(config: OfficeMapConfig): Workstation[] {
+  private generateWorkstations(): Workstation[] {
     return [
       { id: 'ws1', x: 5, y: 4, label: 'PM', status: 'idle' as const, taskType: 'meeting' },
       { id: 'ws2', x: 14, y: 4, label: 'Dev1', status: 'idle' as const, taskType: 'coding' },

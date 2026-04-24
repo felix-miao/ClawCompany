@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+
 import { AgentCharacter } from '../characters/AgentCharacter';
 import { TaskManager } from './TaskManager';
 import { EventBus } from './EventBus';
@@ -106,8 +107,6 @@ export class TaskFlowSystem {
     // 创建流动路径
     const flowLine = this.scene.add.graphics();
     const distance = Phaser.Math.Distance.Between(fromX, fromY, toX, toY);
-    const angle = Phaser.Math.Angle.Between(fromX, fromY, toX, toY);
-
     flowLine.lineStyle(3, 0x00ff00, 0.8);
     flowLine.lineBetween(-distance / 2, 0, distance / 2, 0);
 

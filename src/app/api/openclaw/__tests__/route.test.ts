@@ -271,6 +271,7 @@ describe('/api/openclaw', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.connected).toBe(true)
+      expect(data.remaining).toBe(60)
     })
 
     it('should return disconnected when gateway returns non-ok', async () => {
@@ -287,6 +288,7 @@ describe('/api/openclaw', () => {
       expect(response.status).toBe(200)
       expect(data.success).toBe(true)
       expect(data.connected).toBe(false)
+      expect(data.remaining).toBe(60)
     })
 
     it('should handle gateway fetch error', async () => {
@@ -300,6 +302,7 @@ describe('/api/openclaw', () => {
       expect(data.success).toBe(true)
       expect(data.connected).toBe(false)
       expect(data.error).toBeDefined()
+      expect(data.remaining).toBe(60)
     })
   })
 })
