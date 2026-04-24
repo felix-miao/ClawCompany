@@ -118,35 +118,11 @@ export default function TeamChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [currentAgent, setCurrentAgent] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('glm')
-  const [openclawConnected, setOpenclawConnected] = useState<boolean | null>(null)
+  const [openclawConnected] = useState<boolean | null>(null)
   const messageSeqRef = useRef(0)
 
   const createMessageId = (prefix: string) => `${prefix}-${Date.now()}-${messageSeqRef.current++}`
-
-  const callAgent = async (agent: AgentConfig, message: string) => {
-    setCurrentAgent(agent.id)
-
-    const response = await fetch('/api/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        agentId: agent.id,
-        userMessage: message,
-        systemPrompt: agent.systemPrompt
-      })
-    })
-
-    const result = await response.json()
-    setCurrentAgent(null)
-
-    if (result.success) {
-      return result.message
-    } else {
-      throw new Error(result.error)
-    }
-  }
 
   const sendWorkflowRequest = async (message: string) => {
     const response = await fetch('/api/chat', {
@@ -269,7 +245,6 @@ export default function TeamChatPage() {
       }
 
     } catch (error) {
-      console.error('Error:', error)
       addMessage(
         { id: 'error', name: 'Error', role: 'error', emoji: '❌', color: '#EF4444', systemPrompt: '', runtime: 'subagent' },
         `错误: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -381,7 +356,7 @@ export default function TeamChatPage() {
               </div>
             ))}
             
-            {isLoading && !currentAgent && (
+            {isLoading && (
               <div className="flex items-center gap-2 text-gray-500">
                 <div className="animate-spin w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full" />
                 <span>处理中...</span>

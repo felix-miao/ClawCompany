@@ -18,8 +18,8 @@ jest.mock('@/lib/security/utils', () => ({
 }))
 
 import { POST, GET } from '../route'
-import { MockFetchFunction } from '@/types/__mocks__/fetch-mock-types'
 
+import { MockFetchFunction } from '@/types/__mocks__/fetch-mock-types'
 import { RateLimiter } from '@/lib/security/utils'
 
 const API_KEY = 'test-api-key-12345678901234567890'
@@ -147,6 +147,7 @@ describe('/api/openclaw', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
+      expect(data.error).toContain('required')
     })
 
     it('should pass through long userRequest to gateway', async () => {
@@ -201,6 +202,7 @@ describe('/api/openclaw', () => {
       const data = await response.json()
 
       expect(response.status).toBe(429)
+      expect(data.error).toBeDefined()
     })
 
     it('should successfully orchestrate and return sessionKey immediately', async () => {

@@ -7,6 +7,8 @@ jest.mock('next/server', () => ({
   },
 }))
 
+import { POST, GET, PUT } from '../route'
+
 import { MockGitManager, GitCommitResult, GitStatusResult, GitLogEntry } from '@/types/__mocks__/git-mock-types'
 
 jest.mock('@/lib/git/manager', () => {
@@ -36,8 +38,6 @@ jest.mock('@/lib/security/utils', () => ({
     getRemaining: jest.fn(() => 60),
   },
 }))
-
-import { POST, GET, PUT } from '../route'
 
 import { RateLimiter } from '@/lib/security/utils'
 
@@ -173,7 +173,7 @@ describe('/api/git', () => {
       })
 
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(200)
       expect(git.commitAndPush).toHaveBeenCalled()
@@ -192,7 +192,7 @@ describe('/api/git', () => {
     it('should reject non-string commit message', async () => {
       const request = createMockRequest({ body: { message: 123 } })
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(400)
     })
@@ -200,7 +200,7 @@ describe('/api/git', () => {
     it('should reject empty commit message', async () => {
       const request = createMockRequest({ body: { message: '' } })
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(400)
     })
@@ -262,7 +262,7 @@ describe('/api/git', () => {
 
       const request = createMockRequest({ body: { message: 'test' } })
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(429)
     })
@@ -297,6 +297,7 @@ describe('/api/git', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
       expect(git.status).toHaveBeenCalled()
     })
 
@@ -315,6 +316,7 @@ describe('/api/git', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
       expect(data.log).toHaveLength(2)
       expect(git.log).toHaveBeenCalledWith(10)
     })
@@ -355,6 +357,7 @@ describe('/api/git', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
+      expect(data.error).toBeDefined()
     })
   })
 
@@ -396,6 +399,7 @@ describe('/api/git', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
+      expect(data.error).toContain('Invalid branch name')
     })
 
     it('should checkout branch', async () => {
@@ -449,6 +453,7 @@ describe('/api/git', () => {
       const data = await response.json()
 
       expect(response.status).toBe(500)
+      expect(data.error).toBeDefined()
     })
   })
 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -56,24 +56,16 @@ export default function ChatPage() {
   }
 
   useEffect(() => {
-    // 加载初始状态
-    loadInitialState()
-  }, [])
+    const loadInitialState = async () => {
+      const data = await getChatHistory()
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const loadInitialState = async () => {
-    const data = await getChatHistory()
-
-    if (data.chatHistory && data.chatHistory.length > 0) {
-      setMessages(data.chatHistory)
-    } else {
-      const welcomeMessage: Message = {
-        id: createMessageId('welcome'),
-        agent: 'pm',
-        content: `## 👋 欢迎来到 AI 团队！
+      if (data.chatHistory && data.chatHistory.length > 0) {
+        setMessages(data.chatHistory)
+      } else {
+        const welcomeMessage: Message = {
+          id: createMessageId('welcome'),
+          agent: 'pm',
+          content: `## 👋 欢迎来到 AI 团队！
 
 我是 **PM Claw**，负责理解你的需求并协调团队。
 
@@ -85,16 +77,23 @@ export default function ChatPage() {
 我会分析你的需求，**Dev Claw** 会实现功能，**Reviewer Claw** 会审查代码质量。
 
 **现在，告诉我你想构建什么？** 🚀`,
-        type: 'text',
-        timestamp: new Date(),
+          type: 'text',
+          timestamp: new Date(),
+        }
+        setMessages(currentMessages => currentMessages.length > 0 ? currentMessages : [welcomeMessage])
       }
-      setMessages(currentMessages => currentMessages.length > 0 ? currentMessages : [welcomeMessage])
+
+      if (data.tasks && data.tasks.length > 0) {
+        setTasks(data.tasks)
+      }
     }
 
-    if (data.tasks && data.tasks.length > 0) {
-      setTasks(data.tasks)
-    }
-  }
+    loadInitialState()
+  }, [])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -141,7 +140,14 @@ export default function ChatPage() {
         setMessages(prev => [...prev, errorMsg])
       }
     } catch (error) {
-      console.error('Send error:', error)
+      const errorMsg: Message = {
+        id: createMessageId('error'),
+        agent: 'pm',
+        content: `❌ Error: ${error instanceof Error ? error.message : 'Failed to process message'}`,
+        type: 'text',
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, errorMsg])
     } finally {
       setIsLoading(false)
     }

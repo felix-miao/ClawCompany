@@ -76,9 +76,10 @@ jest.mock('@/lib/core/services', () => ({
 globalThis.__orchestratorMock = orchestratorMock
 globalThis.__mockResolve = mockResolve
 
+import { NextRequest } from 'next/server'
+
 import { POST, GET } from '../route'
 
-import { NextRequest } from 'next/server'
 import { createMockNextRequest } from '@/test-utils/next-request-mock'
 
 function createMockRequest(bodyOrOptions?: Record<string, unknown> | Parameters<typeof createMockNextRequest>[0], apiKey?: string): NextRequest {
@@ -131,6 +132,7 @@ describe('Authentication', () => {
     const response = await POST(request)
     const data = await response.json()
     expect(response.status).toBe(401)
+    expect(data.error).toContain('Unauthorized')
   })
 })
 
@@ -462,7 +464,7 @@ describe('Chat API', () => {
 
       const request = createMockRequest({ message: '创建登录页面' }, API_KEY)
       const response = await POST(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(200)
       expect(mock.executeUserRequest).toHaveBeenCalledWith('创建登录页面', { taskId: undefined })

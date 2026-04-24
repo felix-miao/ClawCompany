@@ -181,5 +181,6 @@ describe('/api/test-glm', () => {
     const data = await response.json()
 
     expect(response.status).toBe(429)
+    expect(data.error).toBeDefined()
   })
 })

@@ -201,6 +201,7 @@ describe('/api/conversations', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
+      expect(data.success).toBe(false)
     })
 
     it('should sanitize title', async () => {
@@ -368,7 +369,7 @@ describe('/api/conversations', () => {
       })
 
       const response = await PUT(request)
-      const data = await response.json()
+      await response.json()
 
       expect(response.status).toBe(200)
       expect(existing.title).toBe('Existing Title')

@@ -30,18 +30,11 @@ const sendTeamInputAndWait = async (message: string) => {
 }
 
 describe('Team Chat Page (/team)', () => {
-  let consoleErrorSpy: jest.SpyInstance
-
   beforeEach(() => {
     jest.clearAllMocks()
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     mockFetch.mockResolvedValue({
       json: async () => ({ success: true, message: 'Test response' })
     })
-  })
-
-  afterEach(() => {
-    consoleErrorSpy.mockRestore()
   })
 
   describe('渲染测试', () => {
@@ -187,6 +180,7 @@ describe('Team Chat Page (/team)', () => {
     })
 
     it('同一毫秒追加多条消息也不应该产生重复 key warning', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1713920000000)
       mockFetch.mockResolvedValue({
         json: async () => ({
@@ -210,6 +204,7 @@ describe('Team Chat Page (/team)', () => {
       expect(duplicateKeyWarnings).toHaveLength(0)
 
       nowSpy.mockRestore()
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -221,7 +216,6 @@ describe('Team Chat Page (/team)', () => {
       await sendTeamInput('测试消息')
 
       expect(screen.getByText(/Network error/i)).toBeInTheDocument()
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error:', expect.any(Error))
     })
 
     it('API 返回失败应该显示错误', async () => {
@@ -233,7 +227,6 @@ describe('Team Chat Page (/team)', () => {
       await sendTeamInput('测试消息')
 
       expect(screen.getByText(/Invalid request/i)).toBeInTheDocument()
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Error:', expect.any(Error))
     })
   })
 

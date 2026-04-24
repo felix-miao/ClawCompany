@@ -243,7 +243,7 @@ describe('Chat Page (/chat)', () => {
       await waitFor(() => {
         expect(sendMessage).toHaveBeenCalled()
       })
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Send error:', expect.any(Error))
+      expect(screen.getByText(/Error: Network error/i)).toBeInTheDocument()
     })
 
     it('API 返回失败应该显示错误', async () => {
