@@ -65,6 +65,14 @@ export default [
       },
     },
   },
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        project: './tsconfig.eslint.json',
+      },
+    },
+  },
   // Node.js/CommonJS files (mocks)
   {
     files: ['**/__mocks__/**/*.{js,ts}', '**/*.config.{js,ts,mjs,cjs}'],
