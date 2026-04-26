@@ -12,22 +12,28 @@ const renderTeamPage = async () => {
   })
 }
 
-const sendTeamInput = async (message: string) => {
+const sendTeamInput = async (message: string, { waitForIdle = true }: { waitForIdle?: boolean } = {}) => {
   const input = screen.getByPlaceholderText(/输入你的需求/i)
   const sendButton = screen.getByRole('button', { name: /发送/i })
 
-  fireEvent.change(input, { target: { value: message } })
-
   await act(async () => {
+    fireEvent.change(input, { target: { value: message } })
     fireEvent.click(sendButton)
   })
+
+  if (waitForIdle) {
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /发送/i })).not.toBeDisabled()
+    })
+  }
 
   return { input, sendButton }
 }
 
-const sendTeamInputAndWait = async (message: string) => {
-  return sendTeamInput(message)
-}
+const sendTeamInputAndWait = async (message: string) => sendTeamInput(message)
 
 describe('Team Chat Page (/team)', () => {
   beforeEach(() => {
@@ -196,12 +202,14 @@ describe('Team Chat Page (/team)', () => {
       await renderTeamPage()
       await sendTeamInputAndWait('创建登录页面')
 
-      expect(screen.getByText(/团队协作完成/i)).toBeInTheDocument()
+      await waitFor(() => {
+        expect(screen.getByText(/团队协作完成/i)).toBeInTheDocument()
+      })
 
-      const duplicateKeyWarnings = consoleErrorSpy.mock.calls.flat().filter(
-        arg => typeof arg === 'string' && arg.includes('same key')
+      const consoleErrors = consoleErrorSpy.mock.calls.flat().filter(
+        arg => typeof arg === 'string'
       )
-      expect(duplicateKeyWarnings).toHaveLength(0)
+      expect(consoleErrors.join(' ')).not.toMatch(/Encountered two children with the same key|same key/i)
 
       nowSpy.mockRestore()
       consoleErrorSpy.mockRestore()

@@ -120,6 +120,7 @@ export default function ChatPage() {
         if (response.chatHistory.length > 0) {
           const messagesWithDates = response.chatHistory.map((m: Message) => ({
             ...m,
+            id: createMessageId(m.id || m.agent),
             timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
           }))
           setMessages(messagesWithDates)
@@ -200,13 +201,13 @@ export default function ChatPage() {
               </div>
             )}
             
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               const config = agentConfig[message.agent]
               const isUser = message.agent === 'user'
               
               return (
                 <div
-                  key={message.id}
+                  key={`${message.id}-${index}`}
                   className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
                 >
                   <div className={`w-10 h-10 rounded-xl ${config.color} flex items-center justify-center text-lg shadow-lg border-2 ${config.borderColor} flex-shrink-0`}>
@@ -277,7 +278,7 @@ export default function ChatPage() {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={isLoading}
                 className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
               >
                 Send

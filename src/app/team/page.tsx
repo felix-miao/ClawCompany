@@ -325,8 +325,8 @@ export default function TeamChatPage() {
               </div>
             )}
             
-            {messages.map(msg => (
-              <div key={msg.id} className="flex items-start gap-3">
+            {messages.map((msg, index) => (
+              <div key={`${msg.id}-${index}`} className="flex items-start gap-3">
                 <div 
                   className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: msg.color }}
@@ -378,7 +378,7 @@ export default function TeamChatPage() {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={isLoading}
                 type="button"
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 rounded-lg font-semibold transition-colors"
               >

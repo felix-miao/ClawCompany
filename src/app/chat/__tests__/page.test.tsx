@@ -23,22 +23,28 @@ const renderChatPage = async () => {
   await screen.findByText(/欢迎来到/i)
 }
 
-const sendChatInput = async (message: string) => {
+const sendChatInput = async (message: string, { waitForIdle = true }: { waitForIdle?: boolean } = {}) => {
   const input = screen.getByPlaceholderText(/Describe what you want to build/i)
   const sendButton = screen.getByRole('button', { name: /Send/i })
 
-  fireEvent.change(input, { target: { value: message } })
-
   await act(async () => {
+    fireEvent.change(input, { target: { value: message } })
     fireEvent.click(sendButton)
   })
+
+  if (waitForIdle) {
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Send/i })).not.toBeDisabled()
+    })
+  }
 
   return { input, sendButton }
 }
 
-const sendChatInputAndWait = async (message: string) => {
-  return sendChatInput(message)
-}
+const sendChatInputAndWait = async (message: string) => sendChatInput(message)
 
 describe('Chat Page (/chat)', () => {
   let consoleErrorSpy: jest.SpyInstance
@@ -194,6 +200,45 @@ describe('Chat Page (/chat)', () => {
         expect(screen.getByText('PM message')).toBeInTheDocument()
         expect(screen.getByText('Dev message')).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('消息 key 稳定性测试', () => {
+    it('同一毫秒连续生成多条消息时不应该出现重复 key warning', async () => {
+      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1713920000000)
+
+      await renderChatPage()
+
+      ;(sendMessage as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
+
+      await sendChatInput('创建登录页面')
+
+      await waitFor(() => {
+        expect(screen.getByText(/Error: Network error/i)).toBeInTheDocument()
+      })
+
+      expect(consoleErrorSpy.mock.calls.flat().join(' ')).not.toMatch(/same key/i)
+
+      nowSpy.mockRestore()
+    })
+
+    it('API 返回重复消息 id 时不应该出现重复 key warning', async () => {
+      ;(sendMessage as jest.Mock).mockResolvedValue({
+        success: true,
+        chatHistory: [
+          { id: 'duplicate', agent: 'pm', content: 'Same response', timestamp: new Date().toISOString() },
+          { id: 'duplicate', agent: 'pm', content: 'Same response', timestamp: new Date().toISOString() }
+        ],
+        tasks: []
+      })
+
+      await renderChatPage()
+      await sendChatInputAndWait('测试')
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Same response')).toHaveLength(2)
+      })
+      expect(consoleErrorSpy.mock.calls.flat().join(' ')).not.toMatch(/Encountered two children with the same key|same key/i)
     })
   })
 
