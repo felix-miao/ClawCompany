@@ -29,6 +29,26 @@ function createSessionWithArtifacts(
     artifacts,
     finalDeliveryArtifacts: artifacts,
     category: 'completed',
+    eventFeed: {
+      events: [],
+      totalCount: 0,
+      byType: {
+        'tool:invoked': 0,
+        'tool:completed': 0,
+        'tool:failed': 0,
+        'file:created': 0,
+        'file:modified': 0,
+        'file:deleted': 0,
+        'file:read': 0,
+        'artifact:produced': 0,
+        'message:sent': 0,
+        'message:received': 0,
+        'session:handover': 0,
+        'session:progress': 0,
+        'session:completed': 0,
+        'session:failed': 0,
+      },
+    },
     ...overrides,
   };
 }
@@ -77,6 +97,32 @@ describe('SessionArtifactsPanel', () => {
         },
       ]);
       render(<SessionArtifactsPanel sessions={[session]} />);
+      expect(screen.getAllByTitle(path)).toHaveLength(2);
+    });
+
+    it('shows file paths from snapshot session artifacts', () => {
+      const path = '/Users/felixmiao/Projects/ClawCompany/src/app/dashboard/page.tsx';
+      const session = createSessionWithArtifacts([
+        {
+          type: 'tsx',
+          path,
+          title: 'page.tsx',
+          producedBy: 'dev-claw',
+          producedAt: '2026-04-28T01:12:00Z',
+          isFinal: true,
+        },
+      ], {
+        sessionKey: 'sess-snapshot-artifact',
+        label: 'Dashboard live validation',
+        status: 'running',
+        endedAt: null,
+        category: 'running',
+      });
+
+      render(<SessionArtifactsPanel sessions={[session]} />);
+
+      expect(screen.getByText('Session Outputs')).toBeInTheDocument();
+      expect(screen.getByText('page.tsx')).toBeInTheDocument();
       expect(screen.getAllByTitle(path)).toHaveLength(2);
     });
 

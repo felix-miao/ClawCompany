@@ -13,7 +13,7 @@ import { SessionArtifactsPanel } from "@/components/dashboard/SessionArtifactsPa
 import { SessionStatusPanel } from "@/components/dashboard/SessionStatusPanel";
 import { SessionInspector } from "@/components/dashboard/SessionInspector";
 import { useSnapshotStream } from "@/hooks/useSnapshotStream";
-import type { AgentInfo } from "@/game/data/DashboardStore";
+import type { AgentInfo, TaskHistory } from "@/game/data/DashboardStore";
 import type { AgentStatus, GameEvent } from "@/game/types/GameEvents";
 import { MetricsAggregator } from "@/lib/core/metrics-aggregator";
 import { PerformanceMonitor } from "@/lib/core/performance-monitor";
@@ -45,6 +45,35 @@ function getActiveAgentsSummary(agents: AgentInfo[]): { count: number; names: st
     count: active.length,
     names: active.map(a => `${ROLE_EMOJI[a.role] ?? '🤖'} ${a.name}`),
   };
+}
+
+function getLatestTimelineEntry(taskHistory: TaskHistory[]) {
+  const events = taskHistory.flatMap(task => task.recentEvents ?? []);
+  const latestEvent = events.sort((a, b) => b.timestamp - a.timestamp)[0] ?? null;
+  const latestTask = taskHistory[0] ?? null;
+
+  return { latestEvent, latestTask };
+}
+
+function formatTimelinePreview(event: GameEvent | null): string {
+  if (!event) return "No timeline activity yet";
+
+  switch (event.type) {
+    case "task:progress":
+      return event.currentAction;
+    case "session:progress":
+      return event.message;
+    case "agent:status-change":
+      return `${event.agentId} -> ${event.status}`;
+    case "task:handover":
+      return `${event.fromAgentId} -> ${event.toAgentId}`;
+    case "task:completed":
+      return `${event.agentId} completed ${event.taskId}`;
+    case "task:failed":
+      return `${event.agentId} failed ${event.taskId}`;
+    default:
+      return event.type;
+  }
 }
 
 function getSnapshotGameEvents(agents: AgentInfo[], taskEvents: GameEvent[]): GameEvent[] {
@@ -84,6 +113,16 @@ export function DashboardClient() {
   const gameEvents = useMemo(
     () => getSnapshotGameEvents(agents, timelineEvents),
     [agents, timelineEvents],
+  );
+
+  const activeAgentsSummary = useMemo(
+    () => getActiveAgentsSummary(agents),
+    [agents],
+  );
+
+  const timelinePreview = useMemo(
+    () => getLatestTimelineEntry(taskHistory),
+    [taskHistory],
   );
 
   const stats = useMemo(
@@ -185,7 +224,7 @@ export function DashboardClient() {
             {stats.totalEvents} events | {stats.activeTasks} active tasks
           </div>
           {(() => {
-            const activeSummary = getActiveAgentsSummary(agents);
+            const activeSummary = activeAgentsSummary;
             if (activeSummary.count === 0) return null;
             return (
               <div className="flex items-center gap-2 text-sm">
@@ -206,6 +245,51 @@ export function DashboardClient() {
 
       <main className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col p-4 gap-3 min-w-0 overflow-hidden">
+          <section className="glass rounded-2xl border border-dark-100 p-4 shrink-0">
+            <div className="flex flex-wrap items-stretch gap-3">
+              <div className="min-w-[180px] flex-1 rounded-xl border border-dark-100 bg-dark-50/30 p-3">
+                <div className="text-xs uppercase tracking-[0.18em] text-gray-500">Current Agents</div>
+                <div className="mt-2 text-2xl font-semibold text-white">{agents.length}</div>
+                <div className="mt-1 text-xs text-gray-400">
+                  {activeAgentsSummary.count > 0
+                    ? `${activeAgentsSummary.count} active agent${activeAgentsSummary.count > 1 ? "s" : ""}`
+                    : "No active sessions"}
+                </div>
+                {activeAgentsSummary.count > 0 && (
+                  <div className="mt-2 text-xs font-medium text-primary-300 truncate">
+                    {activeAgentsSummary.names.slice(0, 2).join(" · ")}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-[220px] flex-[1.4] rounded-xl border border-primary-500/30 bg-primary-500/10 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs uppercase tracking-[0.18em] text-primary-300">Timeline Entry</div>
+                    <div className="mt-2 text-sm font-medium text-white truncate">
+                      {timelinePreview.latestTask?.description ?? "No active sessions"}
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400 truncate">
+                      {formatTimelinePreview(timelinePreview.latestEvent)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveView("timeline")}
+                    className="shrink-0 rounded-full border border-primary-500/40 bg-primary-600/30 px-3 py-1 text-xs font-medium text-primary-100 hover:bg-primary-600/50 transition-colors"
+                  >
+                    Open Timeline
+                  </button>
+                </div>
+                {sessions.length === 0 && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Waiting for OpenClaw sessions from the snapshot stream.
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           {activeView === "game" ? (
             <>
               <DashboardGameBridge

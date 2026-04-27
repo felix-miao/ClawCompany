@@ -63,6 +63,36 @@ describe('AgentStatusPanel', () => {
     expect(screen.getByText('Agent Status')).toBeInTheDocument();
   });
 
+  it('should render a helpful empty state when snapshot has no agents', () => {
+    render(<AgentStatusPanel agents={[]} />);
+
+    expect(screen.getByText('No agents reported')).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for OpenClaw snapshot/)).toBeInTheDocument();
+  });
+
+  it('should render active snapshot updates as working state', () => {
+    const { rerender } = render(<AgentStatusPanel agents={[mockAgents[0]]} />);
+
+    expect(screen.getByTestId('agent-card-alice')).toHaveTextContent('idle');
+
+    rerender(
+      <AgentStatusPanel
+        agents={[
+          {
+            ...mockAgents[0],
+            status: 'working',
+            currentTask: 'Running live snapshot task',
+            latestResultSummary: 'Snapshot output ready',
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId('agent-card-alice')).toHaveTextContent('working');
+    expect(screen.getByText('Running live snapshot task')).toBeInTheDocument();
+    expect(screen.getByText(/Snapshot output ready/)).toBeInTheDocument();
+  });
+
   it('should apply correct status colors', () => {
     const { container } = render(<AgentStatusPanel agents={mockAgents} />);
 

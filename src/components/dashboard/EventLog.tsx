@@ -55,6 +55,14 @@ function formatEventDescription(event: GameEvent): string {
       return `${event.role} ${event.status}`;
     case 'session:progress':
       return `${event.progress}% - ${event.message}`;
+    case 'task:assigned':
+      return event.task?.description ?? event.agentId;
+    case 'task:progress':
+      return `${event.progress}% - ${event.currentAction}`;
+    case 'task:completed':
+      return `${event.agentId} (${event.result})`;
+    case 'task:failed':
+      return `${event.agentId}: ${event.error}`;
     case 'agent:navigation-request':
       return `${event.agentId} → (${event.targetX}, ${event.targetY})`;
     default:

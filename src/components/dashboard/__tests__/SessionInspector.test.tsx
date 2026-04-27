@@ -30,6 +30,26 @@ function createSession(overrides: Partial<OpenClawSessionDetails> = {}): OpenCla
     artifacts: [],
     finalDeliveryArtifacts: [],
     category: 'running',
+    eventFeed: {
+      events: [],
+      totalCount: 0,
+      byType: {
+        'tool:invoked': 0,
+        'tool:completed': 0,
+        'tool:failed': 0,
+        'file:created': 0,
+        'file:modified': 0,
+        'file:deleted': 0,
+        'file:read': 0,
+        'artifact:produced': 0,
+        'message:sent': 0,
+        'message:received': 0,
+        'session:handover': 0,
+        'session:progress': 0,
+        'session:completed': 0,
+        'session:failed': 0,
+      },
+    },
     ...overrides,
   };
 }
@@ -59,6 +79,22 @@ describe('SessionInspector', () => {
       />
     );
     expect(screen.getByText(/final output from the assistant/)).toBeInTheDocument();
+  });
+
+  it('renders latest output directly from snapshot session data', () => {
+    render(
+      <SessionInspector
+        session={createSession({
+          latestMessage: 'Snapshot latest output: wired dashboard stream',
+          latestResultSummary: 'Snapshot tool output summary',
+          history: [],
+        })}
+        onClose={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Snapshot latest output/)).toBeInTheDocument();
+    expect(screen.getByText(/Snapshot tool output summary/)).toBeInTheDocument();
   });
 
   it('renders recent history messages', () => {

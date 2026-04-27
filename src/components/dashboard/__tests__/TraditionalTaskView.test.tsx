@@ -166,6 +166,26 @@ describe('TraditionalTaskView', () => {
     expect(screen.getByText('最近事件')).toBeInTheDocument();
   });
 
+  it('should display chat progress entries from snapshot recentEvents in timeline', () => {
+    const taskWithChatProgress = buildTask({
+      recentEvents: [
+        {
+          type: 'task:progress',
+          timestamp: Date.now(),
+          agentId: 'dev-agent',
+          taskId: 'task-1',
+          progress: 40,
+          currentAction: 'Implementing snapshot chat progress',
+        },
+      ],
+    });
+
+    render(<TraditionalTaskView tasks={[taskWithChatProgress]} />);
+
+    expect(screen.getByText('最近事件')).toBeInTheDocument();
+    expect(screen.getAllByText(/Implementing snapshot chat progress/)[0]).toBeInTheDocument();
+  });
+
   it('should display failure summary for failed tasks', () => {
     const failedTask = buildTask({
       status: 'failed',

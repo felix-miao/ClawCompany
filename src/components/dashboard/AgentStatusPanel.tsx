@@ -38,6 +38,12 @@ export function AgentStatusPanel({ agents, onSelectAgent }: AgentStatusPanelProp
     <div className="glass rounded-xl p-3">
       <h2 className="text-sm font-bold gradient-text mb-2">Agent Status</h2>
       <div className="space-y-1.5">
+        {agents.length === 0 && (
+          <div className="rounded-lg border border-dark-100/40 bg-dark-50/30 p-3 text-center">
+            <div className="text-sm font-medium text-gray-300">No agents reported</div>
+            <div className="mt-1 text-xs text-gray-500">Waiting for OpenClaw snapshot data...</div>
+          </div>
+        )}
         {agents.map(agent => (
           <div
             key={agent.id}

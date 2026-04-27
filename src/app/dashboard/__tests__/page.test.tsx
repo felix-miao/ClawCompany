@@ -3,8 +3,14 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import DashboardPage from '../page';
 import { DashboardClient } from '../DashboardClient';
 
+let mockSnapshotStreamState: ReturnType<typeof createMockSnapshotStreamState>;
+
 jest.mock('@/hooks/useSnapshotStream', () => ({
-  useSnapshotStream: () => ({
+  useSnapshotStream: () => mockSnapshotStreamState,
+}));
+
+function createMockSnapshotStreamState() {
+  return {
     agents: [
       { id: 'pm-agent', name: 'PM Claw', role: 'Project Manager', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来', latestResultSummary: '已生成初始任务拆分' },
       { id: 'dev-agent', name: 'Dev Claw', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
@@ -24,6 +30,14 @@ jest.mock('@/hooks/useSnapshotStream', () => ({
         currentWork: 'Working on something',
         latestThought: 'Thinking about stuff',
         latestResultSummary: 'Result summary',
+        finalResultSummary: {
+          toolType: 'write',
+          operation: 'write',
+          paths: ['/Users/test/index.html'],
+          urls: ['file:///Users/test/index.html'],
+          status: 'completed',
+          summaryText: 'Result summary',
+        },
         model: 'gpt-5.4',
         latestMessage: 'This is the latest assistant message',
         latestMessageRole: 'assistant',
@@ -52,6 +66,26 @@ jest.mock('@/hooks/useSnapshotStream', () => ({
           },
         ],
         category: 'running',
+        eventFeed: {
+          events: [],
+          totalCount: 0,
+          byType: {
+            'tool:invoked': 0,
+            'tool:completed': 0,
+            'tool:failed': 0,
+            'file:created': 0,
+            'file:modified': 0,
+            'file:deleted': 0,
+            'file:read': 0,
+            'artifact:produced': 0,
+            'message:sent': 0,
+            'message:received': 0,
+            'session:handover': 0,
+            'session:progress': 0,
+            'session:completed': 0,
+            'session:failed': 0,
+          },
+        },
       },
     ],
     tasks: [
@@ -75,6 +109,7 @@ jest.mock('@/hooks/useSnapshotStream', () => ({
         ],
         recentEvents: [
           { type: 'agent:status-change', agentId: 'pm-agent', status: 'busy', timestamp: 200 },
+          { type: 'task:progress', agentId: 'pm-agent', taskId: 'sess-1', progress: 35, currentAction: 'Implementing chat timeline from snapshot', timestamp: 300 },
         ],
       },
     ],
@@ -89,8 +124,8 @@ jest.mock('@/hooks/useSnapshotStream', () => ({
     loading: false,
     error: null,
     refresh: jest.fn(),
-  }),
-}));
+  };
+}
 
 jest.mock('@/components/dashboard/DashboardGameBridge', () => ({
   DashboardGameBridge: ({ gameEvents }: { gameEvents: unknown[] }) => (
@@ -117,6 +152,10 @@ jest.mock('@/lib/core/logger', () => ({
 }));
 
 describe('DashboardPage', () => {
+  beforeEach(() => {
+    mockSnapshotStreamState = createMockSnapshotStreamState();
+  });
+
   it('should keep the route entry as an SSR-safe server wrapper', () => {
     expect(DashboardPage.toString()).not.toContain('useSnapshotStream');
     expect(DashboardPage.toString()).not.toContain('DashboardGameBridge');
@@ -137,7 +176,76 @@ describe('DashboardPage', () => {
     render(<DashboardClient />);
 
     const bridge = screen.getByTestId('dashboard-game-bridge');
-    expect(bridge).toHaveAttribute('data-event-count', '5');
+    expect(bridge).toHaveAttribute('data-event-count', '6');
+  });
+
+  it('renders default dashboard overview and visible timeline entry on first load', () => {
+    render(<DashboardPage />);
+
+    expect(screen.getByText('Current Agents')).toBeInTheDocument();
+    expect(screen.getByText('Timeline Entry')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timeline View' })).toBeInTheDocument();
+    expect(screen.getAllByText(/1 active agent/).length).toBeGreaterThan(0);
+  });
+
+  it('shows an empty session state instead of blank panels when no sessions are active', () => {
+    mockSnapshotStreamState = {
+      ...createMockSnapshotStreamState(),
+      agents: createMockSnapshotStreamState().agents.map(agent => ({
+        ...agent,
+        status: 'idle' as const,
+        currentTask: null,
+      })),
+      sessions: [],
+      tasks: [],
+      metrics: {
+        ...createMockSnapshotStreamState().metrics,
+        sessions: { total: 0, active: 0, completed: 0, failed: 0 },
+        agents: { total: 4, active: 0, idle: 4, byRole: { Developer: 1 } },
+      },
+    };
+
+    render(<DashboardPage />);
+
+    expect(screen.getAllByText('No active sessions').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Waiting for OpenClaw sessions/)).toBeInTheDocument();
+    expect(screen.getByText('Timeline Entry')).toBeInTheDocument();
+  });
+
+  it('updates agent status from running snapshot data and keeps active state visible', () => {
+    const { rerender } = render(<DashboardClient />);
+
+    expect(screen.getByTestId('agent-card-dev-agent')).toHaveTextContent('idle');
+
+    mockSnapshotStreamState = {
+      ...createMockSnapshotStreamState(),
+      agents: createMockSnapshotStreamState().agents.map(agent => agent.id === 'dev-agent'
+        ? { ...agent, status: 'working' as const, currentTask: 'Implementing dashboard live flow' }
+        : agent),
+      sessions: [
+        ...createMockSnapshotStreamState().sessions,
+        {
+          ...createMockSnapshotStreamState().sessions[0],
+          sessionKey: 'sess-dev-running',
+          agentId: 'dev-agent',
+          agentName: 'Dev Claw',
+          role: 'dev',
+          label: 'Implementing dashboard live flow',
+          currentWork: 'Implementing dashboard live flow',
+        },
+      ],
+      metrics: {
+        ...createMockSnapshotStreamState().metrics,
+        agents: { total: 4, active: 2, idle: 2, byRole: { Developer: 1 } },
+        sessions: { total: 2, active: 2, completed: 0, failed: 0 },
+      },
+    };
+
+    rerender(<DashboardClient />);
+
+    expect(screen.getByTestId('agent-card-dev-agent')).toHaveTextContent('working');
+    expect(screen.getAllByText(/2 active agents/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Implementing dashboard live flow').length).toBeGreaterThan(0);
   });
 
   it('should render connection status', () => {
@@ -177,7 +285,7 @@ describe('DashboardPage', () => {
 
   it('should display stats in header', () => {
     render(<DashboardPage />);
-    expect(screen.getByText(/1 events/)).toBeInTheDocument();
+    expect(screen.getByText(/2 events/)).toBeInTheDocument();
     expect(screen.getByText(/1 active tasks/)).toBeInTheDocument();
   });
 
@@ -205,7 +313,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();
-    expect(screen.getByText('PM Analysis · PM Claw')).toBeInTheDocument();
+    expect(screen.getByText(/PM Analysis.*PM Claw/)).toBeInTheDocument();
   });
 
   it('should show SessionInspector when clicking an agent in the panel', async () => {
@@ -284,12 +392,13 @@ describe('DashboardPage', () => {
     expect(screen.getByText('当前卡点')).toBeInTheDocument();
     expect(screen.getByText('status')).toBeInTheDocument();
     expect(screen.getByText('pm-agent → busy')).toBeInTheDocument();
+    expect(screen.getAllByText(/Implementing chat timeline from snapshot/).length).toBeGreaterThan(0);
   });
 
   it('should display active agents summary in header directly', async () => {
     render(<DashboardPage />);
 
-    expect(screen.getByText(/1 active agent/)).toBeInTheDocument();
+    expect(screen.getAllByText(/1 active agent/).length).toBeGreaterThan(0);
     expect(screen.getAllByText('working').length).toBeGreaterThan(0);
   });
 
