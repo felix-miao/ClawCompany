@@ -1,6 +1,6 @@
 'use client';
 
-import { GameEvent } from '@/game/types/GameEvents';
+import type { GameEvent } from '@/game/types/GameEvents';
 
 // Short display labels for event types
 const EVENT_SHORT: Record<string, string> = {

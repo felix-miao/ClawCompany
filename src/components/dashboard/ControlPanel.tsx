@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 
-import { GameEvent } from '@/game/types/GameEvents';
+import type { GameEvent } from '@/game/types/GameEvents';
 
 const AGENTS = [
   { id: 'pm-agent', name: 'PM' },

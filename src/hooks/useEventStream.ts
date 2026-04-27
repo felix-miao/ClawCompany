@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-import { DashboardStore } from '@/game/data/DashboardStore';
+import type { DashboardStore } from '@/game/data/DashboardStore';
 import { parseGameEvent, NAMED_GAME_EVENT_TYPES } from '@/game/types/GameEvents';
 
 interface UseEventStreamOptions {
@@ -18,6 +18,10 @@ interface UseEventStreamResult {
 const MIN_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
 
+/**
+ * @deprecated Dashboard UI and Game View use useOpenClawSnapshot as their single
+ * state source. Keep this only for legacy hook coverage until it is removed.
+ */
 export function useEventStream(
   store: DashboardStore,
   options: UseEventStreamOptions = {}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
+import type { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
 import type { OpenClawSessionDetails, OpenClawSnapshotMetrics } from '@/lib/gateway/openclaw-snapshot'
 
 interface SnapshotResponse {

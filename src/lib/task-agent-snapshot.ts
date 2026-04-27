@@ -1,4 +1,4 @@
-import { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
+import type { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
 
 const TASK_AGENT_ID_ALIAS_MAP: Record<string, string> = {
   'pm-agent': 'sidekick-claw',

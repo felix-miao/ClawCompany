@@ -2,8 +2,8 @@
 
 import { useSyncExternalStore, useRef } from 'react';
 
-import { DashboardStore, AgentInfo, DashboardStats, TaskHistory } from '@/game/data/DashboardStore';
-import { GameEvent } from '@/game/types/GameEvents';
+import type { DashboardStore, AgentInfo, DashboardStats, TaskHistory } from '@/game/data/DashboardStore';
+import type { GameEvent } from '@/game/types/GameEvents';
 
 export interface DashboardState {
   agents: AgentInfo[];

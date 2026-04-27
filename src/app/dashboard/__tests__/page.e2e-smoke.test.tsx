@@ -38,12 +38,7 @@ global.fetch = mockFetch
 
 // ── Mock hooks ────────────────────────────────────────────────────────────────
 
-const mockUseEventStream = jest.fn()
 let mockSnapshotEvents: GameEvent[] = []
-
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: mockUseEventStream,
-}))
 
 jest.mock('@/hooks/useDashboardStore', () => ({
   useDashboardStore: jest.fn(() => ({
@@ -113,7 +108,6 @@ describe('Full E2E: ControlPanel click → /api/chat → Phaser animation', () =
     mockReceiveGameEvent.mockClear()
     mockDestroyGame.mockClear()
     mockFetch.mockReset()
-    mockUseEventStream.mockClear()
     mockSnapshotEvents = []
 
     // /api/chat returns a task workflow result
@@ -194,7 +188,6 @@ describe('Full E2E: ControlPanel click → /api/chat → Phaser animation', () =
         expect.objectContaining({ type: 'pm:analysis-complete' }),
       )
     })
-    expect(mockUseEventStream).not.toHaveBeenCalled()
   })
 
   // ── #4 SSE dev:iteration-start → receiveGameEvent ────────────────────────

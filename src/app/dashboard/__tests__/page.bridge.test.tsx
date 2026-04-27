@@ -27,12 +27,7 @@ jest.mock('@/game', () => ({
   })),
 }))
 
-const mockUseEventStream = jest.fn()
 let mockSnapshotEvents: GameEvent[] = []
-
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: mockUseEventStream,
-}))
 
 jest.mock('@/hooks/useDashboardStore', () => ({
   useDashboardStore: jest.fn(() => ({
@@ -103,7 +98,6 @@ describe('Dashboard page: snapshot event → Phaser EventBus bridge', () => {
     mockReceiveGameEvent.mockClear()
     mockTriggerTestTask.mockClear()
     mockDestroyGame.mockClear()
-    mockUseEventStream.mockClear()
     mockSnapshotEvents = []
   })
 
@@ -134,7 +128,6 @@ describe('Dashboard page: snapshot event → Phaser EventBus bridge', () => {
         expect.objectContaining({ type: 'pm:analysis-complete' }),
       )
     })
-    expect(mockUseEventStream).not.toHaveBeenCalled()
   })
 
   // ── #2 dev:iteration-start → receiveGameEvent ─────────────────────────────

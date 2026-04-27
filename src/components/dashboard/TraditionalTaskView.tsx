@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { GameEvent } from '@/game/types/GameEvents';
-import { TaskHistory, TASK_PHASE_LABELS } from '@/game/data/DashboardStore';
+import type { GameEvent } from '@/game/types/GameEvents';
+import { TASK_PHASE_LABELS } from '@/game/data/DashboardStore';
+import type { TaskHistory } from '@/game/data/DashboardStore';
 import { selectTaskAgentSnapshot } from '@/lib/task-agent-snapshot';
 
 type EventSummary = {

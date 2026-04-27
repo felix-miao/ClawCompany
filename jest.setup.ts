@@ -8,18 +8,24 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 // No need to manually polyfill in Node.js 18+
 
 // Mock scrollIntoView for tests
-Element.prototype.scrollIntoView = jest.fn()
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView = jest.fn()
+}
 
 // Mock IntersectionObserver
-global.IntersectionObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}))
+if (typeof global.IntersectionObserver === 'undefined') {
+  global.IntersectionObserver = jest.fn().mockImplementation(() => ({
+    observe: jest.fn(),
+    unobserve: jest.fn(),
+    disconnect: jest.fn(),
+  }))
+}
 
 // Mock ResizeObserver
-global.ResizeObserver = jest.fn().mockImplementation(() => ({
-  observe: jest.fn(),
-  unobserve: jest.fn(),
-  disconnect: jest.fn(),
-}))
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = jest.fn().mockImplementation(() => ({
+    observe: jest.fn(),
+    unobserve: jest.fn(),
+    disconnect: jest.fn(),
+  }))
+}

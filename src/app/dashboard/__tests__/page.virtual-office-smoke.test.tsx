@@ -41,12 +41,6 @@ jest.mock('@/game', () => ({
 
 // ── Mock hooks ───────────────────────────────────────────────────────────────
 
-const mockUseEventStream = jest.fn()
-
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: mockUseEventStream,
-}))
-
 jest.mock('@/hooks/useDashboardStore', () => ({
   useDashboardStore: jest.fn(() => ({
     agents: [
@@ -146,7 +140,6 @@ describe('Virtual Office E2E Smoke Tests', () => {
 
     expect(pageModule.default.toString()).not.toContain('useEventStream')
     expect(pageModule.default.toString()).not.toContain('DashboardGameBridge')
-    expect(mockUseEventStream).not.toHaveBeenCalled()
   })
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -342,8 +335,6 @@ describe('Virtual Office E2E Smoke Tests', () => {
         expect.objectContaining({ method: 'POST' })
       )
     })
-
-    expect(mockUseEventStream).not.toHaveBeenCalled()
 
     // 验证 snapshot 单一数据源路径下页面没有崩溃
     expect(screen.getByText('Dashboard')).toBeInTheDocument()

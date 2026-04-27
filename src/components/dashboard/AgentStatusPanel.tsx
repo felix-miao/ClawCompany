@@ -1,6 +1,6 @@
 'use client';
 
-import { AgentInfo } from '@/game/data/DashboardStore';
+import type { AgentInfo } from '@/game/data/DashboardStore';
 
 const STATUS_COLORS: Record<string, string> = {
   idle: 'bg-green-500/20 text-green-400',

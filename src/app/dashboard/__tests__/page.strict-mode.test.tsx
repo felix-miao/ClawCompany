@@ -12,10 +12,6 @@ jest.mock('@/game', () => ({
   startGame: (...args: unknown[]) => mockStartGame(...args),
 }))
 
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: () => ({ isConnected: true, isReconnecting: false }),
-}))
-
 jest.mock('@/hooks/useDashboardStore', () => ({
   useDashboardStore: () => ({
     agents: [],

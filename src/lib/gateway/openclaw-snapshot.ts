@@ -2,7 +2,7 @@ import { HistoryFileMetadata, HistoryMessage, OpenClawToolType } from './client'
 import { createTaskAgentSnapshot, getCanonicalTaskAgentId } from '../task-agent-snapshot'
 import { GatewaySession, SessionSyncService } from './session-sync'
 
-import {
+import type {
   GameEvent,
   SessionProgressEvent,
   TaskVisualizationCompletedEvent,
@@ -11,13 +11,15 @@ import {
   TaskVisualizationProgressEvent,
 } from '@/game/types/GameEvents'
 import {
+  TASK_PHASE_LABELS,
+  TASK_PHASE_ORDER,
+} from '@/game/data/DashboardStore'
+import type {
   AgentInfo,
   TaskHistory,
   TaskPhase,
   TaskPhaseRecord,
   TaskPhaseStatus,
-  TASK_PHASE_LABELS,
-  TASK_PHASE_ORDER,
 } from '@/game/data/DashboardStore'
 
 export type OpenClawEventType = 

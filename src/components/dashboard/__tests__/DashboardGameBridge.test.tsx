@@ -5,17 +5,11 @@ import { DashboardGameBridge } from '../DashboardGameBridge';
 const mockReceiveGameEvent = jest.fn();
 const mockDestroy = jest.fn();
 
-const mockUseEventStream = jest.fn();
-
 jest.mock('@/game', () => ({
   startGame: jest.fn(() => ({
     receiveGameEvent: mockReceiveGameEvent,
     destroy: mockDestroy,
   })),
-}));
-
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: mockUseEventStream,
 }));
 
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
@@ -70,7 +64,6 @@ describe('DashboardGameBridge', () => {
         expect.objectContaining({ type: 'pm:analysis-complete' }),
       );
     });
-    expect(mockUseEventStream).not.toHaveBeenCalled();
   });
 
   it('does not forward the same snapshot event twice after rerender', async () => {
