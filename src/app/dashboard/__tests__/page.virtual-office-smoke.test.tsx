@@ -61,8 +61,8 @@ jest.mock('@/hooks/useDashboardStore', () => ({
   })),
 }))
 
-jest.mock('@/hooks/useOpenClawSnapshot', () => ({
-  useOpenClawSnapshot: jest.fn(() => ({
+jest.mock('@/hooks/useSnapshotStream', () => ({
+  useSnapshotStream: jest.fn(() => ({
     agents: [
       { id: 'pm-agent', name: 'PM', role: 'Project Manager', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
       { id: 'dev-agent', name: 'Dev', role: 'Developer', status: 'working', emotion: 'focused', currentTask: null, latestResultSummary: null },

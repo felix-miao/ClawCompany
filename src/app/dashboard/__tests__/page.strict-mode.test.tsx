@@ -21,8 +21,8 @@ jest.mock('@/hooks/useDashboardStore', () => ({
   }),
 }))
 
-jest.mock('@/hooks/useOpenClawSnapshot', () => ({
-  useOpenClawSnapshot: () => ({
+jest.mock('@/hooks/useSnapshotStream', () => ({
+  useSnapshotStream: () => ({
     agents: [],
     sessions: [],
     tasks: [],

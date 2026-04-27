@@ -12,7 +12,7 @@ import { TraditionalTaskView } from "@/components/dashboard/TraditionalTaskView"
 import { SessionArtifactsPanel } from "@/components/dashboard/SessionArtifactsPanel";
 import { SessionStatusPanel } from "@/components/dashboard/SessionStatusPanel";
 import { SessionInspector } from "@/components/dashboard/SessionInspector";
-import { useOpenClawSnapshot } from "@/hooks/useOpenClawSnapshot";
+import { useSnapshotStream } from "@/hooks/useSnapshotStream";
 import type { AgentInfo } from "@/game/data/DashboardStore";
 import type { AgentStatus, GameEvent } from "@/game/types/GameEvents";
 import { MetricsAggregator } from "@/lib/core/metrics-aggregator";
@@ -66,7 +66,7 @@ export function DashboardClient() {
     metrics: openClawMetrics,
     connected: snapshotConnected,
     refresh: refreshSnapshot,
-  } = useOpenClawSnapshot();
+  } = useSnapshotStream();
   const [activeView, setActiveView] = useState<"game" | "timeline">("game");
   const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(null);
   const [triggerTaskHandler, setTriggerTaskHandler] = useState<(taskId: string) => void>(() => () => {});

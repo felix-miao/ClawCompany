@@ -12,8 +12,8 @@ jest.mock('@/game', () => ({
   })),
 }));
 
-jest.mock('@/hooks/useOpenClawSnapshot', () => ({
-  useOpenClawSnapshot: jest.fn(() => ({
+jest.mock('@/hooks/useSnapshotStream', () => ({
+  useSnapshotStream: jest.fn(() => ({
     agents: [],
     sessions: [],
     tasks: [],

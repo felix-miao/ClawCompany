@@ -39,6 +39,7 @@ export class EventBusEnhanced extends EventBus {
 
   constructor(config: EventBusEnhancedConfig = {}) {
     super({ maxHistorySize: config.maxHistorySize });
+    this.enableErrorLogging = config.enableErrorLogging ?? true;
     this.enableEventValidation = config.enableEventValidation ?? true;
   }
 

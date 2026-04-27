@@ -11,7 +11,7 @@ describe('Dashboard data flow', () => {
   it('uses the OpenClaw snapshot as the dashboard state source', () => {
     const source = readSource('app/dashboard/DashboardClient.tsx');
 
-    expect(source).toContain('useOpenClawSnapshot');
+    expect(source).toContain('useSnapshotStream');
     expect(source).not.toContain('useEventStream');
     expect(source).not.toContain('useDashboardStore');
   });

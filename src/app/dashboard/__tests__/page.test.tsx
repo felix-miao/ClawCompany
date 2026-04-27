@@ -3,8 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import DashboardPage from '../page';
 import { DashboardClient } from '../DashboardClient';
 
-jest.mock('@/hooks/useOpenClawSnapshot', () => ({
-  useOpenClawSnapshot: () => ({
+jest.mock('@/hooks/useSnapshotStream', () => ({
+  useSnapshotStream: () => ({
     agents: [
       { id: 'pm-agent', name: 'PM Claw', role: 'Project Manager', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来', latestResultSummary: '已生成初始任务拆分' },
       { id: 'dev-agent', name: 'Dev Claw', role: 'Developer', status: 'idle', emotion: 'neutral', currentTask: null, latestResultSummary: null },
@@ -118,7 +118,7 @@ jest.mock('@/lib/core/logger', () => ({
 
 describe('DashboardPage', () => {
   it('should keep the route entry as an SSR-safe server wrapper', () => {
-    expect(DashboardPage.toString()).not.toContain('useOpenClawSnapshot');
+    expect(DashboardPage.toString()).not.toContain('useSnapshotStream');
     expect(DashboardPage.toString()).not.toContain('DashboardGameBridge');
   });
 

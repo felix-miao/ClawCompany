@@ -38,8 +38,8 @@ jest.mock('@/hooks/useDashboardStore', () => ({
   })),
 }))
 
-jest.mock('@/hooks/useOpenClawSnapshot', () => ({
-  useOpenClawSnapshot: jest.fn(() => ({
+jest.mock('@/hooks/useSnapshotStream', () => ({
+  useSnapshotStream: jest.fn(() => ({
     agents: [],
     sessions: [],
     tasks: mockSnapshotEvents.length > 0 ? [{
