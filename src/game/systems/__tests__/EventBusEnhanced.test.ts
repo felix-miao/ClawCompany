@@ -6,7 +6,6 @@ describe('EventBusEnhanced', () => {
 
   beforeEach(() => {
     eventBus = new EventBusEnhanced({
-      enableErrorLogging: true,
       enableEventValidation: true,
     });
   });

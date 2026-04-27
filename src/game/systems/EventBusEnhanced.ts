@@ -2,7 +2,6 @@ import { GameEvent } from '../types/GameEvents';
 import { EventBus, EventBusConfig } from './EventBus';
 
 export interface EventBusEnhancedConfig extends EventBusConfig {
-  enableErrorLogging?: boolean;
   enableEventValidation?: boolean;
 }
 
@@ -31,7 +30,6 @@ export class EventBusEnhanced extends EventBus {
     lastError: null,
     recentErrors: []
   };
-  private readonly enableErrorLogging: boolean;
   private readonly enableEventValidation: boolean;
   private readonly maxErrorHistory = 100;
   private errorHead = 0;
@@ -39,7 +37,6 @@ export class EventBusEnhanced extends EventBus {
 
   constructor(config: EventBusEnhancedConfig = {}) {
     super({ maxHistorySize: config.maxHistorySize });
-    this.enableErrorLogging = config.enableErrorLogging ?? true;
     this.enableEventValidation = config.enableEventValidation ?? true;
   }
 
