@@ -119,7 +119,7 @@ export default function TeamChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [mode, setMode] = useState<Mode>('glm')
-  const [openclawConnected] = useState<boolean | null>(null)
+  const [openclawConnected, setOpenclawConnected] = useState<boolean | null>(null)
   const messageSeqRef = useRef(0)
 
   const createMessageId = (prefix: string) => `${prefix}-${Date.now()}-${messageSeqRef.current++}`
@@ -140,20 +140,27 @@ export default function TeamChatPage() {
   }
 
   const sendOpenClawRequest = async (message: string) => {
-    const response = await fetch('/api/openclaw', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'orchestrate',
-        userRequest: message
+    try {
+      const response = await fetch('/api/openclaw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'orchestrate',
+          userRequest: message
+        })
       })
-    })
 
-    const result = await response.json()
-    if (result.success || result.status === 'started') {
-      return result
-    } else {
+      const result = await response.json()
+      if (result.success || result.status === 'started') {
+        setOpenclawConnected(true)
+        return result
+      }
+
+      setOpenclawConnected(false)
       throw new Error(result.error)
+    } catch (error) {
+      setOpenclawConnected(false)
+      throw error
     }
   }
 

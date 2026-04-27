@@ -129,6 +129,17 @@ describe('Team Chat Page (/team)', () => {
       }))
     })
 
+    it('OpenClaw 请求成功后应该显示已连接状态', async () => {
+      await renderTeamPage()
+
+      fireEvent.click(screen.getByRole('button', { name: /OpenClaw/i }))
+      await sendTeamInputAndWait('创建登录页面')
+
+      await waitFor(() => {
+        expect(screen.getByText(/OpenClaw: 已连接/i)).toBeInTheDocument()
+      })
+    })
+
     it('切换模式后应该显示对应的API信息', async () => {
       await renderTeamPage()
 
