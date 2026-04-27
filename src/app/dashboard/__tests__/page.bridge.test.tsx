@@ -1,7 +1,7 @@
 /**
- * Dashboard page SSE → Phaser EventBus bridge tests (flow #4)
+ * Dashboard page snapshot → Phaser EventBus bridge tests (flow #4)
  *
- * 验证：当 SSE 收到 GameEvent（pm:analysis-complete / dev:iteration-start / 
+ * 验证：当 OpenClaw snapshot 包含 GameEvent（pm:analysis-complete / dev:iteration-start /
  * workflow:iteration-complete）时，dashboard/page.tsx 会调用
  * gameRef.current.receiveGameEvent(event)，将事件转发给 Phaser 场景。
  */
@@ -27,14 +27,11 @@ jest.mock('@/game', () => ({
   })),
 }))
 
-// Capture the store passed to useEventStream so we can push events through it
-let capturedStore: { processEvent: (e: unknown) => void } | null = null
+const mockUseEventStream = jest.fn()
+let mockSnapshotEvents: GameEvent[] = []
 
 jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: jest.fn((store: { processEvent: (e: unknown) => void }) => {
-    capturedStore = store
-    return { isConnected: true, isReconnecting: false }
-  }),
+  useEventStream: mockUseEventStream,
 }))
 
 jest.mock('@/hooks/useDashboardStore', () => ({
@@ -50,7 +47,18 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: jest.fn(() => ({
     agents: [],
     sessions: [],
-    tasks: [],
+    tasks: mockSnapshotEvents.length > 0 ? [{
+      taskId: 'task-001',
+      description: 'Snapshot task',
+      currentPhase: 'developer',
+      currentAgentId: 'dev-agent',
+      currentAgentName: 'Dev',
+      createdAt: 1,
+      updatedAt: 2,
+      status: 'in_progress',
+      phases: [],
+      recentEvents: mockSnapshotEvents,
+    }] : [],
     metrics: null,
     connected: true,
     loading: false,
@@ -90,12 +98,13 @@ jest.mock('@/lib/core/logger', () => ({
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('Dashboard page: SSE event → Phaser EventBus bridge', () => {
+describe('Dashboard page: snapshot event → Phaser EventBus bridge', () => {
   beforeEach(() => {
     mockReceiveGameEvent.mockClear()
     mockTriggerTestTask.mockClear()
     mockDestroyGame.mockClear()
-    capturedStore = null
+    mockUseEventStream.mockClear()
+    mockSnapshotEvents = []
   })
 
   async function renderAndWaitForGame() {
@@ -107,46 +116,39 @@ describe('Dashboard page: SSE event → Phaser EventBus bridge', () => {
     return result
   }
 
-  function pushEventToStream(event: GameEvent) {
-    if (capturedStore) {
-      capturedStore.processEvent(event)
-    }
-  }
-
   // ── #1 pm:analysis-complete → receiveGameEvent ────────────────────────────
 
-  it('SSE 收到 pm:analysis-complete 后应调用 game.receiveGameEvent()', async () => {
-    await renderAndWaitForGame()
-
+  it('snapshot 包含 pm:analysis-complete 后应调用 game.receiveGameEvent()', async () => {
     const event: GameEvent = {
       type: 'pm:analysis-complete',
       agentId: 'pm-agent',
       timestamp: Date.now(),
       payload: { projectId: 'test', taskCount: 2, analysis: '需求分析' },
     }
+    mockSnapshotEvents = [event]
 
-    await act(async () => { pushEventToStream(event) })
+    await renderAndWaitForGame()
 
     await waitFor(() => {
       expect(mockReceiveGameEvent).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'pm:analysis-complete' }),
       )
     })
+    expect(mockUseEventStream).not.toHaveBeenCalled()
   })
 
   // ── #2 dev:iteration-start → receiveGameEvent ─────────────────────────────
 
-  it('SSE 收到 dev:iteration-start 后应调用 game.receiveGameEvent()', async () => {
-    await renderAndWaitForGame()
-
+  it('snapshot 包含 dev:iteration-start 后应调用 game.receiveGameEvent()', async () => {
     const event: GameEvent = {
       type: 'dev:iteration-start',
       agentId: 'dev-agent',
       timestamp: Date.now(),
       payload: { taskId: 'task-001', iteration: 1, hasFeedback: false },
     }
+    mockSnapshotEvents = [event]
 
-    await act(async () => { pushEventToStream(event) })
+    await renderAndWaitForGame()
 
     await waitFor(() => {
       expect(mockReceiveGameEvent).toHaveBeenCalledWith(
@@ -157,17 +159,16 @@ describe('Dashboard page: SSE event → Phaser EventBus bridge', () => {
 
   // ── #3 workflow:iteration-complete → receiveGameEvent ────────────────────
 
-  it('SSE 收到 workflow:iteration-complete 后应调用 game.receiveGameEvent()', async () => {
-    await renderAndWaitForGame()
-
+  it('snapshot 包含 workflow:iteration-complete 后应调用 game.receiveGameEvent()', async () => {
     const event: GameEvent = {
       type: 'workflow:iteration-complete',
       agentId: 'review-agent',
       timestamp: Date.now(),
       payload: { taskId: 'task-001', totalIterations: 1, approved: true },
     }
+    mockSnapshotEvents = [event]
 
-    await act(async () => { pushEventToStream(event) })
+    await renderAndWaitForGame()
 
     await waitFor(() => {
       expect(mockReceiveGameEvent).toHaveBeenCalledWith(
@@ -181,17 +182,16 @@ describe('Dashboard page: SSE event → Phaser EventBus bridge', () => {
 
   // ── #4 review:rejected → receiveGameEvent ────────────────────────────────
 
-  it('SSE 收到 review:rejected 后应调用 game.receiveGameEvent()', async () => {
-    await renderAndWaitForGame()
-
+  it('snapshot 包含 review:rejected 后应调用 game.receiveGameEvent()', async () => {
     const event: GameEvent = {
       type: 'review:rejected',
       agentId: 'review-agent',
       timestamp: Date.now(),
       payload: { taskId: 'task-001', iteration: 1, feedback: '错误处理不足' },
     }
+    mockSnapshotEvents = [event]
 
-    await act(async () => { pushEventToStream(event) })
+    await renderAndWaitForGame()
 
     await waitFor(() => {
       expect(mockReceiveGameEvent).toHaveBeenCalledWith(
@@ -202,17 +202,16 @@ describe('Dashboard page: SSE event → Phaser EventBus bridge', () => {
 
   // ── #5 agent:status-change 也应转发 ──────────────────────────────────────
 
-  it('SSE 收到 agent:status-change 后应调用 game.receiveGameEvent()', async () => {
-    await renderAndWaitForGame()
-
+  it('snapshot 包含 agent:status-change 后应调用 game.receiveGameEvent()', async () => {
     const event: GameEvent = {
       type: 'agent:status-change',
       agentId: 'dev-agent',
       status: 'busy',
       timestamp: Date.now(),
     }
+    mockSnapshotEvents = [event]
 
-    await act(async () => { pushEventToStream(event) })
+    await renderAndWaitForGame()
 
     await waitFor(() => {
       expect(mockReceiveGameEvent).toHaveBeenCalledWith(
@@ -224,19 +223,18 @@ describe('Dashboard page: SSE event → Phaser EventBus bridge', () => {
   // ── #6 game 未初始化时不应崩溃 ───────────────────────────────────────────
 
   it('game 尚未初始化时推送事件不应抛出错误', async () => {
-    // Don't wait for game to init — push event immediately after render
-    render(React.createElement(DashboardPage))
-
-    const event: GameEvent = {
+    // Don't wait for game to init; snapshot event should be buffered without throwing.
+    mockSnapshotEvents = [{
       type: 'pm:analysis-complete',
       agentId: 'pm-agent',
       timestamp: Date.now(),
       payload: { projectId: 'test', taskCount: 1, analysis: '测试' },
-    }
+    }]
+    render(React.createElement(DashboardPage))
 
     // Should not throw
     await expect(
-      act(async () => { pushEventToStream(event) })
+      act(async () => { await Promise.resolve() })
     ).resolves.not.toThrow()
   })
 })

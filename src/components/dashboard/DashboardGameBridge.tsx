@@ -27,6 +27,7 @@ export function DashboardGameBridge({ activeView, gameEvents, onTriggerTaskHandl
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<DashboardGameInstance | null>(null);
   const forwardedEventKeysRef = useRef<Set<string>>(new Set());
+  const forwardableEventsRef = useRef<GameEvent[]>([]);
   const [isGameLoading, setIsGameLoading] = useState(true);
   const [gameError, setGameError] = useState<string | null>(null);
 
@@ -44,6 +45,27 @@ export function DashboardGameBridge({ activeView, gameEvents, onTriggerTaskHandl
 
     return () => onTriggerTaskHandlerChange(() => {});
   }, [handleTriggerTask, onTriggerTaskHandlerChange]);
+
+  const forwardSnapshotEvents = useCallback(() => {
+    if (!gameRef.current) return;
+
+    for (const event of forwardableEventsRef.current) {
+      const eventKey = `${event.type}:${event.agentId ?? ''}:${event.timestamp}:${JSON.stringify(event)}`;
+      if (forwardedEventKeysRef.current.has(eventKey)) continue;
+      forwardedEventKeysRef.current.add(eventKey);
+      gameRef.current.receiveGameEvent?.(event);
+    }
+  }, []);
+
+  const forwardableEvents = useMemo(
+    () => gameEvents.filter(event => GAME_EVENTS_TO_FORWARD.includes(event.type)),
+    [gameEvents],
+  );
+
+  useEffect(() => {
+    forwardableEventsRef.current = forwardableEvents;
+    forwardSnapshotEvents();
+  }, [forwardSnapshotEvents, forwardableEvents]);
 
   useEffect(() => {
     if (activeView !== 'game') {
@@ -68,6 +90,7 @@ export function DashboardGameBridge({ activeView, gameEvents, onTriggerTaskHandl
           gameRef.current = startedGame;
           setGameError(null);
           forwardedEventKeysRef.current.clear();
+          forwardSnapshotEvents();
         } catch (err) {
           if (!cancelled) {
             setGameError(err instanceof Error ? err.message : '游戏加载失败');
@@ -97,23 +120,7 @@ export function DashboardGameBridge({ activeView, gameEvents, onTriggerTaskHandl
         gameRef.current = null;
       }
     };
-  }, [activeView]);
-
-  const forwardableEvents = useMemo(
-    () => gameEvents.filter(event => GAME_EVENTS_TO_FORWARD.includes(event.type)),
-    [gameEvents],
-  );
-
-  useEffect(() => {
-    if (!gameRef.current) return;
-
-    for (const event of forwardableEvents) {
-      const eventKey = `${event.type}:${event.agentId ?? ''}:${event.timestamp}:${JSON.stringify(event)}`;
-      if (forwardedEventKeysRef.current.has(eventKey)) continue;
-      forwardedEventKeysRef.current.add(eventKey);
-      gameRef.current.receiveGameEvent?.(event);
-    }
-  }, [forwardableEvents]);
+  }, [activeView, forwardSnapshotEvents]);
 
   return (
     <div className="glass rounded-2xl p-2 border border-dark-100 flex-1 flex items-center justify-center overflow-hidden">

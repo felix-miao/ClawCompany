@@ -20,6 +20,7 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 const mockReceiveGameEvent = jest.fn()
 const mockDestroyGame = jest.fn()
 const mockTriggerTestTask = jest.fn()
+const mockFetch = jest.fn()
 
 const createMockGame = () => ({
   receiveGameEvent: mockReceiveGameEvent,
@@ -136,6 +137,8 @@ import DashboardPage from '@/app/dashboard/page'
 describe('Virtual Office E2E Smoke Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    global.fetch = mockFetch
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) })
   })
 
   it('STEP 0: SSR 安全 - page 入口不应订阅 event stream 或导入 game bridge', async () => {
@@ -304,9 +307,6 @@ describe('Virtual Office E2E Smoke Tests', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   it('STEP 7: 完整流程 - 触发任务后 SSE 事件应该触发角色动画', async () => {
-    const mockFetch = jest.fn()
-    global.fetch = mockFetch
-
     mockFetch.mockImplementation((url: string) => {
       if (url === '/api/chat') {
         return Promise.resolve({
