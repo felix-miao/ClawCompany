@@ -405,7 +405,7 @@ export class DashboardStore {
       return { ...snapshot };
     }
 
-    return { ...this.createFallbackAgentSnapshot(agentId, taskId) };
+    return { ...this.createFallbackAgentSnapshot(agentId) };
   }
 
   getTaskAgents(taskId: string): AgentInfo[] {

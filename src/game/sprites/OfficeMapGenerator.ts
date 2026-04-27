@@ -49,9 +49,9 @@ export class OfficeMapGenerator {
     
     const officeConfig = this.getOfficeConfig();
     const platforms = this.generatePlatforms(officeConfig);
-    const decorations = this.generateDecorations(officeConfig);
-    const rooms = this.generateRooms(officeConfig);
-    const workstations = this.generateWorkstations(officeConfig);
+    const decorations = this.generateDecorations();
+    const rooms = this.generateRooms();
+    const workstations = this.generateWorkstations();
     
     return {
       platforms,

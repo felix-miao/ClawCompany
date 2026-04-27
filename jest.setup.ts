@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom'
 import { TextEncoder, TextDecoder } from 'util'
 
+declare global {
+  var IS_REACT_ACT_ENVIRONMENT: boolean
+}
+
 Object.assign(global, { TextEncoder, TextDecoder })
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
