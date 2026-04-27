@@ -1,4 +1,4 @@
-import { Container, ScopedContainer } from '../container'
+import { Container } from '../container'
 import { 
   Services, 
   ServiceType, 
@@ -14,7 +14,6 @@ import { Orchestrator } from '../../orchestrator'
 import { SandboxedFileWriter } from '../../security/sandbox'
 import { StorageManager } from '../../storage/manager'
 import { GitManager } from '../../git/manager'
-import { LLMFactory } from '../../llm/factory'
 import { OpenClawGatewayClient } from '../../gateway/client'
 import { OpenClawAgentExecutor } from '../../gateway/executor'
 import { GameEventStore } from '../../../game/data/GameEventStore'

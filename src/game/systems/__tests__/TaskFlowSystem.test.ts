@@ -1,4 +1,4 @@
-import { TaskFlowSystem, TaskFlowState } from '../TaskFlowSystem';
+import { TaskFlowSystem } from '../TaskFlowSystem';
 import { TaskManager } from '../TaskManager';
 import { EventBus } from '../EventBus';
 import { Task, GameTaskStatus } from '../../types/Task';
@@ -320,7 +320,6 @@ function createTestTask(overrides: Partial<Task> = {}): Task {
 }
 
 describe('handover flight animation', () => {
-  let handoverSystem: TaskFlowSystem;
   let handoverTaskManager: TaskManager;
   let handoverEventBus: EventBus;
   let fromAgent: any;
@@ -330,7 +329,7 @@ describe('handover flight animation', () => {
     jest.clearAllMocks();
     handoverEventBus = new EventBus();
     handoverTaskManager = new TaskManager(handoverEventBus);
-    handoverSystem = new TaskFlowSystem(mockScene as any, handoverTaskManager, handoverEventBus);
+    new TaskFlowSystem(mockScene as any, handoverTaskManager, handoverEventBus);
 
     fromAgent = {
       agentId: 'alice',

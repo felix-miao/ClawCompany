@@ -1,3 +1,12 @@
+import { NextRequest } from 'next/server'
+
+import { POST, GET, PUT, DELETE } from '../route'
+
+import { createMockNextRequest } from '@/test-utils/next-request-mock'
+import { RateLimiter, SecurityManager } from '@/lib/security/utils'
+import { setLLMProvider } from '@/lib/llm/factory'
+import type { LLMProvider } from '@/lib/llm/types'
+
 jest.mock('next/server', () => ({
   NextResponse: {
     json: (data: Record<string, unknown>, options?: { status?: number }) => {
@@ -10,8 +19,6 @@ jest.mock('next/server', () => ({
   },
 }))
 
-import { sanitizeUserInput } from '@/lib/utils/prompt-sanitizer'
-
 jest.mock('@/lib/llm/factory', () => {
   let _provider: import('@/lib/llm/types').LLMProvider | null = null
   return {
@@ -23,8 +30,6 @@ jest.mock('@/lib/llm/factory', () => {
 process.env.USE_MOCK_LLM = 'true'
 process.env.AGENT_API_KEY = 'test-api-key-12345678901234567890'
 
-import { NextRequest } from 'next/server'
-
 interface MockRequestOptions {
   url?: string
   method?: string
@@ -32,11 +37,6 @@ interface MockRequestOptions {
   noAuth?: boolean
   body?: Record<string, unknown>
 }
-
-// 使用类型安全的mock工具
-import { POST, GET, PUT, DELETE } from '../route'
-
-import { createMockNextRequest } from '@/test-utils/next-request-mock'
 
 // 保持向后兼容性的包装函数
 function createMockRequest(options?: MockRequestOptions): NextRequest {
@@ -165,12 +165,6 @@ jest.mock('@/lib/security/utils', () => ({
     getFromEnv: jest.fn(() => 'test-api-key-12345678901234567890')
   }
 }))
-
-
-import { RateLimiter, SecurityManager } from '@/lib/security/utils'
-import { setLLMProvider } from '@/lib/llm/factory'
-import type { LLMProvider } from '@/lib/llm/types'
-
 type MockGitManager = { commit: jest.Mock }
 
 const getMockStorageManager = () => (global as Record<string, unknown>).__mockStorageManager__ as import('@/lib/storage/manager').StorageManager

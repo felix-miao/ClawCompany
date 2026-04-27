@@ -95,7 +95,7 @@ describe('PerformanceMetricsPanel', () => {
   })
 
   it('should display performance metrics when loaded', async () => {
-    const { container } = render(<PerformanceMetricsPanel metricsAggregator={createMockAggregator()} />)
+    render(<PerformanceMetricsPanel metricsAggregator={createMockAggregator()} />)
 
     await waitFor(() => {
       expect(screen.getByText('性能指标')).toBeInTheDocument()

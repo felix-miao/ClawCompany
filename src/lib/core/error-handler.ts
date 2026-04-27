@@ -56,7 +56,7 @@ export class ErrorHandler {
     this.defaultConfig = { ...DEFAULT_RETRY_CONFIG, ...defaultConfig }
   }
 
-  handle(error: Error, context: AgentContext): RecoveryAction {
+  handle(error: Error, _context: AgentContext): RecoveryAction {
     const errorMessage = error.message.toLowerCase()
 
     if (this.isTransientError(errorMessage)) {

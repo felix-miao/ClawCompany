@@ -1,6 +1,7 @@
-import { OpenClawGatewayClient, SpawnOptions, SpawnResult, SendResult, getGatewayClient, createGatewayClient } from './client'
-import { sanitizeUserInput } from '../utils/prompt-sanitizer'
 import * as path from 'path'
+
+import { sanitizeUserInput } from '../utils/prompt-sanitizer'
+import { createGatewayClient, getGatewayClient, OpenClawGatewayClient, SpawnOptions } from './client'
 
 // Default project cwd for ACP sessions (where opencode will write files)
 const PROJECT_CWD = process.env.CLAWCOMPANY_CWD || path.resolve(__dirname, '../../../..')
@@ -178,9 +179,9 @@ Please:
 
 Provide the complete implementation.`
 
-    return this.executeAgent('dev', prompt, { 
+    return this.executeAgent('dev', prompt, {
       thinking: 'medium',
-      timeout: 600 
+      timeout: 600
     })
   }
 
@@ -200,9 +201,9 @@ Please check:
 
 Provide your review with APPROVED or NEEDS_CHANGES verdict.`
 
-    return this.executeAgent('review', prompt, { 
+    return this.executeAgent('review', prompt, {
       thinking: 'medium',
-      timeout: 180 
+      timeout: 180
     })
   }
 

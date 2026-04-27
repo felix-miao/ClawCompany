@@ -208,7 +208,7 @@ export class DevAgent extends BaseAgent {
   private async implementWithLLM(
     task: Task,
     context: AgentContext,
-    llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
+    _llmProvider: NonNullable<ReturnType<typeof getLLMProvider>>
   ): Promise<AgentResponse> {
     try {
       const response = await this.callLLM(
@@ -260,7 +260,7 @@ export class DevAgent extends BaseAgent {
 
   private generateCode(
     task: Task,
-    context: AgentContext
+    _context: AgentContext
   ): { path: string; content: string; action: 'create' | 'modify' | 'delete' } | null {
     const title = task.title.toLowerCase()
 
@@ -302,7 +302,6 @@ export default function ${componentName}() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
   };
 
   return (

@@ -3,7 +3,7 @@ import { AgentManager } from '@/lib/agents/manager'
 import { TaskManager } from '@/lib/tasks/manager'
 import { ChatManager } from '@/lib/chat/manager'
 import { SandboxedFileWriter } from '@/lib/security/sandbox'
-import { AgentRole, AgentResponse, FileChange, Task } from '@/lib/core/types'
+import { AgentRole, AgentResponse, Task } from '@/lib/core/types'
 
 interface ExecutionLogEntry {
   role: AgentRole | 'user'
@@ -278,7 +278,7 @@ describe('Task Lifecycle E2E', () => {
     it('should handle dev agent failure and still complete with review', async () => {
       let devAttempts = 0
       mockAgentManager.executeAgent.mockImplementation(
-        async (role: AgentRole, task: Task): Promise<AgentResponse> => {
+        async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
           if (role === 'pm') {
             return {
               agent: 'pm',

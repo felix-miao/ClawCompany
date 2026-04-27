@@ -1,6 +1,6 @@
-import { DevAgent, DevAgentMode } from '../dev-agent'
+import { DevAgent } from '../dev-agent'
 import { Task, AgentContext } from '../types'
-import { getLLMProvider, setLLMProvider } from '../../llm/factory'
+import { setLLMProvider } from '../../llm/factory'
 import { LLMProvider, ChatMessage } from '../../llm/types'
 
 jest.mock('../../gateway/executor', () => ({

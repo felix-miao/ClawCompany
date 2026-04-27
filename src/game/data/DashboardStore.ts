@@ -14,6 +14,7 @@ import {
   ReviewRejectedEvent,
   WorkflowIterationCompleteEvent,
 } from '../types/GameEvents';
+
 import { createDefaultAgents } from '@/lib/gateway/default-agents';
 
 class RingBuffer {
@@ -192,7 +193,11 @@ type ChangeCallback = () => void;
 type IterationLikeEvent = DevIterationStartEvent | ReviewRejectedEvent | WorkflowIterationCompleteEvent;
 
 function getEventPayload<T extends Record<string, unknown>>(event: IterationLikeEvent): T | undefined {
-  return ((event as { payload?: T }).payload);
+  const payload = (event as { payload?: unknown }).payload
+  if (payload && typeof payload === 'object') {
+    return payload as T
+  }
+  return undefined
 }
 
 function getTaskIdFromIterationEvent(event: IterationLikeEvent): string | undefined {
@@ -400,7 +405,7 @@ export class DashboardStore {
       return { ...snapshot };
     }
 
-    return { ...this.createFallbackAgentSnapshot(agentId, taskId) };
+    return { ...this.createFallbackAgentSnapshot(agentId) };
   }
 
   getTaskAgents(taskId: string): AgentInfo[] {
@@ -745,7 +750,7 @@ export class DashboardStore {
     return task;
   }
 
-  private createFallbackAgentSnapshot(agentId: string, taskId: string): AgentInfo {
+  private createFallbackAgentSnapshot(agentId: string): AgentInfo {
     const canonicalAgentId = getCanonicalAgentId(agentId);
     const defaultAgent = DEFAULT_AGENTS.find((agent) => agent.id === canonicalAgentId);
     const base = defaultAgent ?? this.agents.get(canonicalAgentId) ?? {
@@ -769,7 +774,7 @@ export class DashboardStore {
   private updateTaskAgentSnapshot(taskId: string, agentId: string, patch: Partial<AgentInfo>): AgentInfo {
     const canonicalAgentId = getCanonicalAgentId(agentId);
     const taskSnapshots = this.taskAgentSnapshots.get(taskId) ?? new Map<string, AgentInfo>();
-    const existing = taskSnapshots.get(canonicalAgentId) ?? this.createFallbackAgentSnapshot(canonicalAgentId, taskId);
+    const existing = taskSnapshots.get(canonicalAgentId) ?? this.createFallbackAgentSnapshot(canonicalAgentId);
     const next: AgentInfo = {
       ...existing,
       ...patch,

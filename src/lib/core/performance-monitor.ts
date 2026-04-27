@@ -217,7 +217,7 @@ export class PerformanceMonitor {
     let cleanedCount = 0
     
     // 清理histograms中的旧数据
-    for (const [name, values] of this.histograms) {
+    for (const [_name, values] of this.histograms) {
       if (values.length > this.maxHistogramValues) {
         const oldSize = values.length
         values.splice(0, oldSize - this.maxHistogramValues)
@@ -226,7 +226,7 @@ export class PerformanceMonitor {
     }
     
     // 清理metric entries中的旧数据
-    for (const [name, entries] of this.metricEntries) {
+    for (const [_name, entries] of this.metricEntries) {
       if (entries.length > this.maxMetricEntries) {
         const oldSize = entries.length
         entries.splice(0, oldSize - this.maxMetricEntries)

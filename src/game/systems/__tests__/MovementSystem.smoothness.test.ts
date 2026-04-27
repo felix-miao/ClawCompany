@@ -48,32 +48,6 @@ function createMockAgent(): MockAgent {
   };
 }
 
-function createMockScene() {
-  const cursors: MockCursors = {
-    left: createMockKey(),
-    right: createMockKey(),
-    up: createMockKey(),
-    down: createMockKey(),
-  };
-  const wasd: MockCursors = {
-    left: createMockKey(),
-    right: createMockKey(),
-    up: createMockKey(),
-    down: createMockKey(),
-  };
-
-  return {
-    input: {
-      keyboard: {
-        createCursorKeys: jest.fn(() => cursors),
-        addKeys: jest.fn(() => wasd),
-      },
-    },
-    cursors,
-    wasd,
-  };
-}
-
 class MockPhaserScene {
   input: { keyboard: { createCursorKeys: jest.Mock; addKeys: jest.Mock } };
   cursors: MockCursors;

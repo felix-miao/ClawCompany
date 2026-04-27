@@ -2,7 +2,6 @@ import * as Phaser from 'phaser';
 
 const PULSE_MAX_RADIUS = 40;
 const PULSE_MIN_RADIUS = 15;
-const PULSE_DURATION = 1500;
 const PULSE_COLORS = {
   high: 0xFF0000,
   medium: 0xFFA500,

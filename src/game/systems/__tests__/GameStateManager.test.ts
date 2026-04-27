@@ -1,4 +1,4 @@
-import { GameStateManager, GameState, AgentState, SnapshotMetadata } from '../GameStateManager';
+import { GameStateManager, AgentState } from '../GameStateManager';
 
 describe('GameStateManager', () => {
   let manager: GameStateManager;
@@ -122,8 +122,8 @@ describe('GameStateManager', () => {
     });
 
     it('should return snapshots in chronological order', () => {
-      const state1 = manager.capture(sampleAgentStates);
-      const state2 = manager.capture(sampleAgentStates);
+      manager.capture(sampleAgentStates);
+      manager.capture(sampleAgentStates);
       const snapshots = manager.getSnapshots();
       expect(snapshots[0].timestamp).toBeLessThanOrEqual(snapshots[1].timestamp);
     });

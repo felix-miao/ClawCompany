@@ -1,4 +1,4 @@
-import { PerformanceMonitor, FrameStats, PerformanceAlert } from '../PerformanceMonitor';
+import { PerformanceMonitor } from '../PerformanceMonitor';
 
 describe('PerformanceMonitor', () => {
   let monitor: PerformanceMonitor;
@@ -143,6 +143,22 @@ describe('PerformanceMonitor', () => {
       expect(monitor.getCurrentFPS()).toBe(0);
       expect(monitor.getAverageFPS()).toBe(0);
       expect(monitor.getFrameStats().samples).toBe(0);
+    });
+  });
+
+  describe('printStats', () => {
+    it('should stay silent by default', () => {
+      const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+      monitor.recordFrame(16.67);
+      monitor.printStats();
+
+      expect(logSpy).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+
+      logSpy.mockRestore();
+      warnSpy.mockRestore();
     });
   });
 });

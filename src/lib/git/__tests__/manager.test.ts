@@ -30,7 +30,7 @@ describe('GitManager', () => {
     // 清理测试目录
     try {
       await fs.rm(testDir, { recursive: true, force: true })
-    } catch (error) {
+    } catch {
       // 忽略清理错误
     }
   })

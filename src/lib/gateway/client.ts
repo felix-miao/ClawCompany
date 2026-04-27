@@ -1,4 +1,5 @@
 import { PendingCall, RPCRequest, RPCResponse } from '../core/types'
+import { logger } from '../core/logger'
 
 export interface SpawnOptions {
   task: string
@@ -128,7 +129,7 @@ export class OpenClawGatewayClient {
             const response: RPCResponse = JSON.parse(event.data)
             this.handleResponse(response)
           } catch (e) {
-            console.error('[GatewayClient] Failed to parse response:', e)
+            logger.warn('Gateway response parse failed', { error: e, raw: event.data })
           }
         }
 

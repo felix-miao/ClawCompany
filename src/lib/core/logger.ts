@@ -70,6 +70,30 @@ export class ConsoleTransport implements LogTransport {
 
   log(entry: LogEntry): void {
     const formatted = this.formatter.format(entry)
+    if (typeof process === 'undefined' || !process.stdout || !process.stderr) {
+      this.logToConsole(entry, formatted)
+      return
+    }
+
+    switch (entry.level) {
+      case LogLevel.DEBUG:
+        process.stdout.write(`${formatted}\n`)
+        break
+      case LogLevel.INFO:
+        process.stdout.write(`${formatted}\n`)
+        break
+      case LogLevel.WARN:
+        process.stderr.write(`${formatted}\n`)
+        break
+      case LogLevel.ERROR:
+      case LogLevel.SILENT:
+        process.stderr.write(`${formatted}\n`)
+        break
+    }
+  }
+
+  private logToConsole(entry: LogEntry, formatted: string): void {
+    /* eslint-disable no-console */
     switch (entry.level) {
       case LogLevel.DEBUG:
         console.debug(formatted)
@@ -85,6 +109,7 @@ export class ConsoleTransport implements LogTransport {
         console.error(formatted)
         break
     }
+    /* eslint-enable no-console */
   }
 }
 

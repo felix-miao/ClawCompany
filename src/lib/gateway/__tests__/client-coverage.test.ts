@@ -83,10 +83,10 @@ describe('OpenClawGatewayClient - coverage gaps', () => {
       await client.connect()
       const ws = CoverageMockWS.instances[0]
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true)
       ws.simulateRawMessage('this is not json')
-      expect(consoleSpy).toHaveBeenCalled()
-      consoleSpy.mockRestore()
+      expect(stderrSpy).toHaveBeenCalled()
+      stderrSpy.mockRestore()
       await client.disconnect()
     })
   })

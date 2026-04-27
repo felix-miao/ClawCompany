@@ -13,7 +13,7 @@
  */
 import * as Phaser from 'phaser';
 
-import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
+import { AgentCharacter } from '../characters/AgentCharacter';
 import { AnimationController } from '../systems/AnimationController';
 import { SceneEventBridge, SceneActions } from '../systems/SceneEventBridge';
 import { EmotionType } from '../systems/EmotionSystem';
@@ -25,7 +25,7 @@ import { TaskManager } from '../systems/TaskManager';
 import { TaskVisualizer } from '../ui/TaskVisualizer';
 import { TinyTownLoader } from '../sprites/TinyTownLoader';
 import type { AgentConfig } from '../../types/agent-config';
-import type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
+import type { RoomName, TaskType, TilemapData } from '../types/OfficeTypes';
 
 export type { RoomName, TaskType, Workstation, TilemapData, ActiveTask } from '../types/OfficeTypes';
 
@@ -119,7 +119,6 @@ export class OfficeScene extends Phaser.Scene {
     this.setupClickHandler();
     this.setupEventBridge();
 
-    console.log('✅ OfficeScene (display-only) created');
   }
 
   update(): void {
@@ -327,7 +326,8 @@ export class OfficeScene extends Phaser.Scene {
     g.destroy();
   }
 
-  private playParticleEffect(agentId: string, _effectType: ParticleEffectType): void {
+  private playParticleEffect(agentId: string, effectType: ParticleEffectType): void {
+    void effectType;
     if (this.particleEmitters.size >= OfficeScene.MAX_PARTICLE_EMITTERS) return;
     const agent = this.agentMap.get(agentId);
     if (!agent) return;
@@ -386,7 +386,8 @@ export class OfficeScene extends Phaser.Scene {
     this.agentMap.get(agentId)?.moveTo(x, y);
   }
 
-  assignTask(agentId: string, _taskType: TaskType): void {
+  assignTask(agentId: string, taskType: TaskType): void {
+    void taskType;
     this.agentMap.get(agentId)?.setWorking(true);
   }
 
@@ -529,8 +530,8 @@ export class OfficeScene extends Phaser.Scene {
     return { agentId: pmAgent.agentId, description: taskDescription };
   }
 
-   reloadScene(): void { this.scene.restart(); }
-   toggleDebug(): void {}   // no-op in display mode
+  reloadScene(): void { this.scene.restart(); }
+  toggleDebug(): void {}   // no-op in display mode
 
   /**
    * receiveGameEvent — bridge real Orchestrator GameEvents to character animations.

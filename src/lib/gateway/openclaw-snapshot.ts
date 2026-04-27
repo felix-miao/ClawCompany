@@ -1,24 +1,24 @@
+import { HistoryFileMetadata, HistoryMessage, OpenClawToolType } from './client'
+import { createTaskAgentSnapshot, getCanonicalTaskAgentId } from '../task-agent-snapshot'
+import { GatewaySession, SessionSyncService } from './session-sync'
+
+import {
+  GameEvent,
+  SessionProgressEvent,
+  TaskVisualizationCompletedEvent,
+  TaskVisualizationFailedEvent,
+  TaskVisualizationHandoverEvent,
+  TaskVisualizationProgressEvent,
+} from '@/game/types/GameEvents'
 import {
   AgentInfo,
   TaskHistory,
   TaskPhase,
   TaskPhaseRecord,
+  TaskPhaseStatus,
   TASK_PHASE_LABELS,
   TASK_PHASE_ORDER,
 } from '@/game/data/DashboardStore'
-
-import {
-  GameEvent,
-  TaskVisualizationCompletedEvent,
-  TaskVisualizationHandoverEvent,
-  TaskVisualizationProgressEvent,
-  TaskVisualizationFailedEvent,
-  SessionProgressEvent,
-} from '@/game/types/GameEvents'
-
-import { HistoryMessage, OpenClawToolType, HistoryToolMetadata, HistoryFileMetadata, HistoryArtifactMetadata } from './client'
-import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
-import { createTaskAgentSnapshot, getCanonicalTaskAgentId } from '../task-agent-snapshot'
 
 export type OpenClawEventType = 
   | 'tool:invoked'

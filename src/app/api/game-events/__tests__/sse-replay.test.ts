@@ -2,7 +2,7 @@ import { ReadableStream as NodeReadableStream } from 'node:stream/web'
 
 jest.mock('next/server', () => ({
   NextRequest: class MockNextRequest {
-    constructor(url: string) {}
+    constructor(_url: string) {}
   },
   NextResponse: {
     json: (data: unknown, options?: { status?: number }) => ({
@@ -28,6 +28,7 @@ jest.mock('@/lib/gateway/session-poller', () => ({
 }))
 
 import { GET } from '../route'
+
 import { GameEventStore, resetGameEventStore, setGameEventStore } from '@/game/data/GameEventStore'
 import { createMockNextRequest } from '@/test-utils/next-request-mock'
 

@@ -1,52 +1,25 @@
 import { NextRequest } from 'next/server';
+
+import {
+  acquireConnection,
+  decrementSseSubscriberCount,
+  getConnectionStats,
+  incrementSseSubscriberCount,
+  releaseConnection,
+} from './route-helpers';
+
 import { getClientId, withAuth, withRateLimit, successResponse } from '@/lib/api/route-utils';
 import { GameEventPostSchema, parseRequestBody } from '@/lib/api/schemas';
 import { getGameEventStore } from '@/game/data/GameEventStore';
 import type { GameEvent } from '@/game/types/GameEvents';
+import { createLogger } from '@/lib/core/logger';
 import { getSessionPoller } from '@/lib/gateway/session-poller';
-import {
-  acquireConnection as ac,
-  releaseConnection as rc,
-  resetConnectionCounters as rcc,
-  getConnectionStats as gcs,
-} from '@/lib/gateway/sse-connections';
 
-export { acquireConnection, releaseConnection } from '@/lib/gateway/sse-connections';
-
-let sseSubscriberCount = 0;
-
-function acquireConnectionWrapped(ip: string): boolean {
-  const result = ac(ip);
-  if (result && process.env.NODE_ENV === 'development') {
-    const stats = gcs();
-    console.log(`[SSE] acquireConnection ip=${ip} totalConnections=${stats.totalConnections} sseSubscriberCount=${sseSubscriberCount}`);
-  }
-  return result;
-}
-
-function releaseConnectionWrapped(ip: string): void {
-  rc(ip);
-  if (process.env.NODE_ENV === 'development') {
-    const stats = gcs();
-    console.log(`[SSE] releaseConnection ip=${ip} totalConnections=${stats.totalConnections} sseSubscriberCount=${sseSubscriberCount}`);
-  }
-}
-
-export function resetConnectionCounters(): void {
-  rcc();
-  sseSubscriberCount = 0;
-}
-
-export function getConnectionStats() {
-  return {
-    ...gcs(),
-    sseSubscriberCount,
-  };
-}
+const logger = createLogger('game-events-route');
 
 const handleGet = async (request: NextRequest) => {
   const ip = getClientId(request);
-  if (!acquireConnectionWrapped(ip)) {
+  if (!acquireConnection(ip)) {
     return new Response('Too Many Connections', {
       status: 503,
       headers: { 'Retry-After': '10' },
@@ -62,9 +35,10 @@ const handleGet = async (request: NextRequest) => {
   const stream = new ReadableStream({
     start(controller) {
       const poller = getSessionPoller(store);
-      sseSubscriberCount += 1;
+      incrementSseSubscriberCount();
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[SSE] open  ip=${ip} sseSubscriberCount=${sseSubscriberCount} totalConnections=${gcs().totalConnections} pollerRunning=${poller.isRunning()}`);
+        const stats = getConnectionStats();
+        logger.debug('[SSE] open', { ip, sseSubscriberCount: stats.sseSubscriberCount, totalConnections: stats.totalConnections, pollerRunning: poller.isRunning() });
       }
       if (!poller.isRunning()) {
         poller.start();
@@ -121,13 +95,13 @@ const handleGet = async (request: NextRequest) => {
 
         clearInterval(keepalive);
         unsubscribe();
-        releaseConnectionWrapped(ip);
-        sseSubscriberCount = Math.max(0, sseSubscriberCount - 1);
-        if (sseSubscriberCount === 0) {
+        releaseConnection(ip);
+        if (decrementSseSubscriberCount() === 0) {
           poller.stop();
         }
         if (process.env.NODE_ENV === 'development') {
-          console.log(`[SSE] close ip=${ip} sseSubscriberCount=${sseSubscriberCount} totalConnections=${gcs().totalConnections} pollerRunning=${poller.isRunning()}`);
+          const stats = getConnectionStats();
+          logger.debug('[SSE] close', { ip, sseSubscriberCount: stats.sseSubscriberCount, totalConnections: stats.totalConnections, pollerRunning: poller.isRunning() });
         }
         try {
           controller.close();

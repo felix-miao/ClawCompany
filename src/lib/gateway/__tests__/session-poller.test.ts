@@ -1,6 +1,7 @@
 import { SessionPollerService, resetSessionPoller, getSessionPoller } from '../session-poller'
-import { GameEventStore } from '@/game/data/GameEventStore'
 import { SessionSyncService, GatewayAgent, GatewaySession } from '../session-sync'
+
+import { GameEventStore } from '@/game/data/GameEventStore'
 
 jest.useFakeTimers()
 

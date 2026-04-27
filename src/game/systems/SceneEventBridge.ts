@@ -8,7 +8,6 @@ import {
   NavigationRequestEvent,
   SessionStartedEvent,
   SessionCompletedEvent,
-  GameEventType,
   ROLE_TO_ROOM,
   OpenClawSendEvent,
 } from '../types/GameEvents';

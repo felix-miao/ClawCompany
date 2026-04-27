@@ -5,7 +5,9 @@
 
 import { z } from 'zod'
 
-import { Message, Task, AgentRole } from '../core/types'
+import { createLogger } from '../core/logger'
+
+const logger = createLogger('api-type-utils')
 
 // 定义API响应的Zod Schema
 export const ChatResponseSchema = z.object({
@@ -74,7 +76,7 @@ export function validateChatResponse(data: unknown): z.infer<typeof ChatResponse
   try {
     return ChatResponseSchema.parse(data)
   } catch (error) {
-    console.error('Chat response validation failed:', error)
+    logger.error('Chat response validation failed', { error })
     return {
       success: false,
       error: 'Invalid response format',
@@ -86,7 +88,7 @@ export function validateChatHistoryResponse(data: unknown): z.infer<typeof ChatH
   try {
     return ChatHistoryResponseSchema.parse(data)
   } catch (error) {
-    console.error('Chat history response validation failed:', error)
+    logger.error('Chat history response validation failed', { error })
     return {
       tasks: [],
       chatHistory: [],

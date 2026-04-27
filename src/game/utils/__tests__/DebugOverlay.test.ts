@@ -239,7 +239,6 @@ describe('DebugOverlay', () => {
     });
 
     it('should not call createDebugGraphic if debugGraphic already exists', () => {
-      let createDebugGraphicCalled = false;
       const sceneWithDebugGraphic = {
         add: {
           text: jest.fn().mockImplementation(() => ({
@@ -254,7 +253,7 @@ describe('DebugOverlay', () => {
           world: {
             drawDebug: false,
             debugGraphic: { clear: jest.fn() },
-            createDebugGraphic: jest.fn(() => { createDebugGraphicCalled = true; }),
+            createDebugGraphic: jest.fn(),
           },
         },
         game: { loop: { actualFps: 60 } },

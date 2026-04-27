@@ -1,7 +1,6 @@
 import { ExportFilters } from './types/DataExportService';
 import { TaskHistoryStore, TaskHistoryRecord } from './TaskHistoryStore';
 import { GameEventStore } from './GameEventStore';
-import { Task, TaskStatus } from '../types/Task';
 import { GameEvent } from '../types/GameEvents';
 
 function escapeCsvField(value: string | undefined | null): string {

@@ -1,7 +1,6 @@
 import {
   GameSDK,
   GameSDKConfig,
-  GameSDKState,
 } from '../GameSDK';
 
 describe('GameSDK', () => {
@@ -90,6 +89,19 @@ describe('GameSDK', () => {
       sdk.on('agent:select', handler);
       sdk.emit('agent:select', { agentId: 'alice' });
       expect(handler).toHaveBeenCalledWith({ agentId: 'alice' });
+    });
+
+    it('should continue dispatching when one handler throws', () => {
+      const failingHandler = jest.fn(() => {
+        throw new Error('boom');
+      });
+      const nextHandler = jest.fn();
+
+      sdk.on('agent:select', failingHandler);
+      sdk.on('agent:select', nextHandler);
+
+      expect(() => sdk.emit('agent:select', { agentId: 'alice' })).not.toThrow();
+      expect(nextHandler).toHaveBeenCalledWith({ agentId: 'alice' });
     });
 
     it('should support off to remove handler', () => {

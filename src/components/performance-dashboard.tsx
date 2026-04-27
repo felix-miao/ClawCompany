@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { PerformanceMonitor, PerformanceReport, ApiStats, MemoryStats } from '@/lib/monitoring/performance-monitor';
-import { ApiPerformanceMonitor } from '@/lib/monitoring/api-performance-monitor';
 
 interface PerformanceDashboardProps {
   performanceMonitor: PerformanceMonitor;
@@ -22,9 +21,7 @@ export function PerformanceDashboard({ performanceMonitor }: PerformanceDashboar
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(false);
 
-  const apiPerformanceMonitor = new ApiPerformanceMonitor(performanceMonitor);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const report = performanceMonitor.generatePerformanceReport();
@@ -43,11 +40,11 @@ export function PerformanceDashboard({ performanceMonitor }: PerformanceDashboar
       setApiCards(cardsData);
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Failed to fetch performance data:', error);
+      void error;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [performanceMonitor]);
 
   const toggleApiCard = (apiName: string) => {
     setApiCards(prevCards => 
@@ -127,11 +124,10 @@ export function PerformanceDashboard({ performanceMonitor }: PerformanceDashboar
 
   useEffect(() => {
     fetchData();
-    
-    // 设置自动刷新
-    const interval = setInterval(fetchData, 30000); // 每30秒刷新一次
+
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]);
 
   const performanceStatus = getPerformanceStatus();
   const memoryStatus = getMemoryStatus();

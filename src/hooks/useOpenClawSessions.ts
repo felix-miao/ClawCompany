@@ -2,9 +2,9 @@
 
 import { useEffect, useRef } from 'react'
 
-import { DashboardStore } from '@/game/data/DashboardStore'
-
 import { useOpenClawSnapshot } from './useOpenClawSnapshot'
+
+import { DashboardStore } from '@/game/data/DashboardStore'
 
 interface UseOpenClawSessionsResult {
   connected: boolean

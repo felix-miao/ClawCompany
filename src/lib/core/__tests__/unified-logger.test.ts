@@ -3,10 +3,8 @@ import {
   LogLevel,
   LogEntry,
   LogTransport,
-  LogFormatter,
   JsonLogFormatter,
   TextLogFormatter,
-  ConsoleTransport,
   createLogger,
   logger,
 } from '../logger'

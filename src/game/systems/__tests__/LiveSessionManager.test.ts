@@ -1,10 +1,5 @@
 import { LiveSessionManager, LiveSessionManagerConfig } from '../LiveSessionManager';
 import { EventBus } from '../EventBus';
-import {
-  AgentStatusEvent,
-  TaskAssignedEvent,
-  GameEvent,
-} from '../../types/GameEvents';
 
 class MockEventSource {
   static instances: MockEventSource[] = [];

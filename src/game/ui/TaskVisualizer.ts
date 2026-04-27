@@ -5,7 +5,7 @@ import { TaskBubble } from './TaskBubble';
 import { ProgressBar } from './ProgressBar';
 import { TaskDetailPanel } from './TaskDetailPanel';
 import { TaskQueueIndicator } from './TaskQueueIndicator';
-import { Task, TaskStatus } from '../types/Task';
+import { Task } from '../types/Task';
 
 const BUBBLE_OFFSET_Y = -60;
 const PROGRESS_BAR_OFFSET_Y = -48;

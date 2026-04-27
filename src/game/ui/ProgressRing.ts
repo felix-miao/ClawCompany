@@ -16,7 +16,6 @@ const PRIORITY_COLORS: Record<string, number> = {
 };
 
 const ANIMATION_SPEED = 0.15;
-const FADE_DURATION = 200;
 
 export class ProgressRing {
   private scene: Phaser.Scene;

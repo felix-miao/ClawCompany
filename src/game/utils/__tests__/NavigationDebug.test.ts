@@ -1,4 +1,4 @@
-import { NavigationDebug, NavigationDebugConfig } from '../NavigationDebug';
+import { NavigationDebug } from '../NavigationDebug';
 
 function createMockGraphics() {
   return {

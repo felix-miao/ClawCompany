@@ -1,10 +1,8 @@
-import { NextRequest } from 'next/server'
-
 import { withAuth, successResponse } from '@/lib/api/route-utils'
 import { SessionSyncService } from '@/lib/gateway/session-sync'
 import { getOpenClawSnapshot } from '@/lib/gateway/poll-snapshot'
 
-export const GET = withAuth(async (request: NextRequest) => {
+export const GET = withAuth(async () => {
   const sync = new SessionSyncService()
 
   try {

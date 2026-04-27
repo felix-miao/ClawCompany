@@ -164,7 +164,7 @@ describe('GameEventStore', () => {
       expect(store.getSubscriberCount()).toBe(0);
       const unsub1 = store.subscribe(jest.fn());
       expect(store.getSubscriberCount()).toBe(1);
-      const unsub2 = store.subscribe(jest.fn());
+      store.subscribe(jest.fn());
       expect(store.getSubscriberCount()).toBe(2);
       unsub1();
       expect(store.getSubscriberCount()).toBe(1);

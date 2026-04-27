@@ -33,6 +33,7 @@ jest.mock('@/lib/gateway/client', () => {
 })
 
 import { POST } from '../route'
+
 import { __mockClient } from '@/lib/gateway/client'
 
 const API_KEY = 'test-api-key-12345678901234567890'

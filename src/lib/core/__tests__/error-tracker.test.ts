@@ -1,9 +1,5 @@
 import {
   ErrorTracker,
-  TrackedError,
-  ErrorFingerprint,
-  ErrorAggregate,
-  ErrorTrackerConfig,
 } from '../error-tracker'
 import { AppError, ErrorCategory, ErrorSeverity } from '../errors'
 
@@ -106,7 +102,7 @@ describe('ErrorTracker', () => {
     })
 
     it('should produce correct fingerprint for Error', () => {
-      const fp = tracker.track(new Error('test'))
+      tracker.track(new Error('test'))
       const aggregates = tracker.getAggregates()
       expect(aggregates[0].fingerprint).toEqual({
         name: 'Error',

@@ -1,4 +1,4 @@
-import { ErrorHandler, RecoveryAction, RetryConfig, AgentContext } from '../error-handler'
+import { ErrorHandler, RetryConfig, AgentContext } from '../error-handler'
 
 describe('ErrorHandler', () => {
   let handler: ErrorHandler

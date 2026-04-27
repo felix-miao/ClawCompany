@@ -1,4 +1,5 @@
 import {
+  ConsoleTransport,
   Logger,
   LogLevel,
   logger,
@@ -110,6 +111,34 @@ describe('Logger', () => {
   describe('default logger', () => {
     it('should be a Logger instance', () => {
       expect(logger).toBeInstanceOf(Logger)
+    })
+  })
+
+  describe('console transport', () => {
+    it('should fall back to console when process streams are unavailable', () => {
+      const stdoutDescriptor = Object.getOwnPropertyDescriptor(process, 'stdout')
+      const stderrDescriptor = Object.getOwnPropertyDescriptor(process, 'stderr')
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+      Object.defineProperty(process, 'stdout', { configurable: true, value: undefined })
+      Object.defineProperty(process, 'stderr', { configurable: true, value: undefined })
+
+      try {
+        const transport = new ConsoleTransport()
+        transport.log({
+          timestamp: '2026-04-27T00:00:00.000Z',
+          level: LogLevel.ERROR,
+          levelName: 'ERROR',
+          message: 'browser-safe error',
+          context: {},
+        })
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('browser-safe error'))
+      } finally {
+        if (stdoutDescriptor) Object.defineProperty(process, 'stdout', stdoutDescriptor)
+        if (stderrDescriptor) Object.defineProperty(process, 'stderr', stderrDescriptor)
+        consoleErrorSpy.mockRestore()
+      }
     })
   })
 })

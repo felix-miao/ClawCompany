@@ -21,6 +21,12 @@ jest.mock('@/lib/security/utils', () => ({
 }))
 
 jest.mock('@/lib/core/logger', () => ({
+  createLogger: () => ({
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  }),
   logger: {
     error: jest.fn(),
     warn: jest.fn(),
@@ -43,6 +49,7 @@ jest.mock('@/lib/api/route-utils', () => ({
 }))
 
 import { POST, GET } from '../route'
+
 import { GameEventStore, setGameEventStore, resetGameEventStore } from '@/game/data/GameEventStore'
 import { RateLimiter } from '@/lib/security/utils'
 import { createMockNextRequest } from '@/test-utils/next-request-mock'

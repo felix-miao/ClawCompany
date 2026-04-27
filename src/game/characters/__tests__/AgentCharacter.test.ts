@@ -14,7 +14,7 @@ interface AgentState {
   emotionSystem: EmotionSystem;
 }
 
-function createAgentState(config: AgentConfig, x: number, y: number): AgentState {
+function createAgentState(config: AgentConfig, _x: number, _y: number): AgentState {
   return {
     config,
     isWorking: false,
@@ -332,8 +332,6 @@ describe('Tween-based Movement', () => {
 
     agent.moveTo(200, 200, arrivalCallback);
 
-    const tweens = scene.tweens._tweens;
-    const lastTween = tweens[tweens.length - 1];
     const config = scene.tweens.add.mock.calls[scene.tweens.add.mock.calls.length - 1][0] as Record<string, unknown>;
 
     expect(config.onComplete).toBeDefined();

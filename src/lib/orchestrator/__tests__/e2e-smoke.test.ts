@@ -114,7 +114,7 @@ describe('ClawCompany E2E Smoke', () => {
     const executionOrder: string[] = []
 
     mockAgentManager.executeAgent.mockImplementation(
-      async (role: AgentRole, task: Task, _ctx: AgentContext): Promise<AgentResponse> => {
+      async (role: AgentRole, _task: Task, _ctx: AgentContext): Promise<AgentResponse> => {
         executionOrder.push(role)
 
         if (role === 'pm') {

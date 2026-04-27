@@ -37,7 +37,6 @@ const MAX_WIDTH = 200;
 const BUBBLE_HEIGHT = 36;
 const PADDING = 20;
 const FONT_SIZE = '13px';
-const FADE_DURATION = 200;
 const PRIORITY_INDICATOR_SIZE = 10;
 
 export class TaskBubble {

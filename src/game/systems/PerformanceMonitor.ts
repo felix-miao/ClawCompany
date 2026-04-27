@@ -3,6 +3,7 @@ export interface PerformanceMonitorConfig {
   warningThreshold?: number;
   criticalThreshold?: number;
   sampleSize?: number;
+  logger?: { log(message: string): void };
 }
 
 export interface FrameStats {
@@ -37,6 +38,7 @@ const DEFAULT_CONFIG: FullConfig = {
 
 export class PerformanceMonitor {
   private readonly config: FullConfig;
+  private readonly logger?: { log(message: string): void };
   private frameTimes: number[] = [];
   private alerts: PerformanceAlert[] = [];
   private lastFrameDelta = 0;
@@ -51,7 +53,9 @@ export class PerformanceMonitor {
   private statsDirty: boolean = true;
 
   constructor(config?: PerformanceMonitorConfig) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    const { logger, ...rest } = config ?? {};
+    this.config = { ...DEFAULT_CONFIG, ...rest };
+    this.logger = logger;
   }
 
   recordFrame(deltaMs: number): void {
@@ -198,17 +202,19 @@ export class PerformanceMonitor {
   printStats(): void {
     const stats = this.getFrameStats();
     const budgetUsed = this.getBudgetUsedPercent();
-    
-    console.log('=== Performance Stats ===');
-    console.log(`Current FPS: ${stats.currentFPS.toFixed(1)}`);
-    console.log(`Average FPS: ${stats.averageFPS.toFixed(1)}`);
-    console.log(`Min FPS: ${stats.minFPS.toFixed(1)}`);
-    console.log(`Max FPS: ${stats.maxFPS.toFixed(1)}`);
-    console.log(`Average Frame Time: ${stats.avgFrameTime.toFixed(1)}ms`);
-    console.log(`Budget Used: ${budgetUsed.toFixed(1)}%`);
-    console.log(`Memory Usage: ${(this.getMemoryUsage() / 1024 / 1024).toFixed(1)}MB`);
-    console.log(`Active Alerts: ${this.alerts.length}`);
-    console.log('======================');
+
+    if (!this.logger) return;
+
+    this.logger.log('=== Performance Stats ===');
+    this.logger.log(`Current FPS: ${stats.currentFPS.toFixed(1)}`);
+    this.logger.log(`Average FPS: ${stats.averageFPS.toFixed(1)}`);
+    this.logger.log(`Min FPS: ${stats.minFPS.toFixed(1)}`);
+    this.logger.log(`Max FPS: ${stats.maxFPS.toFixed(1)}`);
+    this.logger.log(`Average Frame Time: ${stats.avgFrameTime.toFixed(1)}ms`);
+    this.logger.log(`Budget Used: ${budgetUsed.toFixed(1)}%`);
+    this.logger.log(`Memory Usage: ${(this.getMemoryUsage() / 1024 / 1024).toFixed(1)}MB`);
+    this.logger.log(`Active Alerts: ${this.alerts.length}`);
+    this.logger.log('======================');
   }
 
   private checkAlerts(): void {

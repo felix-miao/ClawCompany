@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -118,32 +118,11 @@ export default function TeamChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [currentAgent, setCurrentAgent] = useState<string | null>(null)
   const [mode, setMode] = useState<Mode>('glm')
   const [openclawConnected, setOpenclawConnected] = useState<boolean | null>(null)
+  const messageSeqRef = useRef(0)
 
-  const callAgent = async (agent: AgentConfig, message: string) => {
-    setCurrentAgent(agent.id)
-
-    const response = await fetch('/api/agent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        agentId: agent.id,
-        userMessage: message,
-        systemPrompt: agent.systemPrompt
-      })
-    })
-
-    const result = await response.json()
-    setCurrentAgent(null)
-
-    if (result.success) {
-      return result.message
-    } else {
-      throw new Error(result.error)
-    }
-  }
+  const createMessageId = (prefix: string) => `${prefix}-${Date.now()}-${messageSeqRef.current++}`
 
   const sendWorkflowRequest = async (message: string) => {
     const response = await fetch('/api/chat', {
@@ -161,27 +140,36 @@ export default function TeamChatPage() {
   }
 
   const sendOpenClawRequest = async (message: string) => {
-    const response = await fetch('/api/openclaw', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'orchestrate',
-        userRequest: message
+    try {
+      const response = await fetch('/api/openclaw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'orchestrate',
+          userRequest: message
+        })
       })
-    })
 
-    const result = await response.json()
-    if (result.success || result.status === 'started') {
-      return result
-    } else {
+      const result = await response.json()
+      if (result.success || result.status === 'started') {
+        setOpenclawConnected(true)
+        return result
+      }
+
+      setOpenclawConnected(false)
       throw new Error(result.error)
+    } catch (error) {
+      setOpenclawConnected(false)
+      throw error
     }
   }
 
   const addMessage = (agent: AgentConfig, content: string) => {
     const { files } = parseCodeFiles(content)
+    const messageId = createMessageId(agent.id)
+
     setMessages(prev => [...prev, {
-      id: `${agent.id}-${Date.now()}`,
+      id: messageId,
       agentId: agent.id,
       agentName: agent.name,
       emoji: agent.emoji || '🤖',
@@ -190,6 +178,8 @@ export default function TeamChatPage() {
       timestamp: new Date(),
       files: files.length > 0 ? files : undefined
     }])
+
+    return messageId
   }
 
   const handleSend = async () => {
@@ -208,7 +198,7 @@ export default function TeamChatPage() {
 
     try {
       if (mode === 'openclaw') {
-        addMessage(
+        const progressMessageId = addMessage(
           { id: 'system', name: 'System', role: 'system', emoji: '🔧', color: '#F97316', systemPrompt: '', runtime: 'subagent' },
           '正在通过 OpenClaw 聚合工作流处理...'
         )
@@ -217,7 +207,7 @@ export default function TeamChatPage() {
         const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 
         setMessages(prev => prev.map(m =>
-          m.content.includes('正在通过 OpenClaw')
+          m.id === progressMessageId
             ? { ...m, content: `OpenClaw 工作流已启动\n\n⏱️ 用时：${duration}秒\n\n状态：${result.status || 'completed'}` }
             : m
         ))
@@ -227,7 +217,7 @@ export default function TeamChatPage() {
           `OpenClaw 工作流完成！\n\n📊 性能统计：\n• 总用时: ${duration}秒`
         )
       } else {
-        addMessage(
+        const progressMessageId = addMessage(
           { id: 'system', name: 'System', role: 'system', emoji: '🔧', color: '#3B82F6', systemPrompt: '', runtime: 'subagent' },
           '正在通过 GLM 聚合工作流处理...'
         )
@@ -236,7 +226,7 @@ export default function TeamChatPage() {
         const duration = ((Date.now() - startTime) / 1000).toFixed(1)
 
         setMessages(prev => prev.map(m =>
-          m.content.includes('正在通过 GLM')
+          m.id === progressMessageId
             ? { ...m, content: `GLM 工作流已完成\n\n⏱️ 用时：${duration}秒` }
             : m
         ))
@@ -262,7 +252,6 @@ export default function TeamChatPage() {
       }
 
     } catch (error) {
-      console.error('Error:', error)
       addMessage(
         { id: 'error', name: 'Error', role: 'error', emoji: '❌', color: '#EF4444', systemPrompt: '', runtime: 'subagent' },
         `错误: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -343,8 +332,8 @@ export default function TeamChatPage() {
               </div>
             )}
             
-            {messages.map(msg => (
-              <div key={msg.id} className="flex items-start gap-3">
+            {messages.map((msg, index) => (
+              <div key={`${msg.id}-${index}`} className="flex items-start gap-3">
                 <div 
                   className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: msg.color }}
@@ -374,7 +363,7 @@ export default function TeamChatPage() {
               </div>
             ))}
             
-            {isLoading && !currentAgent && (
+            {isLoading && (
               <div className="flex items-center gap-2 text-gray-500">
                 <div className="animate-spin w-5 h-5 border-2 border-gray-500 border-t-transparent rounded-full" />
                 <span>处理中...</span>
@@ -396,7 +385,7 @@ export default function TeamChatPage() {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={isLoading}
                 type="button"
                 className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 rounded-lg font-semibold transition-colors"
               >

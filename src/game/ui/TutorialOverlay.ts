@@ -26,7 +26,6 @@ const DEFAULT_CONFIG: Required<TutorialConfig> = {
 
 const HIGHLIGHT_BLINK_SPEED = 500;
 const ARROW_SIZE = 12;
-const PADDING = 20;
 
 export class TutorialOverlay {
   private scene: Phaser.Scene;

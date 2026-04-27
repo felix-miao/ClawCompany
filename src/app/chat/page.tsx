@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -47,30 +47,25 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messageSeqRef = useRef(0)
+
+  const createMessageId = (prefix: string) => `${prefix}-${Date.now()}-${messageSeqRef.current++}`
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   useEffect(() => {
-    // 加载初始状态
-    loadInitialState()
-  }, [])
+    const loadInitialState = async () => {
+      const data = await getChatHistory()
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const loadInitialState = async () => {
-    const data = await getChatHistory()
-    if (data.chatHistory && data.chatHistory.length > 0) {
-      setMessages(data.chatHistory)
-    } else {
-      // 添加欢迎消息（用于 demo）
-      const welcomeMessage: Message = {
-        id: 'welcome-1',
-        agent: 'pm',
-        content: `## 👋 欢迎来到 AI 团队！
+      if (data.chatHistory && data.chatHistory.length > 0) {
+        setMessages(data.chatHistory)
+      } else {
+        const welcomeMessage: Message = {
+          id: createMessageId('welcome'),
+          agent: 'pm',
+          content: `## 👋 欢迎来到 AI 团队！
 
 我是 **PM Claw**，负责理解你的需求并协调团队。
 
@@ -82,15 +77,23 @@ export default function ChatPage() {
 我会分析你的需求，**Dev Claw** 会实现功能，**Reviewer Claw** 会审查代码质量。
 
 **现在，告诉我你想构建什么？** 🚀`,
-        type: 'text',
-        timestamp: new Date(),
+          type: 'text',
+          timestamp: new Date(),
+        }
+        setMessages(currentMessages => currentMessages.length > 0 ? currentMessages : [welcomeMessage])
       }
-      setMessages([welcomeMessage])
+
+      if (data.tasks && data.tasks.length > 0) {
+        setTasks(data.tasks)
+      }
     }
-    if (data.tasks) {
-      setTasks(data.tasks)
-    }
-  }
+
+    loadInitialState()
+  }, [])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
@@ -101,7 +104,7 @@ export default function ChatPage() {
 
     // 添加用户消息
     const userMsg: Message = {
-      id: `user-${Date.now()}`,
+      id: createMessageId('user'),
       agent: 'user',
       content: userMessage,
       type: 'text',
@@ -114,19 +117,22 @@ export default function ChatPage() {
       const response = await sendMessage(userMessage)
       
       if (response.success && response.chatHistory) {
-        // 确保 timestamp 是 Date 对象
-        const messagesWithDates = response.chatHistory.map((m: Message) => ({
-          ...m,
-          timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
-        }))
-        setMessages(messagesWithDates)
-        if (response.tasks) {
+        if (response.chatHistory.length > 0) {
+          const messagesWithDates = response.chatHistory.map((m: Message) => ({
+            ...m,
+            id: createMessageId(m.id || m.agent),
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+          }))
+          setMessages(messagesWithDates)
+        }
+
+        if (response.tasks && response.tasks.length > 0) {
           setTasks(response.tasks)
         }
       } else {
         // 显示错误
         const errorMsg: Message = {
-          id: `error-${Date.now()}`,
+          id: createMessageId('error'),
           agent: 'pm',
           content: `❌ Error: ${response.error || 'Failed to process message'}`,
           type: 'text',
@@ -135,7 +141,14 @@ export default function ChatPage() {
         setMessages(prev => [...prev, errorMsg])
       }
     } catch (error) {
-      console.error('Send error:', error)
+      const errorMsg: Message = {
+        id: createMessageId('error'),
+        agent: 'pm',
+        content: `❌ Error: ${error instanceof Error ? error.message : 'Failed to process message'}`,
+        type: 'text',
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, errorMsg])
     } finally {
       setIsLoading(false)
     }
@@ -188,13 +201,13 @@ export default function ChatPage() {
               </div>
             )}
             
-            {messages.map((message) => {
+            {messages.map((message, index) => {
               const config = agentConfig[message.agent]
               const isUser = message.agent === 'user'
               
               return (
                 <div
-                  key={message.id}
+                  key={`${message.id}-${index}`}
                   className={`flex items-start gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
                 >
                   <div className={`w-10 h-10 rounded-xl ${config.color} flex items-center justify-center text-lg shadow-lg border-2 ${config.borderColor} flex-shrink-0`}>
@@ -265,7 +278,7 @@ export default function ChatPage() {
               />
               <button
                 onClick={handleSend}
-                disabled={!input.trim() || isLoading}
+                disabled={isLoading}
                 className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors"
               >
                 Send

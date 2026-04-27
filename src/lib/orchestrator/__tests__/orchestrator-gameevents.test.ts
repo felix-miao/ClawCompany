@@ -17,14 +17,14 @@ import { ChatManager } from '../../chat/manager'
 import type { TaskManager } from '../../tasks/manager'
 import { SandboxedFileWriter } from '../../security/sandbox'
 import type { AgentRole, Task, AgentResponse } from '../../core/types'
+
 import type { GameEvent } from '@/game/types/GameEvents'
 
 // ── GameEventStore mock ────────────────────────────────────────────────────────
 // Use a plain object container so the jest.mock factory (which is hoisted) can
 // safely reference it via a mutable property without TDZ issues.
 
-// eslint-disable-next-line prefer-const
-let capturedEvents: { list: GameEvent[] } = { list: [] }
+const capturedEvents: { list: GameEvent[] } = { list: [] }
 
 jest.mock('@/game/data/GameEventStore', () => {
   const mockPush = jest.fn((event: unknown) => {

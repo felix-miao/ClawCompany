@@ -36,15 +36,18 @@ jest.mock('@/lib/gateway/session-sync', () => {
   }
 })
 
-jest.mock('@/lib/gateway/openclaw-snapshot', () => ({
-  buildOpenClawSnapshot: jest.fn(),
+jest.mock('@/lib/gateway/snapshot-cache', () => ({
+  getCachedOpenClawSnapshot: jest.fn(),
+  resetOpenClawSnapshotCache: jest.fn(),
 }))
 
 import { GET } from '../route'
-import { __mockSync } from '@/lib/gateway/session-sync'
-import { buildOpenClawSnapshot } from '@/lib/gateway/openclaw-snapshot'
 
-const mockBuildOpenClawSnapshot = buildOpenClawSnapshot as jest.Mock
+import { __mockSync } from '@/lib/gateway/session-sync'
+import { getCachedOpenClawSnapshot, resetOpenClawSnapshotCache } from '@/lib/gateway/snapshot-cache'
+
+const mockGetCachedOpenClawSnapshot = getCachedOpenClawSnapshot as jest.Mock
+const mockResetOpenClawSnapshotCache = resetOpenClawSnapshotCache as jest.Mock
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
@@ -81,12 +84,13 @@ describe('/api/openclaw/snapshot', () => {
     __mockSync.client.connect.mockResolvedValue(undefined)
     __mockSync.client.disconnect.mockResolvedValue(undefined)
     __mockSync.client.sessions_history.mockResolvedValue([])
+    mockResetOpenClawSnapshotCache.mockClear()
   })
 
   it('should derive current work from OpenClaw sessions and history', async () => {
     const startedAt = new Date().toISOString()
     
-    mockBuildOpenClawSnapshot.mockResolvedValue({
+    mockGetCachedOpenClawSnapshot.mockResolvedValue({
       agents: [
         { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来' },
       ],
@@ -159,10 +163,38 @@ describe('/api/openclaw/snapshot', () => {
     expect(data.tasks[0].taskId).toBe('sess-1')
     expect(data.tasks[0].currentAgentName).toBe('PM Claw')
     expect(data.tasks[0].description).toContain('用你的团队给我写一个网站出来')
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledWith(__mockSync)
+  })
+
+  it('should reuse the snapshot cache between route requests', async () => {
+    const fetchedAt = new Date().toISOString()
+    const cachedSnapshot = {
+      agents: [],
+      sessions: [],
+      tasks: [],
+      metrics: {
+        agents: { total: 0, active: 0, idle: 0, byRole: {} },
+        sessions: { total: 0, active: 0, completed: 0, failed: 0 },
+        tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        source: 'gateway',
+        fetchedAt,
+      },
+      connected: true,
+      fetchedAt,
+    }
+    mockGetCachedOpenClawSnapshot.mockResolvedValue(cachedSnapshot)
+
+    const first = await GET(createMockRequest() as any)
+    const second = await GET(createMockRequest() as any)
+
+    expect(await first.json()).toMatchObject({ success: true, connected: true })
+    expect(await second.json()).toMatchObject({ success: true, connected: true })
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledTimes(2)
+    expect(mockResetOpenClawSnapshotCache).not.toHaveBeenCalled()
   })
 
   it('should return fallback payload when gateway fails', async () => {
-    mockBuildOpenClawSnapshot.mockRejectedValue(new Error('gateway offline'))
+    mockGetCachedOpenClawSnapshot.mockRejectedValue(new Error('gateway offline'))
 
     const response = await GET(createMockRequest() as any)
     const data = await response.json()

@@ -1,5 +1,10 @@
 import * as Phaser from 'phaser';
+
 import { TinyTownLoader } from './TinyTownLoader';
+
+import { createLogger } from '@/lib/core/logger';
+
+const logger = createLogger('CharacterSpriteSystem');
 
 export class CharacterSpriteSystem {
   private scene: Phaser.Scene;
@@ -15,7 +20,7 @@ export class CharacterSpriteSystem {
   private async initialize(): Promise<void> {
     if (this.isInitialized) return;
     
-    console.log('🎨 初始化角色精灵系统...');
+    logger.info('Initializing character sprite system');
     
     // 创建 Tiny Town 加载器
     this.tinyTownLoader = new TinyTownLoader(this.scene);
@@ -24,7 +29,7 @@ export class CharacterSpriteSystem {
     await this.loadSpritesheets();
     
     this.isInitialized = true;
-    console.log('✅ 角色精灵系统初始化完成');
+    logger.info('Character sprite system initialized');
   }
 
   private async loadSpritesheets(): Promise<void> {
@@ -37,7 +42,7 @@ export class CharacterSpriteSystem {
       this.loadCharacterSprites();
       this.loadOfficeEnvironment();
     } catch (error) {
-      console.warn('精灵加载失败，使用默认方案:', error);
+      logger.warn('Sprite loading failed; using default assets', { error });
       this.createDefaultCharacterSprites();
       this.createDefaultOfficeAssets();
     }
@@ -45,23 +50,23 @@ export class CharacterSpriteSystem {
 
   private loadCharacterSprites(): void {
     if (this.tinyTownLoader && this.tinyTownLoader.isTinyTownAvailable()) {
-      console.log('🎭 使用 Tiny Town 角色精灵');
+      logger.info('Using Tiny Town character sprites');
       return; // Tiny Town 已经处理了角色精灵
     }
     
     // 后备方案：创建默认角色精灵
-    console.log('🎨 创建默认角色精灵');
+    logger.info('Creating default character sprites');
     this.createDefaultCharacterSprites();
   }
 
   private loadOfficeEnvironment(): void {
     if (this.tinyTownLoader && this.tinyTownLoader.isTinyTownAvailable()) {
-      console.log('🏢 使用 Tiny Town 环境资源');
+      logger.info('Using Tiny Town environment assets');
       return; // Tiny Town 已经处理了环境资源
     }
     
     // 后备方案：创建默认环境资源
-    console.log('🏗️ 创建默认环境资源');
+    logger.info('Creating default environment assets');
     this.createDefaultOfficeAssets();
   }
 
@@ -175,7 +180,7 @@ export class CharacterSpriteSystem {
 
   private createDefaultOfficeAssets(): void {
     // 创建默认的办公室资产
-    console.log('创建默认办公室资产...');
+    logger.info('Creating default office assets');
     
     // 创建地板
     const floorGraphics = this.scene.add.graphics();

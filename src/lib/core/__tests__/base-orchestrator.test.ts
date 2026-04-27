@@ -1,5 +1,5 @@
 import { BaseOrchestrator, OrchestratorCallbacks, ObservabilityConfig } from '../base-orchestrator'
-import { AgentContext, AgentResponse, AgentRole, Task, FileChange, RetryConfig } from '../types'
+import { AgentContext, AgentRole, Task, FileChange, RetryConfig } from '../types'
 import { Logger, LogLevel, LogEntry } from '../logger'
 
 class TestOrchestrator extends BaseOrchestrator {
@@ -205,13 +205,11 @@ describe('BaseOrchestrator - buildContext', () => {
       },
     ]
 
-    let capturedContext: AgentContext | undefined
-
     const callbacks = makeMockCallbacks({
       getAllTasks: jest.fn().mockReturnValue(mockTasks),
       getChatHistory: jest.fn().mockReturnValue(chatHistory),
       executeAgent: jest.fn().mockImplementation(async (_role, _task, ctx) => {
-        capturedContext = ctx
+        expect(ctx).toBeDefined()
         return { agent: 'dev' as AgentRole, message: 'done', status: 'success' as const }
       }),
     })

@@ -1,4 +1,4 @@
-import { StatusAnimationSystem, AnimationConfig, StatusAnimation } from '../StatusAnimationSystem';
+import { StatusAnimationSystem, AnimationConfig } from '../StatusAnimationSystem';
 
 jest.mock('phaser', () => {
   const mockTween = {

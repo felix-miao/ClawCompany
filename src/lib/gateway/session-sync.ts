@@ -1,6 +1,7 @@
 import { OpenClawGatewayClient, createGatewayClient } from './client'
-import { AgentInfo } from '@/game/data/DashboardStore'
 import { createDefaultAgents } from './default-agents'
+
+import { AgentInfo } from '@/game/data/DashboardStore'
 
 export interface GatewayAgent {
   id: string

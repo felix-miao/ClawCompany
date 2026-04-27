@@ -1,4 +1,4 @@
-import { MemoryManager, TrackedResource, MemorySnapshot } from '../MemoryManager';
+import { MemoryManager } from '../MemoryManager';
 
 describe('MemoryManager', () => {
   let manager: MemoryManager;

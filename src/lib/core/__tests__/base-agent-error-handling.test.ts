@@ -1,6 +1,4 @@
-import { z } from 'zod'
-
-import { BaseAgent, BaseOpenClawAgent, ParseResult } from '../base-agent'
+import { BaseAgent, BaseOpenClawAgent } from '../base-agent'
 import { AgentRole, AgentConfig, AgentResponse, Task, AgentContext } from '../types'
 import { setLLMProvider } from '../../llm/factory'
 import type { LLMProvider } from '../../llm/types'
@@ -10,7 +8,7 @@ class TestBaseAgent extends BaseAgent {
     super('test-id', 'Test Agent', 'dev', 'A test agent')
   }
 
-  async execute(task: Task, context: AgentContext): Promise<AgentResponse> {
+  async execute(_task: Task, _context: AgentContext): Promise<AgentResponse> {
     return { agent: 'dev', message: 'test', status: 'success' }
   }
 

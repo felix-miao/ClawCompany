@@ -1,7 +1,6 @@
 import { PMAgent } from '../pm-agent'
 import { Task, AgentContext } from '../types'
 import { PMAgentResponseSchema } from '../schemas'
-import { sanitizeTaskPrompt } from '../../utils/prompt-sanitizer'
 
 jest.mock('../../llm/factory', () => ({
   getLLMProvider: jest.fn(),

@@ -38,7 +38,7 @@ jest.mock('phaser', () => ({
   AUTO: 0,
   Scale: { FIT: 'FIT', CENTER_BOTH: 'CENTER_BOTH' },
   GameObjects: { Container: class {}, Image: class {}, Text: class {}, Rectangle: class {} },
-  Math: { Between: (a: number, b: number) => a },
+  Math: { Between: (a: number, _b: number) => a },
   Tweens: {},
 }))
 

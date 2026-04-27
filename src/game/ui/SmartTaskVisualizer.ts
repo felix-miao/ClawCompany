@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 
 import { TaskManager } from '../systems/TaskManager';
-import { TaskStatus, Task } from '../types/Task';
+import { Task } from '../types/Task';
 import { EnhancedStatusIndicator } from './EnhancedStatusIndicator';
 import { ProgressRing } from './ProgressRing';
 import { PriorityPulseEffect } from './PriorityPulseEffect';

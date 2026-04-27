@@ -98,7 +98,7 @@ export class PMAgent extends BaseAgent {
 - 回复消息应该友好、专业`
   }
 
-  private async analyzeAndPlan(task: Task, context: AgentContext): Promise<AgentResponse> {
+  private async analyzeAndPlan(task: Task, _context: AgentContext): Promise<AgentResponse> {
     const keywords = this.extractKeywords(task.description)
     const subTasks = this.generateSubTasks(task, keywords)
 

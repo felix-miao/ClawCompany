@@ -31,8 +31,8 @@ describe('GitManager - 覆盖率补充测试', () => {
   })
 
   afterEach(async () => {
-    try { await fs.rm(testDir, { recursive: true, force: true }) } catch (error) { /* Ignore cleanup errors */ }
-    try { await fs.rm(remoteDir, { recursive: true, force: true }) } catch (error) { /* Ignore cleanup errors */ }
+    try { await fs.rm(testDir, { recursive: true, force: true }) } catch { /* Ignore cleanup errors */ }
+    try { await fs.rm(remoteDir, { recursive: true, force: true }) } catch { /* Ignore cleanup errors */ }
   })
 
   describe('status - upstream ahead/behind', () => {
@@ -105,8 +105,6 @@ describe('GitManager - 覆盖率补充测试', () => {
     it('应该在 upstream ref 存在但 rev-list 失败时返回正常状态', async () => {
       await fs.writeFile(path.join(testDir, 'broken.txt'), 'content')
       await execAsync('git add -A && git commit -m "local change"', { cwd: testDir })
-
-      const headHash = (await execAsync('git rev-parse HEAD', { cwd: testDir })).stdout.trim()
 
       const fakeRefDir = path.join(testDir, '.git', 'refs', 'remotes', 'origin')
       await fs.mkdir(fakeRefDir, { recursive: true })

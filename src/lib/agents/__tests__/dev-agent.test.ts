@@ -1,6 +1,6 @@
 // Dev Claw 测试
 
-import { DevAgent, DevAgentMode } from '../dev-agent'
+import { DevAgent } from '../dev-agent'
 import { Task, AgentContext } from '../types'
 import { OpenClawAgentExecutor } from '../../gateway/executor'
 

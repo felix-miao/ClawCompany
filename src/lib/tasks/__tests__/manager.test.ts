@@ -345,7 +345,7 @@ describe('TaskManager', () => {
       const t3 = tm.createTask('C', 'c', 'dev')
       const t4 = tm.createTask('D', 'd', 'dev')
       const t5 = tm.createTask('E', 'e', 'dev')
-      const _t6 = tm.createTask('F', 'f', 'dev')
+      tm.createTask('F', 'f', 'dev')
 
       tm.updateTaskStatus(t1.id, 'in_progress')
       tm.updateTaskStatus(t2.id, 'in_progress')

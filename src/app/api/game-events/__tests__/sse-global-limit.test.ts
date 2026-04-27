@@ -2,7 +2,7 @@ import { ReadableStream as NodeReadableStream } from 'node:stream/web'
 
 jest.mock('next/server', () => ({
   NextRequest: class MockNextRequest {
-    constructor(url: string) {}
+    constructor(_url: string) {}
   },
   NextResponse: {
     json: (data: unknown, options?: { status?: number }) => ({
@@ -23,8 +23,10 @@ jest.mock('@/lib/gateway/session-poller', () => ({
   getSessionPoller: jest.fn(() => null),
 }))
 
+import { GET } from '../route'
+import { getConnectionStats, resetConnectionCounters, acquireConnection, releaseConnection } from '../route-helpers'
+
 import { getSessionPoller } from '@/lib/gateway/session-poller'
-import { GET, getConnectionStats, resetConnectionCounters, acquireConnection, releaseConnection } from '../route'
 
 describe('SSE Global Connection Limit', () => {
   beforeAll(() => {

@@ -1,26 +1,4 @@
-import { AnimationController, AnimationState } from '../AnimationController';
-
-interface MockSceneTime {
-  now: number;
-}
-
-interface MockSceneAnims {
-  get: jest.Mock<(key: string) => { key: string } | undefined>;
-  create: jest.Mock;
-}
-
-interface MockScene {
-  time: MockSceneTime;
-  anims: MockSceneAnims;
-}
-
-interface MockSprite {
-  scene: MockScene;
-  play: jest.Mock;
-  setFlipX: jest.Mock;
-  anims: { stop: jest.Mock };
-  flipX: boolean;
-}
+import { AnimationController } from '../AnimationController';
 
 function createMockSprite(timeNow: number = 0) {
   const animations = new Map<string, { key: string }>();

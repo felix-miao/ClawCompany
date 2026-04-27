@@ -1,6 +1,6 @@
+import { GatewayAgent, GatewaySession, SessionSyncService } from './session-sync'
+
 import { GameEventStore } from '@/game/data/GameEventStore'
-import { SessionSyncService, GatewayAgent, GatewaySession } from './session-sync'
-import { AgentInfo } from '@/game/data/DashboardStore'
 
 export interface SessionPollerOptions {
   interval?: number
@@ -23,7 +23,6 @@ export class SessionPollerService {
   private readonly store: GameEventStore
   private readonly sync: SessionSyncService
   private readonly interval: number
-  // [DIAG] 唯一标识每个实例，用于确认 HMR 后是否复用同一个实例
   readonly instanceId: string = Math.random().toString(36).slice(2, 8)
   private timer: ReturnType<typeof setInterval> | null = null
   private running = false
@@ -42,10 +41,6 @@ export class SessionPollerService {
     if (this.running) return
     this.running = true
     this.firstPoll = true
-    // [DIAG] 打印 poller 实例标识，确认是同一个实例被复用（HMR 安全验证）
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[SessionPoller] start instanceId=${this.instanceId} interval=${this.interval}ms`)
-    }
     this.poll()
     this.timer = setInterval(() => this.poll(), this.interval)
   }
@@ -56,9 +51,6 @@ export class SessionPollerService {
       this.timer = null
     }
     this.running = false
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[SessionPoller] stop instanceId=${this.instanceId}`)
-    }
   }
 
   isRunning(): boolean {
@@ -174,7 +166,6 @@ export function createSessionPoller(store: GameEventStore, sync?: SessionSyncSer
 // 避免多个 setInterval 并发运行导致 listener 无限堆积。
 //
 declare global {
-  // eslint-disable-next-line no-var
   var __sessionPoller: SessionPollerService | undefined
 }
 
