@@ -198,7 +198,7 @@ Dashboard
 - [code-complete] #236 `/api/game-events/route.ts` 暴露测试辅助函数破坏 Next route 类型约束 → 抽到独立 helper / 测试入口
 - [code-complete] #237 Phaser mock 类型把 interface 当 value 使用 → 重构 mock ctor 类型，消除 `TS2693`
 - [code-complete] #238 Chat / Team 页面测试噪音过大 → 修复重复 message key 与未包裹 `act(...)` 的异步状态更新告警
-- [ ] #239 收敛剩余 lint 警告（`no-unused-vars` / `no-console` / `import/order`），恢复工程健康基线
+- [code-complete] #239 收敛剩余 lint 警告（`no-unused-vars` / `no-console` / `import/order`），恢复工程健康基线
 
 ### Batch 1: 消息路由与私有 Inbox 系统
 

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import DashboardPage from '../page';
+import { DashboardClient } from '../DashboardClient';
 
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
@@ -92,7 +93,9 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
 }));
 
 jest.mock('@/components/dashboard/DashboardGameBridge', () => ({
-  DashboardGameBridge: () => <div data-testid="dashboard-game-bridge" />,
+  DashboardGameBridge: ({ gameEvents }: { gameEvents: unknown[] }) => (
+    <div data-testid="dashboard-game-bridge" data-event-count={gameEvents.length} />
+  ),
 }));
 
 jest.mock('@/lib/core/metrics-aggregator', () => ({
@@ -114,9 +117,27 @@ jest.mock('@/lib/core/logger', () => ({
 }));
 
 describe('DashboardPage', () => {
+  it('should keep the route entry as an SSR-safe server wrapper', () => {
+    expect(DashboardPage.toString()).not.toContain('useOpenClawSnapshot');
+    expect(DashboardPage.toString()).not.toContain('DashboardGameBridge');
+  });
+
   it('should render dashboard title', () => {
     render(<DashboardPage />);
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
+  });
+
+  it('should render the client dashboard from the server wrapper', () => {
+    render(<DashboardPage />);
+
+    expect(screen.getByText('Dashboard')).toBeInTheDocument();
+  });
+
+  it('should derive game bridge events from the OpenClaw snapshot used by timeline', () => {
+    render(<DashboardClient />);
+
+    const bridge = screen.getByTestId('dashboard-game-bridge');
+    expect(bridge).toHaveAttribute('data-event-count', '5');
   });
 
   it('should render connection status', () => {

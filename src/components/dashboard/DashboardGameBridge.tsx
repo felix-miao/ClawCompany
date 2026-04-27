@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { useEventStream } from '@/hooks/useEventStream';
-import { DashboardStore } from '@/game/data/DashboardStore';
 import type { GameEvent } from '@/game/types/GameEvents';
 
 type DashboardGameInstance = {
@@ -13,6 +11,7 @@ type DashboardGameInstance = {
 
 interface DashboardGameBridgeProps {
   activeView: 'game' | 'timeline';
+  gameEvents: GameEvent[];
   onTriggerTaskHandlerChange?: (handler: (taskId: string) => void) => void;
 }
 
@@ -24,14 +23,12 @@ const GAME_EVENTS_TO_FORWARD: GameEvent['type'][] = [
   'agent:status-change',
 ];
 
-export function DashboardGameBridge({ activeView, onTriggerTaskHandlerChange = () => {} }: DashboardGameBridgeProps) {
-  const store = useMemo(() => new DashboardStore(), []);
+export function DashboardGameBridge({ activeView, gameEvents, onTriggerTaskHandlerChange = () => {} }: DashboardGameBridgeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<DashboardGameInstance | null>(null);
+  const forwardedEventKeysRef = useRef<Set<string>>(new Set());
   const [isGameLoading, setIsGameLoading] = useState(true);
   const [gameError, setGameError] = useState<string | null>(null);
-
-  useEventStream(store);
 
   const handleTriggerTask = useCallback(() => {
     gameRef.current?.receiveGameEvent?.({
@@ -41,21 +38,6 @@ export function DashboardGameBridge({ activeView, onTriggerTaskHandlerChange = (
       timestamp: Date.now(),
     } as GameEvent);
   }, []);
-
-  useEffect(() => {
-    const originalProcessEvent = store.processEvent.bind(store);
-
-    store.processEvent = (event: GameEvent) => {
-      originalProcessEvent(event);
-      if (GAME_EVENTS_TO_FORWARD.includes(event.type)) {
-        gameRef.current?.receiveGameEvent?.(event);
-      }
-    };
-
-    return () => {
-      store.processEvent = originalProcessEvent;
-    };
-  }, [store]);
 
   useEffect(() => {
     onTriggerTaskHandlerChange(handleTriggerTask);
@@ -85,6 +67,7 @@ export function DashboardGameBridge({ activeView, onTriggerTaskHandlerChange = (
           startedGame = startGame('dashboard-game-container') as DashboardGameInstance;
           gameRef.current = startedGame;
           setGameError(null);
+          forwardedEventKeysRef.current.clear();
         } catch (err) {
           if (!cancelled) {
             setGameError(err instanceof Error ? err.message : '游戏加载失败');
@@ -115,6 +98,22 @@ export function DashboardGameBridge({ activeView, onTriggerTaskHandlerChange = (
       }
     };
   }, [activeView]);
+
+  const forwardableEvents = useMemo(
+    () => gameEvents.filter(event => GAME_EVENTS_TO_FORWARD.includes(event.type)),
+    [gameEvents],
+  );
+
+  useEffect(() => {
+    if (!gameRef.current) return;
+
+    for (const event of forwardableEvents) {
+      const eventKey = `${event.type}:${event.agentId ?? ''}:${event.timestamp}:${JSON.stringify(event)}`;
+      if (forwardedEventKeysRef.current.has(eventKey)) continue;
+      forwardedEventKeysRef.current.add(eventKey);
+      gameRef.current.receiveGameEvent?.(event);
+    }
+  }, [forwardableEvents]);
 
   return (
     <div className="glass rounded-2xl p-2 border border-dark-100 flex-1 flex items-center justify-center overflow-hidden">

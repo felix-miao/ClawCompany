@@ -157,7 +157,7 @@ describe('Task Lifecycle E2E', () => {
 
     it('should execute agents in correct order: pm -> dev -> review', async () => {
       mockAgentManager.executeAgent.mockImplementation(
-        async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
+        async (role: AgentRole, task: Task): Promise<AgentResponse> => {
           executionLog.push({ role, action: 'executeAgent', taskId: task.id, timestamp: Date.now() })
 
           if (role === 'pm') {

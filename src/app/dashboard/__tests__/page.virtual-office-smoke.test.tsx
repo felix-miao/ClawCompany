@@ -40,13 +40,10 @@ jest.mock('@/game', () => ({
 
 // ── Mock hooks ───────────────────────────────────────────────────────────────
 
-let capturedStore: { processEvent: (e: unknown) => void } | null = null
+const mockUseEventStream = jest.fn()
 
 jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: jest.fn((store: { processEvent: (e: unknown) => void }) => {
-    capturedStore = store
-    return { isConnected: true, isReconnecting: false }
-  }),
+  useEventStream: mockUseEventStream,
 }))
 
 jest.mock('@/hooks/useDashboardStore', () => ({
@@ -139,7 +136,14 @@ import DashboardPage from '@/app/dashboard/page'
 describe('Virtual Office E2E Smoke Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    capturedStore = null
+  })
+
+  it('STEP 0: SSR 安全 - page 入口不应订阅 event stream 或导入 game bridge', async () => {
+    const pageModule = await import('@/app/dashboard/page')
+
+    expect(pageModule.default.toString()).not.toContain('useEventStream')
+    expect(pageModule.default.toString()).not.toContain('DashboardGameBridge')
+    expect(mockUseEventStream).not.toHaveBeenCalled()
   })
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -243,9 +247,10 @@ describe('Virtual Office E2E Smoke Tests', () => {
 
     // 等待事件处理
     await waitFor(() => {
-      // 验证 game 收到了事件（通过 mock 验证）
-      // 注意：由于 game 是 mock 的，我们验证 store.processEvent 被调用
-      expect(capturedStore).not.toBeNull()
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/game-events',
+        expect.objectContaining({ method: 'POST' }),
+      )
     })
   })
 
@@ -338,19 +343,9 @@ describe('Virtual Office E2E Smoke Tests', () => {
       )
     })
 
-    // 模拟 SSE 事件
-    if (capturedStore) {
-      await act(async () => {
-        capturedStore.processEvent({
-          type: 'pm:analysis-complete',
-          agentId: 'pm-agent',
-          timestamp: Date.now(),
-          payload: { projectId: 'test', taskCount: 1 },
-        })
-      })
-    }
+    expect(mockUseEventStream).not.toHaveBeenCalled()
 
-    // 验证事件被处理（页面没有崩溃）
+    // 验证 snapshot 单一数据源路径下页面没有崩溃
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
   })
 

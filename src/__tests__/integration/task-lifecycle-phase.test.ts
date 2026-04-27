@@ -118,7 +118,7 @@ describe('Task Lifecycle - Phase Tracking', () => {
       }
 
       mockAgentManager.executeAgent.mockImplementation(
-        async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
+        async (role: AgentRole, task: Task): Promise<AgentResponse> => {
           if (role === 'pm') {
             recordPhase('pm_analyzing', { taskId: task.id, title: task.title })
             return {
