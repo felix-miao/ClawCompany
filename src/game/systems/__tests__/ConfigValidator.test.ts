@@ -1,4 +1,4 @@
-import { ConfigValidator, GameConfig, ValidationResult, AgentConfigInput } from '../ConfigValidator';
+import { ConfigValidator, GameConfig, AgentConfigInput } from '../ConfigValidator';
 
 describe('ConfigValidator', () => {
   let validator: ConfigValidator;

@@ -16,8 +16,6 @@ const ARTIFACT_TYPE_ICONS: Record<string, string> = {
   url: '🔗',
 };
 
-const PREVIEWABLE_TYPES = ['html', 'htm'];
-
 interface SessionArtifactsPanelProps {
   sessions: OpenClawSessionDetails[];
   onOpenResult?: (artifact: OpenClawArtifact, session: OpenClawSessionDetails) => void;

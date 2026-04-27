@@ -179,7 +179,7 @@ describe('Orchestrator - Edge Cases', () => {
       await new Promise(r => setTimeout(r, 50))
       orchestrator.abortWorkflow()
 
-      const _result = await workflowPromise
+      await workflowPromise
       const queueStats = orchestrator.getTaskQueueStats()
       expect(queueStats).toBeDefined()
     })

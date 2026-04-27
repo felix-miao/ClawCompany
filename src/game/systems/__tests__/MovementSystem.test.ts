@@ -29,17 +29,6 @@ interface MockCursors {
   down: MockKey;
 }
 
-interface MockScene {
-  input: {
-    keyboard: {
-      createCursorKeys: jest.Mock;
-      addKeys: jest.Mock;
-    };
-  };
-  cursors: MockCursors;
-  wasd: MockCursors;
-}
-
 function createMockKey(isDown: boolean = false): MockKey {
   return { isDown };
 }
@@ -57,32 +46,6 @@ function createMockAgent(): MockAgent {
     },
     flipX: false,
     setVelocityY: jest.fn(),
-  };
-}
-
-function createMockScene(): MockScene {
-  const cursors: MockCursors = {
-    left: createMockKey(),
-    right: createMockKey(),
-    up: createMockKey(),
-    down: createMockKey(),
-  };
-  const wasd: MockCursors = {
-    left: createMockKey(),
-    right: createMockKey(),
-    up: createMockKey(),
-    down: createMockKey(),
-  };
-
-  return {
-    input: {
-      keyboard: {
-        createCursorKeys: jest.fn(() => cursors),
-        addKeys: jest.fn(() => wasd),
-      },
-    },
-    cursors,
-    wasd,
   };
 }
 

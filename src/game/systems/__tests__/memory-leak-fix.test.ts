@@ -99,13 +99,12 @@ describe('Memory Leak Fixes', () => {
       const tweenMgr = createMockTweenManager();
       const { scene } = createMockAgentDeps(tweenMgr);
 
-      let innerTweenDestroyed = false;
-      const outerTween = scene.tweens.add({
+      scene.tweens.add({
         targets: { scaleX: 0.8 },
         scaleX: 1,
         duration: 80,
         onComplete: () => {
-          const innerTween = scene.tweens.add({
+          scene.tweens.add({
             targets: { scaleX: 1 },
             scaleX: 1,
             duration: 100,

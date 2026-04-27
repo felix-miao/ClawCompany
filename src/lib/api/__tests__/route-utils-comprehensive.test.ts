@@ -2,11 +2,9 @@ import {
   errorResponse,
   successResponse,
   withErrorHandling,
-  withRateLimit,
   withRecovery,
   withAuth,
   requireApiKey,
-  getClientId,
   checkRateLimit,
 } from '../route-utils'
 

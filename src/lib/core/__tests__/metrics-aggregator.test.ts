@@ -2,7 +2,6 @@ import { MetricsAggregator, MetricsDataSource } from '../metrics-aggregator'
 import { PerformanceMonitor } from '../performance-monitor'
 import { ErrorTracker } from '../error-tracker'
 import { StructuredLogger } from '../structured-logger'
-import { MetricEntry } from '../performance-monitor'
 
 describe('MetricsAggregator', () => {
   let metricsAggregator: MetricsAggregator

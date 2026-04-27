@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { RateLimiter } from '@/lib/security/utils'
-import { isAppError, AppError, ErrorCategory, ErrorSeverity } from '@/lib/core/errors'
+import { isAppError, ErrorCategory, ErrorSeverity } from '@/lib/core/errors'
 import { logger } from '@/lib/core/logger'
 
 export function getClientId(request: NextRequest): string {

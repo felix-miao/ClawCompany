@@ -93,7 +93,7 @@ export class GitManager {
         ahead,
         behind
       }
-    } catch (error) {
+    } catch {
       return {
         isRepo: false,
         branch: '',
@@ -130,7 +130,7 @@ export class GitManager {
 
       await this.add()
 
-      const { stdout } = await this.exec('git', ['commit', '-m', message])
+      await this.exec('git', ['commit', '-m', message])
 
       const { stdout: hash } = await this.exec('git', ['rev-parse', 'HEAD'])
 
@@ -214,7 +214,7 @@ export class GitManager {
           date
         }
       })
-    } catch (error) {
+    } catch {
       return []
     }
   }

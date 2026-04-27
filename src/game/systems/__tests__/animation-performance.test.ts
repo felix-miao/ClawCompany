@@ -1,4 +1,4 @@
-import { AnimationController, AnimationState } from '../AnimationController';
+import { AnimationController } from '../AnimationController';
 
 function createMockSprite(timeNow: number = 0) {
   const animations = new Map<string, { key: string }>();

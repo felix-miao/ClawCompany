@@ -1,5 +1,5 @@
 import { DataExportService, ExportFilters } from '../DataExportService';
-import { TaskHistoryStore, TaskHistoryRecord } from '../TaskHistoryStore';
+import { TaskHistoryStore } from '../TaskHistoryStore';
 import { GameEventStore } from '../GameEventStore';
 import { Task, TaskStatus } from '../../types/Task';
 import { GameEvent } from '../../types/GameEvents';

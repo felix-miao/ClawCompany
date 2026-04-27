@@ -1,4 +1,4 @@
-import { PerformanceMonitor, FrameStats } from '../PerformanceMonitor';
+import { PerformanceMonitor } from '../PerformanceMonitor';
 
 describe('PerformanceMonitor - Panel Interaction', () => {
   let monitor: PerformanceMonitor;

@@ -1,4 +1,4 @@
-import { NavigationController, NavigationTask, NavigationState } from '../NavigationController';
+import { NavigationController, NavigationTask } from '../NavigationController';
 
 interface MockBody {
   velocity: { x: number; y: number };

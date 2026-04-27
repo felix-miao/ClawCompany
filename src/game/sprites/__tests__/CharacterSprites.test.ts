@@ -38,7 +38,7 @@ jest.mock('phaser', () => {
 });
 
 const Phaser = require('phaser');
-const { mockScene, graphicsInstances } = Phaser.__mocks;
+const { mockScene } = Phaser.__mocks;
 
 describe('CharacterSprites', () => {
   let sprites: CharacterSprites;

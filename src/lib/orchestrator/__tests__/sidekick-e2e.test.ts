@@ -89,7 +89,7 @@ describe('E2E - Sidekick Task Dispatch Workflow', () => {
   // ─── Helper: default agent responses ───
   const setupDefaultAgentResponses = () => {
     mockAgentManager.executeAgent.mockImplementation(
-      async (role: AgentRole, task: Task): Promise<AgentResponse> => {
+      async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
         executionLog.push({ role, action: 'executeAgent', timestamp: Date.now() })
 
         switch (role) {

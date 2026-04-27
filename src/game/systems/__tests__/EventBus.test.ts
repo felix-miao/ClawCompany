@@ -2,7 +2,6 @@ import { EventBus } from '../EventBus';
 import {
   AgentStatusEvent,
   TaskAssignedEvent,
-  GameEvent,
 } from '../../types/GameEvents';
 
 describe('EventBus', () => {

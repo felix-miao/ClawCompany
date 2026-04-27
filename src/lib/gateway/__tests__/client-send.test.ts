@@ -12,7 +12,7 @@ class MockWebSocket {
 
   private sentMessages: any[] = []
 
-  constructor(url: string) {
+  constructor(_url: string) {
     MockWebSocket.instances.push(this)
     setTimeout(() => {
       this.readyState = WebSocket.OPEN

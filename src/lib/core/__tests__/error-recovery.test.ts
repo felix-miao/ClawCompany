@@ -1,10 +1,7 @@
 import {
   ErrorRecovery,
   RecoveryStrategy,
-  RecoveryResult,
   CircuitState,
-  RetryOptions,
-  RetryResult,
 } from '../error-recovery'
 import { AppError, AgentError, LLMError, ErrorCategory, ErrorSeverity } from '../errors'
 
@@ -183,7 +180,6 @@ describe('ErrorRecovery', () => {
     })
 
     it('should reset circuit on successful execution', async () => {
-      let callCount = 0
       for (let i = 0; i < 5; i++) {
         await recovery.retryWithCircuitBreaker({
           circuitKey: 'reset-test',

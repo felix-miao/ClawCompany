@@ -1,4 +1,4 @@
-import { PerformanceMonitor, FrameStats, PerformanceAlert } from '../PerformanceMonitor';
+import { PerformanceMonitor } from '../PerformanceMonitor';
 
 describe('PerformanceMonitor', () => {
   let monitor: PerformanceMonitor;

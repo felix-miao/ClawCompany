@@ -2,7 +2,6 @@ import {
   ParticleSystem,
   ParticleEffectType,
   ParticleEffectConfig,
-  ParticlePreset,
 } from '../ParticleSystem';
 
 describe('ParticleSystem', () => {

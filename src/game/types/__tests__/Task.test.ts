@@ -4,7 +4,6 @@ import {
   GAME_STATUS_VALUES,
   GAME_TO_LIB_STATUS,
   LIB_TO_GAME_STATUS,
-  GameTaskStatus,
   GameTaskType,
   GameTask,
   GameTaskMetadata,

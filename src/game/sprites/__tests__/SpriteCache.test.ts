@@ -1,4 +1,4 @@
-import { SpriteCache, SpriteCacheEntry, SpriteCacheConfig } from '../SpriteCache';
+import { SpriteCache } from '../SpriteCache';
 import { MemoryManager } from '../../systems/MemoryManager';
 
 describe('SpriteCache', () => {

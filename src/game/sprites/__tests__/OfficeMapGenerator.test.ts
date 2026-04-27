@@ -1,4 +1,4 @@
-import { OfficeMapGenerator, OfficeRoom, OfficeDecoration } from '../OfficeMapGenerator';
+import { OfficeMapGenerator, OfficeDecoration } from '../OfficeMapGenerator';
 
 jest.mock('phaser', () => {
   const mockGraphics = {

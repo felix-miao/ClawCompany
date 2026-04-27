@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 
 import { gameConfig, TILE_SIZE, PHYSICS_CONFIG } from '../config/gameConfig';
-import { AgentCharacter, createAgent } from '../characters/AgentCharacter';
-import { AnimationController, AnimationState } from '../systems/AnimationController';
+import { AgentCharacter } from '../characters/AgentCharacter';
+import { AnimationController } from '../systems/AnimationController';
 import { MovementSystem } from '../systems/MovementSystem';
 import { NavigationController } from '../systems/NavigationController';
 import { PathfindingSystem } from '../systems/PathfindingSystem';
@@ -12,7 +12,7 @@ import { NavigationDebug } from '../utils/NavigationDebug';
 import { OfficeDecorator } from '../ui/OfficeDecorator';
 import { TargetMarker } from '../ui/TargetMarker';
 import { CharacterSprites } from '../sprites/CharacterSprites';
-import { Game, startGame } from '../index';
+import { Game } from '../index';
 
 describe('Phaser Import Verification', () => {
   describe('default import', () => {

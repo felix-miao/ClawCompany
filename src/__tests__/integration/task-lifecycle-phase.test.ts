@@ -16,7 +16,7 @@ import { AgentManager } from '@/lib/agents/manager'
 import { TaskManager } from '@/lib/tasks/manager'
 import { ChatManager } from '@/lib/chat/manager'
 import { SandboxedFileWriter } from '@/lib/security/sandbox'
-import type { AgentRole, Task, AgentResponse, AgentContext } from '@/lib/core/types'
+import type { AgentRole, Task, AgentResponse } from '@/lib/core/types'
 
 type LifecyclePhase = 'request_submitted' | 'pm_analyzing' | 'pm_completed' | 'dev_executing' | 'dev_completed' | 'review_executing' | 'review_completed' | 'result_aggregated'
 
@@ -118,7 +118,7 @@ describe('Task Lifecycle - Phase Tracking', () => {
       }
 
       mockAgentManager.executeAgent.mockImplementation(
-        async (role: AgentRole, task: Task): Promise<AgentResponse> => {
+        async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
           if (role === 'pm') {
             recordPhase('pm_analyzing', { taskId: task.id, title: task.title })
             return {
@@ -225,7 +225,7 @@ describe('Task Lifecycle - Phase Tracking', () => {
       let devAttempts = 0
       
       mockAgentManager.executeAgent.mockImplementation(
-        async (role: AgentRole, task: Task): Promise<AgentResponse> => {
+        async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
           if (role === 'pm') {
             phases.push({ phase: 'pm_analyzing', timestamp: Date.now() })
             return {
@@ -268,7 +268,7 @@ describe('Task Lifecycle - Phase Tracking', () => {
       const phases: PhaseRecord[] = []
       
       mockAgentManager.executeAgent.mockImplementation(
-        async (role: AgentRole, task: Task): Promise<AgentResponse> => {
+        async (role: AgentRole, _task: Task): Promise<AgentResponse> => {
           if (role === 'pm') {
             return {
               agent: 'pm',

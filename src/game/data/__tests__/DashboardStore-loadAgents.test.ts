@@ -1,4 +1,5 @@
 import { DashboardStore, AgentInfo } from '../DashboardStore'
+
 import { createDefaultAgents } from '@/lib/gateway/default-agents'
 
 describe('DashboardStore.loadAgents', () => {

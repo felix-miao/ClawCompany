@@ -59,21 +59,21 @@ describe('VirtualJoystick', () => {
 
   describe('create joystick', () => {
     it('should create joystick with default config', () => {
-      const joystick = new VirtualJoystick(mockScene);
+      new VirtualJoystick(mockScene);
 
       expect(mockScene.add.container).toHaveBeenCalled();
       expect(mockScene.add.graphics).toHaveBeenCalled();
     });
 
     it('should be hidden by default', () => {
-      const joystick = new VirtualJoystick(mockScene);
+      new VirtualJoystick(mockScene);
       const container = mockScene.add.container.mock.results[0].value;
 
       expect(container.setVisible).toHaveBeenCalledWith(false);
     });
 
     it('should accept custom position and size', () => {
-      const joystick = new VirtualJoystick(mockScene, {
+      new VirtualJoystick(mockScene, {
         x: 100,
         y: 400,
         radius: 50,
@@ -114,7 +114,7 @@ describe('VirtualJoystick', () => {
 
   describe('touch input handling', () => {
     it('should register pointer down handler', () => {
-      const joystick = new VirtualJoystick(mockScene);
+      new VirtualJoystick(mockScene);
 
       expect(mockScene.input.on).toHaveBeenCalledWith(
         'pointerdown',
@@ -124,7 +124,7 @@ describe('VirtualJoystick', () => {
     });
 
     it('should register pointer move handler', () => {
-      const joystick = new VirtualJoystick(mockScene);
+      new VirtualJoystick(mockScene);
 
       expect(mockScene.input.on).toHaveBeenCalledWith(
         'pointermove',
@@ -134,7 +134,7 @@ describe('VirtualJoystick', () => {
     });
 
     it('should register pointer up handler', () => {
-      const joystick = new VirtualJoystick(mockScene);
+      new VirtualJoystick(mockScene);
 
       expect(mockScene.input.on).toHaveBeenCalledWith(
         'pointerup',

@@ -82,7 +82,7 @@ describe('Orchestrator - Parallel Task Execution', () => {
 
       const startTime = Date.now()
       const result = await orchestrator.executeUserRequest('build three independent features')
-      const _totalTime = Date.now() - startTime
+      Date.now() - startTime
 
       const devExecutions = executionTimes.filter((e) => !e.id.startsWith('pm'))
 
@@ -165,7 +165,6 @@ describe('Orchestrator - Parallel Task Execution', () => {
         .mockReturnValueOnce(makeTask('dev-1'))
         .mockReturnValueOnce(makeTask('dev-2'))
 
-      let devCallCount = 0
       ;(agentManager.executeAgent as jest.Mock)
         .mockImplementationOnce(async () => ({
           message: 'PM done',
@@ -175,7 +174,6 @@ describe('Orchestrator - Parallel Task Execution', () => {
           ],
         }))
         .mockImplementation(async (_role: string, task: any) => {
-          devCallCount++
           if (task.id === 'dev-1' && _role === 'dev') {
             throw new Error('Dev 1 failed')
           }

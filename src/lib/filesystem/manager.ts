@@ -330,7 +330,7 @@ export class FileSystemManager {
           files.push(relativePath)
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // 忽略无法读取的目录
     }
 
@@ -344,7 +344,7 @@ export class FileSystemManager {
   async cleanup(): Promise<void> {
     try {
       await fs.rm(this.rootDir, { recursive: true, force: true })
-    } catch (error) {
+    } catch (_error) {
       // 忽略清理错误
     }
   }

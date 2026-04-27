@@ -581,7 +581,7 @@ describe('Orchestrator - 错误处理和重试机制', () => {
         return { message: 'Success', tasks: [], files: [] }
       })
       
-      const _result = await orchestrator.executeUserRequest('test request')
+      await orchestrator.executeUserRequest('test request')
       
       expect(attemptCount).toBeGreaterThan(1)
     }, 10000)
@@ -1108,7 +1108,6 @@ describe('Orchestrator - 错误处理和重试机制', () => {
           updatedAt: new Date(),
         })
 
-      let callCount = 0
       ;(agentManager.executeAgent as jest.Mock)
         .mockImplementationOnce(async () => {
           return {
@@ -1120,19 +1119,15 @@ describe('Orchestrator - 错误处理和重试机制', () => {
           }
         })
         .mockImplementationOnce(async () => {
-          callCount++
           throw new Error('Unexpected crash')
         })
         .mockImplementationOnce(async () => {
-          callCount++
           throw new Error('Unexpected crash')
         })
         .mockImplementationOnce(async () => {
-          callCount++
           throw new Error('Unexpected crash')
         })
         .mockImplementationOnce(async () => {
-          callCount++
           throw new Error('Unexpected crash')
         })
         .mockImplementationOnce(async () => {

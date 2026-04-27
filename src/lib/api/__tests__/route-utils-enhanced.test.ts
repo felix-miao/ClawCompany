@@ -1,14 +1,9 @@
 import {
   errorResponse,
-  successResponse,
   withErrorHandling,
-  withRateLimit,
   withRecovery,
-  getClientId,
-  checkRateLimit,
 } from '../route-utils'
 
-import { RateLimiter } from '@/lib/security/utils'
 import { AppError, ValidationError, AgentError, ErrorCategory, ErrorSeverity } from '@/lib/core/errors'
 import { logger } from '@/lib/core/logger'
 

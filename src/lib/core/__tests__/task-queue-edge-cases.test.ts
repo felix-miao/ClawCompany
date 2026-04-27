@@ -286,7 +286,7 @@ describe('TaskQueue - Edge Cases', () => {
         queue.add(async () => i)
       )
 
-      const results = await Promise.allSettled(tasks)
+      await Promise.allSettled(tasks)
       const stats = queue.getStats()
       expect(stats.completed).toBe(100)
       expect(stats.failed).toBe(0)

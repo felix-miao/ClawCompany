@@ -88,7 +88,6 @@ describe('OpenClawGatewayClient', () => {
     
     it('连接失败时应该抛出错误', async () => {
       await client.connect()
-      const ws = MockWebSocket.instances[0]
       
       const newClient = new OpenClawGatewayClient('ws://127.0.0.1:18789')
       const connectPromise = newClient.connect()

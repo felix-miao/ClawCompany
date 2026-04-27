@@ -1,6 +1,5 @@
 import { PMAgent } from '../pm-agent'
 import { Task, AgentContext } from '../types'
-import { PMAgentResponseSchema } from '../schemas'
 
 jest.mock('../../llm/factory', () => ({
   getLLMProvider: jest.fn(),

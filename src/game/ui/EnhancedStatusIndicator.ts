@@ -69,7 +69,6 @@ const PRIORITY_CONFIG = {
   },
 } as const;
 
-const ANIMATION_DURATION = 300;
 const PULSE_DURATION = 1000;
 const GLOW_DURATION = 2000;
 

@@ -1,12 +1,14 @@
 import { getConnectionStats as gcs, acquireConnection as ac, releaseConnection as rc, resetConnectionCounters as rcc } from '@/lib/gateway/sse-connections'
+import { createLogger } from '@/lib/core/logger'
 
 let sseSubscriberCount = 0
+const logger = createLogger('game-events-route-helpers')
 
 export function acquireConnection(ip: string): boolean {
   const result = ac(ip)
   if (result && process.env.NODE_ENV === 'development') {
     const stats = gcs()
-    console.log(`[SSE] acquireConnection ip=${ip} totalConnections=${stats.totalConnections} sseSubscriberCount=${sseSubscriberCount}`)
+    logger.debug('[SSE] acquireConnection', { ip, totalConnections: stats.totalConnections, sseSubscriberCount })
   }
   return result
 }
@@ -15,7 +17,7 @@ export function releaseConnection(ip: string): void {
   rc(ip)
   if (process.env.NODE_ENV === 'development') {
     const stats = gcs()
-    console.log(`[SSE] releaseConnection ip=${ip} totalConnections=${stats.totalConnections} sseSubscriberCount=${sseSubscriberCount}`)
+    logger.debug('[SSE] releaseConnection', { ip, totalConnections: stats.totalConnections, sseSubscriberCount })
   }
 }
 

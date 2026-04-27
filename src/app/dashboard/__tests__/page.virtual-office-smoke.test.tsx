@@ -226,7 +226,7 @@ describe('Virtual Office E2E Smoke Tests', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   it('STEP 4: 动画/动作 - 状态变化事件应该被发送到 game engine', async () => {
-    const { container } = render(React.createElement(DashboardPage))
+    render(React.createElement(DashboardPage))
     
     await act(async () => {
       await new Promise(r => setTimeout(r, 100))

@@ -8,8 +8,6 @@ const TestSchema = z.object({
   tags: z.array(z.string()).default([]),
 })
 
-type TestType = z.infer<typeof TestSchema>
-
 class TestAgent extends BaseAgent {
   constructor() {
     super('test-1', 'Test Agent', 'dev', 'test')

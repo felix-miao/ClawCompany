@@ -20,7 +20,7 @@ jest.mock('next/server', () => {
     headers: { get: (name: string) => string | null }
     json: () => Promise<unknown>
     signal: AbortSignal
-    constructor(input: string | URL, init?: RequestInit) {
+    constructor(input: string | URL, _init?: RequestInit) {
       this.url = typeof input === 'string' ? input : input.toString()
       this.headers = { get: () => null }
       this.json = () => Promise.resolve({})

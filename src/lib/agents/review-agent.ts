@@ -132,7 +132,6 @@ export class ReviewAgent extends BaseAgent {
   ): { message: string; approved: boolean } {
     const checks = this.runCodeChecks(task, context)
     const issues = checks.filter(c => !c.passed && !c.warning)
-    const warnings = checks.filter(c => c.warning)
 
     let message = `📋 代码审查报告 - **${task.title}**\n\n`
 

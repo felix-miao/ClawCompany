@@ -1,6 +1,5 @@
 import {
   AppError,
-  isAppError,
   toAppError,
   ErrorSeverity,
 } from './errors'

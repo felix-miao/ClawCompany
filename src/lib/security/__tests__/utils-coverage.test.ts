@@ -73,7 +73,6 @@ describe('APIKeyManager - saveToEnv', () => {
   })
 
   it('should save encrypted key to .env.local file', async () => {
-    const _originalCwd = process.cwd()
     const envPath = path.join(testDir, '.env.local')
     await fs.mkdir(testDir, { recursive: true })
 
@@ -89,7 +88,6 @@ describe('APIKeyManager - saveToEnv', () => {
   })
 
   it('should update existing GLM_API_KEY in .env.local', async () => {
-    const _originalCwd = process.cwd()
     const envPath = path.join(testDir, '.env.local')
     await fs.mkdir(testDir, { recursive: true })
     await fs.writeFile(envPath, 'OTHER_VAR=hello\nGLM_API_KEY=old-value\n', 'utf8')

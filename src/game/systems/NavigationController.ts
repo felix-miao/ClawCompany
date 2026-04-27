@@ -192,7 +192,7 @@ export class NavigationController {
         this.debugGraphics.lineBetween(point.x, point.y, nextPoint.x, nextPoint.y);
       }
 
-      this.currentPath.forEach((point, index) => {
+      this.currentPath.forEach((point) => {
         const color = point.action === 'jump' ? 0xff0000 : 0x00ff00;
         this.debugGraphics!.fillStyle(color, 1);
         this.debugGraphics!.fillCircle(point.x, point.y, 4);

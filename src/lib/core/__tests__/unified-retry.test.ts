@@ -1,4 +1,4 @@
-import { UnifiedRetry, RetryExecutorOptions } from '../unified-retry'
+import { UnifiedRetry } from '../unified-retry'
 import { CircuitState } from '../error-recovery'
 import { AppError, AgentError, LLMError, ErrorCategory, ErrorSeverity } from '../errors'
 
@@ -245,10 +245,8 @@ describe('UnifiedRetry', () => {
     })
 
     it('should retry when shouldRetry returns true', async () => {
-      let callCount = 0
       const result = await retry.execute(
         async () => {
-          callCount++
           throw new AgentError('retryable', 'dev')
         },
         {

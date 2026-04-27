@@ -1,9 +1,5 @@
 import {
   PerformanceMonitor,
-  MetricType,
-  MetricEntry,
-  TimerEntry,
-  PerformanceSnapshot,
 } from '../performance-monitor'
 
 describe('PerformanceMonitor', () => {

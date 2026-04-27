@@ -126,7 +126,7 @@ export class TaskStatisticsPanel {
     y = this.renderStatRow(y, '进行中', `${stats.totalTasks - stats.completedTasks - stats.failedTasks}`, STAT_COLORS.total);
 
     if (agentRows > 0) {
-      y = this.renderAgentDistribution(y, stats);
+      this.renderAgentDistribution(y, stats);
     }
   }
 

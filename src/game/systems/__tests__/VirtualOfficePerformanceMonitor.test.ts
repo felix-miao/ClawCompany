@@ -1,8 +1,5 @@
 import {
   VirtualOfficePerformanceMonitor,
-  VirtualOfficePerformanceReport,
-  PerformanceGrade,
-  OptimizationSuggestion,
 } from '../VirtualOfficePerformanceMonitor';
 
 describe('VirtualOfficePerformanceMonitor', () => {

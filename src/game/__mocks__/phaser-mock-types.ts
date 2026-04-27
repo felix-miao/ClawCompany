@@ -66,13 +66,6 @@ export interface MockPhaserText {
   constructor: new (scene: UnknownType, x: number, y: number, text: string, style: UnknownType) => MockPhaserTextInstance;
 }
 
-interface MockPhaserGameInstance {
-  type: UnknownType;
-  parent: UnknownType;
-  scene: UnknownType[];
-  config: UnknownType;
-}
-
 export interface MockPhaserGame {
   type: UnknownType;
   parent: UnknownType;

@@ -1,3 +1,7 @@
+/* eslint-disable import/order */
+import { POST, GET, PUT } from '../route'
+import { MockGitManager, GitCommitResult, GitStatusResult, GitLogEntry } from '@/types/__mocks__/git-mock-types'
+
 jest.mock('next/server', () => ({
   NextResponse: {
     json: (data: unknown, options?: { status?: number }) => ({
@@ -6,10 +10,6 @@ jest.mock('next/server', () => ({
     }),
   },
 }))
-
-import { POST, GET, PUT } from '../route'
-
-import { MockGitManager, GitCommitResult, GitStatusResult, GitLogEntry } from '@/types/__mocks__/git-mock-types'
 
 jest.mock('@/lib/git/manager', () => {
   const mockManager: MockGitManager = {

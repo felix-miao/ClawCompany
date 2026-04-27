@@ -1,4 +1,4 @@
-import { AudioManager, AudioCategory, AudioMixerConfig } from '../AudioManager';
+import { AudioManager, AudioCategory } from '../AudioManager';
 
 describe('AudioManager', () => {
   let manager: AudioManager;

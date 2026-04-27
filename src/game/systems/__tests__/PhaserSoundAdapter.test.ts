@@ -1,6 +1,6 @@
 import { PhaserSoundAdapter } from '../PhaserSoundAdapter';
 import { SoundSystem, SoundType } from '../SoundSystem';
-import { AudioManager, AudioCategory } from '../AudioManager';
+import { AudioManager } from '../AudioManager';
 
 const mockBuffer = {
   getChannelData: jest.fn(() => new Float32Array(44100)),

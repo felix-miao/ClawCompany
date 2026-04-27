@@ -5,9 +5,6 @@
 
 import { createMockRequest } from '@/test-utils/next-request-mock'
 
-// Jest环境检查，避免导入NextRequest导致的错误
-const isJest = typeof jest !== 'undefined'
-
 describe('NextRequest Mock', () => {
   describe('Basic functionality', () => {
     it('should create a valid mock request', () => {

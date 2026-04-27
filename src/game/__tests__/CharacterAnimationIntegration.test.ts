@@ -1,5 +1,5 @@
 import { CharacterSprites } from '../sprites/CharacterSprites';
-import { AnimationController, AnimationState } from '../systems/AnimationController';
+import { AnimationController } from '../systems/AnimationController';
 
 const animationsMap = new Map([
   ['idle_0xff6b6b', { key: 'idle_0xff6b6b' }],

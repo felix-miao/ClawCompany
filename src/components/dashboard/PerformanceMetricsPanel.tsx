@@ -24,15 +24,6 @@ export function PerformanceMetricsPanel({ metricsAggregator, openClawMetrics, op
     return cleanup;
   }, [metricsAggregator]);
   
-  const getHealthColor = (health: 'healthy' | 'warning' | 'critical') => {
-    switch (health) {
-      case 'healthy': return 'text-green-400';
-      case 'warning': return 'text-yellow-400';
-      case 'critical': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
-  
   const getHealthBadge = (health: 'healthy' | 'warning' | 'critical') => {
     const colors = {
       healthy: 'bg-green-500/20 border-green-500/50',

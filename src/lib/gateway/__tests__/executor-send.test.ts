@@ -1,4 +1,4 @@
-import { OpenClawAgentExecutor, AgentExecutionResult } from '../executor'
+import { OpenClawAgentExecutor } from '../executor'
 import { OpenClawGatewayClient } from '../client'
 
 jest.mock('../client', () => ({

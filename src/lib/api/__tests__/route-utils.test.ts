@@ -2,7 +2,6 @@ import {
   errorResponse,
   successResponse,
   withErrorHandling,
-  withRateLimit,
   withAuth,
   requireApiKey,
   getClientId,

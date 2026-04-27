@@ -251,9 +251,7 @@ export class PathfindingSystem {
       const next = path[i + 1];
 
       const dx1 = current.x - prev.x;
-      const dy1 = current.y - prev.y;
       const dx2 = next.x - current.x;
-      const dy2 = next.y - current.y;
 
       if (current.action === 'jump' || Math.sign(dx1) !== Math.sign(dx2)) {
         smoothed.push(current);
@@ -285,7 +283,7 @@ export class PathfindingSystem {
       this.debugGraphics.lineBetween(point.x, point.y, nextPoint.x, nextPoint.y);
     }
 
-    this.path.forEach((point, index) => {
+    this.path.forEach((point) => {
       const color = point.action === 'jump' ? 0xff0000 : 0x00ff00;
       this.debugGraphics!.fillStyle(color, 1);
       this.debugGraphics!.fillCircle(point.x, point.y, 5);

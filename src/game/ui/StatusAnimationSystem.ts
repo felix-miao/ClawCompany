@@ -47,7 +47,7 @@ export class StatusAnimationSystem {
     this.executeStatusAnimation(agentId, animation);
   }
 
-  triggerPriorityChange(agentId: string, newPriority: string): void {
+  triggerPriorityChange(agentId: string, _newPriority: string): void {
     // 优先级变化动画 - 简化版本,不使用 killTweensOf
     const scaleTween = this.scene.tweens.add({
       targets: agentId,
@@ -75,7 +75,7 @@ export class StatusAnimationSystem {
     });
   }
 
-  triggerProgressUpdate(agentId: string, progress: number): void {
+  triggerProgressUpdate(agentId: string, _progress: number): void {
     // 进度更新动画
     const tweens: Phaser.Tweens.Tween[] = [];
 
@@ -346,7 +346,7 @@ export class StatusAnimationSystem {
 
   // 清理所有动画
   clearAllAnimations(): void {
-    for (const [agentId, tweens] of this.activeAnimations.entries()) {
+    for (const [, tweens] of this.activeAnimations.entries()) {
       tweens.forEach(tween => tween.stop());
     }
     this.activeAnimations.clear();

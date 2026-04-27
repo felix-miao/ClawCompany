@@ -1,4 +1,4 @@
-import { ActivityTracker, ActivityLog, AgentStats, ActivityContext } from '../activity-tracker'
+import { ActivityTracker } from '../activity-tracker'
 
 describe('ActivityTracker', () => {
   let tracker: ActivityTracker

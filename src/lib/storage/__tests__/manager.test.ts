@@ -16,7 +16,7 @@ describe('StorageManager', () => {
     // 清理测试数据
     try {
       await fs.rm(testDir, { recursive: true, force: true })
-    } catch (_error) {
+    } catch {
       // 忽略清理错误
     }
   })

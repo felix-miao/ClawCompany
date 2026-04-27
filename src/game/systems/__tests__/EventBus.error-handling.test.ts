@@ -1,5 +1,5 @@
 import { EventBus } from '../EventBus';
-import { GameEvent, GameEventType } from '../../types/GameEvents';
+import { GameEvent } from '../../types/GameEvents';
 
 describe('EventBus Error Handling', () => {
   let eventBus: EventBus;

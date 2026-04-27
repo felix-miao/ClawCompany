@@ -15,7 +15,12 @@
 
 import { EventEmitter } from 'events';
 import { randomUUID } from 'crypto';
+
 import { GameEvent, GameEventType } from '../types/GameEvents';
+
+import { createLogger } from '@/lib/core/logger';
+
+const logger = createLogger('GameEventStore');
 
 // ── Internal in-memory ring buffer ──────────────────────────────────────────
 
@@ -65,9 +70,9 @@ const EVENT_CHANNEL = 'game:event';
 // 将 emitter 存在 globalThis 上，确保 HMR 后复用同一个 emitter 实例。
 //
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __gameEventEmitter: EventEmitter | undefined
-  // eslint-disable-next-line no-var
+   
   var __diagTimerStarted: boolean | undefined
 }
 
@@ -95,13 +100,13 @@ if (process.env.NODE_ENV === 'development' && typeof process !== 'undefined') {
       const activeRequests = (process as NodeJS.Process & { _getActiveRequests?: () => unknown[] })
         ._getActiveRequests?.()?.length ?? -1;
       const mem = process.memoryUsage();
-      console.log(
-        `[DIAG] emitter.listeners=${listenerCount}` +
-        ` activeHandles=${activeHandles}` +
-        ` activeRequests=${activeRequests}` +
-        ` heapUsed=${Math.round(mem.heapUsed / 1024 / 1024)}MB` +
-        ` heapTotal=${Math.round(mem.heapTotal / 1024 / 1024)}MB`
-      );
+      logger.debug('[DIAG] event emitter health', {
+        listenerCount,
+        activeHandles,
+        activeRequests,
+        heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
+        heapTotalMb: Math.round(mem.heapTotal / 1024 / 1024),
+      });
     }, 60_000);
     // unref 不阻止进程退出
     if (typeof diagTimer === 'object' && diagTimer !== null && 'unref' in diagTimer) {
@@ -241,13 +246,13 @@ export class GameEventStore {
     const countAfter = processEmitter.listenerCount(EVENT_CHANNEL);
     // [DIAG] 每次 subscribe 打印当前 listener 数，帮助发现泄漏
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[GameEventStore] subscribe → listenerCount=${countAfter}`);
+      logger.debug('[GameEventStore] subscribe', { listenerCount: countAfter });
     }
     return () => {
       processEmitter.off(EVENT_CHANNEL, callback);
       const countAfterUnsub = processEmitter.listenerCount(EVENT_CHANNEL);
       if (process.env.NODE_ENV === 'development') {
-        console.log(`[GameEventStore] unsubscribe → listenerCount=${countAfterUnsub}`);
+        logger.debug('[GameEventStore] unsubscribe', { listenerCount: countAfterUnsub });
       }
     };
   }
@@ -328,7 +333,7 @@ export function createGameEventStore(maxEvents?: number): GameEventStore {
 // 避免新旧两个 store 同时持有 processEmitter listeners 造成无限堆积。
 //
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __gameEventStore: GameEventStore | undefined
 }
 

@@ -1,5 +1,5 @@
 import { EventBus } from './EventBus';
-import { GameEvent, parseGameEvent, NAMED_GAME_EVENT_TYPES } from '../types/GameEvents';
+import { parseGameEvent, NAMED_GAME_EVENT_TYPES } from '../types/GameEvents';
 
 export interface LiveSessionManagerConfig {
   url?: string;

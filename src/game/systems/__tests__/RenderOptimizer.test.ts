@@ -1,4 +1,4 @@
-import { RenderOptimizer, CullingResult, LODLevel, RenderStats } from '../RenderOptimizer';
+import { RenderOptimizer } from '../RenderOptimizer';
 
 describe('RenderOptimizer', () => {
   let optimizer: RenderOptimizer;

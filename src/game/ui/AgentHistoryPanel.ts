@@ -226,7 +226,6 @@ export class AgentHistoryPanel {
     nodeContainer.add(cardGfx);
 
     const textLeft = TIMELINE_LEFT + 20;
-    const maxWidth = PANEL_WIDTH - textLeft - PADDING - 8;
 
     const desc =
       record.task.description.length > 22
