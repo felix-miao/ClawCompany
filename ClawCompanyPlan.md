@@ -278,7 +278,7 @@ Dashboard
 **可执行待办（cron 读取）**：
 - [ ] #240 Dashboard SSR 白屏修复 → 避免 `dashboard/page.tsx` 服务器侧直接导入 Phaser（当前浏览器实测 `window is not defined`）
 - [ ] #241 Dashboard 页面去双轨数据流 → 收敛 `useEventStream(store)` 与 snapshot 并存，明确 UI / Game View 的单一状态来源
-- [ ] #242 `/api/openclaw/snapshot` 接入 TTL + in-flight dedupe → 复用 `poll-snapshot.ts` 或等效封装，避免重复抓取 Gateway
+- [code-complete] #242 `/api/openclaw/snapshot` 接入 TTL + in-flight dedupe → 新建 `snapshot-cache.ts`，TTL 5s + in-flight dedupe，route 改用 `getCachedOpenClawSnapshot`
 - [ ] #243 Dashboard dev 噪音治理 → 清理无意义 interval / 大对象日志 / 仅调试用桥接逻辑，降低本地开发噪音
 - [ ] #244 Snapshot 实时化策略收口 → 设计并实现 snapshot diff SSE 或等效轻量实时同步，减少“30s polling + 额外事件流”的撕裂
 - [ ] #245 Dashboard live 验收批次 → 用真实 sidekick / pm / dev session 演练，验证 3 秒内 active、Timeline/Inspector/Artifacts 全链路一致

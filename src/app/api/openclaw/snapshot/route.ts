@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server'
 
 import { withAuth, successResponse } from '@/lib/api/route-utils'
-import { buildOpenClawSnapshot, type OpenClawSnapshot } from '@/lib/gateway/openclaw-snapshot'
+import { getCachedOpenClawSnapshot } from '@/lib/gateway/snapshot-cache'
+import { type OpenClawSnapshot } from '@/lib/gateway/openclaw-snapshot'
 import { SessionSyncService, getDefaultAgents } from '@/lib/gateway/session-sync'
 
 const createFallbackSnapshot = (error: unknown): OpenClawSnapshot => ({
@@ -24,7 +25,7 @@ export const GET = withAuth(async (_request: NextRequest) => {
   const sync = new SessionSyncService()
 
   try {
-    const snapshot = await buildOpenClawSnapshot(sync)
+    const snapshot = await getCachedOpenClawSnapshot(sync)
     return successResponse(snapshot)
   } catch (error) {
     return successResponse(createFallbackSnapshot(error))

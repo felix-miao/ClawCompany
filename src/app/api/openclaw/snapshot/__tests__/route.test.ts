@@ -36,16 +36,16 @@ jest.mock('@/lib/gateway/session-sync', () => {
   }
 })
 
-jest.mock('@/lib/gateway/openclaw-snapshot', () => ({
-  buildOpenClawSnapshot: jest.fn(),
+jest.mock('@/lib/gateway/snapshot-cache', () => ({
+  getCachedOpenClawSnapshot: jest.fn(),
 }))
 
 import { GET } from '../route'
 
 import { __mockSync } from '@/lib/gateway/session-sync'
-import { buildOpenClawSnapshot } from '@/lib/gateway/openclaw-snapshot'
+import { getCachedOpenClawSnapshot } from '@/lib/gateway/snapshot-cache'
 
-const mockBuildOpenClawSnapshot = buildOpenClawSnapshot as jest.Mock
+const mockGetCachedOpenClawSnapshot = getCachedOpenClawSnapshot as jest.Mock
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
@@ -87,7 +87,7 @@ describe('/api/openclaw/snapshot', () => {
   it('should derive current work from OpenClaw sessions and history', async () => {
     const startedAt = new Date().toISOString()
     
-    mockBuildOpenClawSnapshot.mockResolvedValue({
+    mockGetCachedOpenClawSnapshot.mockResolvedValue({
       agents: [
         { id: 'sidekick-claw', name: 'PM Claw', role: 'pm', status: 'working', emotion: 'neutral', currentTask: '用你的团队给我写一个网站出来' },
       ],
@@ -160,10 +160,11 @@ describe('/api/openclaw/snapshot', () => {
     expect(data.tasks[0].taskId).toBe('sess-1')
     expect(data.tasks[0].currentAgentName).toBe('PM Claw')
     expect(data.tasks[0].description).toContain('用你的团队给我写一个网站出来')
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledWith(__mockSync)
   })
 
   it('should return fallback payload when gateway fails', async () => {
-    mockBuildOpenClawSnapshot.mockRejectedValue(new Error('gateway offline'))
+    mockGetCachedOpenClawSnapshot.mockRejectedValue(new Error('gateway offline'))
 
     const response = await GET(createMockRequest() as any)
     const data = await response.json()
@@ -172,5 +173,30 @@ describe('/api/openclaw/snapshot', () => {
     expect(data.connected).toBe(false)
     expect(data.tasks).toEqual([])
     expect(data.sessions).toEqual([])
+  })
+
+  it('should delegate snapshot reuse to the cache layer', async () => {
+    const cachedPayload = {
+      agents: [],
+      sessions: [],
+      tasks: [],
+      metrics: {
+        agents: { total: 0, active: 0, idle: 0, byRole: {} },
+        sessions: { total: 0, active: 0, completed: 0, failed: 0 },
+        tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        source: 'gateway',
+        fetchedAt: new Date().toISOString(),
+      },
+      connected: true,
+      fetchedAt: new Date().toISOString(),
+    }
+    mockGetCachedOpenClawSnapshot.mockResolvedValue(cachedPayload)
+
+    const first = await GET(createMockRequest() as any)
+    const second = await GET(createMockRequest() as any)
+
+    await expect(first.json()).resolves.toMatchObject({ success: true, connected: true })
+    await expect(second.json()).resolves.toMatchObject({ success: true, connected: true })
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledTimes(2)
   })
 })
