@@ -302,7 +302,6 @@ export default function ${componentName}() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
   };
 
   return (

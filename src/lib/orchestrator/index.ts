@@ -32,12 +32,6 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
   for (let i = 0; i < rawTasks.length; i++) {
     const raw = rawTasks[i]
     if (raw === null || raw === undefined || typeof raw !== 'object') {
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[Orchestrator]',
-        'SubTask validation failed',
-        { index: i, reason: `Expected object, got ${raw === null ? 'null' : typeof raw}` },
-      )
       continue
     }
 
@@ -48,14 +42,6 @@ export function validateSubTasks(rawTasks: unknown): ValidatedSubTask[] {
         ? ((raw as Record<string, unknown>).files as string[])
         : []
       validTasks.push({ ...data, files })
-    } else {
-      const reason = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ')
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[Orchestrator]',
-        'SubTask validation failed',
-        { index: i, reason, raw: typeof raw === 'object' ? Object.keys(raw as object) : undefined },
-      )
     }
   }
 
@@ -141,10 +127,6 @@ export class Orchestrator extends BaseOrchestrator {
             result.error ?? 'Sandbox blocked file write',
             filePath,
           )
-        }
-        if (result.warnings && result.warnings.length > 0) {
-          // eslint-disable-next-line no-console
-          console.warn('[Sandbox] Warnings for', filePath, ':', result.warnings)
         }
       },
       clearAll: () => {
