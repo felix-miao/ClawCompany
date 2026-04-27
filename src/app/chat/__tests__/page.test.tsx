@@ -46,6 +46,12 @@ const sendChatInput = async (message: string, { waitForIdle = true }: { waitForI
 
 const sendChatInputAndWait = async (message: string) => sendChatInput(message)
 
+const reactTestWarningPattern = /Encountered two children with the same key|same key|not wrapped in act\(\.\.\.\)/i
+
+const expectNoReactTestWarnings = (consoleErrorSpy: jest.SpyInstance) => {
+  expect(consoleErrorSpy.mock.calls.flat().join(' ')).not.toMatch(reactTestWarningPattern)
+}
+
 describe('Chat Page (/chat)', () => {
   let consoleErrorSpy: jest.SpyInstance
 
@@ -64,6 +70,7 @@ describe('Chat Page (/chat)', () => {
   })
 
   afterEach(() => {
+    expectNoReactTestWarnings(consoleErrorSpy)
     consoleErrorSpy.mockRestore()
   })
 
@@ -149,11 +156,19 @@ describe('Chat Page (/chat)', () => {
       await renderChatPage()
       const input = screen.getByPlaceholderText(/Describe what you want to build/i)
 
-      fireEvent.change(input, { target: { value: '测试' } })
+      await act(async () => {
+        fireEvent.change(input, { target: { value: '测试' } })
+        fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 })
+      })
 
-      fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 })
+      await waitFor(() => {
+        expect(sendMessage).toHaveBeenCalled()
+      })
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Send/i })).not.toBeDisabled()
+      })
 
-      expect(sendMessage).toHaveBeenCalled()
+      expectNoReactTestWarnings(consoleErrorSpy)
     })
   })
 
@@ -217,7 +232,7 @@ describe('Chat Page (/chat)', () => {
         expect(screen.getByText(/Error: Network error/i)).toBeInTheDocument()
       })
 
-      expect(consoleErrorSpy.mock.calls.flat().join(' ')).not.toMatch(/same key/i)
+      expectNoReactTestWarnings(consoleErrorSpy)
 
       nowSpy.mockRestore()
     })
@@ -238,7 +253,28 @@ describe('Chat Page (/chat)', () => {
       await waitFor(() => {
         expect(screen.getAllByText('Same response')).toHaveLength(2)
       })
-      expect(consoleErrorSpy.mock.calls.flat().join(' ')).not.toMatch(/Encountered two children with the same key|same key/i)
+      expectNoReactTestWarnings(consoleErrorSpy)
+    })
+  })
+
+  describe('异步状态更新噪音测试', () => {
+    it('Enter 发送并等待完成时不应该出现 act warning', async () => {
+      await renderChatPage()
+      const input = screen.getByPlaceholderText(/Describe what you want to build/i)
+
+      await act(async () => {
+        fireEvent.change(input, { target: { value: '测试' } })
+        fireEvent.keyPress(input, { key: 'Enter', code: 'Enter', charCode: 13 })
+      })
+
+      await waitFor(() => {
+        expect(sendMessage).toHaveBeenCalledWith('测试')
+      })
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Send/i })).not.toBeDisabled()
+      })
+
+      expectNoReactTestWarnings(consoleErrorSpy)
     })
   })
 

@@ -35,12 +35,26 @@ const sendTeamInput = async (message: string, { waitForIdle = true }: { waitForI
 
 const sendTeamInputAndWait = async (message: string) => sendTeamInput(message)
 
+const reactTestWarningPattern = /Encountered two children with the same key|same key|not wrapped in act\(\.\.\.\)/i
+
+const expectNoReactTestWarnings = (consoleErrorSpy: jest.SpyInstance) => {
+  expect(consoleErrorSpy.mock.calls.flat().join(' ')).not.toMatch(reactTestWarningPattern)
+}
+
 describe('Team Chat Page (/team)', () => {
+  let consoleErrorSpy: jest.SpyInstance
+
   beforeEach(() => {
     jest.clearAllMocks()
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
     mockFetch.mockResolvedValue({
       json: async () => ({ success: true, message: 'Test response' })
     })
+  })
+
+  afterEach(() => {
+    expectNoReactTestWarnings(consoleErrorSpy)
+    consoleErrorSpy.mockRestore()
   })
 
   describe('渲染测试', () => {
@@ -149,13 +163,21 @@ describe('Team Chat Page (/team)', () => {
       await renderTeamPage()
       const input = screen.getByPlaceholderText(/输入你的需求/i)
 
-      fireEvent.change(input, { target: { value: '测试' } })
+      await act(async () => {
+        fireEvent.change(input, { target: { value: '测试' } })
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 })
+      })
 
-      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13 })
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
+          method: 'POST'
+        }))
+      })
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /发送/i })).not.toBeDisabled()
+      })
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.objectContaining({
-        method: 'POST'
-      }))
+      expectNoReactTestWarnings(consoleErrorSpy)
     })
 
     it('应该显示当前使用的模式（GLM或OpenClaw）', async () => {
@@ -186,7 +208,6 @@ describe('Team Chat Page (/team)', () => {
     })
 
     it('同一毫秒追加多条消息也不应该产生重复 key warning', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
       const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1713920000000)
       mockFetch.mockResolvedValue({
         json: async () => ({
@@ -206,13 +227,20 @@ describe('Team Chat Page (/team)', () => {
         expect(screen.getByText(/团队协作完成/i)).toBeInTheDocument()
       })
 
-      const consoleErrors = consoleErrorSpy.mock.calls.flat().filter(
-        arg => typeof arg === 'string'
-      )
-      expect(consoleErrors.join(' ')).not.toMatch(/Encountered two children with the same key|same key/i)
+      expectNoReactTestWarnings(consoleErrorSpy)
 
       nowSpy.mockRestore()
-      consoleErrorSpy.mockRestore()
+    })
+
+    it('API 返回后完成所有异步状态更新时不应该出现 act warning', async () => {
+      await renderTeamPage()
+      await sendTeamInputAndWait('创建登录页面')
+
+      await waitFor(() => {
+        expect(screen.getByText(/团队协作完成/i)).toBeInTheDocument()
+      })
+
+      expectNoReactTestWarnings(consoleErrorSpy)
     })
   })
 
