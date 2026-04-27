@@ -2,10 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import DashboardPage from '../page';
 
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: () => ({ isConnected: true, isReconnecting: false }),
-}));
-
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
     agents: [
@@ -95,10 +91,6 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   }),
 }));
 
-jest.mock('@/game', () => ({
-  startGame: jest.fn(() => ({ destroy: jest.fn(), triggerTestTask: jest.fn() })),
-}));
-
 jest.mock('@/lib/core/metrics-aggregator', () => ({
   MetricsAggregator: jest.fn().mockImplementation(() => ({
     startPeriodicUpdate: jest.fn(() => () => {}),
@@ -128,13 +120,17 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 
-  it('should render game container', () => {
+  it('should render the traditional task tracker', () => {
     render(<DashboardPage />);
-    expect(document.getElementById('dashboard-game-container')).toBeInTheDocument();
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
   });
 
-  it('should render game container without showing a stuck loading overlay', () => {
+  it('should not render game view controls or loading overlay', () => {
     render(<DashboardPage />);
+    expect(document.getElementById('dashboard-game-container')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Game View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Timeline View' })).not.toBeInTheDocument();
     expect(screen.queryByText('Loading office...')).not.toBeInTheDocument();
   });
 
@@ -180,10 +176,8 @@ describe('DashboardPage', () => {
     expect(screen.getByText('QA Engineer')).toBeInTheDocument();
   });
 
-  it('should switch to timeline view', () => {
+  it('should show the task card in traditional view by default', () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
@@ -258,10 +252,8 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('/Users/test/index.html')).toHaveLength(2);
   });
 
-  it('should show timeline view with task card when switching views', async () => {
+  it('should show traditional task event details by default', async () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();

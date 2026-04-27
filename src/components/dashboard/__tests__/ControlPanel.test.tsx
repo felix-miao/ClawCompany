@@ -1,99 +1,35 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 import { ControlPanel } from '../ControlPanel';
 
 describe('ControlPanel', () => {
-  const mockOnSendEvent = jest.fn();
-
-  beforeEach(() => {
-    mockOnSendEvent.mockClear();
-  });
-
   it('should render control panel title', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel />);
 
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
-  it('should render agent selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should render quick task buttons', () => {
+    render(<ControlPanel />);
 
-    const select = screen.getByLabelText('Agent');
-    expect(select).toBeInTheDocument();
+    expect(screen.getByText('快速触发任务')).toBeInTheDocument();
+    expect(screen.getByText('Blog website (Next.js + Tailwind)')).toBeInTheDocument();
+    expect(screen.getByText('Unit tests for login module')).toBeInTheDocument();
+    expect(screen.getByText('Review client.ts code quality')).toBeInTheDocument();
+    expect(screen.getByText('Implement /api/health endpoint')).toBeInTheDocument();
+    expect(screen.getByText('随机任务')).toBeInTheDocument();
   });
 
-  it('should render action buttons', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should not render manual demo controls', () => {
+    render(<ControlPanel />);
 
-    expect(screen.getByText('Set Status')).toBeInTheDocument();
-    expect(screen.getByText('Assign')).toBeInTheDocument();
-    expect(screen.getByText('Emotion')).toBeInTheDocument();
-  });
-
-  it('should send status change event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    fireEvent.click(screen.getByText('Set Status'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:status-change',
-      })
-    );
-  });
-
-  it('should send task assigned event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const descInput = screen.getByPlaceholderText('Task description...');
-    fireEvent.change(descInput, { target: { value: 'Write tests' } });
-    fireEvent.click(screen.getByText('Assign'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:task-assigned',
-        description: 'Write tests',
-      })
-    );
-  });
-
-  it('should send emotion change event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    fireEvent.click(screen.getByText('Emotion'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:emotion-change',
-      })
-    );
-  });
-
-  it('should use selected agent', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const select = screen.getByLabelText('Agent');
-    fireEvent.change(select, { target: { value: 'dev-agent' } });
-    fireEvent.click(screen.getByText('Set Status'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentId: 'dev-agent',
-      })
-    );
-  });
-
-  it('should render status selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const statusSelect = screen.getByLabelText('Status');
-    expect(statusSelect).toBeInTheDocument();
-  });
-
-  it('should render emotion selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const emotionSelect = screen.getByLabelText('Emotion');
-    expect(emotionSelect).toBeInTheDocument();
+    expect(screen.queryByText('手动控制 Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Emotion')).not.toBeInTheDocument();
+    expect(screen.queryByText('Set Status')).not.toBeInTheDocument();
+    expect(screen.queryByText('Assign')).not.toBeInTheDocument();
+    expect(screen.queryByText('Emotion')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Task description...')).not.toBeInTheDocument();
   });
 });

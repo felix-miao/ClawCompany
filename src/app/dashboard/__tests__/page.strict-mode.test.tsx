@@ -1,29 +1,7 @@
 import React from 'react'
-import { render, act } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 
-const mockDestroy = jest.fn()
-const mockStartGame = jest.fn(() => ({
-  destroy: mockDestroy,
-  receiveGameEvent: jest.fn(),
-  triggerTestTask: jest.fn(),
-}))
-
-jest.mock('@/game', () => ({
-  startGame: (...args: unknown[]) => mockStartGame(...args),
-}))
-
-jest.mock('@/hooks/useEventStream', () => ({
-  useEventStream: () => ({ isConnected: true, isReconnecting: false }),
-}))
-
-jest.mock('@/hooks/useDashboardStore', () => ({
-  useDashboardStore: () => ({
-    agents: [],
-    events: [],
-    stats: { totalEvents: 0, activeTasks: 0, sessionCount: 0, completedSessionCount: 0, connected: true },
-    taskHistory: [],
-  }),
-}))
+import DashboardPage from '../page'
 
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
@@ -56,29 +34,15 @@ jest.mock('@/lib/core/logger', () => ({
   Logger: jest.fn().mockImplementation(() => ({})),
 }))
 
-import DashboardPage from '../page'
-
 describe('DashboardPage strict mode startup', () => {
-  beforeEach(() => {
-    mockStartGame.mockClear();
-    mockDestroy.mockClear();
-  });
-
-  it('should tear down stale game instances created during strict mode remounts', async () => {
-    const view = render(
+  it('renders traditional dashboard without starting a game instance', () => {
+    render(
       <React.StrictMode>
         <DashboardPage />
       </React.StrictMode>
-    );
+    )
 
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    expect(mockStartGame.mock.calls.length).toBeLessThanOrEqual(2);
-
-    view.unmount();
-    expect(mockDestroy).toHaveBeenCalled();
-  });
-});
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument()
+    expect(document.getElementById('dashboard-game-container')).not.toBeInTheDocument()
+  })
+})
