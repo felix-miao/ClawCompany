@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { GameEvent } from '@/game/types/GameEvents';
 import { TaskHistory, TASK_PHASE_LABELS } from '@/game/data/DashboardStore';
+import { GameEvent } from '@/game/types/GameEvents';
 import { selectTaskAgentSnapshot } from '@/lib/task-agent-snapshot';
 
 type EventSummary = {
@@ -454,7 +454,7 @@ if (!sortedTasks.length) {
       <div data-testid="traditional-task-view" className="glass rounded-2xl border border-dark-100 p-6 h-full">
         <div className="flex items-center justify-between gap-3 mb-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Timeline View</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Traditional View</p>
             <h2 className="text-xl font-semibold text-white">Traditional Task Tracker</h2>
           </div>
         </div>
@@ -503,9 +503,9 @@ if (!sortedTasks.length) {
     <div data-testid="traditional-task-view" className="glass rounded-2xl border border-dark-100 p-4 md:p-5 h-full overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Timeline View</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Traditional View</p>
           <h2 className="text-xl font-semibold text-white">Traditional Task Tracker</h2>
-          <p className="text-sm text-gray-400 mt-1">更清楚地看单个任务卡在哪一步，而不只是看办公室动画。</p>
+          <p className="text-sm text-gray-400 mt-1">更清楚地看单个任务卡在哪一步、当前负责人和最近事件。</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full md:w-auto">
           {(() => {

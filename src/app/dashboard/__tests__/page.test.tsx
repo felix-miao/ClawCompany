@@ -1,7 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
 import DashboardPage from '../page';
-import { DashboardClient } from '../DashboardClient';
 
 jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   useOpenClawSnapshot: () => ({
@@ -92,12 +91,6 @@ jest.mock('@/hooks/useOpenClawSnapshot', () => ({
   }),
 }));
 
-jest.mock('@/components/dashboard/DashboardGameBridge', () => ({
-  DashboardGameBridge: ({ gameEvents }: { gameEvents: unknown[] }) => (
-    <div data-testid="dashboard-game-bridge" data-event-count={gameEvents.length} />
-  ),
-}));
-
 jest.mock('@/lib/core/metrics-aggregator', () => ({
   MetricsAggregator: jest.fn().mockImplementation(() => ({
     startPeriodicUpdate: jest.fn(() => () => {}),
@@ -117,27 +110,9 @@ jest.mock('@/lib/core/logger', () => ({
 }));
 
 describe('DashboardPage', () => {
-  it('should keep the route entry as an SSR-safe server wrapper', () => {
-    expect(DashboardPage.toString()).not.toContain('useOpenClawSnapshot');
-    expect(DashboardPage.toString()).not.toContain('DashboardGameBridge');
-  });
-
   it('should render dashboard title', () => {
     render(<DashboardPage />);
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
-  });
-
-  it('should render the client dashboard from the server wrapper', () => {
-    render(<DashboardPage />);
-
-    expect(screen.getByText('Dashboard')).toBeInTheDocument();
-  });
-
-  it('should derive game bridge events from the OpenClaw snapshot used by timeline', () => {
-    render(<DashboardClient />);
-
-    const bridge = screen.getByTestId('dashboard-game-bridge');
-    expect(bridge).toHaveAttribute('data-event-count', '5');
   });
 
   it('should render connection status', () => {
@@ -145,13 +120,17 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 
-  it('should render game bridge', () => {
+  it('should render the traditional task tracker', () => {
     render(<DashboardPage />);
-    expect(screen.getByTestId('dashboard-game-bridge')).toBeInTheDocument();
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
   });
 
-  it('should render game bridge without showing a stuck loading overlay', () => {
+  it('should not render game view controls or loading overlay', () => {
     render(<DashboardPage />);
+    expect(document.getElementById('dashboard-game-container')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Game View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Timeline View' })).not.toBeInTheDocument();
     expect(screen.queryByText('Loading office...')).not.toBeInTheDocument();
   });
 
@@ -197,10 +176,8 @@ describe('DashboardPage', () => {
     expect(screen.getByText('QA Engineer')).toBeInTheDocument();
   });
 
-  it('should switch to timeline view', () => {
+  it('should show the task card in traditional view by default', () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
@@ -275,10 +252,8 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('/Users/test/index.html')).toHaveLength(2);
   });
 
-  it('should show timeline view with task card when switching views', async () => {
+  it('should show traditional task event details by default', async () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();
