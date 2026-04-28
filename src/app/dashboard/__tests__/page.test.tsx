@@ -248,6 +248,25 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Implementing dashboard live flow').length).toBeGreaterThan(0);
   });
 
+  it('renders fallback snapshot data when the live stream is disconnected', () => {
+    mockSnapshotStreamState = {
+      ...createMockSnapshotStreamState(),
+      connected: false,
+      error: 'Snapshot stream disconnected',
+    };
+
+    render(<DashboardClient />);
+
+    expect(screen.getByText('Disconnected')).toBeInTheDocument();
+    expect(screen.getByText('OpenClaw: Fallback')).toBeInTheDocument();
+    expect(screen.getByText('Current Agents')).toBeInTheDocument();
+    expect(screen.getAllByText('4').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 active agent/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Timeline Entry')).toBeInTheDocument();
+    expect(screen.getAllByText('用你的团队给我写一个网站出来').length).toBeGreaterThan(0);
+    expect(screen.getByText(/2 events/)).toBeInTheDocument();
+  });
+
   it('should render connection status', () => {
     render(<DashboardPage />);
     expect(screen.getByText('Connected')).toBeInTheDocument();

@@ -2,6 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 
 import { useSnapshotStream } from '../useSnapshotStream'
 
+global.fetch = jest.fn()
+
 const baseSnapshot = {
   agents: [{ id: 'agent-1', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null }],
   sessions: [],
@@ -66,15 +68,18 @@ class MockEventSource {
 
 describe('useSnapshotStream', () => {
   const originalEventSource = globalThis.EventSource
+  const originalFetch = globalThis.fetch
 
   beforeEach(() => {
     jest.useFakeTimers()
+    ;(global.fetch as jest.Mock).mockReset()
     MockEventSource.reset()
     globalThis.EventSource = MockEventSource as never
   })
 
   afterEach(() => {
     globalThis.EventSource = originalEventSource
+    globalThis.fetch = originalFetch
     jest.useRealTimers()
   })
 
@@ -118,6 +123,7 @@ describe('useSnapshotStream', () => {
   })
 
   it('reconnects with exponential backoff after errors', async () => {
+    ;(global.fetch as jest.Mock).mockRejectedValue(new Error('Fallback unavailable'))
     const { result } = renderHook(() => useSnapshotStream())
     const first = MockEventSource.instances[0]
 
@@ -137,7 +143,68 @@ describe('useSnapshotStream', () => {
     expect(MockEventSource.instances).toHaveLength(2)
   })
 
+  it('falls back to /api/openclaw/snapshot when the stream errors before data arrives', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, ...baseSnapshot }),
+    })
+
+    const { result } = renderHook(() => useSnapshotStream())
+    const source = MockEventSource.instances[0]
+
+    act(() => {
+      source.error()
+    })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(global.fetch).toHaveBeenCalledWith('/api/openclaw/snapshot', {
+      headers: { 'x-api-key': 'dashboard' },
+    })
+    expect(result.current.agents).toEqual(baseSnapshot.agents)
+    expect(result.current.tasks).toEqual(baseSnapshot.tasks)
+    expect(result.current.metrics).toEqual(baseSnapshot.metrics)
+    expect(result.current.connected).toBe(false)
+  })
+
+  it('continues using stream snapshots after a fallback snapshot was loaded', async () => {
+    ;(global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, ...baseSnapshot, connected: false }),
+    })
+
+    const streamSnapshot = {
+      ...baseSnapshot,
+      agents: [{ ...baseSnapshot.agents[0], status: 'working', currentTask: 'Recovered stream' }],
+      connected: true,
+    }
+
+    const { result } = renderHook(() => useSnapshotStream())
+    const first = MockEventSource.instances[0]
+
+    act(() => {
+      first.error()
+    })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(1000)
+    })
+
+    const second = MockEventSource.instances[1]
+    act(() => {
+      second.open()
+      second.emit('snapshot-full', streamSnapshot)
+    })
+
+    await waitFor(() => expect(result.current.agents[0].currentTask).toBe('Recovered stream'))
+    expect(result.current.connected).toBe(true)
+    expect(result.current.error).toBeNull()
+  })
+
   it('cleans up the event source and reconnect timer on unmount', async () => {
+    ;(global.fetch as jest.Mock).mockRejectedValue(new Error('Fallback unavailable'))
     const { unmount } = renderHook(() => useSnapshotStream())
     const first = MockEventSource.instances[0]
 

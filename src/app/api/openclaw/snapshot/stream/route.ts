@@ -19,6 +19,10 @@ function formatSseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Snapshot unavailable'
+}
+
 async function handleGet(request: NextRequest): Promise<Response> {
   const encoder = new TextEncoder()
   const sync = new SessionSyncService()
@@ -52,7 +56,7 @@ async function handleGet(request: NextRequest): Promise<Response> {
           }
         } catch (error) {
           if (!cleanedUp) {
-            controller.error(error)
+            enqueue(formatSseEvent('snapshot-error', { error: getErrorMessage(error) }))
             cleanup()
           }
         }
@@ -70,8 +74,7 @@ async function handleGet(request: NextRequest): Promise<Response> {
           }
         } catch (error) {
           if (!cleanedUp) {
-            controller.error(error)
-            cleanup()
+            enqueue(formatSseEvent('snapshot-error', { error: getErrorMessage(error) }))
           }
         }
       }

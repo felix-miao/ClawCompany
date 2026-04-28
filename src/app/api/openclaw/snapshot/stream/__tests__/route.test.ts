@@ -110,6 +110,18 @@ describe('/api/openclaw/snapshot/stream', () => {
     expect(chunk).toContain('agent-1')
   })
 
+  it('sends a structured SSE error instead of an empty response when the initial snapshot fails', async () => {
+    mockGetCachedOpenClawSnapshot.mockRejectedValue(new Error('Gateway unavailable'))
+
+    const response = await GET(createRequest() as never)
+    const chunk = await readChunk(response)
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('text/event-stream')
+    expect(chunk).toContain('event: snapshot-error')
+    expect(chunk).toContain('Gateway unavailable')
+  })
+
   it('sends subsequent diff events when the snapshot changes', async () => {
     const first = makeSnapshot()
     const second = makeSnapshot({
