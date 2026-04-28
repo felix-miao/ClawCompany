@@ -132,7 +132,8 @@ export class OpenClawAgentExecutor {
       spawnOptions.label = `PM Analysis: ${task.substring(0, 50)}`
     } else if (agentRole === 'dev') {
       spawnOptions.label = `Dev Implementation: ${task.substring(0, 50)}`
-      spawnOptions.streamTo = 'parent'
+      // P0-3: removed streamTo:'parent' — no parent-side stream consumer exists;
+      // leaving it caused stream data to accumulate with no reader.
     } else if (agentRole === 'review') {
       spawnOptions.label = `Review: ${task.substring(0, 50)}`
     }
