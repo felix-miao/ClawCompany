@@ -127,12 +127,6 @@ function createMockSnapshotStreamState() {
   };
 }
 
-jest.mock('@/components/dashboard/DashboardGameBridge', () => ({
-  DashboardGameBridge: ({ gameEvents }: { gameEvents: unknown[] }) => (
-    <div data-testid="dashboard-game-bridge" data-event-count={gameEvents.length} />
-  ),
-}));
-
 jest.mock('@/lib/core/metrics-aggregator', () => ({
   MetricsAggregator: jest.fn().mockImplementation(() => ({
     startPeriodicUpdate: jest.fn(() => () => {}),
@@ -172,11 +166,12 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 
-  it('should derive game bridge events from the OpenClaw snapshot used by timeline', () => {
+  it('should render the traditional task tracker from the OpenClaw snapshot', () => {
     render(<DashboardClient />);
 
-    const bridge = screen.getByTestId('dashboard-game-bridge');
-    expect(bridge).toHaveAttribute('data-event-count', '6');
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.getByText('status')).toBeInTheDocument();
+    expect(screen.getByText('pm-agent → busy')).toBeInTheDocument();
   });
 
   it('renders default dashboard overview and visible timeline entry on first load', () => {
@@ -184,7 +179,9 @@ describe('DashboardPage', () => {
 
     expect(screen.getByText('Current Agents')).toBeInTheDocument();
     expect(screen.getByText('Timeline Entry')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Timeline View' })).toBeInTheDocument();
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Game View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Timeline View' })).not.toBeInTheDocument();
     expect(screen.getAllByText(/1 active agent/).length).toBeGreaterThan(0);
   });
 
@@ -253,13 +250,16 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 
-  it('should render game bridge', () => {
+  it('should not render game view controls or canvas', () => {
     render(<DashboardPage />);
-    expect(screen.getByTestId('dashboard-game-bridge')).toBeInTheDocument();
+    expect(document.getElementById('dashboard-game-container')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Game View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Timeline View' })).not.toBeInTheDocument();
   });
 
-  it('should render game bridge without showing a stuck loading overlay', () => {
+  it('should render traditional view without showing a stuck loading overlay', () => {
     render(<DashboardPage />);
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.queryByText('Loading office...')).not.toBeInTheDocument();
   });
 
@@ -305,10 +305,8 @@ describe('DashboardPage', () => {
     expect(screen.getByText('QA Engineer')).toBeInTheDocument();
   });
 
-  it('should switch to timeline view', () => {
+  it('should show the task card in traditional view by default', () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
@@ -383,10 +381,8 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('/Users/test/index.html')).toHaveLength(2);
   });
 
-  it('should show timeline view with task card when switching views', async () => {
+  it('should show traditional task event details by default', async () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();

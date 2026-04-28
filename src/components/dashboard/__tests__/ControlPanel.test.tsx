@@ -1,99 +1,114 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { ControlPanel } from '../ControlPanel';
 
-describe('ControlPanel', () => {
-  const mockOnSendEvent = jest.fn();
+const mockFetch = jest.fn();
 
+function makeChatResponse(overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    json: async () => ({
+      success: true,
+      taskId: 'task-unit-123',
+      ...overrides,
+    }),
+  };
+}
+
+describe('ControlPanel', () => {
   beforeEach(() => {
-    mockOnSendEvent.mockClear();
+    global.fetch = mockFetch;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue(makeChatResponse());
   });
 
   it('should render control panel title', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel />);
 
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
-  it('should render agent selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should render quick task controls', () => {
+    render(<ControlPanel />);
 
-    const select = screen.getByLabelText('Agent');
-    expect(select).toBeInTheDocument();
+    expect(screen.getByText('快速触发任务')).toBeInTheDocument();
+    expect(screen.getByText('Blog website (Next.js + Tailwind)')).toBeInTheDocument();
+    expect(screen.getByText('随机任务')).toBeInTheDocument();
   });
 
-  it('should render action buttons', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should not render manual agent event controls', () => {
+    render(<ControlPanel />);
 
-    expect(screen.getByText('Set Status')).toBeInTheDocument();
-    expect(screen.getByText('Assign')).toBeInTheDocument();
-    expect(screen.getByText('Emotion')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Emotion')).not.toBeInTheDocument();
+    expect(screen.queryByText('Set Status')).not.toBeInTheDocument();
+    expect(screen.queryByText('Assign')).not.toBeInTheDocument();
+    expect(screen.queryByText('Emotion')).not.toBeInTheDocument();
   });
 
-  it('should send status change event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should submit a preset task through /api/chat', async () => {
+    const onTriggerTask = jest.fn();
 
-    fireEvent.click(screen.getByText('Set Status'));
+    render(<ControlPanel onTriggerTask={onTriggerTask} />);
 
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:status-change',
-      })
-    );
+    await act(async () => {
+      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'));
+    });
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/chat',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+          body: expect.stringContaining('Next.js'),
+        }),
+      );
+      expect(onTriggerTask).toHaveBeenCalledWith('task-unit-123');
+    });
   });
 
-  it('should send task assigned event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should submit a random task through /api/chat', async () => {
+    render(<ControlPanel onTriggerTask={jest.fn()} />);
 
-    const descInput = screen.getByPlaceholderText('Task description...');
-    fireEvent.change(descInput, { target: { value: 'Write tests' } });
-    fireEvent.click(screen.getByText('Assign'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('随机任务'));
+    });
 
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:task-assigned',
-        description: 'Write tests',
-      })
-    );
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.any(Object));
+    });
   });
 
-  it('should send emotion change event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should show loading state while a task is being submitted', async () => {
+    mockFetch.mockReturnValueOnce(new Promise(() => {}));
 
-    fireEvent.click(screen.getByText('Emotion'));
+    render(<ControlPanel onTriggerTask={jest.fn()} />);
 
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:emotion-change',
-      })
-    );
+    act(() => {
+      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'));
+    });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('⏳ 触发中...').length).toBeGreaterThan(0);
+      expect(screen.getByText('触发中...')).toBeInTheDocument();
+    });
   });
 
-  it('should use selected agent', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should show an error and skip callback when chat fails', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: 'Server error' }) });
+    const onTriggerTask = jest.fn();
 
-    const select = screen.getByLabelText('Agent');
-    fireEvent.change(select, { target: { value: 'dev-agent' } });
-    fireEvent.click(screen.getByText('Set Status'));
+    render(<ControlPanel onTriggerTask={onTriggerTask} />);
 
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentId: 'dev-agent',
-      })
-    );
-  });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'));
+    });
 
-  it('should render status selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const statusSelect = screen.getByLabelText('Status');
-    expect(statusSelect).toBeInTheDocument();
-  });
-
-  it('should render emotion selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const emotionSelect = screen.getByLabelText('Emotion');
-    expect(emotionSelect).toBeInTheDocument();
+    await waitFor(() => {
+      expect(onTriggerTask).not.toHaveBeenCalled();
+      expect(screen.getByText('触发失败，请重试')).toBeInTheDocument();
+    });
   });
 });

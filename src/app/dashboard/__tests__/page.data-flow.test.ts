@@ -20,9 +20,15 @@ describe('Dashboard data flow', () => {
     const dashboardSources = [
       'app/dashboard/page.tsx',
       'app/dashboard/DashboardClient.tsx',
-      'components/dashboard/DashboardGameBridge.tsx',
     ].map(readSource);
 
     expect(dashboardSources.join('\n')).not.toMatch(/@\/hooks\/useEventStream|useEventStream\s*\(/);
+  });
+
+  it('does not import the removed dashboard game bridge', () => {
+    const source = readSource('app/dashboard/DashboardClient.tsx');
+
+    expect(source).not.toContain('DashboardGameBridge');
+    expect(source).not.toContain('startGame');
   });
 });

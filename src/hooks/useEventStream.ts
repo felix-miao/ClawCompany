@@ -19,8 +19,8 @@ const MIN_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30000;
 
 /**
- * @deprecated Dashboard UI and Game View use useOpenClawSnapshot as their single
- * state source. Keep this only for legacy hook coverage until it is removed.
+ * @deprecated Dashboard UI uses useSnapshotStream as its single state source.
+ * Keep this only for legacy hook coverage until it is removed.
  */
 export function useEventStream(
   store: DashboardStore,
