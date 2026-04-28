@@ -1,8 +1,15 @@
-// E2E tests - temporarily skipped (requires Playwright browser setup)
-// Run with: npx playwright test
+/**
+ * Legacy E2E test suite — kept for reference.
+ *
+ * TODO: requires a running Next.js dev server AND a live LLM API key.
+ * Use e2e/core.spec.ts for CI-safe tests instead.
+ *
+ * Run with: NEXT_PUBLIC_GLM_API_KEY=<key> npx playwright test e2e/app.spec.ts
+ */
 import { test, expect } from '@playwright/test'
 
-test.describe.skip('ClawCompany E2E Tests', () => {
+// TODO: requires live LLM API (set GLM_API_KEY) — skip in CI
+test.describe.skip('ClawCompany E2E Tests (requires live LLM)', () => {
   
   test('Landing Page 应该正常显示', async ({ page }) => {
     await page.goto('/')
