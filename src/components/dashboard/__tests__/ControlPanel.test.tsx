@@ -3,95 +3,66 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ControlPanel } from '../ControlPanel';
 
 describe('ControlPanel', () => {
-  const mockOnSendEvent = jest.fn();
+  const mockOnTaskSubmitted = jest.fn();
 
   beforeEach(() => {
-    mockOnSendEvent.mockClear();
+    mockOnTaskSubmitted.mockClear();
   });
 
   it('should render control panel title', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
   it('should render agent selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
     const select = screen.getByLabelText('Agent');
     expect(select).toBeInTheDocument();
   });
 
   it('should render action buttons', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
     expect(screen.getByText('Set Status')).toBeInTheDocument();
     expect(screen.getByText('Assign')).toBeInTheDocument();
     expect(screen.getByText('Emotion')).toBeInTheDocument();
   });
 
-  it('should send status change event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should disable manual status changes because they are not snapshot-backed', () => {
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
-    fireEvent.click(screen.getByText('Set Status'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:status-change',
-      })
-    );
+    expect(screen.getByText('Set Status')).toBeDisabled();
+    expect(screen.getByText(/不会写入 unified snapshot/)).toBeInTheDocument();
   });
 
-  it('should send task assigned event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should disable manual task assignment because it is not snapshot-backed', () => {
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
     const descInput = screen.getByPlaceholderText('Task description...');
     fireEvent.change(descInput, { target: { value: 'Write tests' } });
-    fireEvent.click(screen.getByText('Assign'));
 
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:task-assigned',
-        description: 'Write tests',
-      })
-    );
+    expect(descInput).toBeDisabled();
+    expect(screen.getByText('Assign')).toBeDisabled();
   });
 
-  it('should send emotion change event', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+  it('should disable manual emotion changes because they are not snapshot-backed', () => {
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
-    fireEvent.click(screen.getByText('Emotion'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'agent:emotion-change',
-      })
-    );
-  });
-
-  it('should use selected agent', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
-
-    const select = screen.getByLabelText('Agent');
-    fireEvent.change(select, { target: { value: 'dev-agent' } });
-    fireEvent.click(screen.getByText('Set Status'));
-
-    expect(mockOnSendEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        agentId: 'dev-agent',
-      })
-    );
+    expect(screen.getByLabelText('Emotion')).toBeDisabled();
+    expect(screen.getByText('Emotion')).toBeDisabled();
   });
 
   it('should render status selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
     const statusSelect = screen.getByLabelText('Status');
     expect(statusSelect).toBeInTheDocument();
   });
 
   it('should render emotion selector', () => {
-    render(<ControlPanel onSendEvent={mockOnSendEvent} />);
+    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
 
     const emotionSelect = screen.getByLabelText('Emotion');
     expect(emotionSelect).toBeInTheDocument();

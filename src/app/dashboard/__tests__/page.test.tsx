@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import DashboardPage from '../page';
 import { DashboardClient } from '../DashboardClient';
@@ -312,6 +312,39 @@ describe('DashboardPage', () => {
     render(<DashboardPage />);
     // Keyboard shortcuts removed in display-only mode; verify control panel is present instead
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
+  });
+
+  it('disables unsupported manual controls instead of posting non-snapshot events', () => {
+    const originalFetch = global.fetch;
+    const fetchSpy = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    global.fetch = fetchSpy;
+    render(<DashboardPage />);
+
+    expect(screen.getByText('Set Status')).toBeDisabled();
+    expect(screen.getByText('Assign')).toBeDisabled();
+    expect(screen.getByText('Emotion')).toBeDisabled();
+    expect(screen.getByText(/不会写入 unified snapshot/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Set Status'));
+    expect(fetchSpy).not.toHaveBeenCalledWith('/api/game-events', expect.any(Object));
+    global.fetch = originalFetch;
+  });
+
+  it('refreshes the snapshot after a real task is submitted through chat', async () => {
+    const originalFetch = global.fetch;
+    const fetchSpy = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ taskId: 'task-from-chat' }) });
+    global.fetch = fetchSpy;
+    render(<DashboardClient />);
+
+    fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'));
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.objectContaining({ method: 'POST' }));
+      expect(mockSnapshotStreamState.refresh).toHaveBeenCalled();
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalledWith('/api/game-events', expect.any(Object));
+    global.fetch = originalFetch;
   });
 
   it('should render trigger test task button', () => {

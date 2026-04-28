@@ -14,8 +14,6 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 import { ControlPanel } from '../ControlPanel'
 
-import { GameEvent } from '@/game/types/GameEvents'
-
 // ── Mock fetch ────────────────────────────────────────────────────────────────
 
 const mockFetch = jest.fn()
@@ -43,8 +41,6 @@ function makeChatResponse(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function noop() {}
-
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('ControlPanel → /api/chat E2E flow', () => {
@@ -52,7 +48,7 @@ describe('ControlPanel → /api/chat E2E flow', () => {
     mockFetch.mockResolvedValueOnce(makeChatResponse())
     const onTriggerTask = jest.fn()
 
-    render(<ControlPanel onSendEvent={noop as (e: GameEvent) => void} onTriggerTask={onTriggerTask} />)
+    render(<ControlPanel onTaskSubmitted={onTriggerTask} />)
 
     const btn = screen.getByText('Blog website (Next.js + Tailwind)')
     await act(async () => { fireEvent.click(btn) })
@@ -72,7 +68,7 @@ describe('ControlPanel → /api/chat E2E flow', () => {
     mockFetch.mockReturnValueOnce(new Promise(() => {}))
     const onTriggerTask = jest.fn()
 
-    render(<ControlPanel onSendEvent={noop as (e: GameEvent) => void} onTriggerTask={onTriggerTask} />)
+    render(<ControlPanel onTaskSubmitted={onTriggerTask} />)
 
     const btn = screen.getByText('Blog website (Next.js + Tailwind)')
     // Use act to flush the synchronous state update (setIsTriggering(true))
@@ -86,11 +82,11 @@ describe('ControlPanel → /api/chat E2E flow', () => {
     })
   })
 
-  it('/api/chat 成功后应以 taskId 调用 onTriggerTask', async () => {
+  it('/api/chat 成功后应以 taskId 调用 onTaskSubmitted 以刷新 snapshot', async () => {
     mockFetch.mockResolvedValueOnce(makeChatResponse({ taskId: 'task-xyz' }))
     const onTriggerTask = jest.fn()
 
-    render(<ControlPanel onSendEvent={noop as (e: GameEvent) => void} onTriggerTask={onTriggerTask} />)
+    render(<ControlPanel onTaskSubmitted={onTriggerTask} />)
 
     await act(async () => {
       fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
@@ -107,7 +103,7 @@ describe('ControlPanel → /api/chat E2E flow', () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: 'Server error' }) })
     const onTriggerTask = jest.fn()
 
-    render(<ControlPanel onSendEvent={noop as (e: GameEvent) => void} onTriggerTask={onTriggerTask} />)
+    render(<ControlPanel onTaskSubmitted={onTriggerTask} />)
 
     await act(async () => {
       fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
@@ -123,7 +119,7 @@ describe('ControlPanel → /api/chat E2E flow', () => {
   it('随机任务按钮也应触发 /api/chat 调用', async () => {
     mockFetch.mockResolvedValueOnce(makeChatResponse())
 
-    render(<ControlPanel onSendEvent={noop as (e: GameEvent) => void} onTriggerTask={jest.fn()} />)
+    render(<ControlPanel onTaskSubmitted={jest.fn()} />)
 
     await act(async () => {
       fireEvent.click(screen.getByText(/随机任务/))
@@ -135,7 +131,7 @@ describe('ControlPanel → /api/chat E2E flow', () => {
   it('请求进行中再次点击不应重复发送', async () => {
     mockFetch.mockReturnValue(new Promise(() => {})) // never resolves
 
-    render(<ControlPanel onSendEvent={noop as (e: GameEvent) => void} onTriggerTask={jest.fn()} />)
+    render(<ControlPanel onTaskSubmitted={jest.fn()} />)
 
     const btn = screen.getByText('Blog website (Next.js + Tailwind)')
     fireEvent.click(btn)

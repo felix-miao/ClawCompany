@@ -98,7 +98,7 @@ export function DashboardClient() {
   } = useSnapshotStream();
   const [activeView, setActiveView] = useState<"game" | "timeline">("game");
   const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(null);
-  const [triggerTaskHandler, setTriggerTaskHandler] = useState<(taskId: string) => void>(() => () => {});
+  const [taskSubmittedHandler, setTaskSubmittedHandler] = useState<(taskId: string) => void>(() => () => {});
 
   const selectedSession = useMemo(
     () => sessions.find(s => s.sessionKey === selectedSessionKey) ?? null,
@@ -159,21 +159,17 @@ export function DashboardClient() {
     });
   }, []);
 
-  const handleSendEvent = useCallback(
-    async (event: GameEvent) => {
-      try {
-        await fetch("/api/game-events", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(event),
-        });
-        refreshSnapshot();
-      } catch {
-        refreshSnapshot();
-      }
+  const handleTaskSubmitted = useCallback(
+    (taskId: string) => {
+      taskSubmittedHandler(taskId);
+      refreshSnapshot();
     },
-    [refreshSnapshot]
+    [refreshSnapshot, taskSubmittedHandler]
   );
+
+  const handleTaskSubmittedHandlerChange = useCallback((handler: (taskId: string) => void) => {
+    setTaskSubmittedHandler(() => handler);
+  }, []);
 
   return (
     <div className="min-h-screen bg-dark flex flex-col">
@@ -295,7 +291,7 @@ export function DashboardClient() {
               <DashboardGameBridge
                 activeView={activeView}
                 gameEvents={gameEvents}
-                onTriggerTaskHandlerChange={setTriggerTaskHandler}
+                onTriggerTaskHandlerChange={handleTaskSubmittedHandlerChange}
               />
 
               <div className="flex items-center gap-3 text-xs text-gray-500 shrink-0">
@@ -312,7 +308,7 @@ export function DashboardClient() {
 
         <aside className="w-80 border-l border-dark-100 flex flex-col overflow-hidden shrink-0">
           <div className="border-b border-dark-100 p-3 shrink-0">
-            <ControlPanel onSendEvent={handleSendEvent} onTriggerTask={triggerTaskHandler} />
+            <ControlPanel onTaskSubmitted={handleTaskSubmitted} />
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {selectedSession && (

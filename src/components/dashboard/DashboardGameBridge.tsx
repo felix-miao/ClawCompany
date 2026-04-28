@@ -31,13 +31,8 @@ export function DashboardGameBridge({ activeView, gameEvents, onTriggerTaskHandl
   const [isGameLoading, setIsGameLoading] = useState(true);
   const [gameError, setGameError] = useState<string | null>(null);
 
-  const handleTriggerTask = useCallback(() => {
-    gameRef.current?.receiveGameEvent?.({
-      type: 'agent:status-change',
-      agentId: 'pm-agent',
-      status: 'busy',
-      timestamp: Date.now(),
-    } as GameEvent);
+  const handleTriggerTask = useCallback((_taskId: string) => {
+    // The visible game state is driven only by snapshot-derived events.
   }, []);
 
   useEffect(() => {

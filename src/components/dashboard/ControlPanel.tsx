@@ -2,8 +2,6 @@
 
 import { useState, useCallback } from 'react';
 
-import type { GameEvent } from '@/game/types/GameEvents';
-
 const AGENTS = [
   { id: 'pm-agent', name: 'PM' },
   { id: 'dev-agent', name: 'Dev' },
@@ -28,12 +26,13 @@ const RANDOM_TASKS = [
   '实现用户权限管理系统，支持角色分配',
 ];
 
+const UNSUPPORTED_MANUAL_CONTROL_MESSAGE = 'Set Status / Assign / Emotion 当前不会写入 unified snapshot，已禁用以避免假成功。';
+
 interface ControlPanelProps {
-  onSendEvent: (event: GameEvent) => void;
-  onTriggerTask?: (taskId: string) => void;
+  onTaskSubmitted?: (taskId: string) => void;
 }
 
-export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) {
+export function ControlPanel({ onTaskSubmitted }: ControlPanelProps) {
   const [selectedAgent, setSelectedAgent] = useState('pm-agent');
   const [selectedStatus, setSelectedStatus] = useState('working');
   const [selectedEmotion, setSelectedEmotion] = useState('happy');
@@ -41,36 +40,6 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
   const [lastTask, setLastTask] = useState<string | null>(null);
   const [isTriggering, setIsTriggering] = useState(false);
   const [triggerError, setTriggerError] = useState<string | null>(null);
-
-  const handleSetStatus = useCallback(() => {
-    onSendEvent({
-      type: 'agent:status-change',
-      timestamp: Date.now(),
-      agentId: selectedAgent,
-      status: selectedStatus as GameEvent['status' & keyof GameEvent] as 'idle' | 'busy' | 'working' | 'offline',
-    } as GameEvent);
-  }, [selectedAgent, selectedStatus, onSendEvent]);
-
-  const handleAssignTask = useCallback(() => {
-    onSendEvent({
-      type: 'agent:task-assigned',
-      timestamp: Date.now(),
-      agentId: selectedAgent,
-      taskId: `task-${Date.now()}`,
-      taskType: 'manual',
-      description: taskDescription || 'Manual task',
-    });
-  }, [selectedAgent, taskDescription, onSendEvent]);
-
-  const handleChangeEmotion = useCallback(() => {
-    onSendEvent({
-      type: 'agent:emotion-change',
-      timestamp: Date.now(),
-      agentId: selectedAgent,
-      emotion: selectedEmotion,
-      source: 'manual',
-    });
-  }, [selectedAgent, selectedEmotion, onSendEvent]);
 
   const handleTriggerTask = useCallback(async (description?: string) => {
     if (isTriggering) return;
@@ -94,13 +63,13 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
 
       const data = await res.json() as { taskId?: string; success?: boolean };
       const taskId = data.taskId ?? `task-${Date.now()}`;
-      onTriggerTask?.(taskId);
+      onTaskSubmitted?.(taskId);
     } catch {
       setTriggerError('网络错误，请重试');
     } finally {
       setIsTriggering(false);
     }
-  }, [isTriggering, onTriggerTask]);
+  }, [isTriggering, onTaskSubmitted]);
 
   return (
     <div>
@@ -108,7 +77,10 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
 
       {/* ── Quick Task Trigger (most prominent action) ─────────────────── */}
       <div className="mb-4 p-3 rounded-xl bg-primary-500/10 border border-primary-500/30">
-        <p className="text-xs text-primary-300 font-medium mb-2">⚡ 触发任务 — 看 Agent 动起来</p>
+        <p className="text-xs text-primary-300 font-medium mb-2">触发任务 - 提交到 /api/chat</p>
+        <p className="text-[11px] text-gray-500 mb-2">
+          成功后刷新 OpenClaw snapshot；真实反馈请看 Agent Status / Event Log / Timeline。
+        </p>
         <div className="space-y-1.5">
           {TEST_TASKS.map(task => (
             <button
@@ -133,13 +105,16 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
         )}
         {lastTask && !triggerError && (
           <p className="mt-2 text-xs text-gray-500 truncate">
-            上次: <span className="text-gray-400">{lastTask}</span>
+            已提交: <span className="text-gray-400">{lastTask}</span>
           </p>
         )}
       </div>
 
       {/* ── Manual event injection ──────────────────────────────────────── */}
       <p className="text-xs text-gray-500 mb-2 font-medium">手动控制 Agent</p>
+      <p className="mb-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-2 py-1.5 text-[11px] text-yellow-300">
+        {UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
+      </p>
 
       {/* Agent selector — shared across all actions */}
       <div className="mb-2">
@@ -149,7 +124,8 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
           aria-label="Agent"
           value={selectedAgent}
           onChange={e => setSelectedAgent(e.target.value)}
-          className="w-full bg-dark-50 border border-dark-100 rounded-lg px-3 py-1.5 text-white text-sm"
+          disabled
+          className="w-full bg-dark-50 border border-dark-100 rounded-lg px-3 py-1.5 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {AGENTS.map(a => (
             <option key={a.id} value={a.id}>{a.name}</option>
@@ -164,15 +140,18 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
           aria-label="Status"
           value={selectedStatus}
           onChange={e => setSelectedStatus(e.target.value)}
-          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs"
+          disabled
+          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {STATUSES.map(s => (
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
         <button
-          onClick={handleSetStatus}
-          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-medium transition-colors shrink-0"
+          type="button"
+          disabled
+          title={UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
+          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Set Status
         </button>
@@ -185,11 +164,14 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
           placeholder="Task description..."
           value={taskDescription}
           onChange={e => setTaskDescription(e.target.value)}
-          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs min-w-0"
+          disabled
+          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <button
-          onClick={handleAssignTask}
-          className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-xs font-medium transition-colors shrink-0"
+          type="button"
+          disabled
+          title={UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
+          className="px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-xs font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Assign
         </button>
@@ -202,15 +184,18 @@ export function ControlPanel({ onSendEvent, onTriggerTask }: ControlPanelProps) 
           aria-label="Emotion"
           value={selectedEmotion}
           onChange={e => setSelectedEmotion(e.target.value)}
-          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs"
+          disabled
+          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {EMOTIONS.map(e => (
             <option key={e} value={e}>{e}</option>
           ))}
         </select>
         <button
-          onClick={handleChangeEmotion}
-          className="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-medium transition-colors shrink-0"
+          type="button"
+          disabled
+          title={UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
+          className="px-3 py-1.5 bg-pink-600 text-white rounded-lg text-xs font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Emotion
         </button>

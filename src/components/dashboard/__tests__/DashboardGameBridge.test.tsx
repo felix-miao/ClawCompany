@@ -83,6 +83,30 @@ describe('DashboardGameBridge', () => {
     expect(mockReceiveGameEvent).toHaveBeenCalledTimes(1);
   });
 
+  it('registers a task-submitted refresh hook without injecting fake local game events', async () => {
+    let taskSubmittedHandler: ((taskId: string) => void) | undefined;
+
+    render(
+      <DashboardGameBridge
+        activeView="game"
+        gameEvents={[]}
+        onTriggerTaskHandlerChange={handler => {
+          taskSubmittedHandler = handler;
+        }}
+      />,
+    );
+
+    await waitFor(() => expect(jest.mocked(require('@/game').startGame)).toHaveBeenCalledWith('dashboard-game-container'));
+
+    act(() => {
+      taskSubmittedHandler?.('task-from-chat');
+    });
+
+    expect(mockReceiveGameEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'agent:status-change' }),
+    );
+  });
+
   it('does not start the game when timeline is active', () => {
     render(<DashboardGameBridge activeView="timeline" gameEvents={[]} />);
 

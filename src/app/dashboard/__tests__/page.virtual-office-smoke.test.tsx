@@ -222,32 +222,21 @@ describe('Virtual Office E2E Smoke Tests', () => {
   })
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Test 4: 动画/动作 - 手动触发状态变化验证事件系统
+  // Test 4: 动画/动作 - 手动状态变化在 snapshot 链路接通前应禁用
   // ═══════════════════════════════════════════════════════════════════════════
 
-  it('STEP 4: 动画/动作 - 状态变化事件应该被发送到 game engine', async () => {
+  it('STEP 4: 动画/动作 - 不支持的手动状态变化不应发送旧 game-events', async () => {
     render(React.createElement(DashboardPage))
     
     await act(async () => {
       await new Promise(r => setTimeout(r, 100))
     })
 
-    // 找到 Set Status 按钮并点击
     const setStatusBtn = screen.getByText('Set Status')
-    expect(setStatusBtn).toBeInTheDocument()
+    expect(setStatusBtn).toBeDisabled()
+    expect(screen.getByText(/不会写入 unified snapshot/)).toBeInTheDocument()
 
-    // 点击触发状态变化
-    await act(async () => {
-      setStatusBtn.click()
-    })
-
-    // 等待事件处理
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/game-events',
-        expect.objectContaining({ method: 'POST' }),
-      )
-    })
+    expect(mockFetch).not.toHaveBeenCalledWith('/api/game-events', expect.any(Object))
   })
 
   // ═══════════════════════════════════════════════════════════════════════════
