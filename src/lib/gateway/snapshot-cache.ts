@@ -1,4 +1,4 @@
-import { buildOpenClawSnapshot, type OpenClawSnapshot } from './openclaw-snapshot'
+import { buildOpenClawSnapshot, type BuildOpenClawSnapshotOptions, type OpenClawSnapshot } from './openclaw-snapshot'
 import { SessionSyncService } from './session-sync'
 
 const DEFAULT_SNAPSHOT_TTL_MS = 5_000
@@ -7,6 +7,11 @@ let snapshotTtlMs = DEFAULT_SNAPSHOT_TTL_MS
 interface CachedSnapshot {
   snapshot: OpenClawSnapshot
   fetchedAt: number
+}
+
+interface GetCachedOpenClawSnapshotOptions {
+  reuseInFlight?: boolean
+  buildOptions?: BuildOpenClawSnapshotOptions
 }
 
 declare global {
@@ -21,26 +26,34 @@ function getCachedSnapshot(now: number): OpenClawSnapshot | null {
   return cached.snapshot
 }
 
-export async function getCachedOpenClawSnapshot(sync: SessionSyncService = new SessionSyncService()): Promise<OpenClawSnapshot> {
+export async function getCachedOpenClawSnapshot(
+  sync: SessionSyncService = new SessionSyncService(),
+  options: GetCachedOpenClawSnapshotOptions = {},
+): Promise<OpenClawSnapshot> {
+  const reuseInFlight = options.reuseInFlight ?? true
   const now = Date.now()
   const cached = getCachedSnapshot(now)
   if (cached) return cached
 
-  if (globalThis.__openClawFullSnapshotInFlight) {
+  if (reuseInFlight && globalThis.__openClawFullSnapshotInFlight) {
     return globalThis.__openClawFullSnapshotInFlight
   }
 
-  const request = buildOpenClawSnapshot(sync).then((snapshot) => {
+  const request = buildOpenClawSnapshot(sync, options.buildOptions).then((snapshot) => {
     globalThis.__openClawFullSnapshot = {
       snapshot,
       fetchedAt: Date.now(),
     }
     return snapshot
   }).finally(() => {
-    globalThis.__openClawFullSnapshotInFlight = null
+    if (globalThis.__openClawFullSnapshotInFlight === request) {
+      globalThis.__openClawFullSnapshotInFlight = null
+    }
   })
 
-  globalThis.__openClawFullSnapshotInFlight = request
+  if (reuseInFlight) {
+    globalThis.__openClawFullSnapshotInFlight = request
+  }
   return request
 }
 

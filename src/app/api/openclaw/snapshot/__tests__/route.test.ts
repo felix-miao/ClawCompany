@@ -49,14 +49,15 @@ const mockGetCachedOpenClawSnapshot = getCachedOpenClawSnapshot as jest.Mock
 
 const API_KEY = 'test-api-key-12345678901234567890'
 
-function createMockRequest(options?: { noAuth?: boolean }) {
+function createMockRequest(options?: { noAuth?: boolean; url?: string }) {
   const headers: Record<string, string> = {
     'x-forwarded-for': '1.2.3.4',
     'content-type': 'application/json',
     ...(options?.noAuth ? {} : { 'x-api-key': API_KEY }),
   }
   return {
-    url: 'http://localhost/api/openclaw/snapshot',
+    url: options?.url ?? 'http://localhost/api/openclaw/snapshot',
+    nextUrl: new URL(options?.url ?? 'http://localhost/api/openclaw/snapshot'),
     headers: { get: (name: string) => headers[name.toLowerCase()] || null },
     json: () => Promise.resolve({}),
   }
@@ -160,7 +161,7 @@ describe('/api/openclaw/snapshot', () => {
     expect(data.tasks[0].taskId).toBe('sess-1')
     expect(data.tasks[0].currentAgentName).toBe('PM Claw')
     expect(data.tasks[0].description).toContain('用你的团队给我写一个网站出来')
-    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledWith(__mockSync)
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledWith(__mockSync, { reuseInFlight: true })
   })
 
   it('should return fallback payload when gateway fails', async () => {
@@ -255,5 +256,29 @@ describe('/api/openclaw/snapshot', () => {
     await expect(first.json()).resolves.toMatchObject({ success: true, connected: true })
     await expect(second.json()).resolves.toMatchObject({ success: true, connected: true })
     expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledTimes(2)
+  })
+
+  it('should bypass slow in-flight cache reads for fresh bootstrap requests', async () => {
+    mockGetCachedOpenClawSnapshot.mockResolvedValue({
+      agents: [],
+      sessions: [],
+      tasks: [],
+      metrics: {
+        agents: { total: 0, active: 0, idle: 0, byRole: {} },
+        sessions: { total: 0, active: 0, completed: 0, failed: 0 },
+        tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        source: 'gateway',
+        fetchedAt: new Date().toISOString(),
+      },
+      connected: true,
+      fetchedAt: new Date().toISOString(),
+    })
+
+    await GET(createMockRequest({ url: 'http://localhost/api/openclaw/snapshot?fresh=cold-start-bootstrap' }) as any)
+
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledWith(__mockSync, {
+      reuseInFlight: false,
+      buildOptions: { includeHistory: false },
+    })
   })
 })

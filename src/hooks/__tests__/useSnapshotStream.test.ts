@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 
-import { useSnapshotStream } from '../useSnapshotStream'
+import { SNAPSHOT_COLD_START_BOOTSTRAP_MS, useSnapshotStream } from '../useSnapshotStream'
 
 const baseSnapshot = {
   agents: [{ id: 'agent-1', name: 'PM Claw', role: 'pm', status: 'idle', emotion: 'neutral', currentTask: null }],
@@ -31,6 +31,24 @@ const fallbackSnapshot = {
     source: 'fallback',
   },
   connected: false,
+}
+
+const runningSnapshot = {
+  ...baseSnapshot,
+  agents: [
+    { id: 'sidekick', name: 'Sidekick', role: 'pm', status: 'working', emotion: 'neutral', currentTask: 'Bootstrap sidekick running' },
+    { id: 'pm', name: 'PM', role: 'pm', status: 'working', emotion: 'neutral', currentTask: 'Bootstrap pm running' },
+  ],
+  sessions: [
+    { sessionKey: 'agent:sidekick:main', agentId: 'sidekick', agentName: 'Sidekick', role: 'pm', label: 'Bootstrap sidekick running', status: 'running', startedAt: '2026-04-30T09:18:00Z', endedAt: null, currentWork: 'Bootstrap sidekick running', latestThought: 'Sidekick running', latestResultSummary: null, finalResultSummary: null, model: 'gpt-5.5', latestMessage: 'Sidekick running', latestMessageRole: 'assistant', latestMessageStatus: 'running', history: [], artifacts: [], finalDeliveryArtifacts: [], category: 'running', eventFeed: { events: [], totalCount: 0, byType: {} } },
+    { sessionKey: 'agent:pm:main', agentId: 'pm', agentName: 'PM', role: 'pm', label: 'Bootstrap pm running', status: 'running', startedAt: '2026-04-30T09:18:00Z', endedAt: null, currentWork: 'Bootstrap pm running', latestThought: 'PM running', latestResultSummary: null, finalResultSummary: null, model: 'gpt-5.5', latestMessage: 'PM running', latestMessageRole: 'assistant', latestMessageStatus: 'running', history: [], artifacts: [], finalDeliveryArtifacts: [], category: 'running', eventFeed: { events: [], totalCount: 0, byType: {} } },
+  ],
+  tasks: [],
+  metrics: {
+    ...baseSnapshot.metrics,
+    agents: { total: 2, active: 2, idle: 0, byRole: { pm: 2 } },
+    sessions: { total: 2, active: 2, completed: 0, failed: 0 },
+  },
 }
 
 class MockEventSource {
@@ -131,6 +149,63 @@ describe('useSnapshotStream', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('bootstraps from snapshot when the stream first package misses the cold-start deadline and keeps merging stream diffs', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => runningSnapshot })
+    const { result } = renderHook(() => useSnapshotStream())
+    const source = MockEventSource.instances[0]
+
+    act(() => {
+      source.open()
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(SNAPSHOT_COLD_START_BOOTSTRAP_MS)
+    })
+
+    await waitFor(() => expect(result.current.agents).toHaveLength(2))
+    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot?fresh=cold-start-bootstrap', expect.objectContaining({ cache: 'no-store' }))
+    expect(result.current.connected).toBe(true)
+    expect(result.current.metrics?.agents.active).toBe(2)
+
+    act(() => {
+      source.emit('snapshot-diff', {
+        agents: {
+          changed: [{ ...runningSnapshot.agents[0], currentTask: 'Merged from stream diff' }],
+          removed: [],
+        },
+      })
+    })
+
+    await waitFor(() => expect(result.current.agents[0].currentTask).toBe('Merged from stream diff'))
+  })
+
+  it('does not request a bootstrap snapshot when the stream first package arrives before the cold-start deadline', async () => {
+    const { result } = renderHook(() => useSnapshotStream())
+    const source = MockEventSource.instances[0]
+
+    act(() => {
+      source.open()
+    })
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(SNAPSHOT_COLD_START_BOOTSTRAP_MS - 1)
+    })
+
+    act(() => {
+      source.emit('snapshot-full', baseSnapshot)
+    })
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3000)
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('merges diff events into current state', async () => {
     const { result } = renderHook(() => useSnapshotStream())
     const source = MockEventSource.instances[0]
@@ -168,7 +243,7 @@ describe('useSnapshotStream', () => {
     })
 
     expect(result.current.agents).toHaveLength(4)
-    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot', expect.objectContaining({ cache: 'no-store' }))
+    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot?fresh=cold-start-bootstrap', expect.objectContaining({ cache: 'no-store' }))
     expect(result.current.connected).toBe(false)
     expect(first.readyState).toBe(MockEventSource.CLOSED)
     expect(MockEventSource.instances).toHaveLength(1)
@@ -200,7 +275,7 @@ describe('useSnapshotStream', () => {
     })
 
     expect(result.current.agents).toHaveLength(4)
-    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot', expect.objectContaining({ cache: 'no-store' }))
+    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot?fresh=cold-start-bootstrap', expect.objectContaining({ cache: 'no-store' }))
     expect(source.readyState).toBe(MockEventSource.CLOSED)
   })
 

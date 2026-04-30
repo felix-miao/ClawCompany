@@ -142,6 +142,10 @@ export interface OpenClawSnapshot {
   fetchedAt: string
 }
 
+export interface BuildOpenClawSnapshotOptions {
+  includeHistory?: boolean
+}
+
 const HISTORY_LIMIT = 20
 const SAFE_AGENT_ID_PATTERN = /^[A-Za-z0-9_-]+$/
 
@@ -1540,7 +1544,11 @@ function buildMetrics(agents: AgentInfo[], sessions: GatewaySession[], fetchedAt
   }
 }
 
-export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<OpenClawSnapshot> {
+export async function buildOpenClawSnapshot(
+  sync: SessionSyncService,
+  options: BuildOpenClawSnapshotOptions = {},
+): Promise<OpenClawSnapshot> {
+  const includeHistory = options.includeHistory ?? true
   await sync['client'].connect()
   try {
     const [agents, sessions] = await Promise.all([
@@ -1548,12 +1556,14 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
       sync.fetchSessions(),
     ])
 
-    const histories = await Promise.all(
-      sessions.map(async (session) => {
-        const history = await resolveSessionHistory(sync, session)
-        return [session.key, history] as const
-      })
-    )
+    const histories = includeHistory
+      ? await Promise.all(
+        sessions.map(async (session) => {
+          const history = await resolveSessionHistory(sync, session)
+          return [session.key, history] as const
+        })
+      )
+      : []
 
     const historyMap = new Map(histories)
     const mappedAgents = sync.mapToAgentInfo(agents, sessions)

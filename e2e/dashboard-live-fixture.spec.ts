@@ -346,3 +346,36 @@ test('dashboard shows sidekick and pm active from running OpenClaw snapshot with
   await expect(page.getByText('PM is running from snapshot timeline').first()).toBeVisible()
   await expect(page.getByText('running').first()).toBeVisible()
 })
+
+test('dashboard bootstraps active agents within 3 seconds when cold stream first package is delayed', async ({ page }) => {
+  const snapshotRequests: string[] = []
+
+  await page.route('**/api/openclaw/snapshot/stream', async route => {
+    await new Promise(resolve => setTimeout(resolve, 5000))
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        connection: 'keep-alive',
+      },
+      body: `event: snapshot-full\ndata: ${JSON.stringify(sidekickPmRunningSnapshot)}\n\n`,
+    })
+  })
+  await page.route('**/api/openclaw/snapshot**', async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/openclaw/snapshot') {
+      snapshotRequests.push(`${url.pathname}${url.search}`)
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sidekickPmRunningSnapshot) })
+  })
+
+  await page.goto('/dashboard')
+
+  await expect(page.getByText('Connected', { exact: true })).toBeVisible({ timeout: 3000 })
+  await expect(page.getByText('OpenClaw: Live')).toBeVisible({ timeout: 3000 })
+  await expect(page.getByText('2 active agents').first()).toBeVisible({ timeout: 3000 })
+  await expect(page.getByTestId('agent-card-sidekick')).toContainText('working')
+  await expect(page.getByTestId('agent-card-pm')).toContainText('working')
+  expect(snapshotRequests).toEqual(['/api/openclaw/snapshot?fresh=cold-start-bootstrap'])
+})

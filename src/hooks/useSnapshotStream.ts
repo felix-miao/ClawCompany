@@ -19,6 +19,7 @@ interface SnapshotStreamState {
 
 const STREAM_URL = '/api/openclaw/snapshot/stream'
 const SNAPSHOT_URL = '/api/openclaw/snapshot'
+export const SNAPSHOT_COLD_START_BOOTSTRAP_MS = 1000
 const MIN_BACKOFF_MS = 15000
 const MAX_BACKOFF_MS = 30000
 
@@ -50,13 +51,24 @@ export function useSnapshotStream(): SnapshotStreamState {
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const coldStartBootstrapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryCountRef = useRef(0)
   const unmountedRef = useRef(false)
   const fallbackSnapshotRef = useRef<Promise<void> | null>(null)
   const hasStreamSnapshotRef = useRef(false)
 
-  const applyFullSnapshot = useCallback((snapshot: OpenClawSnapshot) => {
-    hasStreamSnapshotRef.current = true
+  const clearColdStartBootstrapTimer = useCallback(() => {
+    if (coldStartBootstrapTimerRef.current) {
+      clearTimeout(coldStartBootstrapTimerRef.current)
+      coldStartBootstrapTimerRef.current = null
+    }
+  }, [])
+
+  const applyFullSnapshot = useCallback((snapshot: OpenClawSnapshot, options: { fromStream?: boolean } = {}) => {
+    if (options.fromStream) {
+      hasStreamSnapshotRef.current = true
+      clearColdStartBootstrapTimer()
+    }
     setAgents(snapshot.agents ?? [])
     setSessions(snapshot.sessions ?? [])
     setTasks(snapshot.tasks ?? [])
@@ -64,10 +76,11 @@ export function useSnapshotStream(): SnapshotStreamState {
     setConnected(Boolean(snapshot.connected))
     setError(null)
     setLoading(false)
-  }, [])
+  }, [clearColdStartBootstrapTimer])
 
   const applyDiff = useCallback((diff: OpenClawSnapshotDiff) => {
     hasStreamSnapshotRef.current = true
+    clearColdStartBootstrapTimer()
     if (diff.agents) {
       setAgents(current => mergeById(current, diff.agents?.changed, diff.agents?.removed, agent => agent.id))
     }
@@ -85,14 +98,14 @@ export function useSnapshotStream(): SnapshotStreamState {
     }
     setError(null)
     setLoading(false)
-  }, [])
+  }, [clearColdStartBootstrapTimer])
 
   const fetchFallbackSnapshot = useCallback(async (fallbackError: string) => {
     if (fallbackSnapshotRef.current) return fallbackSnapshotRef.current
 
     const request = (async () => {
       try {
-        const response = await fetch(SNAPSHOT_URL, { cache: 'no-store' })
+        const response = await fetch(`${SNAPSHOT_URL}?fresh=cold-start-bootstrap`, { cache: 'no-store' })
         if (!response.ok) {
           throw new Error(`Snapshot fallback failed with ${response.status}`)
         }
@@ -124,9 +137,11 @@ export function useSnapshotStream(): SnapshotStreamState {
       clearTimeout(retryTimerRef.current)
       retryTimerRef.current = null
     }
+    clearColdStartBootstrapTimer()
     retryCountRef.current = 0
+    hasStreamSnapshotRef.current = false
     setReconnectToken(token => token + 1)
-  }, [])
+  }, [clearColdStartBootstrapTimer])
 
   useEffect(() => {
     unmountedRef.current = false
@@ -137,6 +152,7 @@ export function useSnapshotStream(): SnapshotStreamState {
       setError('Snapshot stream disconnected')
       source.close()
       eventSourceRef.current = null
+      clearColdStartBootstrapTimer()
       if (!hasStreamSnapshotRef.current) {
         void fetchFallbackSnapshot('Snapshot stream disconnected')
       }
@@ -151,6 +167,14 @@ export function useSnapshotStream(): SnapshotStreamState {
 
       const source = new EventSource(STREAM_URL)
       eventSourceRef.current = source
+      clearColdStartBootstrapTimer()
+      coldStartBootstrapTimerRef.current = setTimeout(() => {
+        if (unmountedRef.current || hasStreamSnapshotRef.current || eventSourceRef.current !== source) return
+        if (process.env.NODE_ENV !== 'test') {
+          console.info(`OpenClaw snapshot stream cold-start exceeded ${SNAPSHOT_COLD_START_BOOTSTRAP_MS}ms; bootstrapping from ${SNAPSHOT_URL}`)
+        }
+        void fetchFallbackSnapshot('Snapshot stream cold-start bootstrap failed')
+      }, SNAPSHOT_COLD_START_BOOTSTRAP_MS)
 
       source.onopen = () => {
         if (unmountedRef.current) return
@@ -162,7 +186,7 @@ export function useSnapshotStream(): SnapshotStreamState {
       source.addEventListener('snapshot-full', (event) => {
         if (unmountedRef.current) return
         try {
-          applyFullSnapshot(JSON.parse((event as MessageEvent).data))
+          applyFullSnapshot(JSON.parse((event as MessageEvent).data), { fromStream: true })
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Invalid snapshot payload')
           setLoading(false)
@@ -198,6 +222,7 @@ export function useSnapshotStream(): SnapshotStreamState {
         clearTimeout(retryTimerRef.current)
         retryTimerRef.current = null
       }
+      clearColdStartBootstrapTimer()
       if (eventSourceRef.current) {
         eventSourceRef.current.close()
         eventSourceRef.current = null

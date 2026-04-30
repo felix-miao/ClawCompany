@@ -21,11 +21,15 @@ const createFallbackSnapshot = (error: unknown): OpenClawSnapshot => ({
   error: error instanceof Error ? error.message : 'Gateway unreachable',
 } as OpenClawSnapshot)
 
-export const GET = withAuth(async (_request: NextRequest) => {
+export const GET = withAuth(async (request: NextRequest) => {
   const sync = new SessionSyncService()
+  const bypassSlowInFlight = request.nextUrl.searchParams.has('fresh')
 
   try {
-    const snapshot = await getCachedOpenClawSnapshot(sync)
+    const snapshot = await getCachedOpenClawSnapshot(sync, {
+      reuseInFlight: !bypassSlowInFlight,
+      buildOptions: bypassSlowInFlight ? { includeHistory: false } : undefined,
+    })
     return successResponse(snapshot)
   } catch (error) {
     return successResponse(createFallbackSnapshot(error))

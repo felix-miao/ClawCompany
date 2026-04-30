@@ -106,6 +106,36 @@ describe('getCachedOpenClawSnapshot', () => {
     expect(mockBuildOpenClawSnapshot).toHaveBeenCalledTimes(1)
   })
 
+  it('can bypass a slow in-flight snapshot for cold-start bootstrap reads', async () => {
+    let resolveSlowSnapshot: ((value: ReturnType<typeof createSnapshot>) => void) | null = null
+    const fastSnapshot = createSnapshot('fast-bootstrap-claw')
+    mockBuildOpenClawSnapshot
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveSlowSnapshot = resolve
+      }))
+      .mockResolvedValueOnce(fastSnapshot)
+
+    const slowRequest = getCachedOpenClawSnapshot({} as any)
+    const bootstrapRequest = getCachedOpenClawSnapshot({} as any, { reuseInFlight: false })
+
+    await expect(bootstrapRequest).resolves.toBe(fastSnapshot)
+    expect(getOpenClawSnapshotCacheState()).toMatchObject({ hasSnapshot: true, inFlight: true })
+    expect(mockBuildOpenClawSnapshot).toHaveBeenCalledTimes(2)
+    expect(mockBuildOpenClawSnapshot).toHaveBeenLastCalledWith(expect.anything(), undefined)
+
+    resolveSlowSnapshot?.(createSnapshot('slow-stream-claw'))
+    await slowRequest
+  })
+
+  it('passes lightweight build options to bootstrap snapshot reads', async () => {
+    const fastSnapshot = createSnapshot('fast-bootstrap-claw')
+    mockBuildOpenClawSnapshot.mockResolvedValue(fastSnapshot)
+
+    await getCachedOpenClawSnapshot({} as any, { reuseInFlight: false, buildOptions: { includeHistory: false } })
+
+    expect(mockBuildOpenClawSnapshot).toHaveBeenCalledWith(expect.anything(), { includeHistory: false })
+  })
+
   it('exposes cache state for diagnostics without logging large snapshots', async () => {
     let resolveSnapshot: ((value: ReturnType<typeof createSnapshot>) => void) | null = null
     mockBuildOpenClawSnapshot.mockImplementation(() => new Promise((resolve) => {

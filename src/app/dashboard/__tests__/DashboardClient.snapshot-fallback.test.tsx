@@ -264,7 +264,7 @@ describe('DashboardClient snapshot fallback', () => {
     await waitFor(() => expect(screen.getByText('PM Claw')).toBeInTheDocument())
     expect(screen.getByText('Current Agents').nextElementSibling).toHaveTextContent('4')
     expect(screen.queryByText('No agents reported')).not.toBeInTheDocument()
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/openclaw/snapshot', expect.objectContaining({ cache: 'no-store' }))
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/openclaw/snapshot?fresh=cold-start-bootstrap', expect.objectContaining({ cache: 'no-store' }))
   })
 
   it('does not synthesize active agents before OpenClaw snapshot reports them', async () => {

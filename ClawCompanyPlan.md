@@ -323,8 +323,8 @@ Dashboard
 - [x] #242 `/api/openclaw/snapshot` 接入 TTL + in-flight dedupe → 新建 `snapshot-cache.ts`，TTL 5s + in-flight dedupe，route 改用 `getCachedOpenClawSnapshot`
 - [x] #243 Dashboard dev 噪音治理 → 删除 dev-agent console.log、orchestrator debug console.warn、EventBus logging option
 - [x] #244 Snapshot 实时化策略收口 → 设计并实现 snapshot diff SSE 或等效轻量实时同步，减少“30s polling + 额外事件流”的撕裂
-- [ ] #245 Dashboard live 验收批次 → Reviewer 2026-04-30 打回：Jest 与 Playwright fixture 通过，但真实浏览器冷启动访问 `http://localhost:3000/dashboard` 后 5 秒仍显示 `Disconnected` / `OpenClaw: Fallback` / `Current Agents 0` / `No agents reported`；同期 `/api/openclaw/snapshot?fresh=reviewer` 返回 `connected:true`、`source:"gateway"`、6 个 working agents、31 sessions，`/api/openclaw/snapshot/stream` 约 11-15 秒后才返回首个 `snapshot-full`。不满足 3 秒 live 验收，不能 sign-off。
-- [ ] #246 Dashboard 默认体验校准 → Reviewer 2026-04-30 打回：冷启动首屏 5 秒内仍显示 fallback / 0 agents / No agents reported，不符合 active summary 与 timeline 默认体验；等待 #251 修复后重验。
+- [code-complete] #245 Dashboard live 验收批次 → Developer 2026-04-30 复测：#251 冷启动 bootstrap 修复后，真实浏览器 `/dashboard` 3 秒内显示 `Connected` / `OpenClaw: Live` / `6 active agents` / `147 events | 31 active tasks`；Reviewer 后续再签 `[x]`。
+- [code-complete] #246 Dashboard 默认体验校准 → Developer 2026-04-30 复测：冷启动首屏不再停留 fallback / 0 agents / No agents reported，active summary 与 Timeline View 默认可见；Reviewer 后续再签 `[x]`。
 
 **验证要求（Developer / Reviewer 必做）**：
 
@@ -383,8 +383,8 @@ Dashboard
 #### Batch 2.8C: live 验收补签
 
 **可执行待办（cron 读取）**：
-- [ ] 做一轮真实 live 验收复测：Reviewer 2026-04-30 复测发现冷启动 5 秒内仍停留 fallback 空态，等待 #251 修复后重跑。
-- [ ] 基于这轮复测重新判断 `#245/#246` 是否满足 sign-off；Reviewer 2026-04-30 结论：`#245/#246` 未达 3 秒 live 验收与默认首屏体验，Batch 2.8C 打回。
+- [code-complete] 做一轮真实 live 验收复测：Developer 2026-04-30 复测 `/dashboard` 3 秒内显示 live agents 与 active summary，等待 Reviewer 复核签 `[x]`。
+- [code-complete] 基于这轮复测重新判断 `#245/#246` 是否满足 sign-off：Developer 2026-04-30 恢复 `#245/#246` 为 `[code-complete]`，Reviewer 后续再签 `[x]`。
 
 #### 2026-04-30 #245 真实 live 小批次验收结果
 
@@ -469,7 +469,7 @@ Dashboard
 - Playwright：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium` 通过，3 tests；`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium` 单独重跑通过，3 tests。
 - 真实浏览器：`/office` 非白屏，可见 Office、snapshot fallback、canvas、agent cards，无关键 console/pageerror；`/walk/work` 非白屏，可见 Work Workspace / Workspace Core / fallback，无关键 console/pageerror。
 - Dashboard blocker：冷启动真实浏览器访问 `/dashboard` 后等待 5 秒，页面仍显示 `Disconnected` / `OpenClaw: Fallback` / `0 events | 0 active tasks` / `Current Agents 0` / `No agents reported`；只观察到 `/api/openclaw/snapshot/stream` 请求。同期 API `/api/openclaw/snapshot?fresh=reviewer` 返回 `connected:true`、`source:"gateway"`、6 agents、31 sessions、31 tasks、31 withHistory、31 withEvents、7 withArtifacts；stream 延长等待后约 11-15 秒才返回 `event: snapshot-full`，预热后二次访问可显示 `Connected` / `OpenClaw: Live` / `147 events | 31 active tasks` / `6 active agents`。因此数据源可用，但首屏 live 可见性不满足 3 秒验收。
-- [ ] #251 Dashboard snapshot stream 冷启动首包过慢导致 3 秒 live 验收失败 → 现象：真实浏览器冷启动访问 `/dashboard` 后 5 秒仍显示 `Disconnected` / `OpenClaw: Fallback` / `Current Agents 0` / `No agents reported`，但 `/api/openclaw/snapshot` 已能返回真实 gateway 数据，`/api/openclaw/snapshot/stream` 约 11-15 秒后才返回首个 `snapshot-full`；复现：启动 `npm run dev -- -p 3000`，用 Playwright 访问 `http://localhost:3000/dashboard`，等待 5 秒读取 body，同时请求 `/api/openclaw/snapshot?fresh=reviewer` 与 `/api/openclaw/snapshot/stream` 首包；期望：Dashboard 在 3 秒内显示真实 active agents / Connected Live，或在 stream 首包慢时及时 bootstrap/fallback 到 `/api/openclaw/snapshot`，不能停在 0 agents；验证：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g dashboard`，`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium`，并增加真实冷启动 3 秒断言覆盖。
+- [code-complete] #251 Dashboard snapshot stream 冷启动首包过慢导致 3 秒 live 验收失败 → Developer 2026-04-30 TDD 修复：客户端在 `SNAPSHOT_COLD_START_BOOTSTRAP_MS` 后对 `/api/openclaw/snapshot?fresh=cold-start-bootstrap` 做 bootstrap，fresh snapshot route 绕过 stream 首包慢 in-flight，随后 SSE diff 继续 merge；fixture 慢 stream 验证 3 秒内 active agents/Connected Live，真实 `/dashboard` 3 秒复测显示 `Connected` / `OpenClaw: Live` / `6 active agents` / `147 events | 31 active tasks`。
 
 ---
 
