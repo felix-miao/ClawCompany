@@ -1,25 +1,16 @@
-/**
- * /office route now redirects to /dashboard.
- * We verify that the redirect helper is called so the route stays thin.
- */
+import { render, screen } from '@testing-library/react'
 
-import { redirect } from 'next/navigation';
+import OfficePage from '../page'
 
-import OfficePage from '../page';
+describe('OfficePage', () => {
+  it('renders a visible office surface with agent cards', () => {
+    const { container } = render(<OfficePage />)
 
-jest.mock('next/navigation', () => ({
-  redirect: jest.fn(),
-}));
-
-describe('OfficePage (redirect)', () => {
-  it('should redirect to /dashboard', () => {
-    // OfficePage calls redirect() which throws in Next.js runtime;
-    // in tests the mock just records the call.
-    try {
-      OfficePage();
-    } catch {
-      // redirect() in tests may throw — that is fine
-    }
-    expect(redirect).toHaveBeenCalledWith('/dashboard');
-  });
-});
+    expect(screen.getByRole('heading', { level: 1, name: 'Office' })).toBeInTheDocument()
+    expect(screen.getAllByText(/snapshot fallback/i).length).toBeGreaterThan(0)
+    expect(container.querySelector('[data-testid="office-surface"]')).toBeInTheDocument()
+    expect(container.querySelector('canvas')).toBeInTheDocument()
+    expect(screen.getByTestId('agent-card-pm-agent')).toBeInTheDocument()
+    expect(screen.getByTestId('agent-card-dev-agent')).toBeInTheDocument()
+  })
+})
