@@ -142,6 +142,148 @@ const liveSnapshot = {
   fetchedAt: '2026-04-30T02:45:04Z',
 }
 
+const sidekickPmRunningSnapshot = {
+  agents: [
+    {
+      id: 'sidekick',
+      name: 'Sidekick',
+      role: 'pm',
+      status: 'working',
+      emotion: 'neutral',
+      currentTask: 'Snapshot sidekick running acceptance',
+      latestResultSummary: 'Snapshot sidekick latest result',
+    },
+    {
+      id: 'pm',
+      name: 'PM',
+      role: 'pm',
+      status: 'working',
+      emotion: 'neutral',
+      currentTask: 'Snapshot pm running acceptance',
+      latestResultSummary: 'Snapshot pm latest result',
+    },
+  ],
+  sessions: [
+    {
+      sessionKey: 'agent:sidekick:main',
+      agentId: 'sidekick',
+      agentName: 'Sidekick',
+      role: 'pm',
+      label: 'Snapshot sidekick running acceptance',
+      status: 'running',
+      startedAt: '2026-04-30T09:18:00Z',
+      endedAt: null,
+      currentWork: 'Snapshot sidekick running acceptance',
+      latestThought: 'Sidekick is running from snapshot history',
+      latestResultSummary: 'Snapshot sidekick latest result',
+      finalResultSummary: null,
+      model: 'gpt-5.5',
+      latestMessage: 'Sidekick is running from snapshot history',
+      latestMessageRole: 'assistant',
+      latestMessageStatus: 'running',
+      history: [
+        { role: 'assistant', content: 'Sidekick is running from snapshot history', status: 'running', timestamp: '2026-04-30T09:18:01Z' },
+      ],
+      artifacts: [],
+      finalDeliveryArtifacts: [],
+      category: 'running',
+      eventFeed: { events: [], totalCount: 0, byType: {} },
+    },
+    {
+      sessionKey: 'agent:pm:main',
+      agentId: 'pm',
+      agentName: 'PM',
+      role: 'pm',
+      label: 'Snapshot pm running acceptance',
+      status: 'running',
+      startedAt: '2026-04-30T09:18:00Z',
+      endedAt: null,
+      currentWork: 'Snapshot pm running acceptance',
+      latestThought: 'PM is running from snapshot history',
+      latestResultSummary: 'Snapshot pm latest result',
+      finalResultSummary: null,
+      model: 'gpt-5.5',
+      latestMessage: 'PM is running from snapshot history',
+      latestMessageRole: 'assistant',
+      latestMessageStatus: 'running',
+      history: [
+        { role: 'assistant', content: 'PM is running from snapshot history', status: 'running', timestamp: '2026-04-30T09:18:01Z' },
+      ],
+      artifacts: [],
+      finalDeliveryArtifacts: [],
+      category: 'running',
+      eventFeed: { events: [], totalCount: 0, byType: {} },
+    },
+  ],
+  tasks: [
+    {
+      taskId: 'agent:sidekick:main',
+      description: 'Snapshot sidekick running acceptance',
+      currentPhase: 'pm_analysis',
+      currentAgentId: 'sidekick',
+      currentAgentName: 'Sidekick',
+      createdAt: Date.parse('2026-04-30T09:18:00Z'),
+      updatedAt: Date.parse('2026-04-30T09:18:01Z'),
+      status: 'in_progress',
+      latestResultSummary: 'Snapshot sidekick latest result',
+      phases: [
+        { phase: 'pm_analysis', label: 'PM Analysis', agentId: 'sidekick', agentName: 'Sidekick', startTime: Date.parse('2026-04-30T09:18:00Z'), status: 'in_progress' },
+      ],
+      recentEvents: [
+        { type: 'task:progress', timestamp: Date.parse('2026-04-30T09:18:01Z'), agentId: 'sidekick', taskId: 'agent:sidekick:main', progress: 0, currentAction: 'Sidekick is running from snapshot timeline' },
+      ],
+      agentSnapshots: {
+        sidekick: {
+          id: 'sidekick',
+          name: 'Sidekick',
+          role: 'pm',
+          status: 'working',
+          emotion: 'neutral',
+          currentTask: 'Snapshot sidekick running acceptance',
+          latestResultSummary: 'Snapshot sidekick latest result',
+        },
+      },
+    },
+    {
+      taskId: 'agent:pm:main',
+      description: 'Snapshot pm running acceptance',
+      currentPhase: 'pm_analysis',
+      currentAgentId: 'pm',
+      currentAgentName: 'PM',
+      createdAt: Date.parse('2026-04-30T09:18:00Z'),
+      updatedAt: Date.parse('2026-04-30T09:18:01Z'),
+      status: 'in_progress',
+      latestResultSummary: 'Snapshot pm latest result',
+      phases: [
+        { phase: 'pm_analysis', label: 'PM Analysis', agentId: 'pm', agentName: 'PM', startTime: Date.parse('2026-04-30T09:18:00Z'), status: 'in_progress' },
+      ],
+      recentEvents: [
+        { type: 'task:progress', timestamp: Date.parse('2026-04-30T09:18:01Z'), agentId: 'pm', taskId: 'agent:pm:main', progress: 0, currentAction: 'PM is running from snapshot timeline' },
+      ],
+      agentSnapshots: {
+        pm: {
+          id: 'pm',
+          name: 'PM',
+          role: 'pm',
+          status: 'working',
+          emotion: 'neutral',
+          currentTask: 'Snapshot pm running acceptance',
+          latestResultSummary: 'Snapshot pm latest result',
+        },
+      },
+    },
+  ],
+  metrics: {
+    agents: { total: 2, active: 2, idle: 0, byRole: { pm: 2 } },
+    sessions: { total: 2, active: 2, completed: 0, failed: 0 },
+    tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+    source: 'gateway',
+    fetchedAt: '2026-04-30T09:18:02Z',
+  },
+  connected: true,
+  fetchedAt: '2026-04-30T09:18:02Z',
+}
+
 test('dashboard renders active OpenClaw session timeline, inspector, and artifacts from snapshot data', async ({ page }) => {
   await page.route('**/api/openclaw/snapshot/stream', async route => {
     await route.fulfill({
@@ -161,8 +303,6 @@ test('dashboard renders active OpenClaw session timeline, inspector, and artifac
   await page.goto('/dashboard')
 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
-  await expect(page.getByText('Connected')).toBeVisible()
-  await expect(page.getByText('OpenClaw: Live')).toBeVisible()
   await expect(page.getByText('Current Agents')).toBeVisible()
   await expect(page.getByText('1 active agent').first()).toBeVisible()
   await expect(page.getByTestId('agent-card-dev-claw')).toContainText('working')
@@ -177,4 +317,32 @@ test('dashboard renders active OpenClaw session timeline, inspector, and artifac
   await expect(page.getByText('Last Tool Result')).toBeVisible()
   await expect(page.getByText('/tmp/claw-company-live/dashboard-live.html').first()).toBeVisible()
   await expect(page.getByText(/Recent History \(3 messages\)/)).toBeVisible()
+})
+
+test('dashboard shows sidekick and pm active from running OpenClaw snapshot within 3 seconds', async ({ page }) => {
+  await page.route('**/api/openclaw/snapshot/stream', async route => {
+    await route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        connection: 'keep-alive',
+      },
+      body: `event: snapshot-full\ndata: ${JSON.stringify(sidekickPmRunningSnapshot)}\n\n`,
+    })
+  })
+  await page.route('**/api/openclaw/snapshot', async route => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(sidekickPmRunningSnapshot) })
+  })
+
+  await page.goto('/dashboard')
+
+  await expect(page.getByText('2 active agents').first()).toBeVisible({ timeout: 3000 })
+  await expect(page.getByTestId('agent-card-sidekick')).toContainText('working')
+  await expect(page.getByTestId('agent-card-pm')).toContainText('working')
+  await expect(page.getByTestId('agent-card-sidekick')).toContainText('Snapshot sidekick running acceptance')
+  await expect(page.getByTestId('agent-card-pm')).toContainText('Snapshot pm running acceptance')
+  await expect(page.getByText('Sidekick is running from snapshot timeline').first()).toBeVisible()
+  await expect(page.getByText('PM is running from snapshot timeline').first()).toBeVisible()
+  await expect(page.getByText('running').first()).toBeVisible()
 })

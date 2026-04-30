@@ -174,12 +174,12 @@ Dashboard
 
 > 以下是人工验收条件。代码层大体具备，但还没做完整 live sign-off。
 
-- [ ] sidekick / pm 一旦进入 running，dashboard 3 秒内出现对应 active 状态
+- [code-complete] sidekick / pm 一旦进入 running，dashboard 3 秒内出现对应 active 状态
 - [x] Timeline 不再出现"chat 有进展但 timeline 为空"的情况
 - [x] 任一 agent 最近结果可以在 dashboard 看到摘要
 - [x] developer 产出的 HTML / 本地文件可在 dashboard 点击打开
 - [x] 一个任务从 PM → Dev → Reviewer 的状态流转可在同一条 task/session 视图中连续看到
-- [ ] 所有状态都来自 OpenClaw snapshot，而不是 UI 文案或前端拼凑事件
+- [code-complete] 所有状态都来自 OpenClaw snapshot，而不是 UI 文案或前端拼凑事件
 
 ##### 10. 2026-04-28 浏览器 / CDP 自测问题汇总
 
