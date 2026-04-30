@@ -164,10 +164,10 @@ Dashboard
 
 > 这部分还没全部完成，所以 P0 Dashboard 不能算彻底结束。
 
-- [ ] 前端只保留单一 snapshot polling / streaming，不再并行拉多份重复接口
+- [code-complete] 前端只保留单一 snapshot polling / streaming，不再并行拉多份重复接口
 - [x] 旧 `sessions` / `metrics` 主要消费方已并入 snapshot
-- [ ] 减少 dev 模式下大对象日志和无意义 interval
-- [ ] snapshot route 要支持短 TTL / in-flight dedupe
+- [code-complete] 减少 dev 模式下大对象日志和无意义 interval
+- [code-complete] snapshot route 要支持短 TTL / in-flight dedupe
 - [ ] 后续可升级为 SSE snapshot diff 推送，减少轮询开销
 
 ##### 9. 验收标准（当前状态）

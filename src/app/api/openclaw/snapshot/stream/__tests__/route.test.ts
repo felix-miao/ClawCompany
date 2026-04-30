@@ -142,6 +142,15 @@ describe('/api/openclaw/snapshot/stream', () => {
     reader.releaseLock()
   })
 
+  it('does not run the diff polling interval until an initial snapshot exists', async () => {
+    mockGetCachedOpenClawSnapshot.mockRejectedValue(new Error('Gateway unavailable'))
+
+    await GET(createRequest() as never)
+    await jest.advanceTimersByTimeAsync(15000)
+
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledTimes(1)
+  })
+
   it('cleans up polling on abort', async () => {
     const abort = new AbortController()
     mockGetCachedOpenClawSnapshot.mockResolvedValue(makeSnapshot())

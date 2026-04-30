@@ -52,6 +52,7 @@ export function useSnapshotStream(): SnapshotStreamState {
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const retryCountRef = useRef(0)
   const unmountedRef = useRef(false)
+  const fallbackSnapshotRef = useRef<Promise<void> | null>(null)
 
   const applyFullSnapshot = useCallback((snapshot: OpenClawSnapshot) => {
     setAgents(snapshot.agents ?? [])
@@ -84,17 +85,30 @@ export function useSnapshotStream(): SnapshotStreamState {
   }, [])
 
   const fetchFallbackSnapshot = useCallback(async (fallbackError: string) => {
-    try {
-      const response = await fetch(SNAPSHOT_URL, { cache: 'no-store' })
-      if (!response.ok) {
-        throw new Error(`Snapshot fallback failed with ${response.status}`)
+    if (fallbackSnapshotRef.current) return fallbackSnapshotRef.current
+
+    const request = (async () => {
+      try {
+        const response = await fetch(SNAPSHOT_URL, { cache: 'no-store' })
+        if (!response.ok) {
+          throw new Error(`Snapshot fallback failed with ${response.status}`)
+        }
+        const snapshot = await response.json() as OpenClawSnapshot
+        if (!unmountedRef.current) {
+          applyFullSnapshot(snapshot)
+        }
+      } catch (err) {
+        if (!unmountedRef.current) {
+          setError(err instanceof Error ? err.message : fallbackError)
+          setLoading(false)
+        }
+      } finally {
+        fallbackSnapshotRef.current = null
       }
-      const snapshot = await response.json() as OpenClawSnapshot
-      applyFullSnapshot(snapshot)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : fallbackError)
-      setLoading(false)
-    }
+    })()
+
+    fallbackSnapshotRef.current = request
+    return request
   }, [applyFullSnapshot])
 
   const refresh = useCallback(() => {
@@ -115,6 +129,7 @@ export function useSnapshotStream(): SnapshotStreamState {
     unmountedRef.current = false
 
     const scheduleReconnect = (source: EventSource) => {
+      if (eventSourceRef.current !== source) return
       setConnected(false)
       setError('Snapshot stream disconnected')
       source.close()
@@ -170,7 +185,6 @@ export function useSnapshotStream(): SnapshotStreamState {
       }
     }
 
-    void fetchFallbackSnapshot('Snapshot bootstrap unavailable')
     connect()
 
     return () => {

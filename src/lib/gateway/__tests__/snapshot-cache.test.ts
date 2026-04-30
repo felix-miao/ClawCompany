@@ -1,4 +1,9 @@
-import { getCachedOpenClawSnapshot, resetCachedOpenClawSnapshot } from '../snapshot-cache'
+import {
+  getCachedOpenClawSnapshot,
+  getOpenClawSnapshotCacheState,
+  resetCachedOpenClawSnapshot,
+  setOpenClawSnapshotCacheTtlForTest,
+} from '../snapshot-cache'
 import { buildOpenClawSnapshot } from '../openclaw-snapshot'
 
 jest.mock('../openclaw-snapshot', () => ({
@@ -33,7 +38,28 @@ describe('getCachedOpenClawSnapshot', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+    setOpenClawSnapshotCacheTtlForTest(null)
     resetCachedOpenClawSnapshot()
+  })
+
+  it('uses a short configurable TTL for route-level snapshot reuse', async () => {
+    setOpenClawSnapshotCacheTtlForTest(250)
+    const firstSnapshot = createSnapshot('dev-claw')
+    const secondSnapshot = createSnapshot('pm-claw')
+    mockBuildOpenClawSnapshot
+      .mockResolvedValueOnce(firstSnapshot)
+      .mockResolvedValueOnce(secondSnapshot)
+
+    const first = await getCachedOpenClawSnapshot({} as any)
+    now += 249
+    const cached = await getCachedOpenClawSnapshot({} as any)
+    now += 2
+    const refreshed = await getCachedOpenClawSnapshot({} as any)
+
+    expect(first).toBe(firstSnapshot)
+    expect(cached).toBe(firstSnapshot)
+    expect(refreshed).toBe(secondSnapshot)
+    expect(mockBuildOpenClawSnapshot).toHaveBeenCalledTimes(2)
   })
 
   it('should reuse a snapshot within the TTL', async () => {
@@ -78,5 +104,32 @@ describe('getCachedOpenClawSnapshot', () => {
 
     await expect(Promise.all([first, second])).resolves.toEqual([snapshot, snapshot])
     expect(mockBuildOpenClawSnapshot).toHaveBeenCalledTimes(1)
+  })
+
+  it('exposes cache state for diagnostics without logging large snapshots', async () => {
+    let resolveSnapshot: ((value: ReturnType<typeof createSnapshot>) => void) | null = null
+    mockBuildOpenClawSnapshot.mockImplementation(() => new Promise((resolve) => {
+      resolveSnapshot = resolve
+    }))
+
+    const pending = getCachedOpenClawSnapshot({} as any)
+
+    expect(getOpenClawSnapshotCacheState()).toMatchObject({
+      hasSnapshot: false,
+      inFlight: true,
+      ttlMs: 5000,
+    })
+    expect(getOpenClawSnapshotCacheState()).not.toHaveProperty('snapshot')
+
+    const snapshot = createSnapshot('tester-claw')
+    resolveSnapshot?.(snapshot)
+    await pending
+
+    expect(getOpenClawSnapshotCacheState()).toMatchObject({
+      hasSnapshot: true,
+      inFlight: false,
+      ageMs: 0,
+      expiresInMs: 5000,
+    })
   })
 })

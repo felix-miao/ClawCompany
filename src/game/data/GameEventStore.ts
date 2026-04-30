@@ -89,7 +89,7 @@ const processEmitter: EventEmitter = globalThis.__gameEventEmitter!;
 // async_hooks 内部用一个 Map 追踪每个 async context，Map 无限增长会触发
 // "RangeError: Map maximum size exceeded"。
 // 这里每 60 秒打印一次，帮助确认崩溃前增长曲线和哪类 async 操作是来源。
-if (process.env.NODE_ENV === 'development' && typeof process !== 'undefined') {
+if (process.env.NODE_ENV === 'development' && process.env.OPENCLAW_EVENTSTORE_DIAG === '1' && typeof process !== 'undefined') {
   if (!globalThis.__diagTimerStarted) {
     globalThis.__diagTimerStarted = true;
     const diagTimer = setInterval(() => {

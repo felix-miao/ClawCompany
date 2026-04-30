@@ -44,7 +44,9 @@ async function handleGet(request: NextRequest): Promise<Response> {
       const cleanup = () => {
         if (cleanedUp) return
         cleanedUp = true
-        clearInterval(checkTimer)
+        if (checkTimer) {
+          clearInterval(checkTimer)
+        }
         clearInterval(keepaliveTimer)
         try {
           controller.close()
@@ -53,11 +55,20 @@ async function handleGet(request: NextRequest): Promise<Response> {
         }
       }
 
+      const startDiffPolling = () => {
+        if (checkTimer) return
+        checkTimer = setInterval(() => {
+          void checkForDiff()
+        }, SNAPSHOT_CHECK_INTERVAL_MS)
+        unrefTimer(checkTimer)
+      }
+
       const sendInitialSnapshot = async () => {
         try {
           latestSnapshot = await getCachedOpenClawSnapshot(sync)
           if (!cleanedUp) {
             enqueue(formatSseEvent('snapshot-full', latestSnapshot))
+            startDiffPolling()
           }
         } catch (error) {
           if (!cleanedUp) {
@@ -83,10 +94,7 @@ async function handleGet(request: NextRequest): Promise<Response> {
         }
       }
 
-      const checkTimer = setInterval(() => {
-        void checkForDiff()
-      }, SNAPSHOT_CHECK_INTERVAL_MS)
-      unrefTimer(checkTimer)
+      let checkTimer: ReturnType<typeof setInterval> | null = null
 
       const keepaliveTimer = setInterval(() => {
         try {

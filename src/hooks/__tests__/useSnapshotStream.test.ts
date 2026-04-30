@@ -111,20 +111,24 @@ describe('useSnapshotStream', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(source.url).toBe('/api/openclaw/snapshot/stream')
-    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot', expect.objectContaining({ cache: 'no-store' }))
+    expect(mockFetch).not.toHaveBeenCalled()
     expect(result.current.connected).toBe(true)
     expect(result.current.agents).toEqual(baseSnapshot.agents)
     expect(result.current.metrics).toEqual(baseSnapshot.metrics)
   })
 
-  it('bootstraps from the snapshot endpoint while opening the stream', async () => {
+  it('opens only the snapshot stream on initial load without parallel snapshot fetches', async () => {
     const { result } = renderHook(() => useSnapshotStream())
+    const source = MockEventSource.instances[0]
 
-    await waitFor(() => expect(result.current.loading).toBe(false))
+    act(() => {
+      source.open()
+    })
 
+    expect(result.current.loading).toBe(true)
+    expect(MockEventSource.instances).toHaveLength(1)
     expect(MockEventSource.instances[0].url).toBe('/api/openclaw/snapshot/stream')
-    expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot', expect.objectContaining({ cache: 'no-store' }))
-    expect(result.current.agents).toHaveLength(4)
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('merges diff events into current state', async () => {
@@ -198,6 +202,32 @@ describe('useSnapshotStream', () => {
     expect(result.current.agents).toHaveLength(4)
     expect(mockFetch).toHaveBeenCalledWith('/api/openclaw/snapshot', expect.objectContaining({ cache: 'no-store' }))
     expect(source.readyState).toBe(MockEventSource.CLOSED)
+  })
+
+  it('dedupes fallback snapshot fetches from repeated stream failures', async () => {
+    let resolveFallback: ((value: unknown) => void) | null = null
+    mockFetch.mockImplementation(() => new Promise(resolve => {
+      resolveFallback = resolve
+    }))
+
+    const { result } = renderHook(() => useSnapshotStream())
+    const source = MockEventSource.instances[0]
+
+    act(() => {
+      source.open()
+      source.error()
+      source.emit('snapshot-error', { error: 'Gateway unreachable' })
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveFallback?.({ ok: true, json: async () => fallbackSnapshot })
+      await Promise.resolve()
+    })
+
+    expect(result.current.agents).toHaveLength(4)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
   it('cleans up the event source and reconnect timer on unmount', async () => {
