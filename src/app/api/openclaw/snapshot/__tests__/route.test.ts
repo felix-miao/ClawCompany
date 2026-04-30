@@ -175,6 +175,63 @@ describe('/api/openclaw/snapshot', () => {
     expect(data.sessions).toEqual([])
   })
 
+  it('should return live gateway snapshot with sessions instead of fallback', async () => {
+    const fetchedAt = '2026-04-30T03:24:00.000Z'
+    mockGetCachedOpenClawSnapshot.mockResolvedValue({
+      agents: [
+        { id: 'developer', name: 'Developer', role: 'dev', status: 'working', emotion: 'neutral', currentTask: 'Live gateway work' },
+      ],
+      sessions: [
+        {
+          sessionKey: 'agent:developer:main',
+          agentId: 'developer',
+          agentName: 'Developer',
+          role: 'dev',
+          label: 'Live gateway work',
+          status: 'running',
+          startedAt: fetchedAt,
+          endedAt: null,
+          currentWork: 'Live gateway work',
+          latestThought: 'Working from gateway data',
+          latestResultSummary: null,
+          finalResultSummary: null,
+          model: 'gpt-5.5',
+          latestMessage: 'Working from gateway data',
+          latestMessageRole: 'assistant',
+          latestMessageStatus: 'running',
+          history: [],
+          artifacts: [],
+          finalDeliveryArtifacts: [],
+          category: 'running',
+          eventFeed: { events: [], totalCount: 0, byType: {} },
+        },
+      ],
+      tasks: [],
+      metrics: {
+        agents: { total: 1, active: 1, idle: 0, byRole: { dev: 1 } },
+        sessions: { total: 1, active: 1, completed: 0, failed: 0 },
+        tokens: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        source: 'gateway',
+        fetchedAt,
+      },
+      connected: true,
+      fetchedAt,
+    })
+
+    const response = await GET(createMockRequest() as any)
+    const data = await response.json()
+
+    expect(data.success).toBe(true)
+    expect(data.connected).toBe(true)
+    expect(data.metrics.source).toBe('gateway')
+    expect(data.sessions).toHaveLength(1)
+    expect(data.sessions[0]).toMatchObject({
+      sessionKey: 'agent:developer:main',
+      status: 'running',
+      endedAt: null,
+    })
+  })
+
   it('should delegate snapshot reuse to the cache layer', async () => {
     const cachedPayload = {
       agents: [],

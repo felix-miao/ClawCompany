@@ -1,70 +1,61 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { ControlPanel } from '../ControlPanel';
 
 describe('ControlPanel', () => {
-  const mockOnTaskSubmitted = jest.fn();
+  const mockFetch = jest.fn();
 
   beforeEach(() => {
-    mockOnTaskSubmitted.mockClear();
+    global.fetch = mockFetch;
+    mockFetch.mockReset();
   });
 
   it('should render control panel title', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
+    render(<ControlPanel />);
 
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
-  it('should render agent selector', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
+  it('should render quick task controls', () => {
+    render(<ControlPanel />);
 
-    const select = screen.getByLabelText('Agent');
-    expect(select).toBeInTheDocument();
+    expect(screen.getByText('任务控制')).toBeInTheDocument();
+    expect(screen.getByText('Blog website (Next.js + Tailwind)')).toBeInTheDocument();
+    expect(screen.getByText('刷新 OpenClaw Snapshot')).toBeInTheDocument();
+    expect(screen.getByText(/Dashboard 仅展示 OpenClaw snapshot/)).toBeInTheDocument();
   });
 
-  it('should render action buttons', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
+  it('should not render manual agent event controls', () => {
+    render(<ControlPanel />);
 
-    expect(screen.getByText('Set Status')).toBeInTheDocument();
-    expect(screen.getByText('Assign')).toBeInTheDocument();
-    expect(screen.getByText('Emotion')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Agent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Status')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Emotion')).not.toBeInTheDocument();
+    expect(screen.queryByText('Set Status')).not.toBeInTheDocument();
+    expect(screen.queryByText('Assign')).not.toBeInTheDocument();
+    expect(screen.queryByText('Emotion')).not.toBeInTheDocument();
   });
 
-  it('should disable manual status changes because they are not snapshot-backed', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
+  it('should disable preset task buttons instead of posting to /api/chat', () => {
+    const onTriggerTask = jest.fn();
 
-    expect(screen.getByText('Set Status')).toBeDisabled();
-    expect(screen.getByText(/不会写入 unified snapshot/)).toBeInTheDocument();
+    render(<ControlPanel onTriggerTask={onTriggerTask} />);
+
+    fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'));
+
+    expect(screen.getByText('Blog website (Next.js + Tailwind)')).toBeDisabled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(onTriggerTask).not.toHaveBeenCalled();
   });
 
-  it('should disable manual task assignment because it is not snapshot-backed', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
+  it('should refresh snapshot on explicit refresh', () => {
+    const onTriggerTask = jest.fn();
 
-    const descInput = screen.getByPlaceholderText('Task description...');
-    fireEvent.change(descInput, { target: { value: 'Write tests' } });
+    render(<ControlPanel onTriggerTask={onTriggerTask} />);
 
-    expect(descInput).toBeDisabled();
-    expect(screen.getByText('Assign')).toBeDisabled();
-  });
+    fireEvent.click(screen.getByText('刷新 OpenClaw Snapshot'));
 
-  it('should disable manual emotion changes because they are not snapshot-backed', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
-
-    expect(screen.getByLabelText('Emotion')).toBeDisabled();
-    expect(screen.getByText('Emotion')).toBeDisabled();
-  });
-
-  it('should render status selector', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
-
-    const statusSelect = screen.getByLabelText('Status');
-    expect(statusSelect).toBeInTheDocument();
-  });
-
-  it('should render emotion selector', () => {
-    render(<ControlPanel onTaskSubmitted={mockOnTaskSubmitted} />);
-
-    const emotionSelect = screen.getByLabelText('Emotion');
-    expect(emotionSelect).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(onTriggerTask).toHaveBeenCalledWith('snapshot-refresh');
   });
 });

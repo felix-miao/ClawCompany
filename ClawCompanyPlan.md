@@ -181,6 +181,48 @@ Dashboard
 - [x] 一个任务从 PM → Dev → Reviewer 的状态流转可在同一条 task/session 视图中连续看到
 - [ ] 所有状态都来自 OpenClaw snapshot，而不是 UI 文案或前端拼凑事件
 
+##### 10. 2026-04-28 浏览器 / CDP 自测问题汇总
+
+> 基于真实浏览器访问 `http://127.0.0.1:3000/dashboard` 的结果。结论：页面壳子已可用，但 live 数据链路还没真正打通，暂时不能做最终 sign-off。
+
+- `/dashboard` 已不再白屏，Game View / Timeline View 都能打开
+- `/api/openclaw/snapshot` 可返回真实数据（至少可看到 PM / Dev / Reviewer / Tester 4 个 idle agent）
+- `/api/openclaw/snapshot/stream` 当前返回 `ERR_EMPTY_RESPONSE`，浏览器控制台持续报错
+- stream 挂掉后，前端 fallback 没把 `/snapshot` 的已有数据真正渲染进 UI，导致页面仍显示：`Disconnected` / `Fallback` / `Current Agents 0` / `No agents reported`
+- Control Panel 的“随机任务”只更新了面板里的局部文本，没有把变化同步到 Agent Status / Event Log / Timeline
+- `Set Status` 当前缺少可见反馈，至少从浏览器实测看不到状态链路被真正打通
+- 这说明 `#244/#245/#246` 虽已 code-complete，但还不能视为 live sign-off 完成；后续需要补一轮“真实链路修复 + 再验收”
+
+##### 11. 2026-04-30 Dashboard live 数据链路修复结果
+
+> Developer 浏览器实测 `http://127.0.0.1:3000/dashboard`。本轮只确认 fallback snapshot 可见性与假交互降级，不做 Reviewer sign-off。
+
+- `/api/openclaw/snapshot/stream` 不再 empty response；gateway 失败时返回稳定 SSE `snapshot-error` 事件
+- `useSnapshotStream` 收到 `error` / `snapshot-error` 后主动拉 `/api/openclaw/snapshot`，并把自动重连退避到 15s 起步，避免快速刷连接错误
+- 浏览器实测：`/api/openclaw/snapshot` fallback 返回 4 agents 时，Dashboard 显示 `Current Agents 4`，不再显示 `No agents reported`
+- Control Panel 不再 POST `/api/chat` 触发不会同步到 snapshot 的假任务；任务按钮禁用，并明确提示“任务创建入口暂未接入 OpenClaw”，只保留 snapshot 刷新按钮
+- 残留缺口：没有跑真实 sidekick / pm / dev session 演练；因此 `#245` 仍不能视为通过 live sign-off
+
+##### 12. 2026-04-30 Dashboard live fixture 演练与真实 gateway 阻塞
+
+> Developer 验证优先处理 `#245 / Batch 2.8C`。本轮不触发 `/api/chat`；使用 OpenClaw snapshot/session 数据模型的可控 active session fixture 做浏览器演练，并查询当前真实 gateway snapshot 状态。
+
+- 已补 `buildOpenClawSnapshot` 集成测试：`sessions.list` active `dev-claw` session + `sessions_history` assistant/tool/file/artifact history 可映射为 `working` agent、`in_progress` task、timeline `recentEvents`、Inspector history、`artifacts[]` / `eventFeed` artifact 事件
+- 已补 Playwright 浏览器 fixture：拦截 `/api/openclaw/snapshot/stream` 返回 `snapshot-full`，`/dashboard` 可显示 `Connected` / `OpenClaw: Live`、`1 active agent`、Timeline 文案、Session Inspector、`Session Outputs` / `dashboard-live.html`
+- 最小修复：点击 Agent 打开 Session Inspector 时，同 agent 多 session 场景优先选 `endedAt === null` 或 `category === running` 的 active session，避免历史 session 排在前面导致 Inspector 看错对象
+- 复现命令：`npx jest src/lib/gateway/__tests__/openclaw-snapshot.test.ts --runInBand`、`npx jest src/app/dashboard/__tests__/page.test.tsx --runInBand`、`npx playwright test e2e/dashboard-live-fixture.spec.ts --project=chromium`
+- 真实 gateway 查询命令：`node -e "fetch('http://127.0.0.1:3000/api/openclaw/snapshot').then(async r=>{const s=await r.json(); console.log(JSON.stringify({connected:s.connected,sessions:s.sessions,metrics:s.metrics}, null, 2))})"`
+- 当前真实 gateway 结果：`connected:false`、`metrics.source:fallback`、`sessions:[]`、4 个 fallback agents 全部 idle；没有可创建/可观察的 sidekick / pm / dev active session，因此 `#245 / Batch 2.8C` 不能签 `[code-complete]`
+
+##### 13. 2026-04-30 真实 OpenClaw snapshot 打通
+
+> Developer TDD 修复真实 gateway snapshot 链路。本轮只确认 `/api/openclaw/snapshot` 不再 fallback；`#245` 仍需后续浏览器 live sign-off 再判断。
+
+- 根因：项目旧 JSON-RPC `agents.list` / `sessions.list` 对当前 OpenClaw 2026.4.26 gateway 不返回，Next API 最终报 `WebSocket connection closed`；同时 Next 环境未显式带 `OPENCLAW_GATEWAY_TOKEN` 时诊断不足
+- 修复：gateway client 支持从 `~/.openclaw/openclaw.json` 发现 `gateway.auth.token`；`SessionSyncService` 在 JSON-RPC 不可用时读取 `openclaw status --json` / OpenClaw session store，作为真实 OpenClaw 数据源返回 `metrics.source:'gateway'`
+- 实测 curl：`/api/openclaw/snapshot` 返回 `connected:true`、`metrics.source:'gateway'`、`sessions:34`、`agents:6`、首个 session `agent:main:main` running；不再是 `connected:false/source:fallback/sessions:[]`
+- 下一步：用真实浏览器刷新 `/dashboard`，确认 active sessions/timeline/inspector 可见后，再推进 `#245 / Batch 2.8C` 验收判断；不得仅凭 API 打通签 final sign-off
+
 ---
 
 ## Next（立即要做）
@@ -276,13 +318,13 @@ Dashboard
 **目标**：把“看起来能用”的 dashboard 收成“真正 by design”的 dashboard，补齐单一真相源、性能收口和 live 验收。
 
 **可执行待办（cron 读取）**：
-- [ ] #240 Dashboard SSR 白屏修复 → 避免 `dashboard/page.tsx` 服务器侧直接导入 Phaser（当前浏览器实测 `window is not defined`）
-- [ ] #241 Dashboard 页面去双轨数据流 → 收敛 `useEventStream(store)` 与 snapshot 并存，明确 UI / Game View 的单一状态来源
+- [code-complete] #240 Dashboard SSR 白屏修复 → 避免 `dashboard/page.tsx` 服务器侧直接导入 Phaser（当前浏览器实测 `window is not defined`）
+- [code-complete] #241 Dashboard 页面去双轨数据流 → 收敛 `useEventStream(store)` 与 snapshot 并存，明确 UI / Game View 的单一状态来源
 - [code-complete] #242 `/api/openclaw/snapshot` 接入 TTL + in-flight dedupe → 新建 `snapshot-cache.ts`，TTL 5s + in-flight dedupe，route 改用 `getCachedOpenClawSnapshot`
 - [code-complete] #243 Dashboard dev 噪音治理 → 删除 dev-agent console.log、orchestrator debug console.warn、EventBus logging option
-- [ ] #244 Snapshot 实时化策略收口 → 设计并实现 snapshot diff SSE 或等效轻量实时同步，减少“30s polling + 额外事件流”的撕裂
-- [ ] #245 Dashboard live 验收批次 → 用真实 sidekick / pm / dev session 演练，验证 3 秒内 active、Timeline/Inspector/Artifacts 全链路一致
-- [ ] #246 Dashboard 默认体验校准 → 校准默认首屏、空态、active summary 与 timeline 入口，确保实际渲染符合 P0 设计目标
+- [code-complete] #244 Snapshot 实时化策略收口 → 设计并实现 snapshot diff SSE 或等效轻量实时同步，减少“30s polling + 额外事件流”的撕裂
+- [code-complete] #245 Dashboard live 验收批次 → Developer 2026-04-30 修复 #247 后重新验收通过：真实浏览器 `http://127.0.0.1:3000/dashboard` 已发出 `/api/openclaw/snapshot/stream`（并通过 snapshot bootstrap 消费 `/api/openclaw/snapshot`），显示 `Connected` / `OpenClaw: Live`，不再停在 `No agents reported`；真实 API 返回 `connected:true`、`source:"gateway"`、6 个 working agents 与 sessions/history/artifacts，stream 首包 `snapshot-full` 正常。验证命令：`npm test -- src/hooks/__tests__/useSnapshotStream.test.ts src/app/dashboard/__tests__/DashboardClient.snapshot-fallback.test.tsx src/app/dashboard/__tests__/page.test.tsx src/components/dashboard/__tests__/ControlPanel.test.tsx src/components/dashboard/__tests__/ControlPanel.e2e.test.tsx src/app/dashboard/__tests__/page.e2e-smoke.test.tsx src/app/dashboard/__tests__/page.virtual-office-smoke.test.tsx --runInBand`，`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium`，真实 curl `/api/openclaw/snapshot` 与 `/api/openclaw/snapshot/stream` smoke。
+- [code-complete] #246 Dashboard 默认体验校准 → 校准默认首屏、空态、active summary 与 timeline 入口，确保实际渲染符合 P0 设计目标
 
 **验证要求（Developer / Reviewer 必做）**：
 
@@ -322,6 +364,101 @@ Dashboard
    - 浏览器实测 URL
    - 实测结果（是否白屏、是否能看到 Dashboard、是否符合 by design）
    - 若仍有残留缺口，明确写“什么没过、为什么不能流转到 `[code-complete]`”
+
+### Batch 2.8: Dashboard live 数据链路修复（2026-04-28 浏览器自测）
+
+**目标**：补齐“页面能打开”到“真实状态能稳定显示”的最后一段链路，解决 snapshot stream 断开、fallback 不生效、控制面板只改局部 UI 的问题。
+
+#### Batch 2.8A: stream / fallback 修复
+
+**可执行待办（cron 读取）**：
+- [code-complete] 修复 `/api/openclaw/snapshot/stream` 的 `ERR_EMPTY_RESPONSE`，确认浏览器控制台不再持续报 stream 连接错误
+- [code-complete] 当 stream 不可用时，dashboard 仍能用 `/api/openclaw/snapshot` 正常渲染 agent / task / timeline 基础状态，不能再出现“snapshot 有 4 个 agent，但 UI 显示 0”的情况
+
+#### Batch 2.8B: Control Panel 真实反馈收口
+
+**可执行待办（cron 读取）**：
+- [code-complete] 打通 Control Panel 的“随机任务 / Set Status / Assign”到 snapshot 驱动的可见反馈：至少能在 Agent Status、Event Log、Timeline 三者之一看到真实变化；若当前设计本就不该生效，就移除或禁用这些假交互
+
+#### Batch 2.8C: live 验收补签
+
+**可执行待办（cron 读取）**：
+- [code-complete] 做一轮真实 live 验收复测：Developer 2026-04-30 已完成 #247 修复后复测；真实浏览器页面会请求 snapshot/stream，显示 Connected/Live 与真实 agents，不再停留 fallback 空态。
+- [code-complete] 基于这轮复测重新判断 `#245/#246` 是否满足 sign-off；Developer 2026-04-30 结论：`#245/#246` 满足 Developer code-complete，2.8C 恢复 `[code-complete]`，仍需 Reviewer 独立验证后才能改 `[x]`。
+
+#### 2026-04-30 #245 真实 live 小批次验收结果
+
+> Developer 验证优先处理 `#245`。本轮未使用 `/api/chat`，未设置 `sessions_spawn timeout` 字段；通过 OpenClaw CLI 真实触发 sidekick / pm / developer agent turn。
+
+- 真实触发命令：`openclaw agent --agent sidekick --message "Dashboard live acceptance ping ..." --json`、`openclaw agent --agent pm --message "Dashboard live acceptance ping ..." --json`、`openclaw agent --agent developer --message "Dashboard live acceptance ping ..." --json`
+- OpenClaw 结果：三条真实 turn 均返回 `status:"ok"`；写入最近 session：`agent:sidekick:main`、`agent:pm:main`、`agent:developer:main`
+- API 观察：轮询 `/api/openclaw/snapshot` 在 3 秒窗口内看到 `sidekick` / `pm` / `developer` 为 `working`，后续 snapshot 为 `connected:true`、`metrics.source:"gateway"`，对应 sessions 为 `category:"running"`
+- 浏览器实测 `http://127.0.0.1:3000/dashboard`：页面非白屏；稳定后 header 显示 `Connected` / `OpenClaw: Live` / `0 events | 31 active tasks` / `6 active agents`；Agent Status 卡片显示 `sidekick`、`pm`、`developer` 均为 `working`
+- 浏览器 Inspector：点击 `developer` agent 可打开 `Session Inspector`，Label 为 `agent:developer:main`
+- 未达标缺口：真实 snapshot 中 `agent:sidekick:main` / `agent:pm:main` / `agent:developer:main` 的 `history.length` 均为 `0`，`recentEvents.length` 均为 `0`，`artifacts.length` 均为 `0`；Dashboard 显示 `Timeline Entry agent:pm:main` 但预览仍是 `No timeline activity yet`，Event Log 为 `Waiting for activity...`，`Session Outputs` 不显示
+- 结论：active 3 秒内可见达标；Timeline 真实条目、Inspector history、Artifacts 全链路不达标；`#245` 保持 `[ ]`，不能流转到 `[code-complete]`
+- 下一步：修复 gateway/status fallback 下的 `sessions.history` 映射，至少能从真实 OpenClaw session jsonl 或 gateway history 读出 user/assistant/toolResult message，再派生 `recentEvents` 与 artifacts；随后重跑同一组真实 sidekick / pm / developer live 验收
+
+#### 2026-04-30 #245 sessions.history fallback TDD 修复结果
+
+> Developer 按 TDD 修复真实 gateway/status fallback 下 `sessions.history` 为空的问题。本轮未使用 `/api/chat`，未设置 `sessions_spawn timeout` 字段，未虚假 sign-off。
+
+- 修复内容：`GatewaySession` 保留 `sessionId` / `transcriptPath` / `sessionFile`；snapshot 在 gateway `sessions.history` 失败或返回空数组时，优先读取 session/status/store 提供的 transcriptPath/sessionFile，再按通用 `~/.openclaw/agents/<agent>/sessions/*.jsonl` 发现最新 jsonl（排除 trajectory/acp-stream），将 OpenClaw jsonl message content parts 归一为 user/assistant/toolResult history，并从 write/edit toolResult 派生 artifacts。
+- TDD 覆盖：新增 `falls back to local OpenClaw jsonl history when gateway history is empty`，验证 history、timeline recentEvents、inspector history/eventFeed、artifacts；新增 stale sessionId 场景，验证 status 只有旧 sessionId 时仍能发现最新 agent jsonl。
+- 相关测试：`npm test -- src/lib/gateway/__tests__/openclaw-snapshot.test.ts src/lib/gateway/__tests__/session-sync.test.ts` 通过（2 suites / 58 tests）。
+- API 实测：`curl http://127.0.0.1:3000/api/openclaw/snapshot?fresh=<ts>` 返回 `connected:true`、`source:gateway`；目标 session 摘要为 `agent:sidekick:main history=20 recentEvents=5 artifacts=1`、`agent:pm:main history=20 recentEvents=5 artifacts=2`、`agent:developer:main history=20 recentEvents=5 artifacts=3`。
+- 真实 artifacts：sidekick 产物 `tasks.json`；pm 产物 `plan.md` / `tasks.json`；developer 产物 `portfolio-website/index.html`、`portfolio-website/css/style.css`、`portfolio-website/js/main.js`。均来自真实 session jsonl，不伪造。
+- 浏览器 smoke：`http://127.0.0.1:3000/dashboard` 可见 `Connected` / `OpenClaw: Live` / sidekick / pm / developer / timeline / inspector；但 Playwright 文本检查仍显示 header `0 events`，且未稳定看到 `Session Outputs` / artifact 文件名。因此 API/snapshot 层已达标，UI 全链路仍需补验或修复。
+- 结论：Timeline/Inspector/API history 与 artifacts 数据源已回填；Dashboard UI 的 Event Log / Session Outputs 可见性仍未稳定达标，`#245` 保持 `[ ]`，不能流转到 `[code-complete]`。
+
+#### 2026-04-30 #245 stream/cache metadata 缺口修复与最终验收
+
+> Developer 继续处理 `#245` 的 Event Log / Session Outputs 不稳定缺口。根因不是 UI 组件，而是 stream 首包走 gateway `sessions.list` 成功路径时 session metadata 没有 `sessionId` / `transcriptPath`，本地 jsonl fallback 提前返回 `null`，导致 shared snapshot cache 缓存了空 history/artifacts/eventFeed 的 snapshot。
+
+- 修复内容：`discoverSessionJsonlPath` 在没有 sessionId 或 sessionId jsonl 不存在时，也继续回退到 `~/.openclaw/agents/<agent>/sessions/*.jsonl` 最新文件发现，覆盖 gateway 成功但 metadata 缺失的真实路径。
+- TDD 覆盖：新增 `discovers the latest agent jsonl when gateway session metadata has no local path`，验证 gateway history 空、session 无 local path/sessionId 时仍能派生 history、artifact、eventFeed。
+- 测试：`npm test -- src/lib/gateway/__tests__/openclaw-snapshot.test.ts src/lib/gateway/__tests__/session-sync.test.ts` 通过（2 suites / 59 tests）；`npx playwright test e2e/dashboard-live-fixture.spec.ts --project=chromium` 通过。
+- API 实测：TTL 后 `/api/openclaw/snapshot?fresh=<ts>` 前四个 session 中 sidekick/pm/developer 分别为 `history=20 artifacts=1/2/3 events=22/24/26`。
+- Stream 实测：`/api/openclaw/snapshot/stream` 首个 `snapshot-full` 同样返回 sidekick/pm/developer `history=20 artifacts=1/2/3 events=22/24/26`，不再把空 snapshot 写入 shared cache。
+- 浏览器实测：`http://127.0.0.1:3000/dashboard` 显示 `Connected` / `OpenClaw: Live` / `147 events | 31 active tasks` / `6 active agents`，`Session Outputs` 可见，Event Log 有 100 个 item，真实 artifact 文件名 `tasks.json`、`plan.md`、`index.html`、`style.css`、`main.js` 均可见。
+- 结论：active 3 秒内可见、Timeline/Event Log、Inspector history 数据源、Artifacts/Session Outputs 全链路已通过真实 snapshot + stream + 浏览器 smoke；`#245` 流转 `[code-complete]`。
+
+#### 2026-04-30 Reviewer 打回记录
+
+> Reviewer 不接受本批 `[code-complete]` 流转到 `[x]`。测试绿不等于安全 sign-off。
+
+- 已审查：`git diff`、`ClawCompanyPlan.md`、`src/lib/gateway/client.ts`、`session-sync.ts`、`openclaw-snapshot.ts`、snapshot route/stream、`useSnapshotStream`、`DashboardClient`、`ControlPanel`、相关 tests、`e2e/dashboard-live-fixture.spec.ts`。
+- 测试结果：`npm test -- src/lib/gateway/__tests__/client.test.ts src/lib/gateway/__tests__/session-sync.test.ts src/lib/gateway/__tests__/openclaw-snapshot.test.ts src/app/api/openclaw/snapshot/__tests__/route.test.ts src/app/api/openclaw/snapshot/stream/__tests__/route.test.ts src/hooks/__tests__/useSnapshotStream.test.ts src/app/dashboard/__tests__/DashboardClient.snapshot-fallback.test.tsx src/components/dashboard/__tests__/ControlPanel.test.tsx src/components/dashboard/__tests__/ControlPanel.e2e.test.tsx src/app/dashboard/__tests__/page.test.tsx --runInBand` 通过，10 suites / 137 tests；`npx playwright test e2e/dashboard-live-fixture.spec.ts --project=chromium` 通过，1 test。
+- 通过项：stream 不再 empty response，`snapshot-error` 可 fallback 到 `/api/openclaw/snapshot`；ControlPanel 假交互已禁用；active session 优先选择 running；`/api/game-events/route.ts` 无 diff；未发现 `/walk/work` 路径或相关误改；未发现新增 `sessions_spawn timeout` 字段。
+- Blocker：`openclaw-snapshot.ts` 的本地 history fallback 接受 `session.transcriptPath || session.sessionFile` 并直接 `fs.existsSync/readFileSync`，没有限制必须位于 `OPENCLAW_STATE_DIR` / `~/.openclaw/agents/<agent>/sessions` 下；`agentId` 也未做 path segment 约束就参与 `path.join(getOpenClawRoot(), 'agents', session.agentId, 'sessions', ...)`。一旦 gateway/status/store 返回异常路径或被污染路径，Dashboard 可能读取并展示 OpenClaw session store 之外的本机文件内容，敏感内容暴露边界过宽。
+- 打回要求：限制 transcript/sessionFile 必须 resolve 到 OpenClaw state root 内的对应 agent sessions 目录；拒绝绝对路径逃逸和 `..` agentId；补测试覆盖 malicious transcriptPath、malicious sessionFile、agentId path traversal、合法 store/jsonl 仍可读；然后重跑上述 Jest/Playwright 和真实 `/api/openclaw/snapshot`/stream/browser smoke。
+- 状态：`#245` 打回 `[ ]`；Batch 2.8C 两项打回 `[ ]`；本轮不签 `[x]`。
+
+#### 2026-04-30 #245 jsonl fallback 安全边界 TDD 修复结果
+
+> Developer 按 Reviewer 打回要求修复本地 session jsonl fallback 的路径信任边界。本轮未使用 `/api/chat`，未设置 `sessions_spawn timeout` 字段，未虚假 sign-off。
+
+- 修复内容：`openclaw-snapshot.ts` 对本地 jsonl fallback 增加 agentId 安全 segment 校验（`[A-Za-z0-9_-]+`），只接受 `.jsonl`；`transcriptPath` / `sessionFile` / store path / sessionId candidate / latest discovery 全部经 `realpath` 后必须位于对应 `OPENCLAW_STATE_DIR或~/.openclaw/agents/<agent>/sessions` 目录内；非法路径、`..` agentId、symlink realpath 逃逸均返回空 history，不 throw 影响 snapshot。
+- TDD 覆盖：新增 malicious `transcriptPath`、malicious `sessionFile`、`agentId` path traversal、合法 store jsonl、symlink realpath escape 用例；同时保留合法 `~/.openclaw/agents/<agent>/sessions/*.jsonl` history/artifacts/eventFeed fallback 覆盖。
+- Jest 验证：`npm test -- src/lib/gateway/__tests__/openclaw-snapshot.test.ts src/lib/gateway/__tests__/session-sync.test.ts --runInBand` 通过（2 suites / 64 tests）；Reviewer 指定 Jest 命令通过（10 suites / 142 tests）。
+- Playwright 验证：`npx playwright test e2e/dashboard-live-fixture.spec.ts --project=chromium` 通过（1 test）。
+- 真实 API smoke：当前代码启动 `npm run dev -- -p 3000` 后，`/api/openclaw/snapshot?fresh=security-fix-final` 返回 `connected:true`、`source:"gateway"`、`agents=6`、`sessions=31`、`withHistory=31`、`withEvents=31`、`withArtifacts=7`；前四个 session 中 `agent:main:main history=20 events=20 artifacts=0`、`agent:sidekick:main history=20 events=22 artifacts=1`、`agent:pm:main history=20 events=24 artifacts=2`、`agent:developer:main history=20 events=26 artifacts=3`。
+- 真实 stream smoke：`/api/openclaw/snapshot/stream` 返回 `status=200`、`content-type:text/event-stream`，首包包含 `event: snapshot-full`，未出现 `snapshot-error`。
+- 真实浏览器 smoke：`http://127.0.0.1:3000/dashboard` 页面非白屏，可见 `Dashboard` / `Agent Status` / `Event Log`，且无 `window is not defined`；但页面仍显示 `Disconnected` / `OpenClaw: Fallback` / `0 events | 0 active tasks` / `No agents reported`，浏览器网络记录未发出 `/api/openclaw/snapshot` 或 `/api/openclaw/snapshot/stream` 请求。此 UI 消费链路缺口不属于本轮路径安全边界修复，仍阻塞 live sign-off。
+- 结论：本地 jsonl fallback 安全 blocker 已按 TDD 修复；真实 API/stream 数据源通过；真实浏览器 Dashboard 尚未消费 snapshot，`#245` 保持 `[ ]`，Batch 2.8C 保持 `[ ]`，不能恢复 `[code-complete]`。
+
+#### 2026-04-30 #247 Dashboard 浏览器消费 snapshot/stream 修复结果
+
+> Developer 按 #247 修复真实浏览器 `/dashboard` 不发 snapshot/stream 请求的问题。本轮未使用 `/api/chat`，未设置 `sessions_spawn timeout` 字段，未虚假 sign-off。
+
+- TDD 覆盖：新增 `e2e/dashboard-snapshot-request.spec.ts`，先在 `http://127.0.0.1:3000/dashboard` 真实浏览器场景复现失败：页面非白屏但保持 `Disconnected` / `OpenClaw: Fallback` / `No agents reported`，等待 `/api/openclaw/snapshot` 或 `/api/openclaw/snapshot/stream` 请求超时；Next dev server 同时提示 `127.0.0.1` 被 `allowedDevOrigins` 阻止。
+- 修复内容：`next.config.mjs` 增加 `allowedDevOrigins: ['127.0.0.1']`，恢复 127.0.0.1 dev origin 下客户端 hydration/HMR 资源加载；`useSnapshotStream` 启动时先通过 `/api/openclaw/snapshot` 做一次真实 snapshot bootstrap，再保持 `/api/openclaw/snapshot/stream` SSE 更新，避免真实浏览器/dev 环境中 stream 首包未及时应用时长期停留空态。
+- 测试更新：`useSnapshotStream` 新增 bootstrap 覆盖；Dashboard/ControlPanel 旧 `/api/chat` 预设任务测试改为验证禁用假入口与仅刷新 snapshot，避免恢复假触发路径。
+- Jest 验证：`npm test -- src/hooks/__tests__/useSnapshotStream.test.ts src/app/dashboard/__tests__/DashboardClient.snapshot-fallback.test.tsx src/app/dashboard/__tests__/page.test.tsx src/components/dashboard/__tests__/ControlPanel.test.tsx src/components/dashboard/__tests__/ControlPanel.e2e.test.tsx src/app/dashboard/__tests__/page.e2e-smoke.test.tsx src/app/dashboard/__tests__/page.virtual-office-smoke.test.tsx --runInBand` 通过（7 suites / 54 tests）。
+- Playwright 验证：`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium` 在重启 dev server 后通过；新 smoke 精确断言 `Connected`、`OpenClaw: Live`、不显示 `No agents reported`，并确认请求 `/api/openclaw/snapshot/stream`。
+- 真实 API/stream smoke：本地 `npm run dev` 后 `/api/openclaw/snapshot` 返回 `connected:true`、`metrics.source:"gateway"`、6 个 working agents、sessions/history 数据；`/api/openclaw/snapshot/stream` 首包为 `event: snapshot-full`，curl 对长连接 5s 超时属预期 SSE 行为。
+- 真实浏览器 smoke：`http://127.0.0.1:3000/dashboard` 页面非白屏，发出 snapshot/stream 请求，最终显示 `Connected` / `OpenClaw: Live` 与真实 agents 数据，不再停留 `Disconnected` / `Fallback` / `No agents reported`。
+- 结论：#247 流转 `[code-complete]`；#245 与 Batch 2.8C 恢复 Developer `[code-complete]`。仍需 Reviewer 用真实浏览器独立复核后才能从 `[code-complete]` 改为 `[x]`。
 
 ---
 
@@ -423,6 +560,32 @@ Dashboard
 - 暗色主题支持
 - 加载动画/骨架屏
 - Dashboard 第 4 轮：汇总卡片、筛选、历史回看
+
+---
+
+## Reviewer Playwright 探索机制
+
+Reviewer 不只是 sign-off，也负责用 Playwright 像真实用户一样探索核心功能，并把发现的问题写回本计划，形成 Developer cron 的持续输入。
+
+**Reviewer 每轮必做**：
+1. 启动或复用本地 dev server，打开核心入口：`/dashboard`、`/office`、`/walk/work`。
+2. 先运行 reviewer exploratory smoke：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium`。该 smoke 会把失败输出为 `suggested-plan-item.txt` 附件和错误信息，模板格式为 `- [ ] #<next-id> <标题> → 现象：...；复现：...；期望：...；验证：...`。
+3. 用 Playwright/browser 自动化真实点击与观察，不只跑 fixture：
+    - Dashboard：确认页面会请求 `/api/openclaw/snapshot` 或 `/api/openclaw/snapshot/stream`，显示 Connected/Live、agents、events、Timeline、Inspector、Artifacts。
+    - Office/Walk：确认页面非白屏、核心角色/工作区可见、关键交互无 console error。
+4. 发现新问题时，不只写 review 结论，必须在最近相关 batch 的“可执行待办（cron 读取）”中追加新的 `- [ ] #xxx ...`，可直接复制 smoke 输出的模板，并补充：
+    - 用户可见现象
+    - 复现 URL / 步骤
+    - 期望行为
+    - 推荐验证命令（Playwright/Jest/curl/browser smoke）
+5. Reviewer 只能把已验证通过的 `[code-complete]` 改成 `[x]`；探索发现的新问题一律写 `[ ]`，交给 Developer cron 继续跑。
+6. 若没有新问题，也要记录覆盖过的核心路径和证据，避免只凭代码 diff sign-off。
+
+**当前由 Reviewer/Playwright 发现并交给 Developer 的问题**：
+- [code-complete] #247 Dashboard 浏览器未消费 snapshot/stream → Developer 2026-04-30 已修复 127.0.0.1 dev origin hydration 阻断与 snapshot bootstrap 缺口；新增 `e2e/dashboard-snapshot-request.spec.ts` 覆盖真实浏览器页面加载后必须请求 `/api/openclaw/snapshot/stream` 或 `/api/openclaw/snapshot`，并显示 `Connected` / `OpenClaw: Live` / 真实 agents，验证通过。
+- [code-complete] #248 Reviewer Playwright 探索脚本化 → 新增 `e2e/reviewer-exploratory-smoke.spec.ts` 与 `e2e/reviewer-exploratory.ts`，Reviewer 可直接运行 `npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium` 覆盖 `/dashboard`、`/office`、`/walk/work`；失败会在错误信息与 `suggested-plan-item.txt` 附件输出 `- [ ] #<next-id> <标题> → 现象：...；复现：...；期望：...；验证：...` 模板。已补 `memory/reviewer-prompt.md` 并更新本节 Reviewer 流程。验证：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g dashboard` 通过；`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium` 通过；完整 reviewer smoke 目前 1 passed / 2 failed，失败均为真实产品缺口并已生成模板，见 #249/#250。
+- [ ] #249 Office 入口缺少办公室角色或画布 → 现象：`/office` 页面可打开，但未找到 `canvas` 或 `[data-testid^="agent-card-"]` 角色卡；复现：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g office`；期望：`/office` 非白屏，并显示办公室/角色/画布等核心区域；验证：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g office`
+- [ ] #250 Walk work 入口白屏或不可访问 → 现象：`/walk/work` 返回 HTTP 404；复现：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g "walk work"` 后访问 `/walk/work`；期望：页面非白屏，核心工作区可见；验证：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g "walk work"`
 
 ---
 

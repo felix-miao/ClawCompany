@@ -1,4 +1,10 @@
-import { OpenClawGatewayClient, SpawnOptions, SpawnResult, getGatewayClient, resetGatewayClient, createGatewayClient } from '../client'
+import { OpenClawGatewayClient, SpawnOptions, SpawnResult, getGatewayClient, resetGatewayClient, createGatewayClient, resolveGatewayConfig } from '../client'
+
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+
+const mockReadFileSync = jest.spyOn(fs, 'readFileSync')
+const fixtureDir = path.join(process.cwd(), 'src/lib/gateway/__tests__/fixtures')
 
 class MockWebSocket {
   static instances: MockWebSocket[] = []
@@ -67,12 +73,14 @@ describe('OpenClawGatewayClient', () => {
   
   afterAll(() => {
     global.WebSocket = originalWebSocket
+    mockReadFileSync.mockRestore()
   })
   
   beforeEach(() => {
     MockWebSocket.instances = []
     MockWebSocket.throwOnSend = false
     MockWebSocket.noAutoOpen = false
+    mockReadFileSync.mockImplementation(() => { throw new Error('missing test OpenClaw config') })
     client = new OpenClawGatewayClient('ws://127.0.0.1:18789')
   })
   
@@ -444,6 +452,10 @@ describe('getGatewayClient / resetGatewayClient singleton', () => {
 })
 
 describe('Request Isolation - createGatewayClient factory', () => {
+  beforeEach(() => {
+    mockReadFileSync.mockImplementation(() => { throw new Error('missing test OpenClaw config') })
+  })
+
   it('createGatewayClient should return a new instance each time', () => {
     const client1 = createGatewayClient()
     const client2 = createGatewayClient()
@@ -461,5 +473,70 @@ describe('Request Isolation - createGatewayClient factory', () => {
   it('createGatewayClient with custom url should use that url', () => {
     const client = createGatewayClient('ws://custom:8888')
     expect(client).toBeInstanceOf(OpenClawGatewayClient)
+  })
+})
+
+describe('resolveGatewayConfig', () => {
+  const originalUrl = process.env.OPENCLAW_GATEWAY_URL
+  const originalToken = process.env.OPENCLAW_GATEWAY_TOKEN
+  const originalConfigPath = process.env.OPENCLAW_CONFIG_PATH
+
+  beforeEach(() => {
+    delete process.env.OPENCLAW_GATEWAY_URL
+    delete process.env.OPENCLAW_GATEWAY_TOKEN
+    delete process.env.OPENCLAW_CONFIG_PATH
+    mockReadFileSync.mockReset()
+  })
+
+  afterAll(() => {
+    if (originalUrl) process.env.OPENCLAW_GATEWAY_URL = originalUrl
+    else delete process.env.OPENCLAW_GATEWAY_URL
+    if (originalToken) process.env.OPENCLAW_GATEWAY_TOKEN = originalToken
+    else delete process.env.OPENCLAW_GATEWAY_TOKEN
+    if (originalConfigPath) process.env.OPENCLAW_CONFIG_PATH = originalConfigPath
+    else delete process.env.OPENCLAW_CONFIG_PATH
+  })
+
+  it('prefers explicit gateway env vars over OpenClaw config', () => {
+    process.env.OPENCLAW_GATEWAY_URL = 'ws://env-gateway:9999'
+    process.env.OPENCLAW_GATEWAY_TOKEN = 'env-token'
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      gateway: { auth: { token: 'config-token' } },
+    }))
+
+    expect(resolveGatewayConfig()).toEqual({
+      url: 'ws://env-gateway:9999',
+      token: 'env-token',
+      tokenSource: 'env',
+    })
+  })
+
+  it('falls back to current OpenClaw gateway auth token from config', () => {
+    process.env.OPENCLAW_CONFIG_PATH = path.join(fixtureDir, 'openclaw-config.json')
+
+    expect(resolveGatewayConfig()).toEqual({
+      url: 'ws://127.0.0.1:18789',
+      token: 'config-token',
+      tokenSource: 'openclaw-config',
+    })
+  })
+
+  it('normalizes configured http gateway URL for WebSocket clients', () => {
+    process.env.OPENCLAW_CONFIG_PATH = path.join(fixtureDir, 'openclaw-config-http.json')
+
+    expect(resolveGatewayConfig()).toMatchObject({
+      url: 'ws://127.0.0.1:18789',
+      token: 'config-token',
+      tokenSource: 'openclaw-config',
+    })
+  })
+
+  it('reports missing token when env and OpenClaw config are unavailable', () => {
+    process.env.OPENCLAW_CONFIG_PATH = path.join(fixtureDir, 'missing-openclaw-config.json')
+
+    expect(resolveGatewayConfig()).toEqual({
+      url: 'ws://127.0.0.1:18789',
+      tokenSource: 'missing',
+    })
   })
 })

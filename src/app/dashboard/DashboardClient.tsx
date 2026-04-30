@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 
@@ -14,23 +13,11 @@ import { SessionStatusPanel } from "@/components/dashboard/SessionStatusPanel";
 import { SessionInspector } from "@/components/dashboard/SessionInspector";
 import { useSnapshotStream } from "@/hooks/useSnapshotStream";
 import type { AgentInfo, TaskHistory } from "@/game/data/DashboardStore";
-import type { AgentStatus, GameEvent } from "@/game/types/GameEvents";
+import type { GameEvent } from "@/game/types/GameEvents";
 import { MetricsAggregator } from "@/lib/core/metrics-aggregator";
 import { PerformanceMonitor } from "@/lib/core/performance-monitor";
 import { ErrorTracker } from "@/lib/core/error-tracker";
 import { Logger } from "@/lib/core/logger";
-
-const DashboardGameBridge = dynamic(
-  () => import("@/components/dashboard/DashboardGameBridge").then(mod => mod.DashboardGameBridge),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="glass rounded-2xl p-2 border border-dark-100 flex-1 flex items-center justify-center overflow-hidden">
-        <div className="text-gray-300 text-sm">Loading office...</div>
-      </div>
-    ),
-  },
-);
 
 const ROLE_EMOJI: Record<string, string> = {
   'Project Manager': '📋',
@@ -76,17 +63,6 @@ function formatTimelinePreview(event: GameEvent | null): string {
   }
 }
 
-function getSnapshotGameEvents(agents: AgentInfo[], taskEvents: GameEvent[]): GameEvent[] {
-  const agentEvents = agents.map((agent): GameEvent => ({
-    type: 'agent:status-change',
-    agentId: agent.id,
-    status: agent.status as AgentStatus,
-    timestamp: 0,
-  }));
-
-  return [...agentEvents, ...taskEvents].sort((a, b) => a.timestamp - b.timestamp);
-}
-
 export function DashboardClient() {
   const {
     agents,
@@ -96,9 +72,7 @@ export function DashboardClient() {
     connected: snapshotConnected,
     refresh: refreshSnapshot,
   } = useSnapshotStream();
-  const [activeView, setActiveView] = useState<"game" | "timeline">("game");
   const [selectedSessionKey, setSelectedSessionKey] = useState<string | null>(null);
-  const [taskSubmittedHandler, setTaskSubmittedHandler] = useState<(taskId: string) => void>(() => () => {});
 
   const selectedSession = useMemo(
     () => sessions.find(s => s.sessionKey === selectedSessionKey) ?? null,
@@ -108,11 +82,6 @@ export function DashboardClient() {
   const timelineEvents = useMemo(
     () => taskHistory.flatMap(task => task.recentEvents ?? []).sort((a, b) => a.timestamp - b.timestamp),
     [taskHistory]
-  );
-
-  const gameEvents = useMemo(
-    () => getSnapshotGameEvents(agents, timelineEvents),
-    [agents, timelineEvents],
   );
 
   const activeAgentsSummary = useMemo(
@@ -142,7 +111,8 @@ export function DashboardClient() {
 
   const selectSessionByAgentId = useCallback(
     (agentId: string) => {
-      const agentSession = sessions.find(s => s.agentId === agentId);
+      const agentSession = sessions.find(s => s.agentId === agentId && (s.endedAt === null || s.category === 'running'))
+        ?? sessions.find(s => s.agentId === agentId);
       if (agentSession) {
         setSelectedSessionKey(agentSession.sessionKey);
       }
@@ -159,17 +129,9 @@ export function DashboardClient() {
     });
   }, []);
 
-  const handleTaskSubmitted = useCallback(
-    (taskId: string) => {
-      taskSubmittedHandler(taskId);
-      refreshSnapshot();
-    },
-    [refreshSnapshot, taskSubmittedHandler]
-  );
-
-  const handleTaskSubmittedHandlerChange = useCallback((handler: (taskId: string) => void) => {
-    setTaskSubmittedHandler(() => handler);
-  }, []);
+  const handleTriggerTask = useCallback(() => {
+    refreshSnapshot();
+  }, [refreshSnapshot]);
 
   return (
     <div className="min-h-screen bg-dark flex flex-col">
@@ -195,26 +157,6 @@ export function DashboardClient() {
           </div>
           <div className="text-xs text-gray-500">
             OpenClaw: {snapshotConnected ? "Live" : "Fallback"}
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-dark-100 bg-dark-50/40 p-1">
-            <button
-              type="button"
-              onClick={() => setActiveView("game")}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                activeView === "game" ? "bg-primary-600 text-white" : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              Game View
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView("timeline")}
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                activeView === "timeline" ? "bg-primary-600 text-white" : "text-gray-400 hover:text-gray-200"
-              }`}
-            >
-              Timeline View
-            </button>
           </div>
           <div className="text-sm text-gray-500">
             {stats.totalEvents} events | {stats.activeTasks} active tasks
@@ -269,13 +211,6 @@ export function DashboardClient() {
                       {formatTimelinePreview(timelinePreview.latestEvent)}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveView("timeline")}
-                    className="shrink-0 rounded-full border border-primary-500/40 bg-primary-600/30 px-3 py-1 text-xs font-medium text-primary-100 hover:bg-primary-600/50 transition-colors"
-                  >
-                    Open Timeline
-                  </button>
                 </div>
                 {sessions.length === 0 && (
                   <div className="mt-2 text-xs text-gray-500">
@@ -286,29 +221,12 @@ export function DashboardClient() {
             </div>
           </section>
 
-          {activeView === "game" ? (
-            <>
-              <DashboardGameBridge
-                activeView={activeView}
-                gameEvents={gameEvents}
-                onTriggerTaskHandlerChange={handleTaskSubmittedHandlerChange}
-              />
-
-              <div className="flex items-center gap-3 text-xs text-gray-500 shrink-0">
-                <span>
-                  <kbd className="px-1.5 py-0.5 bg-dark-50 border border-dark-100 rounded font-mono">Click</kbd>
-                  {" "}角色 → 查看任务详情
-                </span>
-              </div>
-            </>
-          ) : (
-            <TraditionalTaskView tasks={taskHistory} onSelectTask={selectSessionByTaskId} />
-          )}
+          <TraditionalTaskView tasks={taskHistory} onSelectTask={selectSessionByTaskId} />
         </div>
 
         <aside className="w-80 border-l border-dark-100 flex flex-col overflow-hidden shrink-0">
           <div className="border-b border-dark-100 p-3 shrink-0">
-            <ControlPanel onTaskSubmitted={handleTaskSubmitted} />
+            <ControlPanel onTriggerTask={handleTriggerTask} />
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {selectedSession && (

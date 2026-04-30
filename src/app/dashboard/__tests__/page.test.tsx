@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import DashboardPage from '../page';
 import { DashboardClient } from '../DashboardClient';
@@ -127,12 +127,6 @@ function createMockSnapshotStreamState() {
   };
 }
 
-jest.mock('@/components/dashboard/DashboardGameBridge', () => ({
-  DashboardGameBridge: ({ gameEvents }: { gameEvents: unknown[] }) => (
-    <div data-testid="dashboard-game-bridge" data-event-count={gameEvents.length} />
-  ),
-}));
-
 jest.mock('@/lib/core/metrics-aggregator', () => ({
   MetricsAggregator: jest.fn().mockImplementation(() => ({
     startPeriodicUpdate: jest.fn(() => () => {}),
@@ -172,11 +166,12 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
   });
 
-  it('should derive game bridge events from the OpenClaw snapshot used by timeline', () => {
+  it('should render the traditional task tracker from the OpenClaw snapshot', () => {
     render(<DashboardClient />);
 
-    const bridge = screen.getByTestId('dashboard-game-bridge');
-    expect(bridge).toHaveAttribute('data-event-count', '6');
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.getByText('status')).toBeInTheDocument();
+    expect(screen.getByText('pm-agent → busy')).toBeInTheDocument();
   });
 
   it('renders default dashboard overview and visible timeline entry on first load', () => {
@@ -184,7 +179,9 @@ describe('DashboardPage', () => {
 
     expect(screen.getByText('Current Agents')).toBeInTheDocument();
     expect(screen.getByText('Timeline Entry')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Timeline View' })).toBeInTheDocument();
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Game View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Timeline View' })).not.toBeInTheDocument();
     expect(screen.getAllByText(/1 active agent/).length).toBeGreaterThan(0);
   });
 
@@ -248,37 +245,21 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('Implementing dashboard live flow').length).toBeGreaterThan(0);
   });
 
-  it('renders fallback snapshot data when the live stream is disconnected', () => {
-    mockSnapshotStreamState = {
-      ...createMockSnapshotStreamState(),
-      connected: false,
-      error: 'Snapshot stream disconnected',
-    };
-
-    render(<DashboardClient />);
-
-    expect(screen.getByText('Disconnected')).toBeInTheDocument();
-    expect(screen.getByText('OpenClaw: Fallback')).toBeInTheDocument();
-    expect(screen.getByText('Current Agents')).toBeInTheDocument();
-    expect(screen.getAllByText('4').length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/1 active agent/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Timeline Entry')).toBeInTheDocument();
-    expect(screen.getAllByText('用你的团队给我写一个网站出来').length).toBeGreaterThan(0);
-    expect(screen.getByText(/2 events/)).toBeInTheDocument();
-  });
-
   it('should render connection status', () => {
     render(<DashboardPage />);
     expect(screen.getByText('Connected')).toBeInTheDocument();
   });
 
-  it('should render game bridge', () => {
+  it('should not render game view controls or canvas', () => {
     render(<DashboardPage />);
-    expect(screen.getByTestId('dashboard-game-bridge')).toBeInTheDocument();
+    expect(document.getElementById('dashboard-game-container')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Game View' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Timeline View' })).not.toBeInTheDocument();
   });
 
-  it('should render game bridge without showing a stuck loading overlay', () => {
+  it('should render traditional view without showing a stuck loading overlay', () => {
     render(<DashboardPage />);
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.queryByText('Loading office...')).not.toBeInTheDocument();
   });
 
@@ -314,42 +295,11 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
-  it('disables unsupported manual controls instead of posting non-snapshot events', () => {
-    const originalFetch = global.fetch;
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
-    global.fetch = fetchSpy;
+  it('should render snapshot-only refresh control instead of fake task trigger', () => {
     render(<DashboardPage />);
-
-    expect(screen.getByText('Set Status')).toBeDisabled();
-    expect(screen.getByText('Assign')).toBeDisabled();
-    expect(screen.getByText('Emotion')).toBeDisabled();
-    expect(screen.getByText(/不会写入 unified snapshot/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Set Status'));
-    expect(fetchSpy).not.toHaveBeenCalledWith('/api/game-events', expect.any(Object));
-    global.fetch = originalFetch;
-  });
-
-  it('refreshes the snapshot after a real task is submitted through chat', async () => {
-    const originalFetch = global.fetch;
-    const fetchSpy = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ taskId: 'task-from-chat' }) });
-    global.fetch = fetchSpy;
-    render(<DashboardClient />);
-
-    fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'));
-
-    await waitFor(() => {
-      expect(fetchSpy).toHaveBeenCalledWith('/api/chat', expect.objectContaining({ method: 'POST' }));
-      expect(mockSnapshotStreamState.refresh).toHaveBeenCalled();
-    });
-
-    expect(fetchSpy).not.toHaveBeenCalledWith('/api/game-events', expect.any(Object));
-    global.fetch = originalFetch;
-  });
-
-  it('should render trigger test task button', () => {
-    render(<DashboardPage />);
-    expect(screen.getByText(/触发任务/)).toBeInTheDocument();
+    expect(screen.getByText(/Dashboard 仅展示 OpenClaw snapshot/)).toBeInTheDocument();
+    expect(screen.getByText('刷新 OpenClaw Snapshot')).toBeInTheDocument();
+    expect(screen.queryByText(/触发任务/)).not.toBeInTheDocument();
   });
 
   it('should render tester agent with correct emoji', () => {
@@ -357,10 +307,8 @@ describe('DashboardPage', () => {
     expect(screen.getByText('QA Engineer')).toBeInTheDocument();
   });
 
-  it('should switch to timeline view', () => {
+  it('should show the task card in traditional view by default', () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getAllByText('用你的团队给我写一个网站出来')[0]).toBeInTheDocument();
@@ -435,10 +383,8 @@ describe('DashboardPage', () => {
     expect(screen.getAllByText('/Users/test/index.html')).toHaveLength(2);
   });
 
-  it('should show timeline view with task card when switching views', async () => {
+  it('should show traditional task event details by default', async () => {
     render(<DashboardPage />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Timeline View' }));
 
     expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument();
     expect(screen.getByText('当前卡点')).toBeInTheDocument();

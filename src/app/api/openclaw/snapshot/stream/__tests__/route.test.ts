@@ -168,6 +168,18 @@ describe('/api/openclaw/snapshot/stream', () => {
     reader.releaseLock()
   })
 
+  it('sends an SSE error event instead of breaking the response when snapshot fetch fails', async () => {
+    mockGetCachedOpenClawSnapshot.mockRejectedValueOnce(new Error('Gateway unreachable'))
+
+    const response = await GET(createRequest() as never)
+    const chunk = await readChunk(response)
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('Content-Type')).toBe('text/event-stream')
+    expect(chunk).toContain('event: snapshot-error')
+    expect(chunk).toContain('Gateway unreachable')
+  })
+
   it('requires authentication', async () => {
     const response = await GET(createRequest({ noAuth: true }) as never)
     const data = await response.json()

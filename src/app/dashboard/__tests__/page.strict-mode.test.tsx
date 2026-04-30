@@ -1,25 +1,8 @@
 import React from 'react'
-import { render, act } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 
-const mockDestroy = jest.fn()
-const mockStartGame = jest.fn(() => ({
-  destroy: mockDestroy,
-  receiveGameEvent: jest.fn(),
-  triggerTestTask: jest.fn(),
-}))
-
-jest.mock('@/game', () => ({
-  startGame: (...args: unknown[]) => mockStartGame(...args),
-}))
-
-jest.mock('@/hooks/useDashboardStore', () => ({
-  useDashboardStore: () => ({
-    agents: [],
-    events: [],
-    stats: { totalEvents: 0, activeTasks: 0, sessionCount: 0, completedSessionCount: 0, connected: true },
-    taskHistory: [],
-  }),
-}))
+const mockCleanupMetrics = jest.fn()
+const mockStartPeriodicUpdate = jest.fn(() => mockCleanupMetrics)
 
 jest.mock('@/hooks/useSnapshotStream', () => ({
   useSnapshotStream: () => ({
@@ -36,7 +19,7 @@ jest.mock('@/hooks/useSnapshotStream', () => ({
 
 jest.mock('@/lib/core/metrics-aggregator', () => ({
   MetricsAggregator: jest.fn().mockImplementation(() => ({
-    startPeriodicUpdate: jest.fn(() => () => {}),
+    startPeriodicUpdate: mockStartPeriodicUpdate,
   })),
 }))
 
@@ -56,26 +39,28 @@ import DashboardPage from '../page'
 
 describe('DashboardPage strict mode startup', () => {
   beforeEach(() => {
-    mockStartGame.mockClear();
-    mockDestroy.mockClear();
-  });
+    mockCleanupMetrics.mockClear()
+    mockStartPeriodicUpdate.mockClear()
+  })
 
-  it('should tear down stale game instances created during strict mode remounts', async () => {
+  it('keeps the timeline dashboard stable across strict mode remounts', async () => {
     const view = render(
       <React.StrictMode>
         <DashboardPage />
-      </React.StrictMode>
-    );
+      </React.StrictMode>,
+    )
 
     await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
-    expect(mockStartGame.mock.calls.length).toBeLessThanOrEqual(2);
-    expect(mockDestroy).not.toHaveBeenCalled();
+    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('Traditional Task Tracker')).toBeInTheDocument()
+    expect(document.querySelector('canvas')).not.toBeInTheDocument()
+    expect(mockStartPeriodicUpdate).toHaveBeenCalled()
 
-    view.unmount();
-    expect(mockDestroy).toHaveBeenCalled();
-  });
-});
+    view.unmount()
+    expect(mockCleanupMetrics).toHaveBeenCalled()
+  })
+})

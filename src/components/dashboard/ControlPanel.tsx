@@ -1,16 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-
-const AGENTS = [
-  { id: 'pm-agent', name: 'PM' },
-  { id: 'dev-agent', name: 'Dev' },
-  { id: 'review-agent', name: 'Reviewer' },
-  { id: 'test-agent', name: 'Tester' },
-];
-
-const STATUSES = ['idle', 'busy', 'working', 'offline'];
-const EMOTIONS = ['neutral', 'focused', 'thinking', 'happy', 'stressed', 'celebrating', 'sleepy'];
+import { useCallback } from 'react';
 
 const TEST_TASKS = [
   { label: 'Blog website (Next.js + Tailwind)', description: '写一个个人博客网站，包含首页、关于我、文章列表三个页面，使用 Next.js 和 Tailwind CSS' },
@@ -19,187 +9,44 @@ const TEST_TASKS = [
   { label: 'Implement /api/health endpoint', description: '实现一个 REST API 端点 /api/health，返回服务状态和当前时间' },
 ];
 
-const RANDOM_TASKS = [
-  '写一个 Todo List 应用，支持增删改查和本地存储',
-  '实现一个 Markdown 编辑器组件，支持实时预览',
-  '为购物车模块编写集成测试',
-  '实现用户权限管理系统，支持角色分配',
-];
-
-const UNSUPPORTED_MANUAL_CONTROL_MESSAGE = 'Set Status / Assign / Emotion 当前不会写入 unified snapshot，已禁用以避免假成功。';
-
 interface ControlPanelProps {
-  onTaskSubmitted?: (taskId: string) => void;
+  onTriggerTask?: (taskId: string) => void;
 }
 
-export function ControlPanel({ onTaskSubmitted }: ControlPanelProps) {
-  const [selectedAgent, setSelectedAgent] = useState('pm-agent');
-  const [selectedStatus, setSelectedStatus] = useState('working');
-  const [selectedEmotion, setSelectedEmotion] = useState('happy');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [lastTask, setLastTask] = useState<string | null>(null);
-  const [isTriggering, setIsTriggering] = useState(false);
-  const [triggerError, setTriggerError] = useState<string | null>(null);
-
-  const handleTriggerTask = useCallback(async (description?: string) => {
-    if (isTriggering) return;
-
-    const message = description ?? RANDOM_TASKS[Math.floor(Math.random() * RANDOM_TASKS.length)];
-    setIsTriggering(true);
-    setTriggerError(null);
-    setLastTask(message);
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      });
-
-      if (!res.ok) {
-        setTriggerError('触发失败，请重试');
-        return;
-      }
-
-      const data = await res.json() as { taskId?: string; success?: boolean };
-      const taskId = data.taskId ?? `task-${Date.now()}`;
-      onTaskSubmitted?.(taskId);
-    } catch {
-      setTriggerError('网络错误，请重试');
-    } finally {
-      setIsTriggering(false);
-    }
-  }, [isTriggering, onTaskSubmitted]);
+export function ControlPanel({ onTriggerTask }: ControlPanelProps) {
+  const handleRefreshSnapshot = useCallback(() => {
+    onTriggerTask?.('snapshot-refresh');
+  }, [onTriggerTask]);
 
   return (
     <div>
       <h2 className="text-sm font-bold gradient-text mb-3">Control Panel</h2>
 
-      {/* ── Quick Task Trigger (most prominent action) ─────────────────── */}
       <div className="mb-4 p-3 rounded-xl bg-primary-500/10 border border-primary-500/30">
-        <p className="text-xs text-primary-300 font-medium mb-2">触发任务 - 提交到 /api/chat</p>
-        <p className="text-[11px] text-gray-500 mb-2">
-          成功后刷新 OpenClaw snapshot；真实反馈请看 Agent Status / Event Log / Timeline。
+        <p className="text-xs text-primary-300 font-medium mb-2">任务控制</p>
+        <p className="mb-3 text-xs leading-5 text-gray-400">
+          Dashboard 仅展示 OpenClaw snapshot。任务创建入口暂未接入 OpenClaw，已禁用，避免保留不会更新 Agent Status / Event Log / Timeline 的假交互。
         </p>
         <div className="space-y-1.5">
           {TEST_TASKS.map(task => (
             <button
               key={task.label}
-              onClick={() => handleTriggerTask(task.description)}
-              disabled={isTriggering}
-              className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-primary-500/20 border border-dark-100 hover:border-primary-500/40 rounded-lg text-xs text-gray-300 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled
+              title={task.description}
+              className="w-full text-left px-2.5 py-2 bg-dark-50 border border-dark-100 rounded-lg text-xs text-gray-500 opacity-60 cursor-not-allowed"
             >
-              {isTriggering ? '⏳ 触发中...' : task.label}
+              {task.label}
             </button>
           ))}
           <button
-            onClick={() => handleTriggerTask()}
-            disabled={isTriggering}
-            className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-yellow-500/20 border border-dark-100 hover:border-yellow-500/40 rounded-lg text-xs text-yellow-400 hover:text-yellow-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleRefreshSnapshot}
+            className="w-full text-left px-2.5 py-2 bg-dark-50 hover:bg-yellow-500/20 border border-dark-100 hover:border-yellow-500/40 rounded-lg text-xs text-yellow-400 hover:text-yellow-300 transition-all"
           >
-            {isTriggering ? '⏳ 触发中...' : '🎲 随机任务'}
+            刷新 OpenClaw Snapshot
           </button>
         </div>
-        {triggerError && (
-          <p className="mt-2 text-xs text-red-400">{triggerError}</p>
-        )}
-        {lastTask && !triggerError && (
-          <p className="mt-2 text-xs text-gray-500 truncate">
-            已提交: <span className="text-gray-400">{lastTask}</span>
-          </p>
-        )}
       </div>
 
-      {/* ── Manual event injection ──────────────────────────────────────── */}
-      <p className="text-xs text-gray-500 mb-2 font-medium">手动控制 Agent</p>
-      <p className="mb-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-2 py-1.5 text-[11px] text-yellow-300">
-        {UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
-      </p>
-
-      {/* Agent selector — shared across all actions */}
-      <div className="mb-2">
-        <label className="text-gray-500 text-xs block mb-1" htmlFor="agent-select">Agent</label>
-        <select
-          id="agent-select"
-          aria-label="Agent"
-          value={selectedAgent}
-          onChange={e => setSelectedAgent(e.target.value)}
-          disabled
-          className="w-full bg-dark-50 border border-dark-100 rounded-lg px-3 py-1.5 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {AGENTS.map(a => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Row 1: Status */}
-      <div className="flex gap-2 mb-2">
-        <select
-          id="status-select"
-          aria-label="Status"
-          value={selectedStatus}
-          onChange={e => setSelectedStatus(e.target.value)}
-          disabled
-          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {STATUSES.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled
-          title={UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
-          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Set Status
-        </button>
-      </div>
-
-      {/* Row 2: Task assign */}
-      <div className="flex gap-2 mb-2">
-        <input
-          type="text"
-          placeholder="Task description..."
-          value={taskDescription}
-          onChange={e => setTaskDescription(e.target.value)}
-          disabled
-          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs min-w-0 disabled:opacity-50 disabled:cursor-not-allowed"
-        />
-        <button
-          type="button"
-          disabled
-          title={UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
-          className="px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-xs font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Assign
-        </button>
-      </div>
-
-      {/* Row 3: Emotion */}
-      <div className="flex gap-2">
-        <select
-          id="emotion-select"
-          aria-label="Emotion"
-          value={selectedEmotion}
-          onChange={e => setSelectedEmotion(e.target.value)}
-          disabled
-          className="flex-1 bg-dark-50 border border-dark-100 rounded-lg px-2 py-1.5 text-white text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {EMOTIONS.map(e => (
-            <option key={e} value={e}>{e}</option>
-          ))}
-        </select>
-        <button
-          type="button"
-          disabled
-          title={UNSUPPORTED_MANUAL_CONTROL_MESSAGE}
-          className="px-3 py-1.5 bg-pink-600 text-white rounded-lg text-xs font-medium transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Emotion
-        </button>
-      </div>
     </div>
   );
 }

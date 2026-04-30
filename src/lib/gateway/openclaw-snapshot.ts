@@ -2,6 +2,10 @@ import { HistoryFileMetadata, HistoryMessage, OpenClawToolType } from './client'
 import { createTaskAgentSnapshot, getCanonicalTaskAgentId } from '../task-agent-snapshot'
 import { GatewaySession, SessionSyncService } from './session-sync'
 
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+
 import type {
   GameEvent,
   SessionProgressEvent,
@@ -139,6 +143,29 @@ export interface OpenClawSnapshot {
 }
 
 const HISTORY_LIMIT = 20
+const SAFE_AGENT_ID_PATTERN = /^[A-Za-z0-9_-]+$/
+
+type OpenClawJsonlRole = 'user' | 'assistant' | 'toolResult'
+
+interface OpenClawJsonlMessageLine {
+  type?: string
+  id?: string
+  parentId?: string | null
+  timestamp?: string
+  message?: {
+    role?: string
+    content?: unknown
+    timestamp?: string | number
+    toolName?: string
+    isError?: boolean
+  }
+}
+
+interface OpenClawSessionStoreEntry {
+  sessionId?: string
+  transcriptPath?: string
+  sessionFile?: string
+}
 
 const ROLE_LABELS: Record<string, string> = {
   pm: 'PM',
@@ -156,6 +183,276 @@ const ROLE_TO_PHASE: Record<string, TaskPhase> = {
 
 function normalizeRole(role: string): string {
   return role.trim().toLowerCase()
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function readJsonFile<T>(filePath: string): T | null {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8')) as T
+  } catch {
+    return null
+  }
+}
+
+function normalizeContentPart(part: unknown): string {
+  if (typeof part === 'string') {
+    return part
+  }
+
+  if (!isRecord(part)) {
+    return ''
+  }
+
+  if (typeof part.text === 'string') {
+    return part.text
+  }
+
+  if (typeof part.thinking === 'string') {
+    return part.thinking
+  }
+
+  if (part.type === 'toolCall' && typeof part.name === 'string') {
+    return `[toolCall:${part.name}]`
+  }
+
+  return ''
+}
+
+function normalizeJsonlContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content
+  }
+
+  if (Array.isArray(content)) {
+    return content.map(normalizeContentPart).filter(Boolean).join('\n')
+  }
+
+  if (isRecord(content) && typeof content.text === 'string') {
+    return content.text
+  }
+
+  return ''
+}
+
+function normalizeJsonlTimestamp(rawTimestamp: string | number | undefined, fallbackTimestamp: string | undefined): string | undefined {
+  if (typeof rawTimestamp === 'number') {
+    return new Date(rawTimestamp).toISOString()
+  }
+
+  if (typeof rawTimestamp === 'string') {
+    const parsed = Number(rawTimestamp)
+    if (Number.isFinite(parsed) && rawTimestamp.trim().length >= 10) {
+      return new Date(parsed).toISOString()
+    }
+    return rawTimestamp
+  }
+
+  return fallbackTimestamp
+}
+
+function toHistoryRole(role: string | undefined): OpenClawJsonlRole | null {
+  if (role === 'user' || role === 'assistant' || role === 'toolResult') {
+    return role
+  }
+
+  return null
+}
+
+function toHistoryToolName(toolName: string | undefined, content: string): OpenClawToolType {
+  if (!toolName) {
+    return inferToolType(content)
+  }
+
+  return inferToolType(`${toolName} ${content}`)
+}
+
+function toFileOperation(toolName: string | undefined, content: string): HistoryFileMetadata['operation'] | null {
+  const normalizedTool = (toolName ?? '').toLowerCase()
+  const operation = inferOperationFromContent(`${normalizedTool} ${content}`)
+
+  if (operation === 'write' || normalizedTool === 'write') return 'write'
+  if (operation === 'edit' || normalizedTool === 'edit') return 'edit'
+  if (operation === 'delete' || normalizedTool === 'delete') return 'delete'
+  if (operation === 'read' || normalizedTool === 'read') return 'read'
+  if (normalizedTool === 'glob' || normalizedTool === 'find') return 'list'
+  return null
+}
+
+function toHistoryMessage(line: OpenClawJsonlMessageLine): HistoryMessage | null {
+  if (line.type !== 'message' || !line.message) {
+    return null
+  }
+
+  const role = toHistoryRole(line.message.role)
+  if (!role) {
+    return null
+  }
+
+  const content = normalizeJsonlContent(line.message.content)
+  if (!content.trim()) {
+    return null
+  }
+
+  const timestamp = normalizeJsonlTimestamp(line.message.timestamp, line.timestamp)
+  const status = line.message.isError ? 'failed' : 'completed'
+  const toolName = role === 'toolResult'
+    ? toHistoryToolName(line.message.toolName, content)
+    : undefined
+  const operation = role === 'toolResult'
+    ? toFileOperation(line.message.toolName, content)
+    : null
+  const paths = role === 'toolResult' ? extractAllFilePaths(content) : []
+
+  return {
+    role,
+    content,
+    status,
+    timestamp,
+    messageId: line.id,
+    parentId: line.parentId ?? undefined,
+    tool: role === 'toolResult' ? {
+      name: toolName ?? 'unknown',
+      rawName: line.message.toolName,
+      success: !line.message.isError,
+    } : undefined,
+    files: operation && paths.length > 0 ? [{ paths, operation }] : undefined,
+    artifacts: operation && ['write', 'edit'].includes(operation)
+      ? paths.map(filePath => ({ paths: [filePath], type: detectArtifactType(filePath) }))
+      : undefined,
+  }
+}
+
+function readOpenClawJsonlHistory(filePath: string, limit: number): HistoryMessage[] {
+  try {
+    const messages = fs.readFileSync(filePath, 'utf8')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return toHistoryMessage(JSON.parse(line) as OpenClawJsonlMessageLine)
+        } catch {
+          return null
+        }
+      })
+      .filter((message): message is HistoryMessage => message !== null)
+
+    return messages.slice(-limit)
+  } catch {
+    return []
+  }
+}
+
+function getOpenClawRoot(): string {
+  return process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), '.openclaw')
+}
+
+function isSafeAgentId(agentId: string): boolean {
+  return SAFE_AGENT_ID_PATTERN.test(agentId)
+}
+
+function isPathWithin(parentPath: string, childPath: string): boolean {
+  const relativePath = path.relative(parentPath, childPath)
+  return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+}
+
+function getAgentSessionDir(agentId: string): string | null {
+  if (!isSafeAgentId(agentId)) return null
+  return path.join(getOpenClawRoot(), 'agents', agentId, 'sessions')
+}
+
+function resolveSafeSessionJsonlPath(agentId: string, filePath: string): string | null {
+  if (!filePath.endsWith('.jsonl')) return null
+
+  const sessionDir = getAgentSessionDir(agentId)
+  if (!sessionDir) return null
+
+  try {
+    const realSessionDir = fs.realpathSync(sessionDir)
+    const realFilePath = fs.realpathSync(filePath)
+    if (!isPathWithin(realSessionDir, realFilePath)) return null
+    return realFilePath
+  } catch {
+    return null
+  }
+}
+
+function readSessionStoreEntry(agentId: string, sessionKey: string): OpenClawSessionStoreEntry | null {
+  const sessionDir = getAgentSessionDir(agentId)
+  if (!sessionDir) return null
+
+  const storePath = path.join(sessionDir, 'sessions.json')
+  const store = readJsonFile<Record<string, OpenClawSessionStoreEntry>>(storePath)
+  return store?.[sessionKey] ?? null
+}
+
+function discoverLatestAgentJsonlPath(agentId: string): string | null {
+  const sessionDir = getAgentSessionDir(agentId)
+  if (!sessionDir) return null
+
+  try {
+    return fs.readdirSync(sessionDir)
+      .filter(fileName => fileName.endsWith('.jsonl'))
+      .filter(fileName => !fileName.includes('.trajectory.') && !fileName.includes('.acp-stream.'))
+      .map((fileName) => {
+        const filePath = path.join(sessionDir, fileName)
+        const safeFilePath = resolveSafeSessionJsonlPath(agentId, filePath)
+        if (!safeFilePath) return null
+        return { filePath: safeFilePath, mtimeMs: fs.statSync(safeFilePath).mtimeMs }
+      })
+      .filter((entry): entry is { filePath: string; mtimeMs: number } => entry !== null)
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)[0]?.filePath ?? null
+  } catch {
+    return null
+  }
+}
+
+function discoverSessionJsonlPath(session: GatewaySession): string | null {
+  const configuredPath = session.transcriptPath || session.sessionFile
+  if (configuredPath) {
+    const safePath = resolveSafeSessionJsonlPath(session.agentId, configuredPath)
+    if (safePath) {
+      return safePath
+    }
+  }
+
+  const storeEntry = readSessionStoreEntry(session.agentId, session.key)
+  const storePath = storeEntry?.transcriptPath || storeEntry?.sessionFile
+  if (storePath) {
+    const safePath = resolveSafeSessionJsonlPath(session.agentId, storePath)
+    if (safePath) {
+      return safePath
+    }
+  }
+
+  const sessionId = session.sessionId || storeEntry?.sessionId
+  if (sessionId) {
+    const sessionDir = getAgentSessionDir(session.agentId)
+    const candidate = sessionDir ? path.join(sessionDir, `${sessionId}.jsonl`) : null
+    const safePath = candidate ? resolveSafeSessionJsonlPath(session.agentId, candidate) : null
+    if (safePath) {
+      return safePath
+    }
+  }
+
+  return discoverLatestAgentJsonlPath(session.agentId)
+}
+
+async function resolveSessionHistory(sync: SessionSyncService, session: GatewaySession): Promise<HistoryMessage[]> {
+  const gatewayHistory = await sync['client'].sessions_history(session.key, HISTORY_LIMIT).catch(() => [])
+  if (gatewayHistory.length > 0) {
+    return gatewayHistory
+  }
+
+  const jsonlPath = discoverSessionJsonlPath(session)
+  if (!jsonlPath) {
+    return []
+  }
+
+  return readOpenClawJsonlHistory(jsonlPath, HISTORY_LIMIT)
 }
 
 function phaseForRole(role: string): TaskPhase {
@@ -434,6 +731,7 @@ function extractFilePath(content: string): string | null {
     /已写入文件:\s*(.+)/,
     /已写入[^:]*:\s*(.+)/,
     /Wrote file:\s*(.+)/,
+    /Successfully wrote \d+ bytes to\s*(.+)/,
     /written:\s*(.+)/,
     /Created:\s*(.+)/,
     /Saved:\s*(.+)/,
@@ -458,6 +756,7 @@ function extractAllFilePaths(content: string): string[] {
     /已写入文件:\s*(.+)/g,
     /已写入[^:]*:\s*(.+)/g,
     /Wrote file:\s*(.+)/g,
+    /Successfully wrote \d+ bytes to\s*(.+)/g,
     /written:\s*(.+)/g,
     /Created:\s*(.+)/g,
     /Saved:\s*(.+)/g,
@@ -1251,7 +1550,7 @@ export async function buildOpenClawSnapshot(sync: SessionSyncService): Promise<O
 
     const histories = await Promise.all(
       sessions.map(async (session) => {
-        const history = await sync['client'].sessions_history(session.key, HISTORY_LIMIT).catch(() => [])
+        const history = await resolveSessionHistory(sync, session)
         return [session.key, history] as const
       })
     )

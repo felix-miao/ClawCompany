@@ -6,11 +6,6 @@ import type { AgentInfo, TaskHistory } from '@/game/data/DashboardStore'
 import type { OpenClawSessionDetails, OpenClawSnapshot, OpenClawSnapshotMetrics } from '@/lib/gateway/openclaw-snapshot'
 import type { OpenClawSnapshotDiff } from '@/lib/gateway/snapshot-diff'
 
-interface SnapshotResponse extends OpenClawSnapshot {
-  success?: boolean
-  error?: string
-}
-
 interface SnapshotStreamState {
   agents: AgentInfo[]
   sessions: OpenClawSessionDetails[]
@@ -24,7 +19,7 @@ interface SnapshotStreamState {
 
 const STREAM_URL = '/api/openclaw/snapshot/stream'
 const SNAPSHOT_URL = '/api/openclaw/snapshot'
-const MIN_BACKOFF_MS = 1000
+const MIN_BACKOFF_MS = 15000
 const MAX_BACKOFF_MS = 30000
 
 function mergeById<T>(current: T[], changed: T[] | undefined, removed: string[] | undefined, getId: (item: T) => string): T[] {
@@ -68,26 +63,6 @@ export function useSnapshotStream(): SnapshotStreamState {
     setLoading(false)
   }, [])
 
-  const fetchFallbackSnapshot = useCallback(async () => {
-    try {
-      const response = await fetch(SNAPSHOT_URL, {
-        headers: { 'x-api-key': 'dashboard' },
-      })
-      const snapshot: SnapshotResponse = await response.json()
-
-      if (snapshot.success === false) {
-        throw new Error(snapshot.error ?? 'Snapshot fallback failed')
-      }
-
-      applyFullSnapshot(snapshot)
-      setConnected(false)
-    } catch (err) {
-      setConnected(false)
-      setError(err instanceof Error ? err.message : 'Snapshot fallback failed')
-      setLoading(false)
-    }
-  }, [applyFullSnapshot])
-
   const applyDiff = useCallback((diff: OpenClawSnapshotDiff) => {
     if (diff.agents) {
       setAgents(current => mergeById(current, diff.agents?.changed, diff.agents?.removed, agent => agent.id))
@@ -108,6 +83,20 @@ export function useSnapshotStream(): SnapshotStreamState {
     setLoading(false)
   }, [])
 
+  const fetchFallbackSnapshot = useCallback(async (fallbackError: string) => {
+    try {
+      const response = await fetch(SNAPSHOT_URL, { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error(`Snapshot fallback failed with ${response.status}`)
+      }
+      const snapshot = await response.json() as OpenClawSnapshot
+      applyFullSnapshot(snapshot)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : fallbackError)
+      setLoading(false)
+    }
+  }, [applyFullSnapshot])
+
   const refresh = useCallback(() => {
     setLoading(true)
     if (eventSourceRef.current) {
@@ -124,6 +113,18 @@ export function useSnapshotStream(): SnapshotStreamState {
 
   useEffect(() => {
     unmountedRef.current = false
+
+    const scheduleReconnect = (source: EventSource) => {
+      setConnected(false)
+      setError('Snapshot stream disconnected')
+      source.close()
+      eventSourceRef.current = null
+      void fetchFallbackSnapshot('Snapshot stream disconnected')
+
+      const backoffMs = Math.min(MIN_BACKOFF_MS * Math.pow(2, retryCountRef.current), MAX_BACKOFF_MS)
+      retryCountRef.current += 1
+      retryTimerRef.current = setTimeout(connect, backoffMs)
+    }
 
     const connect = () => {
       if (unmountedRef.current) return
@@ -158,31 +159,18 @@ export function useSnapshotStream(): SnapshotStreamState {
         }
       })
 
-      source.addEventListener('snapshot-error', (event) => {
+      source.addEventListener('snapshot-error', () => {
         if (unmountedRef.current) return
-        try {
-          const payload = JSON.parse((event as MessageEvent).data) as { error?: string }
-          setError(payload.error ?? 'Snapshot stream unavailable')
-        } catch {
-          setError('Snapshot stream unavailable')
-        }
-        void fetchFallbackSnapshot()
+        scheduleReconnect(source)
       })
 
       source.onerror = () => {
         if (unmountedRef.current) return
-        setConnected(false)
-        setError('Snapshot stream disconnected')
-        source.close()
-        eventSourceRef.current = null
-        void fetchFallbackSnapshot()
-
-        const backoffMs = Math.min(MIN_BACKOFF_MS * Math.pow(2, retryCountRef.current), MAX_BACKOFF_MS)
-        retryCountRef.current += 1
-        retryTimerRef.current = setTimeout(connect, backoffMs)
+        scheduleReconnect(source)
       }
     }
 
+    void fetchFallbackSnapshot('Snapshot bootstrap unavailable')
     connect()
 
     return () => {
