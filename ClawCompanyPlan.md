@@ -174,7 +174,7 @@ Dashboard
 
 > 以下是人工验收条件。代码层大体具备，但还没做完整 live sign-off。
 
-- [ ] sidekick / pm 一旦进入 running，dashboard 3 秒内出现对应 active 状态
+- [x] sidekick / pm 一旦进入 running，dashboard 3 秒内出现对应 active 状态
 - [x] Timeline 不再出现"chat 有进展但 timeline 为空"的情况
 - [x] 任一 agent 最近结果可以在 dashboard 看到摘要
 - [x] developer 产出的 HTML / 本地文件可在 dashboard 点击打开
@@ -323,8 +323,8 @@ Dashboard
 - [x] #242 `/api/openclaw/snapshot` 接入 TTL + in-flight dedupe → 新建 `snapshot-cache.ts`，TTL 5s + in-flight dedupe，route 改用 `getCachedOpenClawSnapshot`
 - [x] #243 Dashboard dev 噪音治理 → 删除 dev-agent console.log、orchestrator debug console.warn、EventBus logging option
 - [x] #244 Snapshot 实时化策略收口 → 设计并实现 snapshot diff SSE 或等效轻量实时同步，减少“30s polling + 额外事件流”的撕裂
-- [code-complete] #245 Dashboard live 验收批次 → Developer 2026-04-30 复测：#251 冷启动 bootstrap 修复后，真实浏览器 `/dashboard` 3 秒内显示 `Connected` / `OpenClaw: Live` / `6 active agents` / `147 events | 31 active tasks`；Reviewer 后续再签 `[x]`。
-- [code-complete] #246 Dashboard 默认体验校准 → Developer 2026-04-30 复测：冷启动首屏不再停留 fallback / 0 agents / No agents reported，active summary 与 Timeline View 默认可见；Reviewer 后续再签 `[x]`。
+- [x] #245 Dashboard live 验收批次 → Reviewer 2026-04-30 复核通过：#251 冷启动 bootstrap 修复后，真实浏览器 `/dashboard` 3 秒内显示 `Connected` / `OpenClaw: Live` / `6 active agents` / `147 events | 31 active tasks`，无关键 console/pageerror。
+- [x] #246 Dashboard 默认体验校准 → Reviewer 2026-04-30 复核通过：冷启动首屏不再停留 fallback / 0 agents / No agents reported，active summary 与 Timeline View 默认可见。
 
 **验证要求（Developer / Reviewer 必做）**：
 
@@ -383,8 +383,8 @@ Dashboard
 #### Batch 2.8C: live 验收补签
 
 **可执行待办（cron 读取）**：
-- [code-complete] 做一轮真实 live 验收复测：Developer 2026-04-30 复测 `/dashboard` 3 秒内显示 live agents 与 active summary，等待 Reviewer 复核签 `[x]`。
-- [code-complete] 基于这轮复测重新判断 `#245/#246` 是否满足 sign-off：Developer 2026-04-30 恢复 `#245/#246` 为 `[code-complete]`，Reviewer 后续再签 `[x]`。
+- [x] 做一轮真实 live 验收复测：Reviewer 2026-04-30 复测 `/dashboard` 3 秒内显示 live agents 与 active summary，无关键 console/pageerror。
+- [x] 基于这轮复测重新判断 `#245/#246` 是否满足 sign-off：Reviewer 2026-04-30 确认 `#245/#246` 满足 3 秒 cold-start live 验收与默认首屏体验。
 
 #### 2026-04-30 #245 真实 live 小批次验收结果
 
@@ -469,7 +469,19 @@ Dashboard
 - Playwright：`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium` 通过，3 tests；`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium` 单独重跑通过，3 tests。
 - 真实浏览器：`/office` 非白屏，可见 Office、snapshot fallback、canvas、agent cards，无关键 console/pageerror；`/walk/work` 非白屏，可见 Work Workspace / Workspace Core / fallback，无关键 console/pageerror。
 - Dashboard blocker：冷启动真实浏览器访问 `/dashboard` 后等待 5 秒，页面仍显示 `Disconnected` / `OpenClaw: Fallback` / `0 events | 0 active tasks` / `Current Agents 0` / `No agents reported`；只观察到 `/api/openclaw/snapshot/stream` 请求。同期 API `/api/openclaw/snapshot?fresh=reviewer` 返回 `connected:true`、`source:"gateway"`、6 agents、31 sessions、31 tasks、31 withHistory、31 withEvents、7 withArtifacts；stream 延长等待后约 11-15 秒才返回 `event: snapshot-full`，预热后二次访问可显示 `Connected` / `OpenClaw: Live` / `147 events | 31 active tasks` / `6 active agents`。因此数据源可用，但首屏 live 可见性不满足 3 秒验收。
-- [code-complete] #251 Dashboard snapshot stream 冷启动首包过慢导致 3 秒 live 验收失败 → Developer 2026-04-30 TDD 修复：客户端在 `SNAPSHOT_COLD_START_BOOTSTRAP_MS` 后对 `/api/openclaw/snapshot?fresh=cold-start-bootstrap` 做 bootstrap，fresh snapshot route 绕过 stream 首包慢 in-flight，随后 SSE diff 继续 merge；fixture 慢 stream 验证 3 秒内 active agents/Connected Live，真实 `/dashboard` 3 秒复测显示 `Connected` / `OpenClaw: Live` / `6 active agents` / `147 events | 31 active tasks`。
+- [x] #251 Dashboard snapshot stream 冷启动首包过慢导致 3 秒 live 验收失败 → Reviewer 2026-04-30 复核通过：客户端在 `SNAPSHOT_COLD_START_BOOTSTRAP_MS` 后对 `/api/openclaw/snapshot?fresh=cold-start-bootstrap` 做 bootstrap，fresh snapshot route 绕过 stream 首包慢 in-flight，随后 SSE diff 继续 merge；fixture 慢 stream 与真实 `/dashboard` cold-start 均验证 3 秒内 active agents/Connected Live。
+
+#### 2026-04-30 Reviewer cold-start sign-off
+
+> Reviewer 复核 `a4a7f41 fix(dashboard): bootstrap cold snapshot stream` 及直接解锁项 `#251/#245/#246/Batch 2.8C`。本轮只签实际复核通过的相关 `[code-complete]` 项，不机械签无关 backlog。
+
+- 代码审查：`useSnapshotStream` 只在 stream 首包超过 1s 时发起 `/api/openclaw/snapshot?fresh=cold-start-bootstrap`，stream `snapshot-full` / `snapshot-diff` 主路径仍保留并会清理 bootstrap timer；fallback snapshot 后续仍可被 SSE diff merge。`/api/openclaw/snapshot?fresh=*` 绕过慢 in-flight 并使用 `includeHistory:false` 轻量构建，但不绕过有效 TTL 缓存；未放宽本地 jsonl fallback 路径安全边界。
+- Jest：`npx jest src/lib/gateway/__tests__/snapshot-cache.test.ts src/app/api/openclaw/snapshot/__tests__/route.test.ts src/hooks/__tests__/useSnapshotStream.test.ts src/app/dashboard/__tests__/DashboardClient.snapshot-fallback.test.tsx --runInBand` 通过，4 suites / 25 tests。
+- Playwright：`npx playwright test e2e/dashboard-snapshot-request.spec.ts e2e/dashboard-live-fixture.spec.ts --project=chromium` 通过，4 tests；`npx playwright test e2e/reviewer-exploratory-smoke.spec.ts --project=chromium -g dashboard` 通过，1 test。
+- 真实 API preflight：`/api/openclaw/snapshot?fresh=reviewer-preflight` 返回 `connected:true`、`source:"gateway"`、`agents=6`、`sessions=31`、`tasks=31`、`activeAgents=6`、`activeTasks=31`、`withHistory=31`、`withEvents=31`、`withArtifacts=7`。
+- 真实浏览器 cold-start：等待 TTL 过期后用 Chromium 访问 `http://127.0.0.1:3000/dashboard`，3 秒采样可见 `Connected` / `OpenClaw: Live` / `147 events | 31 active tasks` / `6 active agents`；未显示 `Disconnected` / `OpenClaw: Fallback` / `No agents reported`。请求记录包含 `/api/openclaw/snapshot/stream`，响应 `200 text/event-stream`。
+- Console/pageerror：无 pageerror；console 仅 React DevTools 提示、HMR connected、字体 preload warning，无 snapshot/stream/jsonl 安全相关错误。
+- Sign-off：`#251`、`#245`、`#246`、Batch 2.8C 两项、顶层 “sidekick / pm running 后 3 秒内 active” 验收项改为 `[x]`。
 
 ---
 
