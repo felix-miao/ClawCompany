@@ -1,4 +1,7 @@
 import { buildOpenClawSnapshot } from '../openclaw-snapshot'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 
 describe('buildOpenClawSnapshot', () => {
   function createSyncStub() {
@@ -14,6 +17,42 @@ describe('buildOpenClawSnapshot', () => {
       fetchSessions: jest.fn(),
       mapToAgentInfo: jest.fn(),
     }
+  }
+
+  function writeJsonlMessage(filePath: string, content: string): void {
+    fs.writeFileSync(filePath, JSON.stringify({
+      type: 'message',
+      id: `msg-${path.basename(filePath)}`,
+      timestamp: '2026-04-30T06:00:00Z',
+      message: { role: 'assistant', content: [{ type: 'text', text: content }] },
+    }))
+  }
+
+  function restoreOpenClawStateDir(originalOpenClawStateDir: string | undefined): void {
+    if (originalOpenClawStateDir) process.env.OPENCLAW_STATE_DIR = originalOpenClawStateDir
+    else delete process.env.OPENCLAW_STATE_DIR
+  }
+
+  function setupLocalFallbackSync(sync: ReturnType<typeof createSyncStub>, session: Record<string, unknown>): void {
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'developer', name: 'Developer', identity: { name: 'Developer' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'agent:developer:main',
+        agentId: 'developer',
+        label: 'agent:developer:main',
+        model: 'gpt-5.5',
+        status: 'running',
+        startedAt: '2026-04-30T06:00:00Z',
+        endedAt: null,
+        ...session,
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'developer', name: 'Developer', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockResolvedValue([])
   }
 
   it('builds stable session details and task history from sessionKey without falling back', async () => {
@@ -78,6 +117,103 @@ describe('buildOpenClawSnapshot', () => {
         },
       },
     })
+  })
+
+  it('maps an active OpenClaw session into active agent, timeline, inspector data, and artifacts', async () => {
+    const sync = createSyncStub()
+
+    sync.fetchAgents.mockResolvedValue([
+      { id: 'dev-claw', name: 'Dev', identity: { name: 'Dev Claw' } },
+    ])
+    sync.fetchSessions.mockResolvedValue([
+      {
+        key: 'sess-live-dev',
+        agentId: 'dev-claw',
+        label: 'Dashboard live fixture session',
+        model: 'gpt-5.5',
+        status: 'running',
+        startedAt: new Date().toISOString(),
+        endedAt: null,
+        usage: { promptTokens: 11, completionTokens: 7, totalTokens: 18 },
+      },
+    ])
+    sync.mapToAgentInfo.mockReturnValue([
+      { id: 'dev-claw', name: 'Dev Claw', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+    ])
+    sync.client.sessions_history.mockResolvedValue([
+      {
+        role: 'user',
+        content: 'Run dashboard live acceptance fixture',
+        status: 'completed',
+        timestamp: '2026-04-30T02:45:01Z',
+      },
+      {
+        role: 'assistant',
+        content: 'Implementing dashboard live active session timeline',
+        status: 'running',
+        timestamp: '2026-04-30T02:45:02Z',
+      },
+      {
+        role: 'toolResult',
+        content: '已写入文件: /tmp/claw-company-live/dashboard-live.html',
+        status: 'completed',
+        timestamp: '2026-04-30T02:45:03Z',
+        tool: { name: 'write', rawName: 'write', success: true },
+        files: [{ paths: ['/tmp/claw-company-live/dashboard-live.html'], operation: 'write' }],
+        artifacts: [{ paths: ['/tmp/claw-company-live/dashboard-live.html'], type: 'html' }],
+      },
+    ])
+
+    const snapshot = await buildOpenClawSnapshot(sync as any)
+
+    expect(snapshot.connected).toBe(true)
+    expect(snapshot.metrics.sessions.active).toBe(1)
+    expect(snapshot.metrics.agents.active).toBe(1)
+    expect(snapshot.agents[0]).toMatchObject({
+      id: 'dev-claw',
+      status: 'working',
+      currentTask: 'Dashboard live fixture session',
+    })
+    expect(snapshot.sessions[0]).toMatchObject({
+      sessionKey: 'sess-live-dev',
+      category: 'running',
+      currentWork: 'Dashboard live fixture session',
+      latestThought: 'Implementing dashboard live active session timeline',
+      latestResultSummary: '已写入文件: /tmp/claw-company-live/dashboard-live.html',
+    })
+    expect(snapshot.sessions[0].history).toHaveLength(3)
+    expect(snapshot.sessions[0].artifacts).toEqual([
+      expect.objectContaining({
+        type: 'html',
+        path: '/tmp/claw-company-live/dashboard-live.html',
+        title: 'dashboard-live.html',
+        producedBy: 'dev-claw',
+        producedAt: '2026-04-30T02:45:03Z',
+      }),
+    ])
+    expect(snapshot.sessions[0].eventFeed.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'message:received', sessionKey: 'sess-live-dev' }),
+      expect.objectContaining({ type: 'tool:completed', sessionKey: 'sess-live-dev' }),
+      expect.objectContaining({ type: 'artifact:produced', sessionKey: 'sess-live-dev' }),
+    ]))
+    expect(snapshot.tasks[0]).toMatchObject({
+      taskId: 'sess-live-dev',
+      status: 'in_progress',
+      currentAgentId: 'dev-claw',
+      currentAgentName: 'Dev Claw',
+      latestResultSummary: '已写入文件: /tmp/claw-company-live/dashboard-live.html',
+    })
+    expect(snapshot.tasks[0].recentEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'task:progress',
+        taskId: 'sess-live-dev',
+        currentAction: 'Implementing dashboard live active session timeline',
+      }),
+      expect.objectContaining({
+        type: 'task:completed',
+        taskId: 'sess-live-dev',
+      }),
+    ]))
   })
 
   it('keeps task agent snapshots isolated per task and canonicalizes agent ids', async () => {
@@ -207,6 +343,412 @@ describe('buildOpenClawSnapshot', () => {
       path: '/Users/felixmiao/Projects/ClawCompany/generated/styles.css',
       title: 'styles.css',
     })
+  })
+
+  it('falls back to local OpenClaw jsonl history when gateway history is empty', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+
+    const sessionDir = path.join(openClawRoot, 'agents', 'developer', 'sessions')
+    fs.mkdirSync(sessionDir, { recursive: true })
+    const transcriptPath = path.join(sessionDir, 'local-session.jsonl')
+    fs.writeFileSync(transcriptPath, [
+      JSON.stringify({
+        type: 'session',
+        id: 'local-session',
+        timestamp: '2026-04-30T04:40:00Z',
+      }),
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-user',
+        timestamp: '2026-04-30T04:40:01Z',
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text: '请实现 dashboard history fallback' }],
+          timestamp: 1777524001000,
+        },
+      }),
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-assistant',
+        parentId: 'msg-user',
+        timestamp: '2026-04-30T04:40:02Z',
+        message: {
+          role: 'assistant',
+          content: [
+            { type: 'thinking', thinking: '定位 snapshot history fallback' },
+            { type: 'text', text: '正在读取本地 OpenClaw session jsonl' },
+          ],
+          timestamp: 1777524002000,
+        },
+      }),
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-tool',
+        parentId: 'msg-assistant',
+        timestamp: '2026-04-30T04:40:03Z',
+        message: {
+          role: 'toolResult',
+          toolName: 'write',
+          content: [{ type: 'text', text: 'Successfully wrote 42 bytes to /tmp/openclaw-fallback/report.html' }],
+          isError: false,
+          timestamp: 1777524003000,
+        },
+      }),
+    ].join('\n'))
+
+    try {
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'developer', name: 'Developer', identity: { name: 'Developer' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'agent:developer:main',
+          agentId: 'developer',
+          label: 'agent:developer:main',
+          model: 'gpt-5.5',
+          status: 'running',
+          startedAt: '2026-04-30T04:40:00Z',
+          endedAt: null,
+          transcriptPath,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'developer', name: 'Developer', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toHaveLength(3)
+      expect(snapshot.sessions[0]).toMatchObject({
+        latestThought: '定位 snapshot history fallback\n正在读取本地 OpenClaw session jsonl',
+        latestResultSummary: 'Successfully wrote 42 bytes to /tmp/openclaw-fallback/report.html',
+      })
+      expect(snapshot.sessions[0].artifacts).toEqual([
+        expect.objectContaining({
+          type: 'html',
+          path: '/tmp/openclaw-fallback/report.html',
+          producedBy: 'developer',
+          producedAt: '2026-04-30T04:40:03.000Z',
+        }),
+      ])
+      expect(snapshot.sessions[0].eventFeed.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'message:received', sessionKey: 'agent:developer:main' }),
+        expect.objectContaining({ type: 'tool:completed', sessionKey: 'agent:developer:main' }),
+        expect.objectContaining({ type: 'artifact:produced', sessionKey: 'agent:developer:main' }),
+      ]))
+      expect(snapshot.tasks[0].recentEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'task:progress',
+          taskId: 'agent:developer:main',
+          currentAction: '定位 snapshot history fallback 正在读取本地 OpenClaw session jsonl',
+        }),
+        expect.objectContaining({
+          type: 'task:completed',
+          taskId: 'agent:developer:main',
+          result: 'success',
+        }),
+      ]))
+    } finally {
+      if (originalOpenClawStateDir) process.env.OPENCLAW_STATE_DIR = originalOpenClawStateDir
+      else delete process.env.OPENCLAW_STATE_DIR
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects malicious transcriptPath outside the OpenClaw agent sessions directory', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-outside-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+    const maliciousTranscriptPath = path.join(outsideDir, 'secret.jsonl')
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+    writeJsonlMessage(maliciousTranscriptPath, 'LEAKED_TRANSCRIPT_SECRET')
+
+    try {
+      setupLocalFallbackSync(sync, { transcriptPath: maliciousTranscriptPath })
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toEqual([])
+      expect(snapshot.sessions[0].latestThought).toBeNull()
+      expect(snapshot.sessions[0].eventFeed.events).toEqual([])
+      expect(JSON.stringify(snapshot)).not.toContain('LEAKED_TRANSCRIPT_SECRET')
+    } finally {
+      restoreOpenClawStateDir(originalOpenClawStateDir)
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+      fs.rmSync(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects malicious sessionFile outside the OpenClaw agent sessions directory', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-outside-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+    const maliciousSessionFile = path.join(outsideDir, 'secret.jsonl')
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+    writeJsonlMessage(maliciousSessionFile, 'LEAKED_SESSION_FILE_SECRET')
+
+    try {
+      setupLocalFallbackSync(sync, { sessionFile: maliciousSessionFile })
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toEqual([])
+      expect(snapshot.sessions[0].eventFeed.events).toEqual([])
+      expect(JSON.stringify(snapshot)).not.toContain('LEAKED_SESSION_FILE_SECRET')
+    } finally {
+      restoreOpenClawStateDir(originalOpenClawStateDir)
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+      fs.rmSync(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not use path traversal agentId values when discovering local jsonl', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+    const traversalSessionDir = path.join(openClawRoot, 'sessions')
+    const traversalPath = path.join(traversalSessionDir, 'traversal.jsonl')
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+    fs.mkdirSync(traversalSessionDir, { recursive: true })
+    writeJsonlMessage(traversalPath, 'LEAKED_AGENT_TRAVERSAL_SECRET')
+
+    try {
+      sync.fetchAgents.mockResolvedValue([
+        { id: '../..', name: 'Malicious', identity: { name: 'Malicious' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'agent:developer:main',
+          agentId: '../..',
+          label: 'agent:developer:main',
+          model: 'gpt-5.5',
+          status: 'running',
+          startedAt: '2026-04-30T06:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: '../..', name: 'Malicious', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toEqual([])
+      expect(snapshot.sessions[0].eventFeed.events).toEqual([])
+      expect(JSON.stringify(snapshot)).not.toContain('LEAKED_AGENT_TRAVERSAL_SECRET')
+    } finally {
+      restoreOpenClawStateDir(originalOpenClawStateDir)
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('reads a local jsonl path from the OpenClaw session store when it stays under the matching agent sessions directory', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+    const sessionDir = path.join(openClawRoot, 'agents', 'developer', 'sessions')
+    const storeTranscriptPath = path.join(sessionDir, 'store-session.jsonl')
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+    fs.mkdirSync(sessionDir, { recursive: true })
+    writeJsonlMessage(storeTranscriptPath, 'SAFE_STORE_HISTORY')
+    fs.writeFileSync(path.join(sessionDir, 'sessions.json'), JSON.stringify({
+      'agent:developer:main': { transcriptPath: storeTranscriptPath },
+    }))
+
+    try {
+      setupLocalFallbackSync(sync, {})
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toEqual([
+        expect.objectContaining({ role: 'assistant', content: 'SAFE_STORE_HISTORY' }),
+      ])
+      expect(snapshot.sessions[0].latestThought).toBe('SAFE_STORE_HISTORY')
+      expect(snapshot.sessions[0].eventFeed.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'message:received', sessionKey: 'agent:developer:main' }),
+      ]))
+    } finally {
+      restoreOpenClawStateDir(originalOpenClawStateDir)
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects symlinked jsonl paths that realpath outside the OpenClaw agent sessions directory', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-outside-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+    const sessionDir = path.join(openClawRoot, 'agents', 'developer', 'sessions')
+    const outsideTarget = path.join(outsideDir, 'symlink-secret.jsonl')
+    const symlinkPath = path.join(sessionDir, 'symlink-secret.jsonl')
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+    fs.mkdirSync(sessionDir, { recursive: true })
+    writeJsonlMessage(outsideTarget, 'LEAKED_SYMLINK_SECRET')
+    fs.symlinkSync(outsideTarget, symlinkPath)
+
+    try {
+      setupLocalFallbackSync(sync, { transcriptPath: symlinkPath })
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toEqual([])
+      expect(snapshot.sessions[0].eventFeed.events).toEqual([])
+      expect(JSON.stringify(snapshot)).not.toContain('LEAKED_SYMLINK_SECRET')
+    } finally {
+      restoreOpenClawStateDir(originalOpenClawStateDir)
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+      fs.rmSync(outsideDir, { recursive: true, force: true })
+    }
+  })
+
+  it('discovers the latest agent jsonl when status only exposes a stale sessionId', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+
+    const sessionDir = path.join(openClawRoot, 'agents', 'pm', 'sessions')
+    fs.mkdirSync(sessionDir, { recursive: true })
+    fs.writeFileSync(path.join(sessionDir, 'stale-session.jsonl'), '')
+    const latestTranscriptPath = path.join(sessionDir, 'latest-session.jsonl')
+    fs.writeFileSync(latestTranscriptPath, [
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-user',
+        timestamp: '2026-04-30T04:50:01Z',
+        message: { role: 'user', content: [{ type: 'text', text: 'PM ping' }] },
+      }),
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-assistant',
+        timestamp: '2026-04-30T04:50:02Z',
+        message: { role: 'assistant', content: [{ type: 'text', text: 'PM Agent 在线，随时待命处理任务。' }] },
+      }),
+    ].join('\n'))
+    fs.utimesSync(path.join(sessionDir, 'stale-session.jsonl'), new Date('2026-04-30T04:40:00Z'), new Date('2026-04-30T04:40:00Z'))
+    fs.utimesSync(latestTranscriptPath, new Date('2026-04-30T04:50:00Z'), new Date('2026-04-30T04:50:00Z'))
+
+    try {
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'pm', name: 'PM', identity: { name: 'PM' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'agent:pm:main',
+          agentId: 'pm',
+          label: 'agent:pm:main',
+          model: 'glm-5',
+          status: 'running',
+          startedAt: '2026-04-30T04:50:00Z',
+          endedAt: null,
+          sessionId: 'missing-session-id',
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'pm', name: 'PM', role: 'pm', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toHaveLength(2)
+      expect(snapshot.sessions[0].latestThought).toBe('PM Agent 在线，随时待命处理任务。')
+      expect(snapshot.tasks[0].recentEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'session:progress',
+          sessionKey: 'agent:pm:main',
+          message: 'PM Agent 在线，随时待命处理任务。',
+        }),
+      ]))
+    } finally {
+      if (originalOpenClawStateDir) process.env.OPENCLAW_STATE_DIR = originalOpenClawStateDir
+      else delete process.env.OPENCLAW_STATE_DIR
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+    }
+  })
+
+  it('discovers the latest agent jsonl when gateway session metadata has no local path', async () => {
+    const sync = createSyncStub()
+    const openClawRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openclaw-snapshot-'))
+    const originalOpenClawStateDir = process.env.OPENCLAW_STATE_DIR
+
+    process.env.OPENCLAW_STATE_DIR = openClawRoot
+
+    const sessionDir = path.join(openClawRoot, 'agents', 'developer', 'sessions')
+    fs.mkdirSync(sessionDir, { recursive: true })
+    const latestTranscriptPath = path.join(sessionDir, 'latest-gateway-session.jsonl')
+    fs.writeFileSync(latestTranscriptPath, [
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-user',
+        timestamp: '2026-04-30T05:00:01Z',
+        message: { role: 'user', content: [{ type: 'text', text: 'Developer ping' }] },
+      }),
+      JSON.stringify({
+        type: 'message',
+        id: 'msg-tool',
+        timestamp: '2026-04-30T05:00:02Z',
+        message: {
+          role: 'toolResult',
+          toolName: 'write',
+          content: [{ type: 'text', text: 'Successfully wrote 10 bytes to /tmp/gateway-session/index.html' }],
+        },
+      }),
+    ].join('\n'))
+    fs.utimesSync(latestTranscriptPath, new Date('2026-04-30T05:00:00Z'), new Date('2026-04-30T05:00:00Z'))
+
+    try {
+      sync.fetchAgents.mockResolvedValue([
+        { id: 'developer', name: 'Developer', identity: { name: 'Developer' } },
+      ])
+      sync.fetchSessions.mockResolvedValue([
+        {
+          key: 'agent:developer:main',
+          agentId: 'developer',
+          label: 'agent:developer:main',
+          model: 'gpt-5.5',
+          status: 'running',
+          startedAt: '2026-04-30T05:00:00Z',
+          endedAt: null,
+        },
+      ])
+      sync.mapToAgentInfo.mockReturnValue([
+        { id: 'developer', name: 'Developer', role: 'dev', status: 'busy', emotion: 'neutral', currentTask: null },
+      ])
+      sync.client.sessions_history.mockResolvedValue([])
+
+      const snapshot = await buildOpenClawSnapshot(sync as any)
+
+      expect(snapshot.sessions[0].history).toHaveLength(2)
+      expect(snapshot.sessions[0].artifacts).toEqual([
+        expect.objectContaining({
+          type: 'html',
+          path: '/tmp/gateway-session/index.html',
+          producedBy: 'developer',
+        }),
+      ])
+      expect(snapshot.sessions[0].eventFeed.events).toEqual(expect.arrayContaining([
+        expect.objectContaining({ type: 'artifact:produced', sessionKey: 'agent:developer:main' }),
+      ]))
+    } finally {
+      if (originalOpenClawStateDir) process.env.OPENCLAW_STATE_DIR = originalOpenClawStateDir
+      else delete process.env.OPENCLAW_STATE_DIR
+      fs.rmSync(openClawRoot, { recursive: true, force: true })
+    }
   })
 
   it('classifies .tsx files as code type', async () => {

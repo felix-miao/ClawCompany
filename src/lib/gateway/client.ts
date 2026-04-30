@@ -1,6 +1,10 @@
 import { PendingCall, RPCRequest, RPCResponse } from '../core/types'
 import { logger } from '../core/logger'
 
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+
 export interface SpawnOptions {
   task: string
   label?: string
@@ -83,18 +87,97 @@ export interface GatewayOptions {
   token?: string
 }
 
+interface OpenClawConfig {
+  gateway?: {
+    url?: string
+    wsUrl?: string
+    remote?: {
+      url?: string
+    }
+    auth?: {
+      token?: string
+    }
+  }
+}
+
+export interface GatewayConfig {
+  url: string
+  token?: string
+  tokenSource: 'options' | 'env' | 'openclaw-config' | 'missing'
+}
+
+const DEFAULT_GATEWAY_URL = 'ws://127.0.0.1:18789'
+
+function isServerRuntime(): boolean {
+  return typeof window === 'undefined' || process.env.NODE_ENV === 'test'
+}
+
+function normalizeGatewayUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined
+  const trimmed = url.trim()
+  if (!trimmed) return undefined
+  if (trimmed.startsWith('http://')) return `ws://${trimmed.slice('http://'.length)}`
+  if (trimmed.startsWith('https://')) return `wss://${trimmed.slice('https://'.length)}`
+  return trimmed
+}
+
+function readOpenClawConfig(): OpenClawConfig | null {
+  if (!isServerRuntime()) return null
+
+  const configPath = process.env.OPENCLAW_CONFIG_PATH
+    || path.join(os.homedir(), '.openclaw', 'openclaw.json')
+
+  try {
+    return JSON.parse(fs.readFileSync(configPath, 'utf8')) as OpenClawConfig
+  } catch (error) {
+    logger.warn('OpenClaw config discovery failed', {
+      configPath,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
+export function resolveGatewayConfig(options: GatewayOptions = {}, url?: string): GatewayConfig {
+  const explicitUrl = normalizeGatewayUrl(url)
+  const config = explicitUrl ? null : readOpenClawConfig()
+  const resolvedUrl = normalizeGatewayUrl(url)
+    || normalizeGatewayUrl(process.env.OPENCLAW_GATEWAY_URL)
+    || normalizeGatewayUrl(config?.gateway?.wsUrl)
+    || normalizeGatewayUrl(config?.gateway?.url)
+    || normalizeGatewayUrl(config?.gateway?.remote?.url)
+    || DEFAULT_GATEWAY_URL
+
+  if (options.token) {
+    return { url: resolvedUrl, token: options.token, tokenSource: 'options' }
+  }
+
+  if (process.env.OPENCLAW_GATEWAY_TOKEN) {
+    return { url: resolvedUrl, token: process.env.OPENCLAW_GATEWAY_TOKEN, tokenSource: 'env' }
+  }
+
+  if (config?.gateway?.auth?.token) {
+    return { url: resolvedUrl, token: config.gateway.auth.token, tokenSource: 'openclaw-config' }
+  }
+
+  return { url: resolvedUrl, tokenSource: 'missing' }
+}
+
 export class OpenClawGatewayClient {
   private url: string
   private token?: string
+  private tokenSource: GatewayConfig['tokenSource']
   private timeout: number
   private ws: WebSocket | null = null
   private requestId = 0
   private pendingCalls = new Map<number, PendingCall>()
   private connecting = false
 
-  constructor(url: string = 'ws://127.0.0.1:18789', options: GatewayOptions = {}) {
-    this.url = url
-    this.token = options.token
+  constructor(url?: string, options: GatewayOptions = {}) {
+    const config = resolveGatewayConfig(options, url)
+    this.url = config.url
+    this.token = config.token
+    this.tokenSource = config.tokenSource
     this.timeout = options.timeout || 30000
   }
 
@@ -135,7 +218,10 @@ export class OpenClawGatewayClient {
 
         this.ws.onclose = () => {
           this.pendingCalls.forEach(({ reject }, id) => {
-            reject(new Error('WebSocket connection closed'))
+            const authHint = this.token
+              ? `token source: ${this.tokenSource}`
+              : 'missing OPENCLAW_GATEWAY_TOKEN and gateway.auth.token in ~/.openclaw/openclaw.json'
+            reject(new Error(`WebSocket connection closed while calling gateway at ${this.url} (${authHint})`))
             this.pendingCalls.delete(id)
           })
         }
@@ -293,10 +379,7 @@ export class OpenClawGatewayClient {
 let _gatewayClient: OpenClawGatewayClient | null = null
 
 export function createGatewayClient(url?: string, options?: GatewayOptions): OpenClawGatewayClient {
-  return new OpenClawGatewayClient(
-    url || process.env.OPENCLAW_GATEWAY_URL || 'ws://127.0.0.1:18789',
-    { token: process.env.OPENCLAW_GATEWAY_TOKEN, ...options },
-  )
+  return new OpenClawGatewayClient(url, options)
 }
 
 export function getGatewayClient(): OpenClawGatewayClient {

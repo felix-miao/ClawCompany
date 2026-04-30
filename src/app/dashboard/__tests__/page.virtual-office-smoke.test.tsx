@@ -147,21 +147,16 @@ describe('Dashboard timeline smoke tests', () => {
     expect(screen.getByTestId('agent-card-test-agent')).toBeInTheDocument()
   })
 
-  it('posts quick tasks to chat and refreshes the snapshot stream', async () => {
+  it('does not post disabled quick tasks to chat', async () => {
     render(React.createElement(DashboardPage))
 
     await act(async () => {
       fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
     })
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/chat',
-        expect.objectContaining({ method: 'POST' }),
-      )
-      expect(mockRefreshSnapshot).toHaveBeenCalled()
-    })
-    expect(mockFetch.mock.calls.map(call => call[0])).toEqual(['/api/chat'])
+    expect(screen.getByText('Blog website (Next.js + Tailwind)')).toBeDisabled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockRefreshSnapshot).not.toHaveBeenCalled()
   })
 
   it('renders dashboard side panels from snapshot data', async () => {
@@ -178,18 +173,17 @@ describe('Dashboard timeline smoke tests', () => {
     expect(screen.getAllByText(/Building dashboard timeline from snapshot/).length).toBeGreaterThan(0)
   })
 
-  it('shows a friendly error when task submission fails', async () => {
+  it('refreshes the snapshot without using the legacy chat endpoint', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: 'Server error' }) })
 
     render(React.createElement(DashboardPage))
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
+      fireEvent.click(screen.getByText('刷新 OpenClaw Snapshot'))
     })
 
-    await waitFor(() => {
-      expect(screen.getByText('触发失败，请重试')).toBeInTheDocument()
-    })
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockRefreshSnapshot).toHaveBeenCalled()
     expect(screen.getByText('Dashboard')).toBeInTheDocument()
   })
 })

@@ -1,122 +1,45 @@
-import React from 'react'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 import { ControlPanel } from '../ControlPanel'
 
-const mockFetch = jest.fn()
-global.fetch = mockFetch
+describe('ControlPanel degraded task controls', () => {
+  const mockFetch = jest.fn()
 
-beforeEach(() => {
-  mockFetch.mockReset()
-})
+  beforeEach(() => {
+    global.fetch = mockFetch
+    mockFetch.mockReset()
+  })
 
-function makeChatResponse(overrides: Record<string, unknown> = {}) {
-  return {
-    ok: true,
-    json: async () => ({
-      success: true,
-      workflowType: 'orchestrator',
-      message: 'PM 分析完成，任务已拆分',
-      taskId: 'task-abc123',
-      tasks: [
-        { id: 'subtask-1', title: '实现登录表单', status: 'completed', assignedTo: 'dev' },
-      ],
-      ...overrides,
-    }),
-  }
-}
-
-describe('ControlPanel -> /api/chat E2E flow', () => {
-  it('点击预设任务按钮后应向 /api/chat 发送 POST 请求，包含 message 字段', async () => {
-    mockFetch.mockResolvedValueOnce(makeChatResponse())
+  it('禁用预设任务按钮，不再向 /api/chat 发送假触发请求', () => {
     const onTriggerTask = jest.fn()
 
     render(<ControlPanel onTriggerTask={onTriggerTask} />)
 
     const btn = screen.getByText('Blog website (Next.js + Tailwind)')
-    await act(async () => { fireEvent.click(btn) })
+    fireEvent.click(btn)
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      '/api/chat',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-        body: expect.stringContaining('Next.js'),
-      }),
-    )
+    expect(btn).toBeDisabled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(onTriggerTask).not.toHaveBeenCalled()
   })
 
-  it('请求发送中按钮应处于 disabled / loading 状态', async () => {
-    mockFetch.mockReturnValueOnce(new Promise(() => {}))
+  it('显示真实链路说明，避免误导用户任务已触发', () => {
     const onTriggerTask = jest.fn()
 
     render(<ControlPanel onTriggerTask={onTriggerTask} />)
 
-    const btn = screen.getByText('Blog website (Next.js + Tailwind)')
-    act(() => { fireEvent.click(btn) })
-
-    await waitFor(() => {
-      const loadingElements = screen.queryAllByText(/触发中/)
-      expect(loadingElements.length).toBeGreaterThan(0)
-      expect(btn).toBeDisabled()
-    })
+    expect(screen.getByText(/Dashboard 仅展示 OpenClaw snapshot/)).toBeInTheDocument()
+    expect(screen.getByText(/任务创建入口暂未接入 OpenClaw/)).toBeInTheDocument()
   })
 
-  it('/api/chat 成功后应以 taskId 调用 onTriggerTask', async () => {
-    mockFetch.mockResolvedValueOnce(makeChatResponse({ taskId: 'task-xyz' }))
+  it('点击刷新按钮只刷新 snapshot，不调用 /api/chat', () => {
     const onTriggerTask = jest.fn()
 
     render(<ControlPanel onTriggerTask={onTriggerTask} />)
 
-    await act(async () => {
-      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
-    })
+    fireEvent.click(screen.getByText('刷新 OpenClaw Snapshot'))
 
-    await waitFor(() => {
-      expect(onTriggerTask).toHaveBeenCalledWith('task-xyz')
-    })
-  })
-
-  it('/api/chat 失败时应显示错误提示，不调用 onTriggerTask', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: 'Server error' }) })
-    const onTriggerTask = jest.fn()
-
-    render(<ControlPanel onTriggerTask={onTriggerTask} />)
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
-    })
-
-    await waitFor(() => {
-      expect(onTriggerTask).not.toHaveBeenCalled()
-      expect(screen.queryByText(/失败|error|错误/i)).not.toBeNull()
-    })
-  })
-
-  it('随机任务按钮也应触发 /api/chat 调用', async () => {
-    mockFetch.mockResolvedValueOnce(makeChatResponse())
-
-    render(<ControlPanel onTriggerTask={jest.fn()} />)
-
-    await act(async () => {
-      fireEvent.click(screen.getByText(/随机任务/))
-    })
-
-    expect(mockFetch).toHaveBeenCalledWith('/api/chat', expect.any(Object))
-  })
-
-  it('请求进行中再次点击不应重复发送', async () => {
-    mockFetch.mockReturnValue(new Promise(() => {}))
-
-    render(<ControlPanel onTriggerTask={jest.fn()} />)
-
-    const btn = screen.getByText('Blog website (Next.js + Tailwind)')
-    fireEvent.click(btn)
-
-    await waitFor(() => expect(btn).toBeDisabled())
-    fireEvent.click(btn)
-    fireEvent.click(btn)
-
-    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(onTriggerTask).toHaveBeenCalledWith('snapshot-refresh')
   })
 })

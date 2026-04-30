@@ -295,9 +295,11 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Control Panel')).toBeInTheDocument();
   });
 
-  it('should render trigger test task button', () => {
+  it('should render snapshot-only refresh control instead of fake task trigger', () => {
     render(<DashboardPage />);
-    expect(screen.getByText(/触发任务/)).toBeInTheDocument();
+    expect(screen.getByText(/Dashboard 仅展示 OpenClaw snapshot/)).toBeInTheDocument();
+    expect(screen.getByText('刷新 OpenClaw Snapshot')).toBeInTheDocument();
+    expect(screen.queryByText(/触发任务/)).not.toBeInTheDocument();
   });
 
   it('should render tester agent with correct emoji', () => {

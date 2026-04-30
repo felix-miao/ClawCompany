@@ -111,7 +111,8 @@ export function DashboardClient() {
 
   const selectSessionByAgentId = useCallback(
     (agentId: string) => {
-      const agentSession = sessions.find(s => s.agentId === agentId);
+      const agentSession = sessions.find(s => s.agentId === agentId && (s.endedAt === null || s.category === 'running'))
+        ?? sessions.find(s => s.agentId === agentId);
       if (agentSession) {
         setSelectedSessionKey(agentSession.sessionKey);
       }

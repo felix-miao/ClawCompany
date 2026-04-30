@@ -1,6 +1,14 @@
 import { SessionSyncService, GatewayAgent, GatewaySession } from '../session-sync'
 import { createDefaultAgents } from '../default-agents'
 
+jest.mock('child_process', () => ({
+  execFile: jest.fn(),
+}))
+
+import { execFile } from 'child_process'
+
+const mockExecFile = execFile as unknown as jest.Mock
+
 describe('SessionSyncService', () => {
   let sync: SessionSyncService
   let mockClient: {
@@ -10,6 +18,7 @@ describe('SessionSyncService', () => {
   }
 
   beforeEach(() => {
+    jest.clearAllMocks()
     mockClient = {
       call: jest.fn(),
       connect: jest.fn(),
@@ -47,6 +56,30 @@ describe('SessionSyncService', () => {
 
       expect(result).toEqual([])
     })
+
+    it('should fall back to openclaw status JSON when agents.list is unavailable', async () => {
+      mockClient.call.mockRejectedValue(new Error('WebSocket connection closed'))
+      mockExecFile.mockImplementation((_command, _args, _options, callback) => {
+        callback(null, JSON.stringify({
+          agents: {
+            agents: [
+              { id: 'developer', name: 'developer' },
+            ],
+          },
+          sessions: { recent: [] },
+        }), '')
+      })
+
+      const result = await sync.fetchAgents()
+
+      expect(mockExecFile).toHaveBeenCalledWith('openclaw', ['status', '--json'], {
+        timeout: 10000,
+        maxBuffer: 10 * 1024 * 1024,
+      }, expect.any(Function))
+      expect(result).toEqual([
+        { id: 'developer', name: 'developer', identity: { name: 'developer' } },
+      ])
+    })
   })
 
   describe('fetchSessions', () => {
@@ -68,6 +101,43 @@ describe('SessionSyncService', () => {
       const result = await sync.fetchSessions()
 
       expect(result).toEqual([])
+    })
+
+    it('should fall back to openclaw status JSON when sessions.list is unavailable', async () => {
+      mockClient.call.mockRejectedValue(new Error('WebSocket connection closed'))
+      mockExecFile.mockImplementation((_command, _args, _options, callback) => {
+        callback(null, JSON.stringify({
+          agents: { agents: [] },
+          sessions: {
+            recent: [
+              {
+                key: 'agent:developer:main',
+                agentId: 'developer',
+                model: 'gpt-5.5',
+                updatedAt: Date.parse('2026-04-30T03:24:00.000Z'),
+                inputTokens: 10,
+                outputTokens: 5,
+                totalTokens: 15,
+              },
+            ],
+          },
+        }), '')
+      })
+
+      const result = await sync.fetchSessions()
+
+      expect(result).toEqual([
+        {
+          key: 'agent:developer:main',
+          agentId: 'developer',
+          label: 'agent:developer:main',
+          model: 'gpt-5.5',
+          status: 'running',
+          startedAt: '2026-04-30T03:24:00.000Z',
+          endedAt: null,
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        },
+      ])
     })
   })
 

@@ -2,6 +2,7 @@
 const nextConfig = {
   // standalone 模式：Docker 多阶段构建必需，复制最小运行时到 .next/standalone
   output: 'standalone',
+  allowedDevOrigins: ['127.0.0.1'],
   async headers() {
     return [
       {

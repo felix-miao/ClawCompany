@@ -53,7 +53,7 @@ jest.mock('@/lib/core/logger', () => ({
   Logger: jest.fn().mockImplementation(() => ({})),
 }))
 
-describe('Dashboard task submission and snapshot refresh', () => {
+describe('Dashboard snapshot refresh controls', () => {
   beforeEach(() => {
     global.fetch = mockFetch
     mockFetch.mockReset()
@@ -74,51 +74,48 @@ describe('Dashboard task submission and snapshot refresh', () => {
     })
   })
 
-  it('clicking a preset task sends a chat request', async () => {
+  it('disables preset task buttons instead of sending chat requests', async () => {
     render(React.createElement(DashboardPage))
 
     await act(async () => {
       fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
     })
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/chat',
-        expect.objectContaining({ method: 'POST' }),
-      )
-    })
+    expect(screen.getByText('Blog website (Next.js + Tailwind)')).toBeDisabled()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockRefreshSnapshot).not.toHaveBeenCalled()
   })
 
-  it('refreshes the snapshot stream after chat returns a task id', async () => {
+  it('refreshes the snapshot stream from the explicit refresh control', async () => {
     render(React.createElement(DashboardPage))
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
+      fireEvent.click(screen.getByText('刷新 OpenClaw Snapshot'))
     })
 
     await waitFor(() => {
       expect(mockRefreshSnapshot).toHaveBeenCalled()
     })
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('only posts through the chat endpoint when triggering a task', async () => {
+  it('does not keep the legacy /api/chat task trigger alive', async () => {
     render(React.createElement(DashboardPage))
 
     await act(async () => {
       fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
+      fireEvent.click(screen.getByText('刷新 OpenClaw Snapshot'))
     })
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledTimes(1)
-    })
-    expect(mockFetch.mock.calls.map(call => call[0])).toEqual(['/api/chat'])
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(mockRefreshSnapshot).toHaveBeenCalled()
   })
 
-  it('renders the updated snapshot timeline after task submission', async () => {
+  it('renders the updated snapshot timeline after snapshot refresh', async () => {
     const view = render(React.createElement(DashboardPage))
 
     await act(async () => {
-      fireEvent.click(screen.getByText('Blog website (Next.js + Tailwind)'))
+      fireEvent.click(screen.getByText('刷新 OpenClaw Snapshot'))
     })
     await waitFor(() => expect(mockRefreshSnapshot).toHaveBeenCalled())
 
