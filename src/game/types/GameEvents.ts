@@ -11,11 +11,55 @@ export type GameEventType =
   | 'connection:close'
   | 'connection:error'
   | 'task:assigned'
+  | 'task:submitted'
+  | 'task:started'
   | 'task:progress'
   | 'task:completed'
   | 'task:failed'
   | 'task:handover'
-  | 'openclaw:send';
+  | 'openclaw:send'
+  | 'pm:analysis-complete'
+  | 'dev:iteration-start'
+  | 'review:rejected'
+  | 'workflow:started'
+  | 'workflow:completed'
+  | 'workflow:iteration-complete'
+  | 'workflow:agent-started'
+  | 'workflow:agent-completed'
+  | 'workflow:agent-failed'
+  | 'workflow:failed';
+
+export const NAMED_GAME_EVENT_TYPES: GameEventType[] = [
+  'agent:status-change',
+  'agent:task-assigned',
+  'agent:task-completed',
+  'agent:navigation-request',
+  'agent:emotion-change',
+  'session:started',
+  'session:completed',
+  'session:progress',
+  'connection:open',
+  'connection:close',
+  'connection:error',
+  'task:assigned',
+  'task:submitted',
+  'task:started',
+  'task:progress',
+  'task:completed',
+  'task:failed',
+  'task:handover',
+  'openclaw:send',
+  'pm:analysis-complete',
+  'dev:iteration-start',
+  'review:rejected',
+  'workflow:started',
+  'workflow:completed',
+  'workflow:iteration-complete',
+  'workflow:agent-started',
+  'workflow:agent-completed',
+  'workflow:agent-failed',
+  'workflow:failed',
+];
 
 export type AgentStatus = 'idle' | 'busy' | 'working' | 'offline';
 
@@ -142,6 +186,86 @@ export interface OpenClawSendEvent extends BaseGameEvent {
   agentRole: string;
 }
 
+export interface PmAnalysisCompleteEvent extends BaseGameEvent {
+  type: 'pm:analysis-complete';
+  payload: { projectId: string; taskCount: number; analysis: string };
+}
+
+export interface DevIterationStartEvent extends BaseGameEvent {
+  type: 'dev:iteration-start';
+  payload: { taskId: string; iteration: number; hasFeedback: boolean };
+}
+
+export interface ReviewRejectedEvent extends BaseGameEvent {
+  type: 'review:rejected';
+  payload: { taskId: string; iteration: number; feedback: string };
+}
+
+export interface WorkflowIterationCompleteEvent extends BaseGameEvent {
+  type: 'workflow:iteration-complete';
+  payload: { taskId: string; totalIterations: number; approved: boolean };
+}
+
+export interface TaskSubmittedEvent extends BaseGameEvent {
+  type: 'task:submitted';
+  taskId: string;
+  title: string;
+  userId: string;
+}
+
+export interface TaskStartedEvent extends BaseGameEvent {
+  type: 'task:started';
+  taskId: string;
+  agentId: string;
+}
+
+export interface WorkflowStartedEvent extends BaseGameEvent {
+  type: 'workflow:started';
+  projectId: string;
+  taskId: string;
+  workflowType: string;
+}
+
+export interface WorkflowCompletedEvent extends BaseGameEvent {
+  type: 'workflow:completed';
+  projectId: string;
+  taskId: string;
+  status: 'success' | 'failed' | 'cancelled';
+}
+
+export interface WorkflowAgentStartedEvent extends BaseGameEvent {
+  type: 'workflow:agent-started';
+  sessionId: string;
+  agent: string;
+  taskId: string;
+  taskTitle: string;
+}
+
+export interface WorkflowAgentCompletedEvent extends BaseGameEvent {
+  type: 'workflow:agent-completed';
+  sessionId: string;
+  agent: string;
+  taskId: string;
+  result: string;
+  durationMs: number;
+}
+
+export interface WorkflowAgentFailedEvent extends BaseGameEvent {
+  type: 'workflow:agent-failed';
+  sessionId: string;
+  agent: string;
+  taskId: string;
+  error: string;
+  retryCount: number;
+}
+
+export interface WorkflowFailedEvent extends BaseGameEvent {
+  type: 'workflow:failed';
+  sessionId: string;
+  error: string;
+  failedAt: string;
+}
+
 export type GameEvent =
   | AgentStatusEvent
   | TaskAssignedEvent
@@ -157,7 +281,19 @@ export type GameEvent =
   | TaskVisualizationCompletedEvent
   | TaskVisualizationFailedEvent
   | TaskVisualizationHandoverEvent
-  | OpenClawSendEvent;
+  | OpenClawSendEvent
+  | PmAnalysisCompleteEvent
+  | DevIterationStartEvent
+  | ReviewRejectedEvent
+  | WorkflowIterationCompleteEvent
+  | TaskSubmittedEvent
+  | TaskStartedEvent
+  | WorkflowStartedEvent
+  | WorkflowCompletedEvent
+  | WorkflowAgentStartedEvent
+  | WorkflowAgentCompletedEvent
+  | WorkflowAgentFailedEvent
+  | WorkflowFailedEvent;
 
 export type GameEventHandler<T extends GameEvent = GameEvent> = (event: T) => void;
 
@@ -174,11 +310,23 @@ export interface EventTypeMap {
   'connection:close': ConnectionEvent;
   'connection:error': ConnectionEvent;
   'task:assigned': TaskVisualizationAssignedEvent;
+  'task:submitted': TaskSubmittedEvent;
+  'task:started': TaskStartedEvent;
   'task:progress': TaskVisualizationProgressEvent;
   'task:completed': TaskVisualizationCompletedEvent;
   'task:failed': TaskVisualizationFailedEvent;
   'task:handover': TaskVisualizationHandoverEvent;
   'openclaw:send': OpenClawSendEvent;
+  'pm:analysis-complete': PmAnalysisCompleteEvent;
+  'dev:iteration-start': DevIterationStartEvent;
+  'review:rejected': ReviewRejectedEvent;
+  'workflow:started': WorkflowStartedEvent;
+  'workflow:completed': WorkflowCompletedEvent;
+  'workflow:iteration-complete': WorkflowIterationCompleteEvent;
+  'workflow:agent-started': WorkflowAgentStartedEvent;
+  'workflow:agent-completed': WorkflowAgentCompletedEvent;
+  'workflow:agent-failed': WorkflowAgentFailedEvent;
+  'workflow:failed': WorkflowFailedEvent;
 }
 
 export interface SSEMessage {

@@ -11,6 +11,7 @@ import { LLMFactory } from '../llm/factory'
 import { OpenClawGatewayClient } from '../gateway/client'
 import { OpenClawAgentExecutor } from '../gateway/executor'
 import { GameEventStore } from '../../game/data/GameEventStore'
+import { bridgeEventBusToStore } from '../orchestrator/bridge'
 import type { LLMProvider } from '../llm/types'
 
 export const Services = {
@@ -93,29 +94,45 @@ export function createAppContainer(rootDir?: string): Container {
   })
 
   container.register<Orchestrator>(Services.Orchestrator, (c) => {
-    return createOrchestrator({
+    const orchestrator = createOrchestrator({
       agentManager: c.resolve<AgentManager>(Services.AgentManager),
       taskManager: c.resolve<TaskManager>(Services.TaskManager),
       chatManager: c.resolve<ChatManager>(Services.ChatManager),
       sandboxedWriter: c.resolve<SandboxedFileWriter>(Services.SandboxedFileWriter),
     })
+
+    // P0-C: bridge AgentEventBus → GameEventStore so SSE endpoint
+    // receives Orchestrator progress events.
+    const gameEventStore = c.resolve<GameEventStore>(Services.GameEventStore)
+    bridgeEventBusToStore(orchestrator.getEventBus(), gameEventStore, 'default')
+
+    return orchestrator
   })
 
   return container
 }
 
-let _defaultContainer: Container | null = null
+// ── 进程级 DI 容器（HMR 安全）──────────────────────────────────────────────
+//
+// Next.js dev 热重载会重新执行本模块，module-level 变量被丢弃。
+// 将容器实例存在 globalThis 上，HMR 后复用同一个容器，避免重复注册
+// 所有 singleton service（Orchestrator、AgentManager 等）导致 async context 泄漏。
+//
+declare global {
+   
+  var __appContainer: Container | undefined
+}
 
 export function getDefaultContainer(): Container {
-  if (!_defaultContainer) {
-    _defaultContainer = createAppContainer()
+  if (!globalThis.__appContainer) {
+    globalThis.__appContainer = createAppContainer()
   }
-  return _defaultContainer
+  return globalThis.__appContainer
 }
 
 export function resetDefaultContainer(): void {
-  if (_defaultContainer) {
-    _defaultContainer.resetAll()
-    _defaultContainer = null
+  if (globalThis.__appContainer) {
+    globalThis.__appContainer.resetAll()
+    globalThis.__appContainer = undefined
   }
 }
