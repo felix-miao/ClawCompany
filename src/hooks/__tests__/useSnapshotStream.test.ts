@@ -230,6 +230,38 @@ describe('useSnapshotStream', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps SSE diff as the primary path after bootstrap stream disconnects', async () => {
+    const { result } = renderHook(() => useSnapshotStream())
+    const first = MockEventSource.instances[0]
+
+    act(() => {
+      first.open()
+      first.emit('snapshot-full', baseSnapshot)
+      first.emit('snapshot-diff', {
+        agents: {
+          changed: [{ ...baseSnapshot.agents[0], status: 'working', currentTask: 'Streaming' }],
+          removed: [],
+        },
+      })
+      first.error()
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.agents[0].currentTask).toBe('Streaming')
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(first.readyState).toBe(MockEventSource.CLOSED)
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(15000)
+    })
+
+    expect(MockEventSource.instances).toHaveLength(2)
+  })
+
   it('cleans up the event source and reconnect timer on unmount', async () => {
     const { unmount } = renderHook(() => useSnapshotStream())
     const first = MockEventSource.instances[0]

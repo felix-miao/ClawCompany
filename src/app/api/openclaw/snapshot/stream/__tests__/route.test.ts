@@ -142,6 +142,30 @@ describe('/api/openclaw/snapshot/stream', () => {
     reader.releaseLock()
   })
 
+  it('does not send diff events when only snapshot timestamps change', async () => {
+    const first = makeSnapshot()
+    const second = makeSnapshot({
+      fetchedAt: '2026-04-28T00:00:05Z',
+      metrics: { ...first.metrics, fetchedAt: '2026-04-28T00:00:05Z' },
+    })
+    mockGetCachedOpenClawSnapshot.mockResolvedValueOnce(first).mockResolvedValue(second)
+
+    const response = await GET(createRequest() as never)
+    const reader = response.body!.getReader()
+    await reader.read()
+
+    await jest.advanceTimersByTimeAsync(5000)
+
+    expect(mockGetCachedOpenClawSnapshot).toHaveBeenCalledTimes(2)
+    const pendingRead = reader.read()
+    await Promise.resolve()
+    await expect(Promise.race([
+      pendingRead.then(() => 'chunk'),
+      Promise.resolve('no-chunk'),
+    ])).resolves.toBe('no-chunk')
+    reader.releaseLock()
+  })
+
   it('does not run the diff polling interval until an initial snapshot exists', async () => {
     mockGetCachedOpenClawSnapshot.mockRejectedValue(new Error('Gateway unavailable'))
 

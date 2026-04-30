@@ -168,7 +168,7 @@ Dashboard
 - [x] 旧 `sessions` / `metrics` 主要消费方已并入 snapshot
 - [code-complete] 减少 dev 模式下大对象日志和无意义 interval
 - [code-complete] snapshot route 要支持短 TTL / in-flight dedupe
-- [ ] 后续可升级为 SSE snapshot diff 推送，减少轮询开销
+- [code-complete] 后续可升级为 SSE snapshot diff 推送，减少轮询开销
 
 ##### 9. 验收标准（当前状态）
 

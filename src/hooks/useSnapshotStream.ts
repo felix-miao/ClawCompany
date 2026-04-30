@@ -53,8 +53,10 @@ export function useSnapshotStream(): SnapshotStreamState {
   const retryCountRef = useRef(0)
   const unmountedRef = useRef(false)
   const fallbackSnapshotRef = useRef<Promise<void> | null>(null)
+  const hasStreamSnapshotRef = useRef(false)
 
   const applyFullSnapshot = useCallback((snapshot: OpenClawSnapshot) => {
+    hasStreamSnapshotRef.current = true
     setAgents(snapshot.agents ?? [])
     setSessions(snapshot.sessions ?? [])
     setTasks(snapshot.tasks ?? [])
@@ -65,6 +67,7 @@ export function useSnapshotStream(): SnapshotStreamState {
   }, [])
 
   const applyDiff = useCallback((diff: OpenClawSnapshotDiff) => {
+    hasStreamSnapshotRef.current = true
     if (diff.agents) {
       setAgents(current => mergeById(current, diff.agents?.changed, diff.agents?.removed, agent => agent.id))
     }
@@ -134,7 +137,9 @@ export function useSnapshotStream(): SnapshotStreamState {
       setError('Snapshot stream disconnected')
       source.close()
       eventSourceRef.current = null
-      void fetchFallbackSnapshot('Snapshot stream disconnected')
+      if (!hasStreamSnapshotRef.current) {
+        void fetchFallbackSnapshot('Snapshot stream disconnected')
+      }
 
       const backoffMs = Math.min(MIN_BACKOFF_MS * Math.pow(2, retryCountRef.current), MAX_BACKOFF_MS)
       retryCountRef.current += 1
